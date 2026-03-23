@@ -124,7 +124,34 @@ export function AlbumSplitTool() {
   }, [loadImage]);
 
   const handleClickUpload = useCallback(async () => {
-    if ('showOpenFilePicker' in window) {
+    if ('showDirectoryPicker' in window) {
+      try {
+        // 폴더 선택 → 해당 폴더에서 파일 선택 (자동 저장을 위해 폴더 권한 확보)
+        const options: any = { mode: 'readwrite' };
+        if (directoryHandle) options.startIn = directoryHandle;
+        const dirHandle = await (window as any).showDirectoryPicker(options);
+        setDirectoryHandle(dirHandle);
+
+        // 폴더 내 이미지 파일 목록
+        const files: { name: string; handle: FileSystemFileHandle }[] = [];
+        for await (const [name, handle] of dirHandle.entries()) {
+          if (handle.kind === 'file' && /\.(jpe?g|png)$/i.test(name)) {
+            files.push({ name, handle: handle as FileSystemFileHandle });
+          }
+        }
+        if (files.length === 0) {
+          toast.error('폴더에 JPEG/PNG 파일이 없습니다.');
+          return;
+        }
+        // 이름순 정렬 후 첫 번째 파일 로드
+        files.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        const firstFile = files[0];
+        sourceFileHandleRef.current = firstFile.handle;
+        const file = await firstFile.handle.getFile();
+        loadImage(file);
+        toast.success(`폴더: ${dirHandle.name} (${files.length}개 이미지) → 자동 저장 활성화`);
+      } catch { /* 사용자가 취소 */ }
+    } else if ('showOpenFilePicker' in window) {
       try {
         const [fileHandle] = await (window as any).showOpenFilePicker({
           types: [{ description: '이미지 파일', accept: { 'image/*': ['.jpg', '.jpeg', '.png'] } }],
@@ -137,7 +164,7 @@ export function AlbumSplitTool() {
     } else {
       fileInputRef.current?.click();
     }
-  }, [loadImage]);
+  }, [loadImage, directoryHandle]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();

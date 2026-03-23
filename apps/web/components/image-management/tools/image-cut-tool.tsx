@@ -99,7 +99,30 @@ export function ImageCutTool() {
   }, [loadImage]);
 
   const handleClickUpload = useCallback(async () => {
-    if ('showOpenFilePicker' in window) {
+    if ('showDirectoryPicker' in window) {
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (directoryHandle) options.startIn = directoryHandle;
+        const dirHandle = await (window as any).showDirectoryPicker(options);
+        setDirectoryHandle(dirHandle);
+
+        const files: { name: string; handle: FileSystemFileHandle }[] = [];
+        for await (const [name, handle] of dirHandle.entries()) {
+          if (handle.kind === 'file' && /\.(jpe?g|png)$/i.test(name)) {
+            files.push({ name, handle: handle as FileSystemFileHandle });
+          }
+        }
+        if (files.length === 0) {
+          toast.error('폴더에 JPEG/PNG 파일이 없습니다.');
+          return;
+        }
+        files.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        sourceFileHandleRef.current = files[0].handle;
+        const file = await files[0].handle.getFile();
+        loadImage(file);
+        toast.success(`폴더: ${dirHandle.name} (${files.length}개 이미지) → 자동 저장 활성화`);
+      } catch { /* 사용자가 취소 */ }
+    } else if ('showOpenFilePicker' in window) {
       try {
         const [fileHandle] = await (window as any).showOpenFilePicker({
           types: [{ description: '이미지 파일', accept: { 'image/*': ['.jpg', '.jpeg', '.png'] } }],
@@ -112,7 +135,7 @@ export function ImageCutTool() {
     } else {
       fileInputRef.current?.click();
     }
-  }, [loadImage]);
+  }, [loadImage, directoryHandle]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
