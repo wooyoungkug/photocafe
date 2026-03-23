@@ -659,6 +659,7 @@ model Product {
   updatedAt           DateTime                   @updatedAt
   bindingDirection    String                     @default("left")
   printType           String                     @default("double")
+  colorType           String                     @default("both")
   orderCount          Int                        @default(0)
   viewCount           Int                        @default(0)
   outputPriceSettings Json?

@@ -92,6 +92,14 @@ const PRINT_TYPE_OPTIONS = [
   { value: 'customer', label: '단면/양면 고객선택' },
 ];
 
+// 색상구분 옵션 (인디고 4도/6도)
+const COLOR_TYPE_OPTIONS = [
+  { value: '4c', label: '4도' },
+  { value: '6c', label: '6도' },
+  { value: 'both', label: '4도+6도' },
+  { value: 'customer', label: '고객선택' },
+];
+
 // 카테고리명/상품명에 따른 출력구분 자동결정
 // 압축앨범·맞장앨범·레이플릿앨범 → 단면, 화보·포토북 → 양면
 const getPrintTypeByName = (name: string): 'single' | 'double' | null => {
@@ -269,6 +277,7 @@ export default function NewProductPage() {
   const [selectedBindings, setSelectedBindings] = useState<{ id: string; name: string; price: number }[]>([]);
   const [bindingDirection, setBindingDirection] = useState<'left' | 'right' | 'customer'>('left');
   const [printType, setPrintType] = useState<'single' | 'double' | 'customer'>('double');
+  const [colorType, setColorType] = useState<'4c' | '6c' | 'both' | 'customer'>('both');
   const [outputMethod, setOutputMethod] = useState<'inkjet' | 'indigo'>('inkjet');
   const [selectedCovers, setSelectedCovers] = useState<{ id: string; name: string; price: number }[]>([]);
   const [selectedFoils, setSelectedFoils] = useState<{ id: string; name: string; color: string; price: number }[]>([]);
@@ -481,6 +490,7 @@ export default function NewProductPage() {
         description: description || undefined,
         bindingDirection,
         printType,
+        colorType,
         specifications: selectedSpecs.map((specId, idx) => {
           const spec = specifications?.find(s => s.id === specId);
           return {

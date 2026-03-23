@@ -418,6 +418,11 @@ export class CreateProductDto {
   @IsIn(['single', 'double', 'customer'])
   printType?: string;
 
+  @ApiPropertyOptional({ description: '색상 타입 (인디고)', enum: ['4c', '6c', 'both', 'customer'] })
+  @IsOptional()
+  @IsIn(['4c', '6c', 'both', 'customer'])
+  colorType?: string;
+
   @ApiPropertyOptional({ description: '규격 옵션' })
   @IsOptional()
   @IsArray()

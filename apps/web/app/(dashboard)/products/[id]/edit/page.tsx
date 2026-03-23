@@ -95,6 +95,14 @@ const PRINT_TYPE_OPTIONS = [
   { value: 'customer', label: '고객선택' },
 ];
 
+// 색상구분 옵션 (인디고 4도/6도)
+const COLOR_TYPE_OPTIONS = [
+  { value: '4c', label: '4도' },
+  { value: '6c', label: '6도' },
+  { value: 'both', label: '4도+6도' },
+  { value: 'customer', label: '고객선택' },
+];
+
 // 제본방법에 따른 출력구분 자동 결정
 // 압축제본류(압축, 맞장, 레이플릿) → 단면출력
 // 화보류(핀화보, 스타화보, 포토북) → 양면출력
@@ -292,6 +300,7 @@ export default function EditProductPage() {
   const [outputPriceSelections, setOutputPriceSelections] = useState<OutputPriceSelection[]>([]);
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState<'single' | 'double' | 'customer'>('double');
+  const [colorType, setColorType] = useState<'4c' | '6c' | 'both' | 'customer'>('both');
   // 규격 가격 필터 (인디고)
   const [indigoColorFilter, setIndigoColorFilter] = useState<'4도' | '6도'>('4도');
   const [indigoGroupIndex, setIndigoGroupIndex] = useState(0);
@@ -481,6 +490,9 @@ export default function EditProductPage() {
         }
         if (product.printType) {
           setPrintType(product.printType);
+        }
+        if ((product as any).colorType) {
+          setColorType((product as any).colorType);
         }
         // 출력단가 설정 로드
         if ((product as any).outputPriceSettings && Array.isArray((product as any).outputPriceSettings)) {
@@ -750,6 +762,7 @@ export default function EditProductPage() {
         description: description || undefined,
         bindingDirection,
         printType,
+        colorType,
         specifications: selectedSpecs.map((specId, idx) => {
           const spec = specifications?.find(s => s.id === specId);
           return {
@@ -1211,6 +1224,27 @@ export default function EditProductPage() {
                     <span className="text-xs text-slate-400">(카테고리/상품명 자동결정)</span>
                   )}
                 </div>
+                {/* 색상구분 (인디고 4도/6도) */}
+                {outputPriceSelections.some(s => s.outputMethod === 'INDIGO') && (
+                  <div className="flex gap-4 items-center">
+                    <Label className="text-xs text-slate-500">색상구분</Label>
+                    <div className="flex gap-3">
+                      {COLOR_TYPE_OPTIONS.map(opt => (
+                        <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="colorType"
+                            value={opt.value}
+                            checked={colorType === opt.value}
+                            onChange={(e) => setColorType(e.target.value as '4c' | '6c' | 'both' | 'customer')}
+                            className="w-3.5 h-3.5 text-purple-600"
+                          />
+                          <span className="text-xs">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>)}
           </div>
