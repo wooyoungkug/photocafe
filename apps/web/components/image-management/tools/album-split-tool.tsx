@@ -170,6 +170,42 @@ export function AlbumSplitTool() {
     setIsDragOver(false);
   }, []);
 
+  /** 원본 파일 삭제 (확인 없이 즉시 실행) - 반환값: 성공 여부 */
+  const doDeleteOriginal = useCallback(async (): Promise<boolean> => {
+    if (!fileName) return false;
+
+    // 1) FileSystemFileHandle.remove() 지원 브라우저 (Chrome 117+)
+    if (sourceFileHandleRef.current && 'remove' in (sourceFileHandleRef.current as any)) {
+      try {
+        await (sourceFileHandleRef.current as any).remove();
+        setOriginalDeleted(true);
+        return true;
+      } catch { /* 권한 없음 → 폴더 선택 방식으로 폴백 */ }
+    }
+
+    // 2) 폴더 선택 후 removeEntry
+    if (!sourceDirectoryHandleRef.current) {
+      if (!('showDirectoryPicker' in window)) return false;
+      try {
+        const options: any = { mode: 'readwrite' };
+        if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
+        sourceDirectoryHandleRef.current = await (window as any).showDirectoryPicker(options);
+      } catch {
+        return false; // 사용자 취소
+      }
+    }
+
+    try {
+      await (sourceDirectoryHandleRef.current as any).removeEntry(fileName);
+      setOriginalDeleted(true);
+      return true;
+    } catch {
+      toast.error('원본 삭제 실패: 해당 폴더에서 파일을 찾을 수 없습니다.');
+      sourceDirectoryHandleRef.current = null;
+      return false;
+    }
+  }, [fileName]);
+
   const handleSplit = useCallback(async () => {
     if (!originalImage) return;
 
@@ -314,42 +350,6 @@ export function AlbumSplitTool() {
       if (ok) { toast.success(`${filename} 저장 완료`); setSavedRight(true); }
     }
   }, [rightBlob, directoryHandle, saveWithPicker]);
-
-  /** 원본 파일 삭제 (확인 없이 즉시 실행) - 반환값: 성공 여부 */
-  const doDeleteOriginal = useCallback(async (): Promise<boolean> => {
-    if (!fileName) return false;
-
-    // 1) FileSystemFileHandle.remove() 지원 브라우저 (Chrome 117+)
-    if (sourceFileHandleRef.current && 'remove' in (sourceFileHandleRef.current as any)) {
-      try {
-        await (sourceFileHandleRef.current as any).remove();
-        setOriginalDeleted(true);
-        return true;
-      } catch { /* 권한 없음 → 폴더 선택 방식으로 폴백 */ }
-    }
-
-    // 2) 폴더 선택 후 removeEntry
-    if (!sourceDirectoryHandleRef.current) {
-      if (!('showDirectoryPicker' in window)) return false;
-      try {
-        const options: any = { mode: 'readwrite' };
-        if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
-        sourceDirectoryHandleRef.current = await (window as any).showDirectoryPicker(options);
-      } catch {
-        return false; // 사용자 취소
-      }
-    }
-
-    try {
-      await (sourceDirectoryHandleRef.current as any).removeEntry(fileName);
-      setOriginalDeleted(true);
-      return true;
-    } catch {
-      toast.error('원본 삭제 실패: 해당 폴더에서 파일을 찾을 수 없습니다.');
-      sourceDirectoryHandleRef.current = null;
-      return false;
-    }
-  }, [fileName]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
