@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DebouncedInput } from '@/components/ui/debounced-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -84,6 +85,7 @@ function TreeNode({
   toggleExpand,
   selectedGroupId,
   onSelectGroup,
+  groupPriceSettingIds,
   level = 0,
 }: {
   group: ProductionGroup;
@@ -92,12 +94,23 @@ function TreeNode({
   selectedGroupId: string | null;
   onSelectGroup: (group: ProductionGroup) => void;
   level?: number;
+  groupPriceSettingIds: Set<string>;
 }) {
   const isExpanded = expandedIds.has(group.id);
   const hasChildren = group.children && group.children.length > 0;
   const isSelected = selectedGroupId === group.id;
   const depth = group.depth || 1;
   const settingsCount = group.settings?.length || 0;
+
+  // 이 그룹 또는 하위 그룹에 그룹단가가 설정되어 있는지 확인
+  const hasGroupPrice = useMemo(() => {
+    const checkGroup = (g: ProductionGroup): boolean => {
+      if (g.settings?.some((s: any) => groupPriceSettingIds.has(s.id))) return true;
+      if (g.children?.some(checkGroup)) return true;
+      return false;
+    };
+    return checkGroup(group);
+  }, [group, groupPriceSettingIds]);
 
   return (
     <div className="relative">
@@ -193,6 +206,7 @@ function TreeNode({
               toggleExpand={toggleExpand}
               selectedGroupId={selectedGroupId}
               onSelectGroup={onSelectGroup}
+              groupPriceSettingIds={groupPriceSettingIds}
               level={level + 1}
             />
           ))}
@@ -362,6 +376,16 @@ export default function GroupPricingPage() {
     return map;
   }, [groupPrices]);
 
+  // 그룹단가가 설정된 settingId 집합
+  const groupPriceSettingIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (groupPrices) {
+      groupPrices.forEach((gp: any) => {
+        if (gp.productionSettingId) ids.add(gp.productionSettingId);
+      });
+    }
+    return ids;
+  }, [groupPrices]);
   // 저장된 그룹 가격에서 가중치 계산
   useEffect(() => {
     if (!productionTree || !selectedClientGroupId) {
@@ -1180,18 +1204,17 @@ export default function GroupPricingPage() {
                       {/* 전체 가중치 입력 */}
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-gray-500">가중치</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           className="h-6 w-14 text-xs text-center font-mono"
                           placeholder="100"
                           value={weights[`${setting.id}_${group.id}`] || ''}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}`]: val ? Number(val) : 0 }));
+                          onChange={(value) => {
+                            setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}`]: value ? Number(value) : 0 }));
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const weightVal = weights[`${setting.id}_${group.id}`] || 100;
+                              const weightVal = Number((e.target as HTMLInputElement).value) || 100;
                               if (weightVal > 0 && weightVal <= 200) {
                                 applyWeight(setting.id, group.id, upPrices, weightVal);
                               }
@@ -1260,7 +1283,7 @@ export default function GroupPricingPage() {
                                 <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.nupKey || `${upPrice.up}up`}</td>
                                 <td className="text-center px-0.5 py-0.5">
                                   <div className="relative">
-                                    <Input
+                                    <DebouncedInput
                                       type="number"
                                       step="0.1"
                                       min="0.1"
@@ -1268,8 +1291,8 @@ export default function GroupPricingPage() {
                                       className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       value={upPrice.weight || ""}
                                       disabled={isBase}
-                                      onChange={(e) => {
-                                        const weight = Number(e.target.value) || 1;
+                                      onChange={(value) => {
+                                        const weight = Number(value) || 1;
                                         // 가중치 변경 시: editingPrices 내에서 기준행 기준으로 재계산
                                         const baseUpPrice = upPrices[0];
                                         if (!baseUpPrice) return;
@@ -1311,7 +1334,7 @@ export default function GroupPricingPage() {
                                   return (
                                     <td key={field} className="px-0.5 py-0.5">
                                       <div className="flex flex-col items-center">
-                                        <Input
+                                        <DebouncedInput
                                           type="number"
                                           className={cn(
                                             "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
@@ -1320,11 +1343,11 @@ export default function GroupPricingPage() {
                                               : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
                                           )}
                                           value={editingPrices[key] ?? (savedPrice ? String(savedPrice) : (standardPrice > 0 ? String(standardPrice) : ''))}
-                                          onChange={(e) => {
+                                          onChange={(value) => {
                                             if (isBase) {
-                                              handleOneUpChange(group.id, field, e.target.value, upPrices);
+                                              handleOneUpChange(group.id, field, value, upPrices);
                                             } else {
-                                              setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                                              setEditingPrices(prev => ({ ...prev, [key]: value }));
                                             }
                                           }}
                                           placeholder="0"
@@ -1398,13 +1421,13 @@ export default function GroupPricingPage() {
                           {standardPrice?.price ? formatNumber(Number(standardPrice.price)) : '-'}
                         </td>
                         <td className="px-3 py-2 text-center">
-                          <Input
+                          <DebouncedInput
                             type="number"
                             className="h-7 w-24 text-xs text-center font-mono mx-auto"
                             placeholder="-"
                             value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
-                            onChange={(e) => {
-                              setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                            onChange={(value) => {
+                              setEditingPrices(prev => ({ ...prev, [key]: value }));
                             }}
                           />
                         </td>
@@ -1481,17 +1504,17 @@ export default function GroupPricingPage() {
                       {/* 전체 가중치 적용 */}
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-gray-500">가중치</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           className="h-5 w-12 text-[10px] text-center font-mono"
                           placeholder="100"
                           value={weights[`${setting.id}_${group.id}_inkjet`] || ''}
-                          onChange={(e) => {
-                            setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}_inkjet`]: e.target.value ? Number(e.target.value) : 0 }));
+                          onChange={(value) => {
+                            setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}_inkjet`]: value ? Number(value) : 0 }));
                           }}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const weightVal = weights[`${setting.id}_${group.id}_inkjet`] || 100;
+                              const weightVal = Number((e.target as HTMLInputElement).value) || 100;
                               if (weightVal > 0 && weightVal <= 200) {
                                 // 표준가 기준으로 가중치 적용
                                 const updates: Record<string, string> = {};
@@ -1558,15 +1581,15 @@ export default function GroupPricingPage() {
                                     {standardPrice > 0 ? formatNumber(standardPrice) : '-'}
                                   </td>
                                   <td className="px-1 py-0.5 text-center">
-                                    <Input
+                                    <DebouncedInput
                                       type="number"
                                       className={cn(
                                         "h-5 w-14 text-[10px] text-center p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                                         isBase ? "bg-green-100" : "bg-gray-50"
                                       )}
                                       value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
-                                      onChange={(e) => {
-                                        setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                                      onChange={(value) => {
+                                        setEditingPrices(prev => ({ ...prev, [key]: value }));
                                       }}
                                       placeholder={standardPrice > 0 ? String(standardPrice) : "0"}
                                     />
@@ -1761,13 +1784,13 @@ export default function GroupPricingPage() {
                       {/* 표지가격 입력 */}
                       <div className="flex flex-col items-center">
                         <span className="text-[9px] text-gray-400">{standardCoverPrice > 0 ? formatNumber(standardCoverPrice) : '-'}</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           step="1"
                           value={editingPrices[coverPriceKey] ?? (savedGroupCoverPrice != null ? String(savedGroupCoverPrice) : String(standardCoverPrice || ''))}
-                          onChange={(e) => {
-                            const newCoverPrice = Number(e.target.value);
-                            const updates: Record<string, string> = { [coverPriceKey]: e.target.value };
+                          onChange={(value) => {
+                            const newCoverPrice = Number(value);
+                            const updates: Record<string, string> = { [coverPriceKey]: value };
                             // 자동계산
                             const calcRanges = recalcGroupRangePrices(newCoverPrice, currentPricePerPage, currentPaperPrice, getCurrentRangePrice(pageRanges[0], 0));
                             Object.entries(calcRanges).forEach(([r, v]) => {
@@ -1783,13 +1806,13 @@ export default function GroupPricingPage() {
                       {/* 용지가격 입력 */}
                       <div className="flex flex-col items-center">
                         <span className="text-[9px] text-gray-400">{standardPaperPrice > 0 ? formatNumber(standardPaperPrice) : '-'}</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           step="1"
                           value={editingPrices[paperPriceKey] ?? (savedGroupPaperPrice != null ? String(savedGroupPaperPrice) : String(standardPaperPrice || ''))}
-                          onChange={(e) => {
-                            const newPaperPrice = Number(e.target.value);
-                            const updates: Record<string, string> = { [paperPriceKey]: e.target.value };
+                          onChange={(value) => {
+                            const newPaperPrice = Number(value);
+                            const updates: Record<string, string> = { [paperPriceKey]: value };
                             const calcRanges = recalcGroupRangePrices(currentCoverPrice, currentPricePerPage, newPaperPrice, getCurrentRangePrice(pageRanges[0], 0));
                             Object.entries(calcRanges).forEach(([r, v]) => {
                               updates[`${setting.id}_nup_${specId}_range_${r}`] = v;
@@ -1804,14 +1827,14 @@ export default function GroupPricingPage() {
                       {/* 제본단가/1p 입력 */}
                       <div className="flex flex-col items-end pr-2">
                         <span className="text-[9px] text-gray-400">{formatNumber(standardPricePerPage)}</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           step="0.01"
                           value={editingPrices[perPageKey] ?? (savedGroupPricePerPage != null ? String(savedGroupPricePerPage) : String(standardPricePerPage || ''))}
-                          onChange={(e) => {
-                            const value = Number(e.target.value);
-                            const updates: Record<string, string> = { [perPageKey]: e.target.value };
-                            const calcRanges = recalcGroupRangePrices(currentCoverPrice, value, currentPaperPrice, getCurrentRangePrice(pageRanges[0], 0));
+                          onChange={(value) => {
+                            const numValue = Number(value);
+                            const updates: Record<string, string> = { [perPageKey]: value };
+                            const calcRanges = recalcGroupRangePrices(currentCoverPrice, numValue, currentPaperPrice, getCurrentRangePrice(pageRanges[0], 0));
                             Object.entries(calcRanges).forEach(([r, v]) => {
                               updates[`${setting.id}_nup_${specId}_range_${r}`] = v;
                             });
@@ -1838,18 +1861,18 @@ export default function GroupPricingPage() {
                         ) : idx === 0 ? (
                           <div key={range} className="flex flex-col items-center">
                             <span className="text-[9px] text-gray-400">{formatNumber(standardPrice)}</span>
-                            <Input
+                            <DebouncedInput
                               type="number"
                               className="h-7 w-16 text-xs text-center font-mono bg-blue-50 border-blue-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               placeholder="0"
                               value={editingPrices[rangeKey] ?? String(currentPrice || '')}
-                              onChange={(e) => {
-                                const value = Number(e.target.value);
+                              onChange={(value) => {
+                                const numValue = Number(value);
                                 const firstRange = pageRanges[0] || 20;
-                                const updates: Record<string, string> = { [rangeKey]: e.target.value };
+                                const updates: Record<string, string> = { [rangeKey]: value };
                                 pageRanges.forEach((r: number, i: number) => {
                                   if (i > 0) {
-                                    updates[`${setting.id}_nup_${specId}_range_${r}`] = String(Math.round(value + (r - firstRange) * (currentPricePerPage + currentPaperPrice)));
+                                    updates[`${setting.id}_nup_${specId}_range_${r}`] = String(Math.round(numValue + (r - firstRange) * (currentPricePerPage + currentPaperPrice)));
                                   }
                                 });
                                 setEditingPrices(prev => ({ ...prev, ...updates }));
@@ -1993,16 +2016,16 @@ export default function GroupPricingPage() {
                           </div>
                           {/* 그룹단가 입력 */}
                           <div className="w-24 shrink-0">
-                            <Input
+                            <DebouncedInput
                               type="number"
                               placeholder="단가"
                               className="w-full h-7 text-sm text-right font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               value={displayValue}
-                              onChange={(e) => {
+                              onChange={(value) => {
                                 const newPrices: Record<string, string> = {};
                                 // 같은 Nup 그룹의 모든 규격에 동일한 가격 적용
                                 items.forEach((item: any) => {
-                                  newPrices[`${setting.id}_nup_${item.specificationId}_perPage`] = e.target.value;
+                                  newPrices[`${setting.id}_nup_${item.specificationId}_perPage`] = value;
                                 });
                                 setEditingPrices(prev => ({ ...prev, ...newPrices }));
                               }}
@@ -2087,13 +2110,13 @@ export default function GroupPricingPage() {
                             {lp.price ? formatNumber(lp.price) : '-'}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            <Input
+                            <DebouncedInput
                               type="number"
                               className="h-7 w-24 text-xs text-center font-mono mx-auto"
                               placeholder="-"
                               value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
-                              onChange={(e) => {
-                                setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                              onChange={(value) => {
+                                setEditingPrices(prev => ({ ...prev, [key]: value }));
                               }}
                             />
                           </td>
@@ -2171,13 +2194,13 @@ export default function GroupPricingPage() {
                             {ap.price ? formatNumber(ap.price) : '-'}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            <Input
+                            <DebouncedInput
                               type="number"
                               className="h-7 w-24 text-xs text-center font-mono mx-auto"
                               placeholder="-"
                               value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
-                              onChange={(e) => {
-                                setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                              onChange={(value) => {
+                                setEditingPrices(prev => ({ ...prev, [key]: value }));
                               }}
                             />
                           </td>
@@ -2236,13 +2259,13 @@ export default function GroupPricingPage() {
                 </span>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-400">표준: {formatNumber(standardPrice)}원</span>
-                  <Input
+                  <DebouncedInput
                     type="number"
                     className="h-8 w-28 text-sm text-center font-mono"
                     placeholder="그룹단가"
                     value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : '')}
-                    onChange={(e) => {
-                      setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                    onChange={(value) => {
+                      setEditingPrices(prev => ({ ...prev, [key]: value }));
                     }}
                   />
                   <span className="text-xs text-gray-500">원</span>
@@ -2437,6 +2460,7 @@ export default function GroupPricingPage() {
                       expandedIds={expandedIds}
                       toggleExpand={toggleExpand}
                       selectedGroupId={selectedProductionGroupId}
+                      groupPriceSettingIds={groupPriceSettingIds}
                       onSelectGroup={(g) => { setSelectedProductionGroupId(g.id); setSelectedSettingId(null); }}
                     />
                   ))}
@@ -3017,18 +3041,17 @@ export default function GroupPricingPage() {
                         </div>
                         {/* 단가맞춤 */}
                         <div className="flex items-center gap-1">
-                          <Input
+                          <DebouncedInput
                             type="number"
                             className="h-5 w-12 text-[10px] text-center font-mono px-1"
                             placeholder="100"
                             value={weights[`${inkjetDialogSetting?.id}_${group.id}`] || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setWeights(prev => ({ ...prev, [`${inkjetDialogSetting?.id}_${group.id}`]: val ? Number(val) : 0 }));
+                            onChange={(value) => {
+                              setWeights(prev => ({ ...prev, [`${inkjetDialogSetting?.id}_${group.id}`]: value ? Number(value) : 0 }));
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter') {
-                                const weightVal = weights[`${inkjetDialogSetting?.id}_${group.id}`] || 100;
+                                const weightVal = Number((e.target as HTMLInputElement).value) || 100;
                                 if (weightVal > 0 && weightVal <= 200) {
                                   applyInkjetWeight(inkjetDialogSetting?.id, group.id, group.specPrices || [], specifications, weightVal);
                                 }
@@ -3109,14 +3132,14 @@ export default function GroupPricingPage() {
                                   return specInfo.name || baseSpecId?.slice(-6) || '-';
                                 })()}
                               </span>
-                              <Input
+                              <DebouncedInput
                                 type="number"
                                 className="h-6 w-20 text-[11px] bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="그룹단가"
                                 value={editingPrices[`${inkjetDialogSetting.id}_${group.id}_groupBase`] ?? ''}
-                                onChange={(e) => {
+                                onChange={(value) => {
                                   const baseSpecId = group.inkjetBaseSpecId || (group.specPrices?.[0]?.specificationId || '');
-                                  const basePrice = parseFloat(e.target.value) || 0;
+                                  const basePrice = parseFloat(value) || 0;
                                   const baseSpecInfo = specifications.find((s: any) =>
                                     (s.specificationId || s.id) === baseSpecId
                                   )?.specification || {};
@@ -3124,8 +3147,8 @@ export default function GroupPricingPage() {
                                   const pricePerSqInch = baseArea > 0 ? basePrice / baseArea : 0;
 
                                   const updates: Record<string, string> = {
-                                    [`${inkjetDialogSetting.id}_${group.id}_groupBase`]: e.target.value,
-                                    [`${inkjetDialogSetting.id}_${group.id}_spec_${baseSpecId}`]: e.target.value
+                                    [`${inkjetDialogSetting.id}_${group.id}_groupBase`]: value,
+                                    [`${inkjetDialogSetting.id}_${group.id}_spec_${baseSpecId}`]: value
                                   };
 
                                   if (pricePerSqInch > 0) {
@@ -3149,17 +3172,17 @@ export default function GroupPricingPage() {
                             </>
                           ) : (
                             <>
-                              <Input
+                              <DebouncedInput
                                 type="number"
                                 step="0.01"
                                 className="h-6 w-20 text-[11px] bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                 placeholder="sq 단가"
                                 value={editingPrices[`${inkjetDialogSetting.id}_${group.id}_sqinch`] ?? ''}
-                                onChange={(e) => {
-                                  const pricePerSqInch = parseFloat(e.target.value) || 0;
+                                onChange={(value) => {
+                                  const pricePerSqInch = parseFloat(value) || 0;
 
                                   const updates: Record<string, string> = {
-                                    [`${inkjetDialogSetting.id}_${group.id}_sqinch`]: e.target.value
+                                    [`${inkjetDialogSetting.id}_${group.id}_sqinch`]: value
                                   };
 
                                   (group.specPrices || []).forEach((sp: any) => {
@@ -3212,13 +3235,13 @@ export default function GroupPricingPage() {
                                     {specPrice.singleSidedPrice ? formatNumber(specPrice.singleSidedPrice) : '-'}
                                   </td>
                                   <td className="px-1 py-0.5 text-right">
-                                    <Input
+                                    <DebouncedInput
                                       type="number"
                                       className="h-6 w-16 text-[10px] text-right font-mono [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       placeholder="-"
                                       value={editingPrices[key] ?? (savedGroupPrice?.price ? String(Number(savedGroupPrice.price)) : (specPrice.singleSidedPrice ? String(specPrice.singleSidedPrice) : ''))}
-                                      onChange={(e) => {
-                                        setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
+                                      onChange={(value) => {
+                                        setEditingPrices(prev => ({ ...prev, [key]: value }));
                                       }}
                                     />
                                   </td>
