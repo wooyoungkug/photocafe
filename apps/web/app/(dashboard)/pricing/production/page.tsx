@@ -2675,14 +2675,14 @@ export default function ProductionSettingPage() {
                     <div className="flex items-center gap-3">
                       <Label className="text-xs font-medium text-gray-500 w-16 shrink-0">작업시간</Label>
                       <div className="flex items-center gap-2 flex-1">
-                        <Input
+                        <DebouncedInput
                           type="number"
                           step="0.1"
                           value={settingForm.workDays}
-                          onChange={(e) =>
+                          onChange={(val) =>
                             setSettingForm((prev) => ({
                               ...prev,
-                              workDays: Number(e.target.value),
+                              workDays: Number(val),
                             }))
                           }
                           className="bg-white h-8 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -3130,7 +3130,7 @@ export default function ProductionSettingPage() {
                                                 <td className="text-center py-0.5 px-0.5 font-medium text-indigo-600">{upPrice.nupKey || `${upPrice.up}up`}</td>
                                                 <td className="text-center px-0.5 py-0.5">
                                                   <div className="relative">
-                                                    <Input
+                                                    <DebouncedInput
                                                       type="number"
                                                       step="0.1"
                                                       min="0.1"
@@ -3138,8 +3138,8 @@ export default function ProductionSettingPage() {
                                                       className="h-8 w-12 text-center text-[11px] bg-gray-50 border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                       value={upPrice.weight || ""}
                                                       disabled={idx === 0}
-                                                      onChange={(e) => {
-                                                        const weight = Number(e.target.value) || 1;
+                                                      onChange={(val) => {
+                                                        const weight = Number(val) || 1;
                                                         setSettingForm((prev) => ({
                                                           ...prev,
                                                           priceGroups: prev.priceGroups.map(g => {
@@ -3186,7 +3186,7 @@ export default function ProductionSettingPage() {
                                                   return (
                                                     <td key={field} className="px-0.5 py-0.5">
                                                       <div className="flex flex-col items-center">
-                                                        <Input
+                                                        <DebouncedInput
                                                           type="number"
                                                           className={cn(
                                                             "h-8 w-16 text-sm text-center rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
@@ -3195,8 +3195,8 @@ export default function ProductionSettingPage() {
                                                               : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
                                                           )}
                                                           value={(upPrice as any)[field] || ""}
-                                                          onChange={(e) => {
-                                                            const value = Number(e.target.value) || 0;
+                                                          onChange={(val) => {
+                                                            const value = Number(val) || 0;
                                                             setSettingForm((prev) => ({
                                                               ...prev,
                                                               priceGroups: prev.priceGroups.map(g => {
@@ -4337,12 +4337,12 @@ export default function ProductionSettingPage() {
                                         placeholder="0"
                                       />
                                       {/* 용지가격 입력 (모든 행) */}
-                                      <Input
+                                      <DebouncedInput
                                         type="number"
                                         step="1"
                                         value={paperPrice || ''}
-                                        onChange={(e) => {
-                                          const newPaperPrice = Number(e.target.value);
+                                        onChange={(val) => {
+                                          const newPaperPrice = Number(val);
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const newRangePrices = recalcRangePrices(prev.pageRanges, currentData?.coverPrice || 0, currentData?.pricePerPage || 0, newPaperPrice, currentData?.rangePrices);
@@ -4359,12 +4359,12 @@ export default function ProductionSettingPage() {
                                         placeholder="0"
                                       />
                                       {/* 단가/1p 입력 - 변경시 나머지 구간 자동 계산 */}
-                                      <Input
+                                      <DebouncedInput
                                         type="number"
                                         step="0.01"
                                         value={pricePerPage || ''}
-                                        onChange={(e) => {
-                                          const value = Number(e.target.value);
+                                        onChange={(val) => {
+                                          const value = Number(val);
                                           setSettingForm(prev => {
                                             const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
                                             const newRangePrices = recalcRangePrices(prev.pageRanges, currentData?.coverPrice || 0, value, currentData?.paperPrice || 0, currentData?.rangePrices);
@@ -4390,13 +4390,13 @@ export default function ProductionSettingPage() {
                                             {formatNumber(rangePrices[range])}
                                           </span>
                                         ) : idx === 0 ? (
-                                          <Input
+                                          <DebouncedInput
                                             key={range}
                                             type="number"
                                             step="0.01"
                                             value={rangePrices[range] || ''}
-                                            onChange={(e) => {
-                                              const value = Number(e.target.value);
+                                            onChange={(val) => {
+                                              const value = Number(val);
                                               const firstRange = settingForm.pageRanges[0] || 20;
                                               setSettingForm(prev => {
                                                 const currentData = prev.nupPageRanges.find(p => p.specificationId === representativeSpec.id);
@@ -4503,13 +4503,13 @@ export default function ProductionSettingPage() {
                                   </div>
                                   {/* 단가 입력 필드 - 고정 너비 */}
                                   <div className="w-24 shrink-0 flex items-center gap-1">
-                                    <Input
+                                    <DebouncedInput
                                       type="number"
                                       placeholder="단가"
                                       className="w-full h-7 text-sm text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                       value={settingForm.nupPageRanges?.find(r => r.specificationId === specs[0]?.id)?.pricePerPage || ""}
-                                      onChange={(e) => {
-                                        const price = Number(e.target.value) || 0;
+                                      onChange={(val) => {
+                                        const price = Number(val) || 0;
                                         setSettingForm(prev => {
                                           const existing = prev.nupPageRanges || [];
                                           // 해당 Nup 그룹의 모든 규격에 동일한 가격 적용

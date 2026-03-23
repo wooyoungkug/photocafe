@@ -451,47 +451,6 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
     }
   };
 
-  // 그룹단가 전체 복사
-  const handleCloneAllFromGroup = async () => {
-    if (!groupId) {
-      toast({ title: '소속 그룹이 없습니다.', variant: 'destructive' });
-      return;
-    }
-    try {
-      const result = await cloneAllMutation.mutateAsync({
-        clientId,
-        sourceType: 'group',
-        sourceId: groupId,
-      });
-      toast({
-        title: '그룹단가 복사 완료',
-        description: `${result.copiedSettings}개 설정, ${result.copiedPrices}개 단가가 복사되었습니다.`,
-      });
-      setEditingPrices({});
-      setWeights({});
-    } catch {
-      toast({ title: '그룹단가 복사 실패', variant: 'destructive' });
-    }
-  };
-
-  // 표준단가 전체 복사
-  const handleCloneAllFromStandard = async () => {
-    try {
-      const result = await cloneAllMutation.mutateAsync({
-        clientId,
-        sourceType: 'standard',
-      });
-      toast({
-        title: '표준단가 복사 완료',
-        description: `${result.copiedSettings}개 설정, ${result.copiedPrices}개 단가가 복사되었습니다.`,
-      });
-      setEditingPrices({});
-      setWeights({});
-    } catch {
-      toast({ title: '표준단가 복사 실패', variant: 'destructive' });
-    }
-  };
-
   // 개별단가 전체 초기화
   const handleResetAll = async () => {
     if (!clientPrices || clientPrices.length === 0) return;
@@ -1829,9 +1788,6 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                   {totalPriceCount}개 개별단가 설정됨
                 </Badge>
               )}
-              {/* 그룹단가 전체복사 / 표준단가 전체복사 버튼 숨김
-                 - 개별단가 미설정 시 자동으로 그룹단가 적용되므로 복사 불필요
-                 - 표준단가 필요 시 회원 그룹을 표준단가 그룹으로 지정하면 됨 */}
               {/* 전체 가중치 버튼 숨김 - 설정값별/용지그룹별 가중치 사용 */}
               <Button variant="outline" size="sm" className="h-9 px-3 text-xs bg-white text-amber-600 border-amber-200 hover:bg-amber-50"
                 onClick={() => setIsBulkAdjustDialogOpen(true)}>
