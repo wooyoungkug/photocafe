@@ -335,6 +335,9 @@ export interface UploadedFolder {
   foilColor?: string | null;    // 박 색상
   foilPosition?: string | null; // 박 위치
 
+  // 출력구분 (고객 직접 선택 - printType이 customer일 때 사용)
+  userPrintSide?: 'single' | 'spread';
+
   // 출력방법 / 용지 (폴더별 개별 설정 가능)
   printMethod?: 'indigo' | 'inkjet';
   colorMode?: '4c' | '6c';

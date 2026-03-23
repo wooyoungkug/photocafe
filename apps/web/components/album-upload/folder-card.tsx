@@ -576,13 +576,15 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const canSelect = hasValidStatus && folder.specFoundInDB !== false;
 
   // 출력구분 결정: 상품의 printType 사용 (pageLayout은 파일 편집스타일이므로 출력구분과 다름)
-  // single(단면출력), double(양면출력), customer(고객선택) → customer일 때는 pageLayout 기반 추론
+  // single(단면출력), double(양면출력), customer(고객선택) → customer일 때는 사용자 선택 우선
+  const isCustomerSelectable = printType === 'customer' || !printType;
   const resolvedPrintSide = useMemo(() => {
     if (printType === 'single') return 'single' as const;
     if (printType === 'double') return 'spread' as const;
-    // customer 또는 미설정: 펼친면 파일은 단면출력, 낱장 파일은 양면출력
+    // customer 또는 미설정: 사용자가 직접 선택한 값 우선, 없으면 pageLayout 기반 추론
+    if (folder.userPrintSide) return folder.userPrintSide;
     return folder.pageLayout === 'spread' ? 'single' : 'spread';
-  }, [printType, folder.pageLayout]);
+  }, [printType, folder.pageLayout, folder.userPrintSide]);
 
   // selectedPaperId는 product_papers.id → 실제 papers.id(paperId)로 변환
   const actualPaperId = useMemo(() => {
@@ -1237,9 +1239,22 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </select>
-              <span className="text-xs text-black ml-3">
-                {resolvedPrintSide === 'single' ? '단면' : '양면'}
-              </span>
+              {isCustomerSelectable ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = resolvedPrintSide === 'single' ? 'spread' : 'single';
+                    updateFolder(folder.id, { userPrintSide: next });
+                  }}
+                  className="text-[12px] border rounded px-1.5 py-0.5 bg-blue-50 text-black ml-3 hover:bg-blue-100 transition-colors cursor-pointer"
+                >
+                  {resolvedPrintSide === 'single' ? '단면' : '양면'}
+                </button>
+              ) : (
+                <span className="text-xs text-black ml-3">
+                  {resolvedPrintSide === 'single' ? '단면' : '양면'}
+                </span>
+              )}
             </div>
           )}
           {/* 패브릭/포일 편집 */}
@@ -1444,7 +1459,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium">■ 출력비</div>
                   <div className="text-gray-600 pl-2 truncate">
-                    {colorLabel} | {paperLabel} | {folder.pageLayout === 'spread' ? '양면' : '단면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
+                    {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
