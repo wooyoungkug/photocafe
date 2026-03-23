@@ -1104,7 +1104,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                                               ? "bg-amber-100 border-amber-300 font-medium focus:border-amber-400 focus:ring-1 focus:ring-amber-200"
                                               : "bg-white border-slate-200 hover:border-indigo-300 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200"
                                           )}
-                                          value={editingPrices[key] ?? (sp ? String(sp) : (standardPrice > 0 ? String(standardPrice) : ''))}
+                                          value={editingPrices[key] ?? (sp ? String(sp) : (groupPrice != null && groupPrice > 0 ? String(groupPrice) : (standardPrice > 0 ? String(standardPrice) : '')))}
                                           onChange={(e) => {
                                             if (isBase) handleOneUpChange(group.id, field, e.target.value, upPrices);
                                             else setEditingPrices(prev => ({ ...prev, [key]: e.target.value }));
@@ -1175,7 +1175,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                         )}
                         <td className="px-3 py-2 text-center">
                           <Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-"
-                            value={editingPrices[key] ?? (savedPrice?.price ? String(Number(savedPrice.price)) : '')}
+                            value={editingPrices[key] ?? (savedPrice?.price ? String(Number(savedPrice.price)) : (groupSpecPrice?.price ? String(Number(groupSpecPrice.price)) : ''))}
                             onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))} />
                         </td>
                       </tr>
@@ -1292,7 +1292,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                                   )}
                                   <td className="px-1 py-0.5 text-center">
                                     <Input type="number" className={cn("h-5 w-14 text-[10px] text-center p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none", isBase ? "bg-green-100" : "bg-gray-50")}
-                                      value={editingPrices[key] ?? (savedClientPrice?.price ? String(Number(savedClientPrice.price)) : '')}
+                                      value={editingPrices[key] ?? (savedClientPrice?.price ? String(Number(savedClientPrice.price)) : (groupSpecPrice?.price ? String(Number(groupSpecPrice.price)) : ''))}
                                       onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))}
                                       placeholder={standardPrice > 0 ? String(standardPrice) : "0"} />
                                   </td>
@@ -1383,10 +1383,12 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                   const stdRP = rangeData?.rangePrices || {};
                   const specNames = groupItems.map(g => g.specInfo.name || '').filter(Boolean).join(', ');
                   const savedRec = clientPricesMap.get(`${setting.id}__${specId}`) || clientPricesMap.get(`${setting.id}_${pageRanges[0]}_${specId}`);
-                  const savedRP = savedRec?.rangePrices || {};
+                  const groupRec = groupPricesMap.get(`${setting.id}__${specId}`) || groupPricesMap.get(`${setting.id}_${pageRanges[0]}_${specId}`);
+                  const effectiveRec = savedRec || groupRec;
+                  const savedRP = effectiveRec?.rangePrices || {};
                   const savedCP = savedRP.__coverPrice != null ? Number(savedRP.__coverPrice) : undefined;
                   const savedPP = savedRP.__paperPrice != null ? Number(savedRP.__paperPrice) : undefined;
-                  const savedPPP = savedRec?.pricePerPage != null ? Number(savedRec.pricePerPage) : undefined;
+                  const savedPPP = effectiveRec?.pricePerPage != null ? Number(effectiveRec.pricePerPage) : undefined;
                   const cpKey = `${setting.id}_nup_${specId}_coverPrice`;
                   const ppKey = `${setting.id}_nup_${specId}_paperPrice`;
                   const pppKey = `${setting.id}_nup_${specId}_perPage`;
@@ -1536,7 +1538,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                     const firstSpecId = items[0]?.specificationId;
                     const nupKey = `${setting.id}_nup_${firstSpecId}_perPage`;
                     const savedPrice = clientPricesMap.get(`${setting.id}__${firstSpecId}`);
-                    const displayValue = editingPrices[nupKey] ?? (savedPrice?.price ? String(Number(savedPrice.price)) : '');
+                    const groupSpecPrice2 = groupPricesMap.get(`${setting.id}__${firstSpecId}`);
+                    const displayValue = editingPrices[nupKey] ?? (savedPrice?.price ? String(Number(savedPrice.price)) : (groupSpecPrice2?.price ? String(Number(groupSpecPrice2.price)) : ''));
                     const specNames = items.map((item: any) => item.specInfo.name || '').filter(Boolean).join(', ');
                     return (
                       <div key={nup} className="py-2 border-b last:border-0">
@@ -1592,7 +1595,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                 <tbody>{lps.map((lp: any) => {
                   const key = `${setting.id}_length_${lp.lengthCm}`;
                   const saved = clientPricesMap.get(`${setting.id}__${lp.lengthCm}`);
-                  return (<tr key={lp.lengthCm} className="border-b hover:bg-gray-50"><td className="px-3 py-2 font-medium text-gray-700">{lp.lengthCm}cm</td><td className="px-3 py-2 text-center text-gray-500">{lp.price ? formatNumber(lp.price) : '-'}</td><td className="px-3 py-2 text-center"><Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-" value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : '')} onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))} /></td></tr>);
+                  const groupLP = groupPricesMap.get(`${setting.id}__${lp.lengthCm}`);
+                  return (<tr key={lp.lengthCm} className="border-b hover:bg-gray-50"><td className="px-3 py-2 font-medium text-gray-700">{lp.lengthCm}cm</td><td className="px-3 py-2 text-center text-gray-500">{lp.price ? formatNumber(lp.price) : '-'}</td><td className="px-3 py-2 text-center"><Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-" value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : (groupLP?.price ? String(Number(groupLP.price)) : ''))} onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))} /></td></tr>);
                 })}</tbody>
               </table>
               {Object.keys(editingPrices).some(k => k.startsWith(`${setting.id}_length_`)) && (
@@ -1616,7 +1620,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                 <tbody>{aps.map((ap: any) => {
                   const key = `${setting.id}_area_${ap.areaCm2}`;
                   const saved = clientPricesMap.get(`${setting.id}__${ap.areaCm2}`);
-                  return (<tr key={ap.areaCm2} className="border-b hover:bg-gray-50"><td className="px-3 py-2 font-medium text-gray-700">{formatNumber(ap.areaCm2)}cm2</td><td className="px-3 py-2 text-center text-gray-500">{ap.price ? formatNumber(ap.price) : '-'}</td><td className="px-3 py-2 text-center"><Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-" value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : '')} onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))} /></td></tr>);
+                  const groupAP = groupPricesMap.get(`${setting.id}__${ap.areaCm2}`);
+                  return (<tr key={ap.areaCm2} className="border-b hover:bg-gray-50"><td className="px-3 py-2 font-medium text-gray-700">{formatNumber(ap.areaCm2)}cm2</td><td className="px-3 py-2 text-center text-gray-500">{ap.price ? formatNumber(ap.price) : '-'}</td><td className="px-3 py-2 text-center"><Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-" value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : (groupAP?.price ? String(Number(groupAP.price)) : ''))} onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))} /></td></tr>);
                 })}</tbody>
               </table>
               {Object.keys(editingPrices).some(k => k.startsWith(`${setting.id}_area_`)) && (
@@ -1645,7 +1650,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                     <span className="text-xs text-purple-500">그룹: {formatNumber(Number(groupBasePrice.price))}원</span>
                   )}
                   <Input type="number" className="h-8 w-28 text-sm text-center font-mono" placeholder="개별단가"
-                    value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : '')}
+                    value={editingPrices[key] ?? (saved?.price ? String(Number(saved.price)) : (groupBasePrice?.price ? String(Number(groupBasePrice.price)) : ''))}
                     onChange={(e) => setEditingPrices(prev => ({ ...prev, [key]: e.target.value }))} />
                   <span className="text-xs text-gray-500">원</span>
                 </div>
@@ -1729,30 +1734,15 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
         </CardContent>
       </Card>
 
-      {/* 개별단가가 없을 때 CTA */}
-      {!clientPricesLoading && totalPriceCount === 0 && (
-        <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-          <CardContent className="py-8 text-center">
-            <AlertCircle className="h-10 w-10 text-purple-400 mx-auto mb-3" />
-            <p className="text-[14px] text-black font-normal mb-1">
-              이 거래처에 설정된 개별단가가 없습니다.
-            </p>
-            <p className="text-sm text-gray-500 mb-4">
-              {groupName
-                ? `"${groupName}" 그룹단가를 복사하여 개별단가를 시작하세요.`
-                : '표준단가를 복사하여 개별단가를 시작하세요.'}
-            </p>
-            <div className="flex gap-3 justify-center">
-              {groupId && (
-                <Button className="bg-purple-600 hover:bg-purple-700" disabled={cloneAllMutation.isPending} onClick={handleCloneAllFromGroup}>
-                  {cloneAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Copy className="h-4 w-4 mr-2" />}
-                  그룹단가 복사하여 시작
-                </Button>
-              )}
-              <Button variant="outline" disabled={cloneAllMutation.isPending} onClick={handleCloneAllFromStandard}>
-                {cloneAllMutation.isPending ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Copy className="h-4 w-4 mr-2" />}
-                표준단가 복사하여 시작
-              </Button>
+      {/* 개별단가가 없을 때 안내 */}
+      {!clientPricesLoading && totalPriceCount === 0 && groupId && (
+        <Card className="bg-purple-50 border-purple-200">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-purple-400 shrink-0" />
+              <p className="text-[14px] text-black font-normal">
+                개별단가가 없으므로 소속 그룹 "<strong>{groupName}</strong>"의 그룹단가가 표시됩니다. 값을 수정하면 개별단가로 저장됩니다.
+              </p>
             </div>
           </CardContent>
         </Card>
