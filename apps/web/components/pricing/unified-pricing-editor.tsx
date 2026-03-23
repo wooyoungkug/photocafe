@@ -231,6 +231,7 @@ export function UnifiedPricingEditor({
     const weight = weightPercent / 100;
     const updates: Record<string, string> = {};
 
+    // Up 가격 가중치 적용
     upPrices.forEach((upPrice: UpPrice) => {
       (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).forEach(
         (field) => {
@@ -244,6 +245,18 @@ export function UnifiedPricingEditor({
         }
       );
     });
+
+    // 잉크젯 규격 가격 가중치 적용
+    const group = priceGroups.find((g) => g.id === groupId);
+    if (group?.specPrices) {
+      group.specPrices.forEach((sp: any) => {
+        const standardPrice = sp.singleSidedPrice || 0;
+        if (standardPrice > 0) {
+          const key = `${setting.id}_${groupId}_spec_${sp.specificationId}`;
+          updates[key] = Math.round(standardPrice * weight).toString();
+        }
+      });
+    }
 
     setEditingPrices((prev) => ({ ...prev, ...updates }));
     setWeights((prev) => ({ ...prev, [`${setting.id}_${groupId}`]: weightPercent }));
@@ -456,11 +469,12 @@ export function UnifiedPricingEditor({
           const currentWeight = weights[weightKey] || 100;
 
           const headerExtra =
-            mode !== 'standard' && !readOnly && hasUpPrices ? (
-              <div className="flex items-center gap-1">
+            mode !== 'standard' && !readOnly && (hasUpPrices || hasSpecPrices) ? (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[12px] text-gray-500">가중치</span>
                 <Input
                   type="number"
-                  className="h-6 w-14 text-xs text-center border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className="h-8 w-16 text-[13px] text-center border-gray-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   value={currentWeight || ''}
                   onChange={(e) => {
                     const val = Number(e.target.value) || 100;
@@ -468,14 +482,14 @@ export function UnifiedPricingEditor({
                   }}
                   placeholder="100"
                 />
-                <span className="text-xs text-gray-400">%</span>
+                <span className="text-[13px] text-gray-500">%</span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-6 px-2 text-[10px]"
+                  className="h-8 px-3 text-[12px]"
                   onClick={() => handleApplyWeight(group.id, standardUpPrices, currentWeight)}
                 >
-                  <Percent className="h-3 w-3" />
+                  적용
                 </Button>
               </div>
             ) : undefined;
