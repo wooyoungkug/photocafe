@@ -328,10 +328,12 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
             const baseKey = oneUpPrice.nupKey || oneUpPrice.up || 1;
             const savedPrice = clientPricesMap.get(`${setting.id}_${priceGroup.id}_${baseKey}`);
             if (!savedPrice) return;
-            const standardPrice = oneUpPrice.fourColorSinglePrice;
+            // 그룹단가 기준으로 가중치 역산, 없으면 표준단가
+            const groupRec = groupPricesMap.get(`${setting.id}_${priceGroup.id}_${baseKey}`);
+            const basePrice = (groupRec?.fourColorSinglePrice != null && groupRec.fourColorSinglePrice > 0) ? groupRec.fourColorSinglePrice : oneUpPrice.fourColorSinglePrice;
             const clientPrice = savedPrice.fourColorSinglePrice;
-            if (standardPrice > 0 && clientPrice > 0) {
-              calculatedWeights[`${setting.id}_${priceGroup.id}`] = Math.round((clientPrice / standardPrice) * 100);
+            if (basePrice > 0 && clientPrice > 0) {
+              calculatedWeights[`${setting.id}_${priceGroup.id}`] = Math.round((clientPrice / basePrice) * 100);
             }
           });
         });
@@ -340,7 +342,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
     };
     productionTree.forEach(processGroup);
     setWeights(calculatedWeights);
-  }, [productionTree, clientPricesMap, clientId]);
+  }, [productionTree, clientPricesMap, clientId, groupPricesMap]);
 
   // 트리 확장/축소
   const toggleExpand = (id: string) => {
@@ -532,17 +534,19 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
     const updates: Record<string, string> = {};
     const weight = weightPercent / 100;
     upPrices.forEach((upPrice: any) => {
+      const upKey = upPrice.nupKey || upPrice.up;
+      const groupRec = groupPricesMap.get(`${settingId}_${groupId2}_${upKey}`);
       ['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'].forEach(field => {
-        const standardPrice = upPrice[field] || 0;
-        if (standardPrice > 0) {
-          const upKey = upPrice.nupKey || upPrice.up;
-          updates[`${settingId}_${groupId2}_${upKey}_${field}`] = Math.round(standardPrice * weight).toString();
+        // 그룹단가 기준, 없으면 표준단가 기준
+        const basePrice = (groupRec?.[field] != null && groupRec[field] > 0) ? groupRec[field] : (upPrice[field] || 0);
+        if (basePrice > 0) {
+          updates[`${settingId}_${groupId2}_${upKey}_${field}`] = Math.round(basePrice * weight).toString();
         }
       });
     });
     setEditingPrices(prev => ({ ...prev, ...updates }));
     setWeights(prev => ({ ...prev, [`${settingId}_${groupId2}`]: weightPercent }));
-    toast({ title: `가중치 ${weightPercent}% 적용`, description: `표준단가의 ${weightPercent}%로 계산되었습니다.` });
+    toast({ title: `가중치 ${weightPercent}% 적용`, description: `그룹단가의 ${weightPercent}%로 계산되었습니다.` });
   };
 
   // 잉크젯 가중치 적용
@@ -1450,7 +1454,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                       return (
                         <React.Fragment key={nup}>
                           {/* 그룹단가 행 (읽기전용) */}
-                          {groupId && groupRec && (
+                          {groupId && (
                             <tr className="bg-purple-50/70 border-b border-purple-100">
                               <td className="text-center py-1 px-2">
                                 <span className="font-bold text-xs text-purple-600">{nup}</span>
