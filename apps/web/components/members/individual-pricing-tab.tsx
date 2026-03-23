@@ -1027,6 +1027,18 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                           <tr className="bg-gray-100 border-b border-gray-200">
                             <th className="text-center py-1 px-1 font-medium text-gray-600">Up</th>
                             <th className="text-center py-1 px-1 font-medium text-gray-400 text-[10px]">가중치</th>
+                            {groupId && (
+                              printMethod === 'album' ? (
+                                <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹단가</th>
+                              ) : (
+                                <>
+                                  {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹4단</th>}
+                                  {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹4양</th>}
+                                  {fps !== 'double' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹6단</th>}
+                                  {fps !== 'single' && <th className="text-center py-1 px-1 font-medium text-purple-600 text-[10px]">그룹6양</th>}
+                                </>
+                              )
+                            )}
                             {printMethod === 'album' ? (
                               <th className="text-center py-1 px-1 font-medium text-gray-600">단면</th>
                             ) : (
@@ -1079,6 +1091,25 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                                     placeholder="1"
                                   />
                                 </td>
+                                {/* 그룹단가 열 */}
+                                {groupId && (isAlbum
+                                  ? (['fourColorSinglePrice'] as const)
+                                  : (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
+                                      if (fps === 'single') return !f.includes('Double');
+                                      if (fps === 'double') return !f.includes('Single');
+                                      return true;
+                                    })
+                                ).map((field) => {
+                                  const gp = groupPricesMap.get(`${setting.id}_${group.id}_${upKey}`)?.[field];
+                                  return (
+                                    <td key={`g_${field}`} className="px-0.5 py-0.5 bg-purple-50/50">
+                                      <span className="text-xs text-purple-600 font-mono flex items-center justify-center h-8">
+                                        {gp != null && gp > 0 ? formatNumber(gp) : '-'}
+                                      </span>
+                                    </td>
+                                  );
+                                })}
+                                {/* 개별단가 열 */}
                                 {(isAlbum
                                   ? (['fourColorSinglePrice'] as const)
                                   : (['fourColorSinglePrice', 'fourColorDoublePrice', 'sixColorSinglePrice', 'sixColorDoublePrice'] as const).filter(f => {
@@ -1111,9 +1142,6 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                                           }}
                                           placeholder="0"
                                         />
-                                        {groupId && groupPrice != null && groupPrice > 0 && (
-                                          <span className="text-[9px] text-purple-500 font-mono leading-tight mt-0.5">G:{formatNumber(groupPrice)}</span>
-                                        )}
                                       </div>
                                     </td>
                                   );
