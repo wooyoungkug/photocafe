@@ -847,17 +847,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
                         return (
                           <>
-                            <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage ? 'bg-yellow-500' : pages.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
-                              {file.isBlankPage ? '빈' : pages.left !== null ? pages.left : t('blank')}
+                            <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage || pages.left === null ? 'bg-yellow-500' : 'bg-red-600')}>
+                              {pages.left !== null ? pages.left : t('blank')}
                             </div>
-                            <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage ? 'bg-yellow-500' : pages.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
-                              {file.isBlankPage ? '빈' : pages.right !== null ? pages.right : t('blank')}
+                            <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage || pages.right === null ? 'bg-yellow-500' : 'bg-red-600')}>
+                              {pages.right !== null ? pages.right : t('blank')}
                             </div>
                           </>
                         );
                       })() : (
                         <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage ? 'bg-yellow-500' : 'bg-red-600')}>
-                          {file.isBlankPage ? '빈' : file.pageNumber}
+                          {file.pageNumber}
                         </div>
                       )}
                       {folder.colorGroupingEnabled && file.colorInfo && (
