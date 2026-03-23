@@ -837,18 +837,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       }}
                     >
                       {thumbUrl ? (
-                        <>
-                          <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                          {file.isBlankPage && (
-                            <div className="absolute bottom-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-yellow-500 text-white text-[9px] font-medium pointer-events-none">
-                              빈
-                            </div>
-                          )}
-                        </>
-                      ) : file.isBlankPage ? (
-                        <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
-                          <div className="px-2 py-1 rounded bg-yellow-500 text-white text-xs font-medium">빈</div>
-                        </div>
+                        <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
                       ) : (
                         <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
                           <span className="text-6xl font-black text-gray-300">X</span>
@@ -858,17 +847,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
                         return (
                           <>
-                            <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
-                              {pages.left !== null ? pages.left : t('blank')}
+                            <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage ? 'bg-yellow-500' : pages.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                              {file.isBlankPage ? '빈' : pages.left !== null ? pages.left : t('blank')}
                             </div>
-                            <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', pages.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
-                              {pages.right !== null ? pages.right : t('blank')}
+                            <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage ? 'bg-yellow-500' : pages.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                              {file.isBlankPage ? '빈' : pages.right !== null ? pages.right : t('blank')}
                             </div>
                           </>
                         );
                       })() : (
-                        <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center bg-red-600 text-white text-[10px] font-medium">
-                          {file.pageNumber}
+                        <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', file.isBlankPage ? 'bg-yellow-500' : 'bg-red-600')}>
+                          {file.isBlankPage ? '빈' : file.pageNumber}
                         </div>
                       )}
                       {folder.colorGroupingEnabled && file.colorInfo && (
