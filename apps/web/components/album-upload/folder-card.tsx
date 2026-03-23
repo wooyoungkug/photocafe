@@ -819,7 +819,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         'relative rounded-t-md overflow-hidden border-2 cursor-grab group',
                         'hover:border-blue-400 hover:shadow-md transition-all',
                         file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
-                          file.coverType === 'FRONT_COVER' ? 'border-blue-400' :
+                          file.coverType === 'FRONT_COVER' ? 'border-gray-200' :
                             file.coverType === 'BACK_COVER' ? 'border-purple-400' :
                               file.coverType === 'COMBINED_COVER' ? 'border-pink-400' :
                                 'border-gray-200'

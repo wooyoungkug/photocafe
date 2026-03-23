@@ -264,7 +264,7 @@ export class ProductService {
           : undefined,
         papers: papers?.length
           ? {
-              create: papers.map(({ paperId, defaultColorType, ...rest }) => ({
+              create: papers.map(({ paperId, ...rest }) => ({
                 ...rest,
                 ...(paperId ? { paper: { connect: { id: paperId } } } : {}),
               })),
@@ -339,7 +339,7 @@ export class ProductService {
           : undefined,
         papers: papers !== undefined && papers.length > 0
           ? {
-              create: papers.map(({ paperId, defaultColorType, ...rest }) => ({
+              create: papers.map(({ paperId, ...rest }) => ({
                 ...rest,
                 ...(paperId ? { paper: { connect: { id: paperId } } } : {}),
               })),
