@@ -822,7 +822,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
     const isAlbumType = printMethod === 'album' || printMethod === 'indigoAlbum';
     const specifications = setting.specifications || [];
     const standardPrices = setting.prices || [];
-    const hasInkjetSpecs = printMethod === 'inkjet' && specifications.length > 0 && !hasPriceGroups;
+    const isNupPageRange = pricingType === 'nup_page_range';
+    const hasInkjetSpecs = printMethod === 'inkjet' && specifications.length > 0 && !hasPriceGroups && !isNupPageRange;
 
     // nupPageRanges
     const nupPageRanges = useMemo(() => {
@@ -1416,8 +1417,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
           </div>
         )}
 
-        {/* 구간별 Nup/1p가격 (nup_page_range) */}
-        {pricingType === 'nup_page_range' && (() => {
+        {/* 구간별 Nup/1p가격 (nup_page_range) - 표준단가와 동일한 테이블 구조 */}
+        {isNupPageRange && (() => {
           const pageRanges = setting.pageRanges || [20, 30, 40, 50, 60];
           if (nupPageRanges.length === 0) {
             return <div className="mt-3 text-center py-4 text-gray-400 text-sm bg-gray-50 rounded">표준단가에서 먼저 Nup 규격을 설정해주세요.</div>;
@@ -1446,123 +1447,166 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
 
           return (
             <div className="mt-3 space-y-3">
-              <div className="grid gap-0 pb-2 border-b text-xs font-medium text-gray-600 items-center sticky top-0 bg-white z-10"
-                style={{ gridTemplateColumns: `60px minmax(80px, 1fr) 70px 70px 80px ${pageRanges.map(() => '80px').join(' ')}` }}>
-                <span>Nup</span><span>규격 목록</span>
-                <span className="text-center text-[10px]">표지가격</span><span className="text-center text-[10px]">용지가격(1p)</span>
-                <span className="text-right pr-2 text-[10px]">제본단가(1p)</span>
-                {pageRanges.map((range: number) => <span key={range} className="text-center">{range}p</span>)}
+              {/* 페이지 구간 표시 */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-indigo-700">페이지 구간</span>
+                <div className="flex gap-2">
+                  {pageRanges.map((r: number) => (
+                    <span key={r} className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-gray-300 bg-white text-sm font-mono">
+                      {r} <span className="text-gray-400 text-xs">p</span>
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-1">
-                {sortedNups.map((nup) => {
-                  const groupItems = nupGroups.get(nup) || [];
-                  if (groupItems.length === 0) return null;
-                  const specId = groupItems[0].specId;
-                  const rangeData = groupItems[0].rangeData;
-                  const stdPPP = rangeData?.pricePerPage || 0;
-                  const stdCP = rangeData?.coverPrice || 0;
-                  const stdPP = rangeData?.paperPrice || 0;
-                  const stdRP = rangeData?.rangePrices || {};
-                  const specNames = groupItems.map(g => g.specInfo.name || '').filter(Boolean).join(', ');
-                  const savedRec = clientPricesMap.get(`${setting.id}__${specId}`) || clientPricesMap.get(`${setting.id}_${pageRanges[0]}_${specId}`);
-                  const groupRec = groupPricesMap.get(`${setting.id}__${specId}`) || groupPricesMap.get(`${setting.id}_${pageRanges[0]}_${specId}`);
-                  const effectiveRec = savedRec || groupRec;
-                  const savedRP = effectiveRec?.rangePrices || {};
-                  const savedCP = savedRP.__coverPrice != null ? Number(savedRP.__coverPrice) : undefined;
-                  const savedPP = savedRP.__paperPrice != null ? Number(savedRP.__paperPrice) : undefined;
-                  const savedPPP = effectiveRec?.pricePerPage != null ? Number(effectiveRec.pricePerPage) : undefined;
-                  const cpKey = `${setting.id}_nup_${specId}_coverPrice`;
-                  const ppKey = `${setting.id}_nup_${specId}_paperPrice`;
-                  const pppKey = `${setting.id}_nup_${specId}_perPage`;
-                  const curCP = editingPrices[cpKey] != null ? Number(editingPrices[cpKey]) : (savedCP ?? stdCP);
-                  const curPP = editingPrices[ppKey] != null ? Number(editingPrices[ppKey]) : (savedPP ?? stdPP);
-                  const curPPP = editingPrices[pppKey] != null ? Number(editingPrices[pppKey]) : (savedPPP ?? stdPPP);
-                  const getRangePrice = (range: number) => {
-                    const rKey = `${setting.id}_nup_${specId}_range_${range}`;
-                    if (editingPrices[rKey] != null) return Number(editingPrices[rKey]);
-                    if (savedRP[String(range)] != null) return Number(savedRP[String(range)]);
-                    return stdRP[range] || 0;
-                  };
 
-                  return (
-                    <div key={nup} className="grid gap-0 py-1 items-center bg-amber-50/50"
-                      style={{ gridTemplateColumns: `60px minmax(80px, 1fr) 70px 70px 80px ${pageRanges.map(() => '80px').join(' ')}` }}>
-                      <span className="text-sm font-semibold text-violet-700">{nup}</span>
-                      <span className="text-xs text-gray-500 truncate" title={specNames}>{specNames}</span>
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-gray-400">{stdCP > 0 ? formatNumber(stdCP) : '-'}</span>
-                        <Input type="number" step="1"
-                          value={editingPrices[cpKey] ?? (savedCP != null ? String(savedCP) : String(stdCP || ''))}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            const updates: Record<string, string> = { [cpKey]: e.target.value };
-                            Object.entries(recalcRangePrices(v, curPPP, curPP, getRangePrice(pageRanges[0]))).forEach(([r, val]) => { updates[`${setting.id}_nup_${specId}_range_${r}`] = val; });
-                            setEditingPrices(prev => ({ ...prev, ...updates }));
-                          }}
-                          className="h-7 text-center font-mono text-xs bg-pink-50 border-pink-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0" />
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="text-[9px] text-gray-400">{stdPP > 0 ? formatNumber(stdPP) : '-'}</span>
-                        <Input type="number" step="1"
-                          value={editingPrices[ppKey] ?? (savedPP != null ? String(savedPP) : String(stdPP || ''))}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            const updates: Record<string, string> = { [ppKey]: e.target.value };
-                            Object.entries(recalcRangePrices(curCP, curPPP, v, getRangePrice(pageRanges[0]))).forEach(([r, val]) => { updates[`${setting.id}_nup_${specId}_range_${r}`] = val; });
-                            setEditingPrices(prev => ({ ...prev, ...updates }));
-                          }}
-                          className="h-7 text-center font-mono text-xs bg-yellow-50 border-yellow-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0" />
-                      </div>
-                      <div className="flex flex-col items-end pr-2">
-                        <span className="text-[9px] text-gray-400">{formatNumber(stdPPP)}</span>
-                        <Input type="number" step="0.01"
-                          value={editingPrices[pppKey] ?? (savedPPP != null ? String(savedPPP) : String(stdPPP || ''))}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            const updates: Record<string, string> = { [pppKey]: e.target.value };
-                            Object.entries(recalcRangePrices(curCP, v, curPP, getRangePrice(pageRanges[0]))).forEach(([r, val]) => { updates[`${setting.id}_nup_${specId}_range_${r}`] = val; });
-                            setEditingPrices(prev => ({ ...prev, ...updates }));
-                          }}
-                          className="h-7 text-right font-mono text-xs pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0" />
-                      </div>
-                      {pageRanges.map((range: number, idx2: number) => {
-                        const stdPrice = stdRP[range] || 0;
-                        const rangeKey = `${setting.id}_nup_${specId}_range_${range}`;
-                        const currentPrice = getRangePrice(range);
-                        return curCP > 0 ? (
-                          <div key={range} className="flex flex-col items-center">
-                            <span className="text-[9px] text-gray-400">{formatNumber(stdPrice)}</span>
-                            <span className="h-7 w-16 flex items-center justify-center font-mono text-xs text-gray-600 bg-gray-50 rounded border">
-                              {formatNumber(editingPrices[rangeKey] != null ? Number(editingPrices[rangeKey]) : currentPrice)}
-                            </span>
-                          </div>
-                        ) : idx2 === 0 ? (
-                          <div key={range} className="flex flex-col items-center">
-                            <span className="text-[9px] text-gray-400">{formatNumber(stdPrice)}</span>
-                            <Input type="number" className="h-7 w-16 text-xs text-center font-mono bg-blue-50 border-blue-300 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" placeholder="0"
-                              value={editingPrices[rangeKey] ?? String(currentPrice || '')}
+              {/* Nup 테이블 - 표준단가와 동일한 구조 */}
+              <div className="border-2 border-indigo-200 rounded-lg overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="text-center py-2 px-2 font-semibold text-gray-700 w-16">Nup</th>
+                      <th className="text-left py-2 px-2 font-semibold text-gray-700">규격 목록</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-600 w-20">표지가격</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-600 w-20">용지가격(1p)</th>
+                      <th className="text-center py-2 px-2 font-semibold text-gray-600 w-20">제본단가(1p)</th>
+                      {pageRanges.map((range: number) => (
+                        <th key={range} className="text-center py-2 px-2 font-semibold text-gray-600 w-[72px]">{range}p</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sortedNups.map((nup) => {
+                      const groupItems = nupGroups.get(nup) || [];
+                      if (groupItems.length === 0) return null;
+                      const specId = groupItems[0].specId;
+                      const rangeData = groupItems[0].rangeData;
+                      const stdPPP = rangeData?.pricePerPage || 0;
+                      const stdCP = rangeData?.coverPrice || 0;
+                      const stdPP = rangeData?.paperPrice || 0;
+                      const stdRP = rangeData?.rangePrices || {};
+                      const specNames = groupItems.map(g => g.specInfo.name || '').filter(Boolean).join(', ');
+
+                      const savedRec = clientPricesMap.get(`${setting.id}__${specId}`) || clientPricesMap.get(`${setting.id}_${pageRanges[0]}_${specId}`);
+                      const groupRec = groupPricesMap.get(`${setting.id}__${specId}`) || groupPricesMap.get(`${setting.id}_${pageRanges[0]}_${specId}`);
+                      const effectiveRec = savedRec || groupRec;
+                      const savedRP = effectiveRec?.rangePrices || {};
+                      const savedCP = savedRP.__coverPrice != null ? Number(savedRP.__coverPrice) : undefined;
+                      const savedPP = savedRP.__paperPrice != null ? Number(savedRP.__paperPrice) : undefined;
+                      const savedPPP = effectiveRec?.pricePerPage != null ? Number(effectiveRec.pricePerPage) : undefined;
+
+                      const cpKey = `${setting.id}_nup_${specId}_coverPrice`;
+                      const ppKey = `${setting.id}_nup_${specId}_paperPrice`;
+                      const pppKey = `${setting.id}_nup_${specId}_perPage`;
+                      const curCP = editingPrices[cpKey] != null ? Number(editingPrices[cpKey]) : (savedCP ?? stdCP);
+                      const curPP = editingPrices[ppKey] != null ? Number(editingPrices[ppKey]) : (savedPP ?? stdPP);
+                      const curPPP = editingPrices[pppKey] != null ? Number(editingPrices[pppKey]) : (savedPPP ?? stdPPP);
+
+                      const getRangePrice = (range: number) => {
+                        const rKey = `${setting.id}_nup_${specId}_range_${range}`;
+                        if (editingPrices[rKey] != null) return Number(editingPrices[rKey]);
+                        if (savedRP[String(range)] != null) return Number(savedRP[String(range)]);
+                        return stdRP[range] || 0;
+                      };
+
+                      return (
+                        <tr key={nup} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                          {/* Nup */}
+                          <td className="text-center py-1.5 px-2">
+                            <span className="font-bold text-sm text-violet-700">{nup}</span>
+                          </td>
+                          {/* 규격 목록 */}
+                          <td className="py-1.5 px-2 text-xs text-gray-500 max-w-[200px]">
+                            <span className="truncate block" title={specNames}>{specNames}</span>
+                          </td>
+                          {/* 표지가격 */}
+                          <td className="py-1 px-1 text-center">
+                            <Input type="number" step="1"
+                              value={editingPrices[cpKey] ?? (savedCP != null ? String(savedCP) : String(stdCP || ''))}
                               onChange={(e) => {
                                 const v = Number(e.target.value);
-                                const fr = pageRanges[0] || 20;
-                                const updates: Record<string, string> = { [rangeKey]: e.target.value };
-                                pageRanges.forEach((r: number, i: number) => { if (i > 0) updates[`${setting.id}_nup_${specId}_range_${r}`] = String(Math.round(v + (r - fr) * (curPPP + curPP))); });
+                                const updates: Record<string, string> = { [cpKey]: e.target.value };
+                                Object.entries(recalcRangePrices(v, curPPP, curPP, getRangePrice(pageRanges[0]))).forEach(([r, val]) => { updates[`${setting.id}_nup_${specId}_range_${r}`] = val; });
                                 setEditingPrices(prev => ({ ...prev, ...updates }));
-                              }} />
-                          </div>
-                        ) : (
-                          <div key={range} className="flex flex-col items-center">
-                            <span className="text-[9px] text-gray-400">{formatNumber(stdPrice)}</span>
-                            <span className="h-7 w-16 flex items-center justify-center font-mono text-xs text-gray-600 bg-gray-50 rounded border">
-                              {formatNumber(editingPrices[rangeKey] != null ? Number(editingPrices[rangeKey]) : currentPrice)}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
+                              }}
+                              className="h-8 w-full text-center font-mono text-xs bg-pink-50 border-pink-300 focus:border-pink-400 focus:ring-1 focus:ring-pink-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              placeholder="0" />
+                          </td>
+                          {/* 용지가격(1p) */}
+                          <td className="py-1 px-1 text-center">
+                            <Input type="number" step="1"
+                              value={editingPrices[ppKey] ?? (savedPP != null ? String(savedPP) : String(stdPP || ''))}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                const updates: Record<string, string> = { [ppKey]: e.target.value };
+                                Object.entries(recalcRangePrices(curCP, curPPP, v, getRangePrice(pageRanges[0]))).forEach(([r, val]) => { updates[`${setting.id}_nup_${specId}_range_${r}`] = val; });
+                                setEditingPrices(prev => ({ ...prev, ...updates }));
+                              }}
+                              className="h-8 w-full text-center font-mono text-xs bg-yellow-50 border-yellow-300 focus:border-yellow-400 focus:ring-1 focus:ring-yellow-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              placeholder="0" />
+                          </td>
+                          {/* 제본단가(1p) */}
+                          <td className="py-1 px-1 text-center">
+                            <Input type="number" step="0.01"
+                              value={editingPrices[pppKey] ?? (savedPPP != null ? String(savedPPP) : String(stdPPP || ''))}
+                              onChange={(e) => {
+                                const v = Number(e.target.value);
+                                const updates: Record<string, string> = { [pppKey]: e.target.value };
+                                Object.entries(recalcRangePrices(curCP, v, curPP, getRangePrice(pageRanges[0]))).forEach(([r, val]) => { updates[`${setting.id}_nup_${specId}_range_${r}`] = val; });
+                                setEditingPrices(prev => ({ ...prev, ...updates }));
+                              }}
+                              className="h-8 w-full text-center font-mono text-xs border-gray-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                              placeholder="0" />
+                          </td>
+                          {/* 구간별 가격 */}
+                          {pageRanges.map((range: number, idx2: number) => {
+                            const rangeKey = `${setting.id}_nup_${specId}_range_${range}`;
+                            const currentPrice = getRangePrice(range);
+                            // 표지가격이 있으면 자동계산 (읽기전용)
+                            if (curCP > 0) {
+                              return (
+                                <td key={range} className="py-1 px-1 text-center">
+                                  <span className="h-8 flex items-center justify-center font-mono text-xs text-gray-700 bg-gray-50 rounded border border-gray-200">
+                                    {formatNumber(editingPrices[rangeKey] != null ? Number(editingPrices[rangeKey]) : currentPrice)}
+                                  </span>
+                                </td>
+                              );
+                            }
+                            // 표지가격 없으면 첫 구간만 입력 가능
+                            if (idx2 === 0) {
+                              return (
+                                <td key={range} className="py-1 px-1 text-center">
+                                  <Input type="number"
+                                    className="h-8 w-full text-xs text-center font-mono bg-blue-50 border-blue-300 focus:border-blue-400 focus:ring-1 focus:ring-blue-200 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    placeholder="0"
+                                    value={editingPrices[rangeKey] ?? String(currentPrice || '')}
+                                    onChange={(e) => {
+                                      const v = Number(e.target.value);
+                                      const fr = pageRanges[0] || 20;
+                                      const updates: Record<string, string> = { [rangeKey]: e.target.value };
+                                      pageRanges.forEach((r: number, i: number) => { if (i > 0) updates[`${setting.id}_nup_${specId}_range_${r}`] = String(Math.round(v + (r - fr) * (curPPP + curPP))); });
+                                      setEditingPrices(prev => ({ ...prev, ...updates }));
+                                    }} />
+                                </td>
+                              );
+                            }
+                            return (
+                              <td key={range} className="py-1 px-1 text-center">
+                                <span className="h-8 flex items-center justify-center font-mono text-xs text-gray-700 bg-gray-50 rounded border border-gray-200">
+                                  {formatNumber(editingPrices[rangeKey] != null ? Number(editingPrices[rangeKey]) : currentPrice)}
+                                </span>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-              <p className="text-xs text-gray-400">* 표지가격 입력 시 구간별 가격이 자동 계산됩니다.</p>
+
+              <p className="text-[11px] text-gray-400">선택된 Nup 그룹: {sortedNups.length}개 (같은 Nup의 모든 규격에 동일 가격 적용)</p>
+              <p className="text-[11px] text-gray-400">* 표지가격 입력 시 구간별 가격이 자동 계산됩니다. (구간가격 = 표지가격 + (제본단가 + 용지가격) × 페이지수)</p>
+
               {Object.keys(editingPrices).some(k => k.startsWith(`${setting.id}_nup_`)) && (
                 <div className="flex justify-end">
                   <Button size="sm" className="h-8 bg-indigo-600 hover:bg-indigo-700" disabled={isSaving}
