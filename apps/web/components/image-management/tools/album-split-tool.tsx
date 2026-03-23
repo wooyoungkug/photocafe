@@ -223,15 +223,36 @@ export function AlbumSplitTool() {
 
       scrollToBottom();
       playBeep();
-      toast.success('분리 완료! 결과를 확인하세요.');
       trackUseRef.current?.();
+
+      // 자동 저장: directoryHandle이 있으면 즉시 저장
+      if (directoryHandle) {
+        const ok1 = await saveToFolder(directoryHandle, leftResult.blob, '첫장.jpg');
+        const ok2 = await saveToFolder(directoryHandle, rightResult.blob, '막장.jpg');
+        if (ok1 && ok2) {
+          let deleted = false;
+          if (deleteOriginalOnSave) {
+            deleted = await doDeleteOriginal();
+          }
+          toast.success(
+            deleteOriginalOnSave
+              ? deleted ? '자동 저장 + 원본 삭제 완료!' : '자동 저장 완료! (원본 삭제 실패)'
+              : '첫장 + 막장 자동 저장 완료!',
+          );
+          setTimeout(resetTool, 1500);
+        } else {
+          toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
+        }
+      } else {
+        toast.success('분리 완료! 결과를 확인하세요.');
+      }
     } catch (err) {
       console.error('Split error:', err);
       toast.error('이미지 분리 중 오류가 발생했습니다.');
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool]);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {

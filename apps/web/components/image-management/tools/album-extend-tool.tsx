@@ -163,15 +163,28 @@ export function AlbumExtendTool() {
       setShowResult(true);
 
       const label = type === 'first' ? '첫장' : '막장';
-      toast.success(`${label} 늘리기 완료!`);
       trackUseRef.current?.();
+
+      // 자동 저장: directoryHandle이 있으면 즉시 저장
+      if (directoryHandle) {
+        const filename = `${outputName || 'output'}.jpg`;
+        const ok = await saveToFolder(directoryHandle, result.blob, filename);
+        if (ok) {
+          toast.success(`${filename} 자동 저장 완료!`);
+          setTimeout(resetTool, 1500);
+        } else {
+          toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
+        }
+      } else {
+        toast.success(`${label} 늘리기 완료!`);
+      }
     } catch (err) {
       console.error('Extend error:', err);
       toast.error('이미지 늘리기 중 오류가 발생했습니다.');
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, outputName, resetTool]);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {

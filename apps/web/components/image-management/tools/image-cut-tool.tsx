@@ -190,15 +190,30 @@ export function ImageCutTool() {
       setRightUrl(rightResult.url);
       setShowResult(true);
 
-      toast.success('자르기 완료! 결과를 확인하세요.');
       trackUseRef.current?.();
+
+      // 자동 저장: directoryHandle이 있으면 즉시 저장
+      if (directoryHandle) {
+        const lName = `${fileName}+L.jpg`;
+        const rName = `${fileName}+R.jpg`;
+        const ok1 = await saveToFolder(directoryHandle, leftResult.blob, lName);
+        const ok2 = await saveToFolder(directoryHandle, rightResult.blob, rName);
+        if (ok1 && ok2) {
+          toast.success('왼쪽 + 오른쪽 자동 저장 완료!');
+          setTimeout(resetTool, 1500);
+        } else {
+          toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
+        }
+      } else {
+        toast.success('자르기 완료! 결과를 확인하세요.');
+      }
     } catch (err) {
       console.error('Cut error:', err);
       toast.error('이미지 자르기 중 오류가 발생했습니다.');
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, fileName, resetTool]);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
