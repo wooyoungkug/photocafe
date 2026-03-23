@@ -187,6 +187,11 @@ function TreeNode({
           </div>
         </div>
 
+        {/* 그룹단가 설정 표시 */}
+        {hasGroupPrice && (
+          <span className="w-2.5 h-2.5 rounded-full bg-orange-400 shrink-0" title="그룹단가 설정됨" />
+        )}
+
         {/* 설정 개수 뱃지 */}
         {settingsCount > 0 && (
           <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-slate-100 text-slate-500">
