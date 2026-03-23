@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { DebouncedInput } from '@/components/ui/debounced-input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -957,15 +958,15 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-gray-500">가중치</span>
-                        <Input
+                        <DebouncedInput
                           type="number"
                           className="h-6 w-14 text-xs text-center font-mono"
                           placeholder="100"
                           value={weights[`${setting.id}_${group.id}`] || ''}
-                          onChange={(e) => setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}`]: e.target.value ? Number(e.target.value) : 0 }))}
+                          onChange={(value) => setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}`]: value ? Number(value) : 0 }))}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const wv = weights[`${setting.id}_${group.id}`] || 100;
+                              const wv = Number((e.target as HTMLInputElement).value) || 100;
                               if (wv > 0 && wv <= 200) applyWeight(setting.id, group.id, upPrices, wv);
                             }
                           }}
@@ -1114,12 +1115,12 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
           <div className="mt-2">
             <div className="flex items-center justify-end gap-1.5 mb-2">
               <span className="text-xs text-gray-600">가중치</span>
-              <Input type="number" className="h-7 w-16 text-xs text-center font-mono" placeholder="100"
+              <DebouncedInput type="number" className="h-7 w-16 text-xs text-center font-mono" placeholder="100"
                 value={weights[`${setting.id}_nogroup_inkjet`] || ''}
-                onChange={(e) => setWeights(prev => ({ ...prev, [`${setting.id}_nogroup_inkjet`]: e.target.value ? Number(e.target.value) : 0 }))}
+                onChange={(value) => setWeights(prev => ({ ...prev, [`${setting.id}_nogroup_inkjet`]: value ? Number(value) : 0 }))}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    const wv = weights[`${setting.id}_nogroup_inkjet`] || 100;
+                    const wv = Number((e.target as HTMLInputElement).value) || 100;
                     if (wv > 0 && wv <= 200) {
                       const updates: Record<string, string> = {};
                       specifications.forEach((spec: any) => {
@@ -1244,12 +1245,12 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                       </div>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-gray-500">가중치</span>
-                        <Input type="number" className="h-5 w-12 text-[10px] text-center font-mono" placeholder="100"
+                        <DebouncedInput type="number" className="h-5 w-12 text-[10px] text-center font-mono" placeholder="100"
                           value={weights[`${setting.id}_${group.id}_inkjet`] || ''}
-                          onChange={(e) => setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}_inkjet`]: e.target.value ? Number(e.target.value) : 0 }))}
+                          onChange={(value) => setWeights(prev => ({ ...prev, [`${setting.id}_${group.id}_inkjet`]: value ? Number(value) : 0 }))}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              const wv = weights[`${setting.id}_${group.id}_inkjet`] || 100;
+                              const wv = Number((e.target as HTMLInputElement).value) || 100;
                               if (wv > 0 && wv <= 200) {
                                 const updates: Record<string, string> = {};
                                 specPrices.forEach((sp: any) => {
