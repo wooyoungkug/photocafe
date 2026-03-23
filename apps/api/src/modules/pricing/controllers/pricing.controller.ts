@@ -43,6 +43,7 @@ export class PricingController {
   @ApiQuery({ name: 'specificationId', required: true, description: '규격 ID' })
   @ApiQuery({ name: 'colorMode', required: true, enum: ['4c', '6c'], description: '색상 모드 (4도/6도)' })
   @ApiQuery({ name: 'pageLayout', required: true, enum: ['single', 'spread'], description: '페이지 레이아웃 (단면/양면)' })
+  @ApiQuery({ name: 'productId', required: false, description: '상품 ID (후가공비 조회용)' })
   async getAlbumPagePrice(
     @Query() query: GetAlbumPagePriceDto,
     @Request() req: any,

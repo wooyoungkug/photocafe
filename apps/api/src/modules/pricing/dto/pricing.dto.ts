@@ -36,6 +36,11 @@ export class GetAlbumPagePriceDto {
   @IsOptional()
   @IsString()
   clientId?: string;
+
+  @ApiPropertyOptional({ description: '상품 ID (후가공비 조회용)' })
+  @IsOptional()
+  @IsString()
+  productId?: string;
 }
 
 // ==================== 그룹 가격 설정 DTO ====================

@@ -389,6 +389,7 @@ export interface AlbumPagePriceResult {
   nup?: string | null;
   priceSource?: string | null; // 'client' | 'group' | 'standard'
   groupName?: string | null;   // 그룹 단가인 경우 그룹명
+  postProcessingPrice: number; // 후가공비 (코팅 등)
 }
 
 export function useAlbumPagePrice(
@@ -399,9 +400,10 @@ export function useAlbumPagePrice(
   bindingProductionSettingId?: string,
   paperId?: string,
   clientId?: string,
+  productId?: string,
 ) {
   return useQuery({
-    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout, bindingProductionSettingId, paperId, clientId],
+    queryKey: [PRICING_KEY, 'album-page-price', productionSettingId, specificationId, colorMode, pageLayout, bindingProductionSettingId, paperId, clientId, productId],
     queryFn: () =>
       api.get<AlbumPagePriceResult>('/pricing/album-page-price', {
         productionSettingId,
@@ -411,6 +413,7 @@ export function useAlbumPagePrice(
         ...(bindingProductionSettingId ? { bindingProductionSettingId } : {}),
         ...(paperId ? { paperId } : {}),
         ...(clientId ? { clientId } : {}),
+        ...(productId ? { productId } : {}),
       }),
     enabled: !!productionSettingId && !!specificationId,
     staleTime: 5 * 60 * 1000, // 5분 캐시

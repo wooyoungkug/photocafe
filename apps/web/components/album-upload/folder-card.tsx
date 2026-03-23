@@ -602,6 +602,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     bindingProductionSettingId,
     actualPaperId,
     user?.clientId,
+    productId,
   );
 
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)
@@ -637,6 +638,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     bindingPrice: dbBindingPrice || 0,
     coverPrice: albumPriceData?.coverPrice || 0,
     billingPageCount: folder.pageCount + (albumPriceData?.billingExtraPages || 0),
+    postProcessingPrice: albumPriceData?.postProcessingPrice || 0,
   }), [albumPriceData, dbBindingPrice, folder.pageCount]);
 
   // DB 가격 미등록 여부

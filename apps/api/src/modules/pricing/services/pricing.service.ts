@@ -36,7 +36,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; postProcessingPrice: number }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -268,7 +268,20 @@ export class PricingService {
 
     // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
     const billingExtraPages = 0;
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName };
+
+    // 후가공비: 상품의 ProductFinishing 가격 합산
+    let postProcessingPrice = 0;
+    if (dto.productId) {
+      const finishings = await this.prisma.productFinishing.findMany({
+        where: { productId: dto.productId },
+        select: { price: true },
+      });
+      for (const f of finishings) {
+        postProcessingPrice += Number(f.price) || 0;
+      }
+    }
+
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, postProcessingPrice };
   }
 
   /**
