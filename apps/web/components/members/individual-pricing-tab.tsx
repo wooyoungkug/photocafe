@@ -1174,6 +1174,51 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
         {/* 잉크젯 (가격그룹 없음): 규격별 단가 */}
         {hasInkjetSpecs && (
           <div className="mt-2">
+            <div className="flex items-center justify-end gap-1.5 mb-2">
+              <span className="text-xs text-gray-600">가중치</span>
+              <Input type="number" className="h-7 w-16 text-xs text-center font-mono" placeholder="100"
+                value={weights[`${setting.id}_nogroup_inkjet`] || ''}
+                onChange={(e) => setWeights(prev => ({ ...prev, [`${setting.id}_nogroup_inkjet`]: e.target.value ? Number(e.target.value) : 0 }))}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const wv = weights[`${setting.id}_nogroup_inkjet`] || 100;
+                    if (wv > 0 && wv <= 200) {
+                      const updates: Record<string, string> = {};
+                      specifications.forEach((spec: any) => {
+                        const specId = spec.specificationId || spec.id;
+                        const stdP = standardPrices.find((p: any) => p.specificationId === specId);
+                        const stdPrice = stdP?.price ? Number(stdP.price) : 0;
+                        if (stdPrice > 0) updates[`${setting.id}_spec_${specId}`] = String(Math.round(stdPrice * wv / 100));
+                      });
+                      setEditingPrices(prev => ({ ...prev, ...updates }));
+                      toast({ title: `가중치 ${wv}% 적용`, description: `표준단가의 ${wv}%로 개별단가가 계산되었습니다.` });
+                    } else {
+                      toast({ title: '가중치는 1~200 사이 값을 입력하세요.', variant: 'destructive' });
+                    }
+                  }
+                }}
+              />
+              <span className="text-xs text-gray-600">%</span>
+              <Button size="sm" variant="outline" className="h-7 text-xs px-3"
+                onClick={() => {
+                  const wv = weights[`${setting.id}_nogroup_inkjet`] || 100;
+                  if (wv > 0 && wv <= 200) {
+                    const updates: Record<string, string> = {};
+                    specifications.forEach((spec: any) => {
+                      const specId = spec.specificationId || spec.id;
+                      const stdP = standardPrices.find((p: any) => p.specificationId === specId);
+                      const stdPrice = stdP?.price ? Number(stdP.price) : 0;
+                      if (stdPrice > 0) updates[`${setting.id}_spec_${specId}`] = String(Math.round(stdPrice * wv / 100));
+                    });
+                    setEditingPrices(prev => ({ ...prev, ...updates }));
+                    toast({ title: `가중치 ${wv}% 적용`, description: `표준단가의 ${wv}%로 개별단가가 계산되었습니다.` });
+                  } else {
+                    toast({ title: '가중치는 1~200 사이 값을 입력하세요.', variant: 'destructive' });
+                  }
+                }}>
+                적용
+              </Button>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse bg-white rounded border">
                 <thead>
@@ -1181,7 +1226,6 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                     <th className="px-3 py-2 text-left font-medium text-gray-500 border-b">규격</th>
                     <th className="px-3 py-2 text-center font-medium text-gray-500 border-b w-24">표준단가</th>
                     {groupId && <th className="px-3 py-2 text-center font-medium text-purple-600 border-b w-24"><Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800 inline-flex items-center gap-1">그룹단가 <ExternalLink className="h-3 w-3" /></Link></th>}
-                    <th className="px-3 py-2 text-center font-medium text-gray-500 border-b w-20">가중치(%)</th>
                     <th className="px-3 py-2 text-center font-medium text-gray-500 border-b w-32">개별단가</th>
                   </tr>
                 </thead>
@@ -1191,10 +1235,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                     const specId = spec.specificationId || spec.id;
                     const standardPrice = standardPrices.find((p: any) => p.specificationId === specId);
                     const key = `${setting.id}_spec_${specId}`;
-                    const weightKey = `${setting.id}_specw_${specId}`;
                     const savedPrice = clientPricesMap.get(`${setting.id}__${specId}`);
                     const groupSpecPrice = groupPricesMap.get(`${setting.id}__${specId}`);
-                    const stdPrice = standardPrice?.price ? Number(standardPrice.price) : 0;
                     return (
                       <tr key={specId} className="border-b hover:bg-gray-50">
                         <td className="px-3 py-2 font-medium text-gray-700">
@@ -1203,7 +1245,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                             <span className="text-gray-400 text-[10px] ml-1">({Number(specInfo.widthInch).toFixed(1)}x{Number(specInfo.heightInch).toFixed(1)}")</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 text-center text-gray-500">{stdPrice > 0 ? formatNumber(stdPrice) : '-'}</td>
+                        <td className="px-3 py-2 text-center text-gray-500">{standardPrice?.price ? formatNumber(Number(standardPrice.price)) : '-'}</td>
                         {groupId && (
                           <td className="px-3 py-2 text-center text-purple-500 font-mono">
                             <Link href={`/pricing/group?groupId=${groupId}`} target="_blank" className="hover:underline hover:text-purple-800" title="그룹단가 설정으로 이동">
@@ -1211,27 +1253,6 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                             </Link>
                           </td>
                         )}
-                        <td className="px-3 py-2 text-center">
-                          <Input type="number" className="h-7 w-16 text-xs text-center font-mono mx-auto" placeholder="100"
-                            step="1" min="1" max="200"
-                            value={weights[weightKey] ?? ''}
-                            onChange={(e) => setWeights(prev => ({ ...prev, [weightKey]: e.target.value ? Number(e.target.value) : 0 }))}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && stdPrice > 0) {
-                                const wv = weights[weightKey] || 100;
-                                if (wv > 0 && wv <= 200) {
-                                  setEditingPrices(prev => ({ ...prev, [key]: String(Math.round(stdPrice * wv / 100)) }));
-                                }
-                              }
-                            }}
-                            onBlur={() => {
-                              const wv = weights[weightKey];
-                              if (wv && wv > 0 && wv <= 200 && stdPrice > 0) {
-                                setEditingPrices(prev => ({ ...prev, [key]: String(Math.round(stdPrice * wv / 100)) }));
-                              }
-                            }}
-                          />
-                        </td>
                         <td className="px-3 py-2 text-center">
                           <Input type="number" className="h-7 w-24 text-xs text-center font-mono mx-auto" placeholder="-"
                             value={editingPrices[key] ?? (savedPrice?.price ? String(Number(savedPrice.price)) : (groupSpecPrice?.price ? String(Number(groupSpecPrice.price)) : ''))}
@@ -1243,7 +1264,6 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                 </tbody>
               </table>
             </div>
-            <p className="text-[9px] text-gray-400 mt-1">* 가중치(%) 입력 후 Enter 또는 포커스 이동 → 표준단가 × 가중치% = 개별단가 자동 계산</p>
             {hasEditingPricesForSetting(setting.id) && (
               <div className="flex justify-end mt-3">
                 <Button size="sm" className="h-8 bg-indigo-600 hover:bg-indigo-700" disabled={isSaving}
