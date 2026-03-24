@@ -383,7 +383,7 @@ export class ProductService {
             paperId: p.id,
             name: p.name,
             type: 'normal',
-            printMethod: paperPrintMethodMap.get(p.id) || (p.printMethods as string[])?.[0] || 'indigo',
+            printMethod: (p.printMethods as string[])?.[0] || paperPrintMethodMap.get(p.id) || 'indigo',
             grammage: p.grammage ?? undefined,
             price: 0,
             isDefault: idx === 0,
