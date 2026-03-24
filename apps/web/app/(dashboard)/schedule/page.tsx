@@ -934,7 +934,7 @@ export default function SchedulePage() {
                     className={cn(
                       'px-3 py-1.5 text-[13px] font-medium flex items-center gap-1.5 transition-colors',
                       memoScopeFilter === scope
-                        ? 'bg-black text-white'
+                        ? 'bg-red-50 text-red-700 border-red-300'
                         : 'bg-white text-black hover:bg-gray-100'
                     )}
                     onClick={() => setMemoScopeFilter(scope)}
