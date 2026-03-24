@@ -65,8 +65,12 @@ import {
   useCreateSchedule,
   useUpdateSchedule,
   useDeleteSchedule,
+  useMemos,
+  useCreateMemo,
+  useUpdateMemo,
+  useDeleteMemo,
 } from '@/hooks/use-schedule';
-import type { Todo, Schedule, CreateTodoDto, CreateScheduleDto, RecurringConfig, RecurringType } from '@/lib/types/schedule';
+import type { Todo, Schedule, CreateTodoDto, CreateScheduleDto, RecurringConfig, RecurringType, Memo } from '@/lib/types/schedule';
 import { cn } from '@/lib/utils';
 import { Repeat, X } from 'lucide-react';
 
@@ -171,16 +175,6 @@ const getRecurringSummary = (config: RecurringConfig, startDate: Date): string =
   return summary;
 };
 
-// 메모 타입
-interface Memo {
-  id: string;
-  title: string;
-  content: string;
-  color: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 const MEMO_COLORS = [
   { value: '#FEF9C3', label: '노랑' },
   { value: '#DCFCE7', label: '초록' },
@@ -189,20 +183,19 @@ const MEMO_COLORS = [
   { value: '#F3F4F6', label: '회색' },
 ];
 
-const MEMO_STORAGE_KEY = 'dashboard_memos';
+type MemoScope = 'personal' | 'department' | 'company';
 
-function loadMemos(): Memo[] {
-  try {
-    const raw = localStorage.getItem(MEMO_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
+const memoScopeLabels: Record<MemoScope, string> = {
+  personal: '개인',
+  department: '부서',
+  company: '전체',
+};
 
-function saveMemos(memos: Memo[]) {
-  localStorage.setItem(MEMO_STORAGE_KEY, JSON.stringify(memos));
-}
+const memoScopeIcons: Record<MemoScope, typeof User> = {
+  personal: User,
+  department: Building,
+  company: Building2,
+};
 
 export default function SchedulePage() {
   const { toast } = useToast();
@@ -211,23 +204,25 @@ export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState('calendar');
 
   // 메모 상태
-  const [memos, setMemos] = useState<Memo[]>([]);
+  const [memoScopeFilter, setMemoScopeFilter] = useState<'all' | 'personal' | 'department' | 'company'>('all');
+  const [memoSearch, setMemoSearch] = useState('');
+  const { data: memos = [], isLoading: memosLoading } = useMemos({ scope: memoScopeFilter, search: memoSearch || undefined });
+  const createMemo = useCreateMemo();
+  const updateMemo = useUpdateMemo();
+  const deleteMemo = useDeleteMemo();
   const [editingMemo, setEditingMemo] = useState<Memo | null>(null);
   const [isMemoDialogOpen, setIsMemoDialogOpen] = useState(false);
-  const [memoForm, setMemoForm] = useState({ title: '', content: '', color: '#FEF9C3' });
+  const [memoForm, setMemoForm] = useState({ title: '', content: '', color: '#FEF9C3', scope: 'personal' as MemoScope });
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    setMemos(loadMemos());
-  }, []);
 
   const handleOpenMemoDialog = useCallback((memo?: Memo) => {
     if (memo) {
       setEditingMemo(memo);
-      setMemoForm({ title: memo.title, content: memo.content, color: memo.color });
+      const scope: MemoScope = memo.isCompany ? 'company' : memo.isDepartment ? 'department' : 'personal';
+      setMemoForm({ title: memo.title, content: memo.content, color: memo.color, scope });
     } else {
       setEditingMemo(null);
-      setMemoForm({ title: '', content: '', color: '#FEF9C3' });
+      setMemoForm({ title: '', content: '', color: '#FEF9C3', scope: 'personal' });
     }
     setIsMemoDialogOpen(true);
   }, []);
@@ -237,46 +232,41 @@ export default function SchedulePage() {
       toast({ title: '제목 또는 내용을 입력하세요.', variant: 'destructive' });
       return;
     }
-    const now = new Date().toISOString();
-    let updated: Memo[];
+    const scopeData = {
+      isPersonal: memoForm.scope === 'personal',
+      isDepartment: memoForm.scope === 'department',
+      isCompany: memoForm.scope === 'company',
+    };
     if (editingMemo) {
-      updated = memos.map(m =>
-        m.id === editingMemo.id
-          ? { ...m, title: memoForm.title, content: memoForm.content, color: memoForm.color, updatedAt: now }
-          : m
-      );
+      updateMemo.mutate({ id: editingMemo.id, data: { title: memoForm.title, content: memoForm.content, color: memoForm.color, ...scopeData } }, {
+        onSuccess: () => {
+          setIsMemoDialogOpen(false);
+          toast({ title: '메모가 수정되었습니다.' });
+        },
+      });
     } else {
-      const newMemo: Memo = {
-        id: `memo_${Date.now()}`,
-        title: memoForm.title,
-        content: memoForm.content,
-        color: memoForm.color,
-        createdAt: now,
-        updatedAt: now,
-      };
-      updated = [newMemo, ...memos];
+      createMemo.mutate({ title: memoForm.title, content: memoForm.content, color: memoForm.color, ...scopeData }, {
+        onSuccess: () => {
+          setIsMemoDialogOpen(false);
+          toast({ title: '메모가 저장되었습니다.' });
+        },
+      });
     }
-    setMemos(updated);
-    saveMemos(updated);
-    setIsMemoDialogOpen(false);
-    toast({ title: editingMemo ? '메모가 수정되었습니다.' : '메모가 저장되었습니다.' });
-  }, [memoForm, editingMemo, memos, toast]);
+  }, [memoForm, editingMemo, createMemo, updateMemo, toast]);
 
   const handleDeleteMemo = useCallback((id: string) => {
-    const updated = memos.filter(m => m.id !== id);
-    setMemos(updated);
-    saveMemos(updated);
-    toast({ title: '메모가 삭제되었습니다.' });
-  }, [memos, toast]);
+    deleteMemo.mutate(id, {
+      onSuccess: () => toast({ title: '메모가 삭제되었습니다.' }),
+    });
+  }, [deleteMemo, toast]);
 
   // 메모 인라인 편집 (카드 클릭 시 내용 바로 수정)
   const handleMemoContentChange = useCallback((id: string, content: string) => {
-    const now = new Date().toISOString();
-    const updated = memos.map(m => m.id === id ? { ...m, content, updatedAt: now } : m);
-    setMemos(updated);
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => saveMemos(updated), 800);
-  }, [memos]);
+    saveTimerRef.current = setTimeout(() => {
+      updateMemo.mutate({ id, data: { content } });
+    }, 800);
+  }, [updateMemo]);
   const [scopeFilter, setScopeFilter] = useState<'all' | 'personal' | 'department' | 'company'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
@@ -922,9 +912,9 @@ export default function SchedulePage() {
             <div>
               <h2 className="text-[18px] text-black font-bold flex items-center gap-2">
                 <StickyNote className="h-5 w-5 text-yellow-500" />
-                개인 메모장
+                메모장
               </h2>
-              <p className="text-[14px] text-black font-normal mt-0.5">이 기기에만 저장되는 개인 메모입니다.</p>
+              <p className="text-[14px] text-black font-normal mt-0.5">개인/부서/전체 범위로 메모를 공유할 수 있습니다.</p>
             </div>
             <Button onClick={() => handleOpenMemoDialog()}>
               <Plus className="h-4 w-4 mr-2" />
@@ -932,7 +922,46 @@ export default function SchedulePage() {
             </Button>
           </div>
 
-          {memos.length === 0 ? (
+          {/* 범위 필터 + 검색 */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="flex rounded-lg border overflow-hidden">
+              {(['all', 'personal', 'department', 'company'] as const).map((scope) => {
+                const ScopeIcon = scope === 'all' ? Search : memoScopeIcons[scope as MemoScope];
+                return (
+                  <button
+                    key={scope}
+                    type="button"
+                    className={cn(
+                      'px-3 py-1.5 text-[13px] font-medium flex items-center gap-1.5 transition-colors',
+                      memoScopeFilter === scope
+                        ? 'bg-black text-white'
+                        : 'bg-white text-black hover:bg-gray-100'
+                    )}
+                    onClick={() => setMemoScopeFilter(scope)}
+                  >
+                    <ScopeIcon className="h-3.5 w-3.5" />
+                    {scope === 'all' ? '전체보기' : memoScopeLabels[scope as MemoScope]}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative flex-1 min-w-[200px] max-w-[300px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="메모 검색..."
+                value={memoSearch}
+                onChange={(e) => setMemoSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          {memosLoading ? (
+            <div className="text-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-gray-400" />
+              <p className="text-[14px] text-black font-normal">메모를 불러오는 중...</p>
+            </div>
+          ) : memos.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground border-2 border-dashed rounded-xl">
               <StickyNote className="h-12 w-12 mx-auto mb-3 opacity-30" />
               <p className="text-[14px]">메모가 없습니다.</p>
@@ -940,52 +969,65 @@ export default function SchedulePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {memos.map((memo) => (
-                <div
-                  key={memo.id}
-                  className="rounded-xl p-4 shadow-sm border border-black/5 flex flex-col gap-2 min-h-[180px] relative group"
-                  style={{ backgroundColor: memo.color }}
-                >
-                  {/* 제목 + 액션 버튼 */}
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-[14px] text-black font-bold flex-1 break-words leading-snug">
-                      {memo.title || '(제목 없음)'}
-                    </span>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6"
-                        onClick={() => handleOpenMemoDialog(memo)}
-                      >
-                        <Edit className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive hover:text-destructive"
-                        onClick={() => handleDeleteMemo(memo.id)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
+              {memos.map((memo) => {
+                const memoScope: MemoScope = memo.isCompany ? 'company' : memo.isDepartment ? 'department' : 'personal';
+                const ScopeIcon = memoScopeIcons[memoScope];
+                return (
+                  <div
+                    key={memo.id}
+                    className="rounded-xl p-4 shadow-sm border border-black/5 flex flex-col gap-2 min-h-[180px] relative group"
+                    style={{ backgroundColor: memo.color }}
+                  >
+                    {/* 공개범위 배지 + 액션 버튼 */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Badge variant="outline" className="shrink-0 text-[11px] px-1.5 py-0 h-5 bg-white/60">
+                          <ScopeIcon className="h-3 w-3 mr-1" />
+                          {memoScopeLabels[memoScope]}
+                        </Badge>
+                        <span className="text-[14px] text-black font-bold flex-1 break-words leading-snug truncate">
+                          {memo.title || '(제목 없음)'}
+                        </span>
+                      </div>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => handleOpenMemoDialog(memo)}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteMemo(memo.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* 내용 - 인라인 편집 */}
+                    <textarea
+                      className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
+                      defaultValue={memo.content}
+                      placeholder="내용을 입력하세요..."
+                      onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
+                    />
+
+                    {/* 작성자 + 수정 시각 */}
+                    <div className="flex items-center justify-between gap-1 text-[12px] text-black/40 mt-auto pt-1 border-t border-black/10">
+                      <span>{memo.creatorName}{memo.creatorDeptName ? ` (${memo.creatorDeptName})` : ''}</span>
+                      <span className="flex items-center gap-1">
+                        <Save className="h-3 w-3" />
+                        {format(new Date(memo.updatedAt), 'MM/dd HH:mm', { locale: ko })}
+                      </span>
                     </div>
                   </div>
-
-                  {/* 내용 - 인라인 편집 */}
-                  <textarea
-                    className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
-                    value={memo.content}
-                    placeholder="내용을 입력하세요..."
-                    onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
-                  />
-
-                  {/* 수정 시각 */}
-                  <div className="flex items-center gap-1 text-[12px] text-black/40 mt-auto pt-1 border-t border-black/10">
-                    <Save className="h-3 w-3" />
-                    {format(new Date(memo.updatedAt), 'MM/dd HH:mm', { locale: ko })}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -1019,6 +1061,35 @@ export default function SchedulePage() {
               />
             </div>
             <div className="space-y-2">
+              <Label>공개범위</Label>
+              <div className="flex gap-2">
+                {(['personal', 'department', 'company'] as MemoScope[]).map((scope) => {
+                  const ScopeIcon = memoScopeIcons[scope];
+                  return (
+                    <button
+                      key={scope}
+                      type="button"
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[13px] font-medium transition-colors',
+                        memoForm.scope === scope
+                          ? 'border-black bg-black text-white'
+                          : 'border-gray-200 bg-white text-black hover:bg-gray-50'
+                      )}
+                      onClick={() => setMemoForm({ ...memoForm, scope })}
+                    >
+                      <ScopeIcon className="h-4 w-4" />
+                      {memoScopeLabels[scope]}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[12px] text-black/50">
+                {memoForm.scope === 'personal' && '나만 볼 수 있는 메모입니다.'}
+                {memoForm.scope === 'department' && '같은 부서원이 볼 수 있는 메모입니다.'}
+                {memoForm.scope === 'company' && '모든 직원이 볼 수 있는 메모입니다.'}
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>색상</Label>
               <div className="flex gap-2">
                 {MEMO_COLORS.map((c) => (
@@ -1039,7 +1110,8 @@ export default function SchedulePage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMemoDialogOpen(false)}>취소</Button>
-            <Button onClick={handleSaveMemo}>
+            <Button onClick={handleSaveMemo} disabled={createMemo.isPending || updateMemo.isPending}>
+              {(createMemo.isPending || updateMemo.isPending) && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               <Save className="h-4 w-4 mr-2" />
               {editingMemo ? '수정' : '저장'}
             </Button>

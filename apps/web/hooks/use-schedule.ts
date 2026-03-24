@@ -11,10 +11,15 @@ import type {
   CreateScheduleDto,
   UpdateScheduleDto,
   QueryScheduleDto,
+  Memo,
+  CreateMemoDto,
+  UpdateMemoDto,
+  QueryMemoDto,
 } from '@/lib/types/schedule';
 
 const TODOS_KEY = 'todos';
 const SCHEDULES_KEY = 'schedules';
+const MEMOS_KEY = 'memos';
 
 // ==================== Todo Hooks ====================
 
@@ -126,6 +131,49 @@ export function useDeleteSchedule() {
     mutationFn: (id: string) => api.delete(`/schedules/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [SCHEDULES_KEY] });
+    },
+  });
+}
+
+// ==================== Memo Hooks ====================
+
+export function useMemos(query: QueryMemoDto = {}) {
+  return useQuery({
+    queryKey: [MEMOS_KEY, query],
+    queryFn: () => api.get<Memo[]>('/memos', query as Record<string, string | number | boolean | undefined>),
+  });
+}
+
+export function useCreateMemo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: CreateMemoDto) => api.post<Memo>('/memos', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MEMOS_KEY] });
+    },
+  });
+}
+
+export function useUpdateMemo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateMemoDto }) =>
+      api.put<Memo>(`/memos/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MEMOS_KEY] });
+    },
+  });
+}
+
+export function useDeleteMemo() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.delete(`/memos/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MEMOS_KEY] });
     },
   });
 }

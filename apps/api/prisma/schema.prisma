@@ -1958,6 +1958,32 @@ model Schedule {
   @@map("schedules")
 }
 
+model Memo {
+  id              String   @id @default(cuid())
+  clientId        String?  // 테넌트 격리
+  creatorId       String
+  creatorName     String
+  creatorDeptId   String?
+  creatorDeptName String?
+  title           String   @default("")
+  content         String   @default("")
+  color           String   @default("#FEF9C3")
+  isPersonal      Boolean  @default(true)
+  isDepartment    Boolean  @default(false)
+  isCompany       Boolean  @default(false)
+  isPinned        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([creatorId])
+  @@index([creatorDeptId])
+  @@index([isPersonal])
+  @@index([isDepartment])
+  @@index([isCompany])
+  @@map("memos")
+}
+
 model FoilColor {
   id        String   @id @default(cuid())
   code      String   @unique

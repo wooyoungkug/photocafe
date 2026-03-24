@@ -149,3 +149,39 @@ export interface QueryScheduleDto {
   scheduleType?: 'meeting' | 'event' | 'task' | 'reminder' | 'holiday';
   search?: string;
 }
+
+// Memo 타입
+export interface Memo {
+  id: string;
+  creatorId: string;
+  creatorName: string;
+  creatorDeptId?: string;
+  creatorDeptName?: string;
+  title: string;
+  content: string;
+  color: string;
+  isPersonal: boolean;
+  isDepartment: boolean;
+  isCompany: boolean;
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateMemoDto {
+  title?: string;
+  content?: string;
+  color?: string;
+  isPersonal?: boolean;
+  isDepartment?: boolean;
+  isCompany?: boolean;
+}
+
+export interface UpdateMemoDto extends Partial<CreateMemoDto> {
+  isPinned?: boolean;
+}
+
+export interface QueryMemoDto {
+  scope?: 'personal' | 'department' | 'company' | 'all';
+  search?: string;
+}
