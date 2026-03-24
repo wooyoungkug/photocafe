@@ -54,6 +54,21 @@ import {
   calculateUploadedFolderPrice,
   type DbPriceInfo,
 } from '@/stores/multi-folder-upload-store';
+import Link from 'next/link';
+
+// 관리자가 회원으로 대리로그인 중인지 확인
+function isAdminImpersonating(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hasSessionToken = !!sessionStorage.getItem('accessToken');
+  if (!hasSessionToken) return false;
+  try {
+    const raw = localStorage.getItem('auth-storage');
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    const role = parsed?.state?.user?.role;
+    return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
+  } catch { return false; }
+}
 import { useAlbumPagePrice, useCalculateAlbumOrderPrice } from '@/hooks/use-pricing';
 
 interface FolderCardProps {
@@ -276,22 +291,33 @@ function AdditionalOrderPriceBlock({
             ? <>{Math.round(unitPrice).toLocaleString()}원 ×{order.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
             : <>{Math.round(totalPrice).toLocaleString()}원</>
           }
-          {data?.priceSource && (
-            <span className={cn(
+          {data?.priceSource && (() => {
+            const badgeClass = cn(
               "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
               data.priceSource === 'client'
                 ? "text-blue-600 border-blue-200 bg-blue-50"
                 : data.priceSource === 'group'
                 ? "text-purple-600 border-purple-200 bg-purple-50"
                 : "text-gray-500 border-gray-200 bg-gray-50"
-            )}>
-              {data.priceSource === 'client'
-                ? '개별단가'
-                : data.priceSource === 'group'
-                ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
-                : '표준단가'}
-            </span>
-          )}
+            );
+            const label = data.priceSource === 'client'
+              ? '개별단가'
+              : data.priceSource === 'group'
+              ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
+              : '표준단가';
+            const canLink = isAdminImpersonating() && clientId;
+            return canLink ? (
+              <Link
+                href={`/company/members?edit=${clientId}&tab=pricing`}
+                target="_blank"
+                className={cn(badgeClass, "cursor-pointer hover:underline")}
+              >
+                {label}
+              </Link>
+            ) : (
+              <span className={badgeClass}>{label}</span>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -1491,22 +1517,33 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       ? <>{Math.round(unitPrice).toLocaleString()}원 × {folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
                       : <>{Math.round(totalPrice).toLocaleString()}원</>
                     }
-                    {albumPriceData?.priceSource && (
-                      <span className={cn(
+                    {albumPriceData?.priceSource && (() => {
+                      const badgeClass = cn(
                         "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
                         albumPriceData.priceSource === 'client'
                           ? "text-blue-600 border-blue-200 bg-blue-50"
                           : albumPriceData.priceSource === 'group'
                           ? "text-purple-600 border-purple-200 bg-purple-50"
                           : "text-gray-500 border-gray-200 bg-gray-50"
-                      )}>
-                        {albumPriceData.priceSource === 'client'
-                          ? '개별단가'
-                          : albumPriceData.priceSource === 'group'
-                          ? `그룹단가${albumPriceData.groupName ? ` (${albumPriceData.groupName})` : ''}`
-                          : '표준단가'}
-                      </span>
-                    )}
+                      );
+                      const label = albumPriceData.priceSource === 'client'
+                        ? '개별단가'
+                        : albumPriceData.priceSource === 'group'
+                        ? `그룹단가${albumPriceData.groupName ? ` (${albumPriceData.groupName})` : ''}`
+                        : '표준단가';
+                      const canLink = isAdminImpersonating() && user?.clientId;
+                      return canLink ? (
+                        <Link
+                          href={`/company/members?edit=${user.clientId}&tab=pricing`}
+                          target="_blank"
+                          className={cn(badgeClass, "cursor-pointer hover:underline")}
+                        >
+                          {label}
+                        </Link>
+                      ) : (
+                        <span className={badgeClass}>{label}</span>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>

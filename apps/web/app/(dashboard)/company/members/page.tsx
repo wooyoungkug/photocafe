@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo, useCallback, useEffect, useRef, memo, type ReactNode } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef, memo, type ReactNode, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,6 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   useClients,
+  useClient,
   useClientGroups,
   useCreateClient,
   useUpdateClient,
@@ -217,7 +219,8 @@ const MemberTableRow = memo(({
 });
 MemberTableRow.displayName = 'MemberTableRow';
 
-export default function MembersPage() {
+function MembersPageContent() {
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -229,6 +232,12 @@ export default function MembersPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [memberTypeTab, setMemberTypeTab] = useState<'all' | 'individual' | 'business'>('all');
   const [convertTarget, setConvertTarget] = useState<Client | null>(null);
+
+  // URL 파라미터로 회원 편집 다이얼로그 자동 오픈 (edit=clientId&tab=pricing)
+  const editClientId = searchParams.get('edit');
+  const urlTab = searchParams.get('tab');
+  const { data: urlClient } = useClient(editClientId || '');
+  const urlOpenedRef = useRef(false);
 
   // 검색어 디바운스 처리 (500ms)
   useEffect(() => {
@@ -417,6 +426,15 @@ export default function MembersPage() {
     setActiveTab('basic');
     setIsDialogOpen(true);
   };
+
+  // URL 파라미터로 회원 편집 다이얼로그 자동 오픈
+  useEffect(() => {
+    if (urlClient && !urlOpenedRef.current) {
+      urlOpenedRef.current = true;
+      handleOpenDialog(urlClient as Client);
+      if (urlTab) setActiveTab(urlTab);
+    }
+  }, [urlClient, urlTab]);
 
   const handleAddressComplete = (data: {
     postalCode: string;
