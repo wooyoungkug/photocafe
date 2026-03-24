@@ -1194,14 +1194,24 @@ export default function EditProductPage() {
                               {(indigoSettingDetail.priceGroups as any[]).map((pg: any, pgIdx: number) => {
                                 // paperPriceGroupMap에서 이 그룹에 속한 용지 찾기
                                 const paperMap = indigoSettingDetail.paperPriceGroupMap as Record<string, string | null> | undefined;
-                                const paperCount = paperMap ? Object.values(paperMap).filter(gId => gId === pg.id).length : 0;
+                                const assignedPaperIds = paperMap ? Object.entries(paperMap).filter(([_, gId]) => gId === pg.id).map(([pid]) => pid) : [];
+                                const allPapers = (product?.papers as any[]) ?? [];
+                                const assignedPaperNames = assignedPaperIds.map(pid => {
+                                  const found = allPapers.find((p: any) => p.id === pid);
+                                  return found?.name || pid;
+                                });
                                 return (
                                   <div key={pg.id || pgIdx} className="border rounded p-2 bg-slate-50">
                                     <div className="flex items-center gap-2 mb-1.5">
                                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pg.color || '#94a3b8' }} />
                                       <span className="text-[12px] font-medium">그룹{pgIdx + 1}</span>
-                                      {paperCount > 0 && (
-                                        <span className="text-[11px] text-slate-400">{paperCount}개 용지</span>
+                                      {assignedPaperNames.length > 0 && (
+                                        <span className="text-[11px] text-slate-400">{assignedPaperNames.length}개 용지</span>
+                                      )}
+                                      {assignedPaperNames.length > 0 && (
+                                        <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white truncate max-w-[200px]" title={assignedPaperNames.join(', ')}>
+                                          {assignedPaperNames.join(', ')}
+                                        </span>
                                       )}
                                     </div>
                                     {pg.upPrices && pg.upPrices.length > 0 && (
