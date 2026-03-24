@@ -909,7 +909,7 @@ export default function ClientsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
-                      <Label className="text-sm font-medium">구인방</Label>
+                      <Label className="text-sm font-medium">포토그라퍼</Label>
                       <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
                     </div>
                     <Switch

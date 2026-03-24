@@ -243,7 +243,7 @@ export function ShootingForm({
 
   const { data: avgBudgetData } = useAverageBudget();
 
-  // 평균 예산 (구인방 데이터 기준 - 동일한 촬영유형)
+  // 평균 예산 (포토그라퍼 데이터 기준 - 동일한 촬영유형)
   const averageBudgetInfo = (() => {
     if (!watchedType || !avgBudgetData) return null;
     const d = avgBudgetData[watchedType];
@@ -533,7 +533,7 @@ export function ShootingForm({
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[14px] text-black font-normal">구인방에도 동시 등록</p>
+              <p className="text-[14px] text-black font-normal">포토그라퍼에도 동시 등록</p>
               <p className="text-[12px] text-gray-500">
                 내부 작가 배정이 어려운 경우, 외부 작가 구인을 함께 등록합니다
               </p>
@@ -684,7 +684,7 @@ export function ShootingForm({
                 <div className="space-y-1.5">
                   <Label className="text-[14px] text-black font-normal">전속 모집 마감 시간</Label>
                   <p className="text-[12px] text-gray-500">
-                    등록 즉시 구인방에 올라갑니다. 전속 모집 기간이 지나면 자동으로 공개 모집으로 전환됩니다
+                    등록 즉시 포토그라퍼에 올라갑니다. 전속 모집 기간이 지나면 자동으로 공개 모집으로 전환됩니다
                   </p>
                   <Select
                     value={String(watch('recruitmentPrivateDeadlineHours') ?? 24)}

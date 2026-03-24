@@ -537,7 +537,7 @@ function RecruitmentLinkCard({ shooting }: { shooting: any }) {
         <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[14px] text-blue-800 font-medium">구인방 연동됨</p>
+              <p className="text-[14px] text-blue-800 font-medium">포토그라퍼 연동됨</p>
               <p className="text-[12px] text-blue-600 mt-0.5">
                 ID: {shooting.linkedRecruitmentId.substring(0, 8)}...
               </p>

@@ -255,7 +255,7 @@ export function ShopHeader() {
                   </Link>
                   <Link href="/mypage/recruitment" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
                     <Users className="h-4 w-4 text-neutral-400" />
-                    구인방
+                    포토그라퍼
                   </Link>
                   <Link href="/mypage/profile" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
                     <User className="h-4 w-4 text-neutral-400" />
