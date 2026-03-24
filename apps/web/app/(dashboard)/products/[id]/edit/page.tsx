@@ -2086,78 +2086,6 @@ export default function EditProductPage() {
         </CardContent>
       </Card>
 
-      {/* 옵션정보 섹션 - 옵션 토글 ON 시 표시 */}
-      {showCustomOptions && (
-      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
-        <SectionHeader
-          icon={Settings}
-          title="옵션정보"
-          subtitle="주문 시 선택 가능한 추가 옵션을 설정합니다"
-          theme="violet"
-          actions={
-            <Button type="button" size="sm" variant="outline" onClick={() => setOptionDialogOpen(true)} className="gap-1.5 h-8 text-xs border-slate-200">
-              <Plus className="h-3.5 w-3.5" />
-              옵션 추가
-            </Button>
-          }
-        />
-        <CardContent className="px-6 pb-6 pt-2">
-          {customOptions.length > 0 ? (
-            <div className="rounded-lg border border-slate-200/80 overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/80">
-                    <TableHead className="text-xs font-medium">옵션명</TableHead>
-                    <TableHead className="text-xs font-medium">타입</TableHead>
-                    <TableHead className="text-xs font-medium">수량</TableHead>
-                    <TableHead className="text-xs font-medium">옵션값</TableHead>
-                    <TableHead className="w-12"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {customOptions.map((opt) => (
-                    <TableRow key={opt.id} className="hover:bg-slate-50/50">
-                      <TableCell className="font-medium text-[13px]">{opt.name}</TableCell>
-                      <TableCell>
-                        <Badge variant={opt.type === 'required' ? 'default' : 'secondary'} className="text-[10px] h-5">
-                          {opt.type === 'select' ? '선택옵션' : '필수옵션'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-[13px] text-slate-500">
-                        {opt.quantityType === 'auto' ? '자동수량' : '선택수량'}
-                      </TableCell>
-                      <TableCell className="text-[13px] text-slate-600">
-                        {opt.values.map(v => `${v.name}(${v.price.toLocaleString()}원)`).join(', ')}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setCustomOptions(prev => prev.filter(o => o.id !== opt.id))}
-                          className="h-7 w-7 p-0 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          ) : (
-            <div className="text-center py-10 text-slate-400">
-              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
-                <Settings className="h-5 w-5 text-slate-300" />
-              </div>
-              <p className="text-[13px] font-medium text-slate-500">등록된 옵션이 없습니다</p>
-              <p className="text-[12px] mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      )}
-
       {/* 앨범 표지 원단 선택 */}
       {hasCoverFabric && (
         <Card className="overflow-hidden border border-teal-200 shadow-none rounded-lg">
@@ -2402,6 +2330,78 @@ export default function EditProductPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* 옵션정보 섹션 - 옵션 토글 ON 시 표시 */}
+      {showCustomOptions && (
+      <Card className="overflow-hidden border border-slate-200 shadow-none rounded-lg">
+        <SectionHeader
+          icon={Settings}
+          title="옵션정보"
+          subtitle="주문 시 선택 가능한 추가 옵션을 설정합니다"
+          theme="violet"
+          actions={
+            <Button type="button" size="sm" variant="outline" onClick={() => setOptionDialogOpen(true)} className="gap-1.5 h-8 text-xs border-slate-200">
+              <Plus className="h-3.5 w-3.5" />
+              옵션 추가
+            </Button>
+          }
+        />
+        <CardContent className="px-6 pb-6 pt-2">
+          {customOptions.length > 0 ? (
+            <div className="rounded-lg border border-slate-200/80 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/80">
+                    <TableHead className="text-xs font-medium">옵션명</TableHead>
+                    <TableHead className="text-xs font-medium">타입</TableHead>
+                    <TableHead className="text-xs font-medium">수량</TableHead>
+                    <TableHead className="text-xs font-medium">옵션값</TableHead>
+                    <TableHead className="w-12"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {customOptions.map((opt) => (
+                    <TableRow key={opt.id} className="hover:bg-slate-50/50">
+                      <TableCell className="font-medium text-[13px]">{opt.name}</TableCell>
+                      <TableCell>
+                        <Badge variant={opt.type === 'required' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                          {opt.type === 'select' ? '선택옵션' : '필수옵션'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-[13px] text-slate-500">
+                        {opt.quantityType === 'auto' ? '자동수량' : '선택수량'}
+                      </TableCell>
+                      <TableCell className="text-[13px] text-slate-600">
+                        {opt.values.map(v => `${v.name}(${v.price.toLocaleString()}원)`).join(', ')}
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCustomOptions(prev => prev.filter(o => o.id !== opt.id))}
+                          className="h-7 w-7 p-0 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-slate-400">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-slate-100 flex items-center justify-center">
+                <Settings className="h-5 w-5 text-slate-300" />
+              </div>
+              <p className="text-[13px] font-medium text-slate-500">등록된 옵션이 없습니다</p>
+              <p className="text-[12px] mt-1 text-slate-400">상단의 &apos;옵션 추가&apos; 버튼을 클릭하여 옵션을 추가하세요</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
       )}
 
       {/* 데이터 업로드 미리보기 - 업로드 토글 ON 시 표시 */}
