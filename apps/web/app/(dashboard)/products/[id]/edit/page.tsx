@@ -1197,8 +1197,11 @@ export default function EditProductPage() {
                                 const assignedPaperIds = paperMap ? Object.entries(paperMap).filter(([_, gId]) => gId === pg.id).map(([pid]) => pid) : [];
                                 const allPapers = (product?.papers as any[]) ?? [];
                                 const assignedPaperNames = assignedPaperIds.map(pid => {
-                                  const found = allPapers.find((p: any) => p.id === pid);
-                                  return found?.name || pid;
+                                  const found = allPapers.find((p: any) => p.id === pid || p.paperId === pid || p.paper?.id === pid);
+                                  if (!found) return pid;
+                                  const baseName = found?.paper?.name || found?.name;
+                                  const grammage = found?.grammage || found?.paper?.grammage;
+                                  return baseName ? (grammage ? `${baseName} ${grammage}g` : baseName) : pid;
                                 });
                                 return (
                                   <div key={pg.id || pgIdx} className="border rounded p-2 bg-slate-50">
