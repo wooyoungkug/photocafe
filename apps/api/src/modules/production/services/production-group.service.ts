@@ -410,10 +410,10 @@ export class ProductionGroupService {
       if (paperIds.length > 0) {
         const papers = await this.prisma.paper.findMany({
           where: { id: { in: paperIds } },
-          select: { id: true, name: true, grammage: true },
+          select: { id: true, name: true, grammage: true, printMethods: true },
         });
         (setting as any).masterPaperMap = Object.fromEntries(
-          papers.map(p => [p.id, { name: p.name, grammage: p.grammage }])
+          papers.map(p => [p.id, { name: p.name, grammage: p.grammage, printMethods: p.printMethods }])
         );
       }
     }

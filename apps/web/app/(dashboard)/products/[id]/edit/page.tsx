@@ -1196,8 +1196,15 @@ export default function EditProductPage() {
                                 const paperMap = indigoSettingDetail.paperPriceGroupMap as Record<string, string | null> | undefined;
                                 const assignedPaperIds = paperMap ? Object.entries(paperMap).filter(([_, gId]) => gId === pg.id).map(([pid]) => pid) : [];
                                 const allPapers = (product?.papers as any[]) ?? [];
-                                const masterPaperMap = (indigoSettingDetail as any)?.masterPaperMap as Record<string, { name: string; grammage?: number }> | undefined;
-                                const assignedPaperNames = assignedPaperIds.map(pid => {
+                                const masterPaperMap = (indigoSettingDetail as any)?.masterPaperMap as Record<string, { name: string; grammage?: number; printMethods?: string[] }> | undefined;
+                                const assignedPaperNames = assignedPaperIds
+                                  .filter(pid => {
+                                    // 인디고 출력방식에 해당하는 용지만 필터
+                                    const master = masterPaperMap?.[pid];
+                                    if (!master?.printMethods) return true;
+                                    return master.printMethods.includes('indigo');
+                                  })
+                                  .map(pid => {
                                   // 1) product.papers에서 찾기
                                   const found = allPapers.find((p: any) => p.id === pid || p.paperId === pid || p.paper?.id === pid);
                                   if (found) {
