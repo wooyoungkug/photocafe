@@ -50,9 +50,9 @@ export function PriceGroupCard({
           <span className="text-xl">{style.dot}</span>
           <span className={cn('font-bold text-base', style.text)}>{style.label}</span>
           {assignedPaperNames.length > 0 && (
-            <Badge variant="outline" className="text-[13px]">
-              {assignedPaperNames.length}개 용지
-            </Badge>
+            <span className="text-[13px] text-gray-500 truncate max-w-[300px]">
+              {assignedPaperNames.join(', ')}
+            </span>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -69,13 +69,6 @@ export function PriceGroupCard({
           )}
         </div>
       </div>
-
-      {/* 할당된 용지 미리보기 */}
-      {assignedPaperNames.length > 0 && (
-        <div className="text-[14px] text-gray-500 truncate">
-          {assignedPaperNames.join(', ')}
-        </div>
-      )}
 
       {/* 내부 콘텐츠 (가격 테이블) */}
       {children}
