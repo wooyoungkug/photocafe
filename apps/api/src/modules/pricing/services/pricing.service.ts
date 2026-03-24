@@ -622,7 +622,7 @@ export class PricingService {
       }
     }
 
-    // 7. 제본비: 제본 생산설정의 ProductionSettingPrice에서 rangePrices 조회
+    // 7. 제본비: 거래처 개별 → 그룹 → 표준 단가 순서로 조회
     let rawBindingPrice = 0;
     let bindingRangePricesForResult: Record<string, number> | null = null;
     let bindingBasePriceForResult = 0;
@@ -630,6 +630,8 @@ export class PricingService {
     const defaultBinding = (product.bindings || []).find((b: any) => b.isDefault)
       || (product.bindings || [])[0];
     if (defaultBinding?.productionSettingId) {
+      const bindingPsId = defaultBinding.productionSettingId;
+
       // 제본 생산설정은 forIndigoAlbum=false 규격을 사용하므로
       // 동일 치수의 규격을 찾아서 매칭
       const bindingSpec = await this.prisma.specification.findFirst({
@@ -642,12 +644,58 @@ export class PricingService {
       });
 
       const bindingSpecId = bindingSpec?.id || specification.id;
-      const bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
-        where: {
-          productionSettingId: defaultBinding.productionSettingId,
-          specificationId: bindingSpecId,
-        },
-      });
+      let bindingPriceRecord: any = null;
+
+      // 7-1. 거래처 개별 제본 단가
+      if (dto.clientId) {
+        bindingPriceRecord = await this.prisma.clientProductionSettingPrice.findFirst({
+          where: {
+            clientId: dto.clientId,
+            productionSettingId: bindingPsId,
+            OR: [
+              { specificationId: bindingSpecId },
+              { specificationId: specification.id },
+              { minQuantity: nupNum, specificationId: null },
+            ],
+          },
+        });
+      }
+
+      // 7-2. 거래처 그룹 제본 단가
+      if (!bindingPriceRecord && dto.clientId) {
+        const clientForBinding = await this.prisma.client.findUnique({
+          where: { id: dto.clientId },
+          select: { groupId: true },
+        });
+        if (clientForBinding?.groupId) {
+          bindingPriceRecord = await this.prisma.groupProductionSettingPrice.findFirst({
+            where: {
+              clientGroupId: clientForBinding.groupId,
+              productionSettingId: bindingPsId,
+              OR: [
+                { specificationId: bindingSpecId },
+                { specificationId: specification.id },
+                { minQuantity: nupNum, specificationId: null },
+              ],
+            },
+          });
+        }
+      }
+
+      // 7-3. 표준 제본 단가
+      if (!bindingPriceRecord) {
+        bindingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
+          where: {
+            productionSettingId: bindingPsId,
+            OR: [
+              { specificationId: bindingSpecId },
+              { specificationId: specification.id },
+              { minQuantity: nupNum, specificationId: null },
+            ],
+          },
+        });
+      }
+
       if (bindingPriceRecord) {
         const bindingRangePricesNum = bindingPriceRecord.rangePrices as Record<string, any> | null;
         bindingRangePricesForResult = bindingRangePricesNum as Record<string, number> | null;

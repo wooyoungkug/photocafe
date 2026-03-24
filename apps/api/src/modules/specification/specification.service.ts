@@ -378,8 +378,10 @@ export class SpecificationService {
                 id: true,
                 settingName: true,
                 specUsageType: true,
+                pricingType: true,
                 priceGroups: true,
                 specifications: { select: { specificationId: true, sortOrder: true } },
+                prices: { select: { specificationId: true } },
             },
         });
 
@@ -402,6 +404,9 @@ export class SpecificationService {
             const maxSortOrder = ps.specifications.reduce((max, s) => Math.max(max, s.sortOrder ?? 0), 0);
 
             // 1) ProductionSettingSpecification 추가
+            const existingPriceSpecIds = new Set(
+                ps.prices.map(p => p.specificationId).filter(Boolean),
+            );
             let addedCount = 0;
             for (let i = 0; i < specs.length; i++) {
                 const { id: specId } = specs[i];
@@ -415,6 +420,46 @@ export class SpecificationService {
                         sortOrder: maxSortOrder + i + 1,
                     },
                 }).catch(() => { /* unique constraint 충돌 무시 */ });
+
+                // 1-b) ProductionSettingPrice도 추가 (개별단가 화면에 표시되려면 필요)
+                if (!existingPriceSpecIds.has(specId)) {
+                    const pricingType = ps.pricingType as string;
+                    if (pricingType === 'finishing_spec_nup' || pricingType === 'nup_page_range') {
+                        // Nup 기반 단가: 같은 nup의 기존 가격을 참조하여 기본값 설정
+                        const spec = await this.prisma.specification.findUnique({
+                            where: { id: specId },
+                            select: { nup: true },
+                        });
+                        const sameNupPrice = spec?.nup ? await this.prisma.productionSettingPrice.findFirst({
+                            where: {
+                                productionSettingId: ps.id,
+                                specification: { nup: spec.nup },
+                            },
+                            select: { basePages: true, basePrice: true, pricePerPage: true, rangePrices: true },
+                        }) : null;
+
+                        await this.prisma.productionSettingPrice.create({
+                            data: {
+                                productionSettingId: ps.id,
+                                specificationId: specId,
+                                price: 0,
+                                basePages: sameNupPrice?.basePages ?? 1,
+                                basePrice: sameNupPrice?.basePrice ?? 0,
+                                pricePerPage: sameNupPrice?.pricePerPage ?? 0,
+                                rangePrices: sameNupPrice?.rangePrices ?? {},
+                            },
+                        }).catch(() => { /* 충돌 무시 */ });
+                    } else {
+                        // 기타 타입: 기본 0원으로 추가
+                        await this.prisma.productionSettingPrice.create({
+                            data: {
+                                productionSettingId: ps.id,
+                                specificationId: specId,
+                                price: 0,
+                            },
+                        }).catch(() => { /* 충돌 무시 */ });
+                    }
+                }
 
                 addedCount++;
             }
