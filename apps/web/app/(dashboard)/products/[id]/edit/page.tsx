@@ -1169,7 +1169,7 @@ export default function EditProductPage() {
                                       : `잉크젯 (${checkedSpecCount}/${g.specCount}개 규격)`}
                                   </span>
                                   {g.method === 'INDIGO' && (
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 ml-[500px]">
                                       <span className="text-[11px] text-slate-400">색상</span>
                                       <label className="flex items-center gap-1 cursor-pointer">
                                         <input type="checkbox" checked={colorType === '4c' || colorType === 'both' || colorType === 'customer'} onChange={(e) => { const has6 = colorType === '6c' || colorType === 'both' || colorType === 'customer'; setColorType(e.target.checked ? (has6 ? 'both' : '4c') : (has6 ? '6c' : 'both')); }} className="w-3 h-3 rounded text-purple-600" />
