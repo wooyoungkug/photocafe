@@ -269,14 +269,36 @@ export class PricingService {
     // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
     const billingExtraPages = 0;
 
-    // 후가공비: 상품의 ProductFinishing 가격 합산
+    // 후가공비: 상품의 ProductFinishing → ProductionSetting → 규격별 pricePerPage 조회
     let postProcessingPrice = 0;
     if (dto.productId) {
       const finishings = await this.prisma.productFinishing.findMany({
         where: { productId: dto.productId },
-        select: { price: true },
+        select: { price: true, productionGroupId: true },
       });
       for (const f of finishings) {
+        // productionGroupId가 있으면 해당 그룹의 자식 설정에서 규격별 단가 조회
+        if (f.productionGroupId) {
+          const childSettings = await this.prisma.productionSetting.findMany({
+            where: { groupId: f.productionGroupId },
+            select: { id: true },
+          });
+          if (childSettings.length > 0) {
+            const settingIds = childSettings.map(s => s.id);
+            const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
+              where: {
+                productionSettingId: { in: settingIds },
+                specificationId,
+              },
+              select: { pricePerPage: true, basePrice: true },
+            });
+            if (finishingPrice) {
+              postProcessingPrice += Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
+              continue;
+            }
+          }
+        }
+        // productionGroupId가 없거나 규격별 단가를 못 찾으면 기존 price 사용
         postProcessingPrice += Number(f.price) || 0;
       }
     }
