@@ -1905,184 +1905,6 @@ export default function EditProductPage() {
             </div>
           )}
 
-          {showFinishing && (
-            <>
-              <Separator />
-
-              {/* 후가공 옵션 */}
-              <div className="space-y-3">
-                <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-                  <Settings className="h-4 w-4 text-slate-400" />
-                  후가공 옵션
-                </Label>
-                {finishingChildren.length > 0 ? (
-                  <div className="space-y-2">
-                    {finishingChildren.map(group => {
-                      const activeChildren = (group.children ?? []).filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
-                      const groupSettings = finishingGroupSettings[group.id] ?? [];
-                      const selectedValues = finishingOptions[group.id] ?? [];
-
-                      // Case 1: 하위 그룹이 있는 경우 (예: 코팅 > 용지코팅, 동판구매)
-                      if (activeChildren.length > 0) {
-                        return (
-                          <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
-                            <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
-                              <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
-                            </div>
-                            {activeChildren.map(child => {
-                              const childSettings = finishingGroupSettings[child.id] ?? [];
-                              const childSelected = finishingOptions[child.id] ?? [];
-
-                              if (childSettings.length === 0) {
-                                return (
-                                  <label
-                                    key={child.id}
-                                    className="flex items-center gap-2.5 px-4 py-2 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors"
-                                  >
-                                    <Checkbox
-                                      checked={childSelected.includes('__enabled__')}
-                                      onCheckedChange={(checked) =>
-                                        setFinishingOptions(prev => ({ ...prev, [child.id]: checked ? ['__enabled__'] : [] }))
-                                      }
-                                    />
-                                    <span className="text-[12px] text-slate-600">{child.name}</span>
-                                  </label>
-                                );
-                              }
-
-                              return (
-                                <div key={child.id} className="border-b border-slate-100 last:border-0">
-                                  <div className="px-4 py-1.5 flex items-center justify-between">
-                                    <span className="text-[12px] font-medium text-slate-600">{child.name}</span>
-                                    {childSelected.length > 0 && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setFinishingOptions(prev => ({ ...prev, [child.id]: [] }))}
-                                        className="text-slate-400 hover:text-slate-600 transition-colors"
-                                        title="전체 해제"
-                                      >
-                                        <X className="h-3.5 w-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 px-4 pb-2">
-                                    {childSettings.map(setting => {
-                                      const isChecked = childSelected.includes(setting.id);
-                                      return (
-                                        <label
-                                          key={setting.id}
-                                          className={cn(
-                                            'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
-                                            isChecked
-                                              ? 'bg-primary/10 text-primary font-medium'
-                                              : 'hover:bg-slate-100 text-slate-700'
-                                          )}
-                                        >
-                                          <Checkbox
-                                            checked={isChecked}
-                                            onCheckedChange={(checked) =>
-                                              setFinishingOptions(prev => {
-                                                const current = prev[child.id] ?? [];
-                                                return {
-                                                  ...prev,
-                                                  [child.id]: checked
-                                                    ? [...current, setting.id]
-                                                    : current.filter(id => id !== setting.id),
-                                                };
-                                              })
-                                            }
-                                          />
-                                          {setting.settingName ?? setting.codeName ?? '-'}
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      }
-
-                      // Case 2: 세팅 없는 그룹: 체크박스 방식
-                      if (groupSettings.length === 0) {
-                        return (
-                          <label
-                            key={group.id}
-                            className="flex items-center gap-2.5 px-3 py-2 rounded border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
-                          >
-                            <Checkbox
-                              id={group.id}
-                              checked={selectedValues.includes('__enabled__')}
-                              onCheckedChange={(checked) =>
-                                setFinishingOptions(prev => ({ ...prev, [group.id]: checked ? ['__enabled__'] : [] }))
-                              }
-                            />
-                            <span className="text-[13px] text-slate-700">{group.name}</span>
-                          </label>
-                        );
-                      }
-
-                      // Case 3: 직접 세팅 있는 그룹: 중분류명 헤더 + 세팅값 체크박스
-                      return (
-                        <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
-                          <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                            <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
-                            {selectedValues.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setFinishingOptions(prev => ({ ...prev, [group.id]: [] }))}
-                                className="text-slate-400 hover:text-slate-600 transition-colors"
-                                title="전체 해제"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </button>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1 p-2">
-                            {groupSettings.map(setting => {
-                              const isChecked = selectedValues.includes(setting.id);
-                              return (
-                                <label
-                                  key={setting.id}
-                                  className={cn(
-                                    'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
-                                    isChecked
-                                      ? 'bg-primary/10 text-primary font-medium'
-                                      : 'hover:bg-slate-100 text-slate-700'
-                                  )}
-                                >
-                                  <Checkbox
-                                    checked={isChecked}
-                                    onCheckedChange={(checked) =>
-                                      setFinishingOptions(prev => {
-                                        const current = prev[group.id] ?? [];
-                                        return {
-                                          ...prev,
-                                          [group.id]: checked
-                                            ? [...current, setting.id]
-                                            : current.filter(id => id !== setting.id),
-                                        };
-                                      })
-                                    }
-                                  />
-                                  {setting.settingName ?? setting.codeName ?? '-'}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p className="text-xs text-slate-400 text-center py-4">
-                    {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
-                  </p>
-                )}
-              </div>
-            </>
-          )}
         </CardContent>
       </Card>
 
@@ -2330,6 +2152,185 @@ export default function EditProductPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* 후가공 옵션 - 후가공 토글 ON 시 표시 */}
+      {showFinishing && (
+      <Card className="overflow-hidden border border-lime-200 shadow-none rounded-lg">
+        <SectionHeader
+          icon={Settings}
+          title="후가공 옵션"
+          subtitle="후가공 공정을 선택합니다"
+          theme="lime"
+        />
+        <CardContent className="px-6 pb-6 pt-2">
+          {finishingChildren.length > 0 ? (
+            <div className="space-y-2">
+              {finishingChildren.map(group => {
+                const activeChildren = (group.children ?? []).filter(c => c.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
+                const groupSettings = finishingGroupSettings[group.id] ?? [];
+                const selectedValues = finishingOptions[group.id] ?? [];
+
+                // Case 1: 하위 그룹이 있는 경우 (예: 코팅 > 용지코팅, 동판구매)
+                if (activeChildren.length > 0) {
+                  return (
+                    <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
+                      <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
+                        <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                      </div>
+                      {activeChildren.map(child => {
+                        const childSettings = finishingGroupSettings[child.id] ?? [];
+                        const childSelected = finishingOptions[child.id] ?? [];
+
+                        if (childSettings.length === 0) {
+                          return (
+                            <label
+                              key={child.id}
+                              className="flex items-center gap-2.5 px-4 py-2 border-b border-slate-100 last:border-0 cursor-pointer hover:bg-slate-50 transition-colors"
+                            >
+                              <Checkbox
+                                checked={childSelected.includes('__enabled__')}
+                                onCheckedChange={(checked) =>
+                                  setFinishingOptions(prev => ({ ...prev, [child.id]: checked ? ['__enabled__'] : [] }))
+                                }
+                              />
+                              <span className="text-[12px] text-slate-600">{child.name}</span>
+                            </label>
+                          );
+                        }
+
+                        return (
+                          <div key={child.id} className="border-b border-slate-100 last:border-0">
+                            <div className="px-4 py-1.5 flex items-center justify-between">
+                              <span className="text-[12px] font-medium text-slate-600">{child.name}</span>
+                              {childSelected.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setFinishingOptions(prev => ({ ...prev, [child.id]: [] }))}
+                                  className="text-slate-400 hover:text-slate-600 transition-colors"
+                                  title="전체 해제"
+                                >
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-1 px-4 pb-2">
+                              {childSettings.map(setting => {
+                                const isChecked = childSelected.includes(setting.id);
+                                return (
+                                  <label
+                                    key={setting.id}
+                                    className={cn(
+                                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
+                                      isChecked
+                                        ? 'bg-primary/10 text-primary font-medium'
+                                        : 'hover:bg-slate-100 text-slate-700'
+                                    )}
+                                  >
+                                    <Checkbox
+                                      checked={isChecked}
+                                      onCheckedChange={(checked) =>
+                                        setFinishingOptions(prev => {
+                                          const current = prev[child.id] ?? [];
+                                          return {
+                                            ...prev,
+                                            [child.id]: checked
+                                              ? [...current, setting.id]
+                                              : current.filter(id => id !== setting.id),
+                                          };
+                                        })
+                                      }
+                                    />
+                                    {setting.settingName ?? setting.codeName ?? '-'}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                // Case 2: 세팅 없는 그룹: 체크박스 방식
+                if (groupSettings.length === 0) {
+                  return (
+                    <label
+                      key={group.id}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded border border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                    >
+                      <Checkbox
+                        id={group.id}
+                        checked={selectedValues.includes('__enabled__')}
+                        onCheckedChange={(checked) =>
+                          setFinishingOptions(prev => ({ ...prev, [group.id]: checked ? ['__enabled__'] : [] }))
+                        }
+                      />
+                      <span className="text-[13px] text-slate-700">{group.name}</span>
+                    </label>
+                  );
+                }
+
+                // Case 3: 직접 세팅 있는 그룹: 중분류명 헤더 + 세팅값 체크박스
+                return (
+                  <div key={group.id} className="rounded border border-slate-200 bg-white overflow-hidden">
+                    <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                      <span className="text-[13px] font-medium text-slate-700">{group.name}</span>
+                      {selectedValues.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setFinishingOptions(prev => ({ ...prev, [group.id]: [] }))}
+                          className="text-slate-400 hover:text-slate-600 transition-colors"
+                          title="전체 해제"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1 p-2">
+                      {groupSettings.map(setting => {
+                        const isChecked = selectedValues.includes(setting.id);
+                        return (
+                          <label
+                            key={setting.id}
+                            className={cn(
+                              'flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer transition-colors text-[12px]',
+                              isChecked
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'hover:bg-slate-100 text-slate-700'
+                            )}
+                          >
+                            <Checkbox
+                              checked={isChecked}
+                              onCheckedChange={(checked) =>
+                                setFinishingOptions(prev => {
+                                  const current = prev[group.id] ?? [];
+                                  return {
+                                    ...prev,
+                                    [group.id]: checked
+                                      ? [...current, setting.id]
+                                      : current.filter(id => id !== setting.id),
+                                  };
+                                })
+                              }
+                            />
+                            {setting.settingName ?? setting.codeName ?? '-'}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-slate-400 text-center py-4">
+              {isTreeLoading ? '로딩 중...' : '후가공 옵션이 설정되지 않았습니다. 기초정보 > 가격관리에서 후가공옵션 그룹을 추가하세요.'}
+            </p>
+          )}
+        </CardContent>
+      </Card>
       )}
 
       {/* 옵션정보 섹션 - 옵션 토글 ON 시 표시 */}
