@@ -1121,41 +1121,11 @@ export default function EditProductPage() {
 
             {/* 출력단가 선택 (새로운 방식) */}
             {showOutputPrice && (<div className="space-y-3">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-4">
-                  <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
-                    <FileText className="h-4 w-4 text-slate-400" />
-                    출력단가 설정
-                  </Label>
-                  {/* 색상구분 */}
-                  {outputPriceSelections.some(s => s.outputMethod === 'INDIGO') && (
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-slate-500">색상</span>
-                      <label className="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" checked={colorType === '4c' || colorType === 'both' || colorType === 'customer'} onChange={(e) => { const has6 = colorType === '6c' || colorType === 'both' || colorType === 'customer'; setColorType(e.target.checked ? (has6 ? 'both' : '4c') : (has6 ? '6c' : 'both')); }} className="w-3.5 h-3.5 rounded text-purple-600" />
-                        <span className="text-xs">4도</span>
-                      </label>
-                      <label className="flex items-center gap-1 cursor-pointer">
-                        <input type="checkbox" checked={colorType === '6c' || colorType === 'both' || colorType === 'customer'} onChange={(e) => { const has4 = colorType === '4c' || colorType === 'both' || colorType === 'customer'; setColorType(e.target.checked ? (has4 ? 'both' : '6c') : (has4 ? '4c' : 'both')); }} className="w-3.5 h-3.5 rounded text-purple-600" />
-                        <span className="text-xs">6도</span>
-                      </label>
-                      <span className="text-[10px] text-slate-400">{colorType === 'both' ? '(고객이 선택)' : colorType === '4c' ? '(4도 고정)' : colorType === '6c' ? '(6도 고정)' : '(고객이 선택)'}</span>
-                    </div>
-                  )}
-                  {/* 출력면 */}
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] text-slate-500">출력면</span>
-                    <label className={`flex items-center gap-1 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
-                      <input type="checkbox" checked={printType === 'single' || printType === 'customer'} onChange={(e) => { if (autoPrintType) return; const hasDouble = printType === 'double' || printType === 'customer'; setPrintType(e.target.checked ? (hasDouble ? 'customer' : 'single') : (hasDouble ? 'double' : 'customer')); }} disabled={!!autoPrintType} className="w-3.5 h-3.5 rounded text-emerald-600 disabled:opacity-60" />
-                      <span className="text-xs">단면</span>
-                    </label>
-                    <label className={`flex items-center gap-1 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
-                      <input type="checkbox" checked={printType === 'double' || printType === 'customer'} onChange={(e) => { if (autoPrintType) return; const hasSingle = printType === 'single' || printType === 'customer'; setPrintType(e.target.checked ? (hasSingle ? 'customer' : 'double') : (hasSingle ? 'single' : 'customer')); }} disabled={!!autoPrintType} className="w-3.5 h-3.5 rounded text-emerald-600 disabled:opacity-60" />
-                      <span className="text-xs">양면</span>
-                    </label>
-                    <span className="text-[10px] text-slate-400">{autoPrintType ? '(자동결정)' : printType === 'customer' ? '(고객이 선택)' : printType === 'single' ? '(단면 고정)' : '(양면 고정)'}</span>
-                  </div>
-                </div>
+              <div className="flex items-center justify-between">
+                <Label className="text-[13px] font-medium text-slate-600 flex items-center gap-1.5">
+                  <FileText className="h-4 w-4 text-slate-400" />
+                  출력단가 설정
+                </Label>
                 <Button type="button" variant="outline" size="sm" onClick={() => setOutputPriceDialogOpen(true)} className="gap-1.5 h-7 text-xs border-slate-200">
                   <Plus className="h-3.5 w-3.5" />
                   출력단가 선택
@@ -1192,11 +1162,39 @@ export default function EditProductPage() {
                               <span className="text-base">{g.method === 'INDIGO' ? '🖨️' : '💧'}</span>
                               <div>
                                 <p className="font-medium text-[13px]">{g.name}</p>
-                                <p className="text-[12px] text-slate-500">
-                                  {g.method === 'INDIGO'
-                                    ? `인디고 ${g.colorTypes.join('/')}`
-                                    : `잉크젯 (${checkedSpecCount}/${g.specCount}개 규격)`}
-                                </p>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[12px] text-slate-500">
+                                    {g.method === 'INDIGO'
+                                      ? `인디고 ${g.colorTypes.join('/')}`
+                                      : `잉크젯 (${checkedSpecCount}/${g.specCount}개 규격)`}
+                                  </span>
+                                  {g.method === 'INDIGO' && (
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-[11px] text-slate-400">색상</span>
+                                      <label className="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" checked={colorType === '4c' || colorType === 'both' || colorType === 'customer'} onChange={(e) => { const has6 = colorType === '6c' || colorType === 'both' || colorType === 'customer'; setColorType(e.target.checked ? (has6 ? 'both' : '4c') : (has6 ? '6c' : 'both')); }} className="w-3 h-3 rounded text-purple-600" />
+                                        <span className="text-[11px]">4도</span>
+                                      </label>
+                                      <label className="flex items-center gap-1 cursor-pointer">
+                                        <input type="checkbox" checked={colorType === '6c' || colorType === 'both' || colorType === 'customer'} onChange={(e) => { const has4 = colorType === '4c' || colorType === 'both' || colorType === 'customer'; setColorType(e.target.checked ? (has4 ? 'both' : '6c') : (has4 ? '4c' : 'both')); }} className="w-3 h-3 rounded text-purple-600" />
+                                        <span className="text-[11px]">6도</span>
+                                      </label>
+                                      <span className="text-[10px] text-slate-400">{colorType === 'both' ? '(고객이 선택)' : colorType === '4c' ? '(4도 고정)' : colorType === '6c' ? '(6도 고정)' : '(고객이 선택)'}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[11px] text-slate-400">출력면</span>
+                                    <label className={`flex items-center gap-1 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                      <input type="checkbox" checked={printType === 'single' || printType === 'customer'} onChange={(e) => { if (autoPrintType) return; const hasDouble = printType === 'double' || printType === 'customer'; setPrintType(e.target.checked ? (hasDouble ? 'customer' : 'single') : (hasDouble ? 'double' : 'customer')); }} disabled={!!autoPrintType} className="w-3 h-3 rounded text-emerald-600 disabled:opacity-60" />
+                                      <span className="text-[11px]">단면</span>
+                                    </label>
+                                    <label className={`flex items-center gap-1 ${autoPrintType ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}>
+                                      <input type="checkbox" checked={printType === 'double' || printType === 'customer'} onChange={(e) => { if (autoPrintType) return; const hasSingle = printType === 'single' || printType === 'customer'; setPrintType(e.target.checked ? (hasSingle ? 'customer' : 'double') : (hasSingle ? 'single' : 'customer')); }} disabled={!!autoPrintType} className="w-3 h-3 rounded text-emerald-600 disabled:opacity-60" />
+                                      <span className="text-[11px]">양면</span>
+                                    </label>
+                                    <span className="text-[10px] text-slate-400">{autoPrintType ? '(자동결정)' : printType === 'customer' ? '(고객이 선택)' : printType === 'single' ? '(단면 고정)' : '(양면 고정)'}</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                             <button
