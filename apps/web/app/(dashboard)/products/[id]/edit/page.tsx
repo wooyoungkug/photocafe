@@ -1249,16 +1249,20 @@ export default function EditProductPage() {
                                 });
                                 return (
                                   <div key={pg.id || pgIdx} className="border rounded p-2 bg-slate-50">
-                                    <div className="flex items-center gap-2 mb-1.5">
-                                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pg.color || '#94a3b8' }} />
-                                      <span className="text-[12px] font-medium">그룹{pgIdx + 1}</span>
+                                    <div className="mb-1.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pg.color || '#94a3b8' }} />
+                                        <span className="text-[12px] font-medium">그룹{pgIdx + 1}</span>
+                                        {assignedPaperNames.length > 0 && (
+                                          <span className="text-[11px] text-slate-400">{assignedPaperNames.length}개 용지</span>
+                                        )}
+                                      </div>
                                       {assignedPaperNames.length > 0 && (
-                                        <span className="text-[11px] text-slate-400">{assignedPaperNames.length}개 용지</span>
-                                      )}
-                                      {assignedPaperNames.length > 0 && (
-                                        <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
-                                          {assignedPaperNames.join(', ')}
-                                        </span>
+                                        <div className="mt-1 ml-[18px]">
+                                          <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
+                                            {assignedPaperNames.join(', ')}
+                                          </span>
+                                        </div>
                                       )}
                                     </div>
                                     {pg.upPrices && pg.upPrices.length > 0 && (
