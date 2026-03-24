@@ -1190,7 +1190,7 @@ export default function EditProductPage() {
 
                           {/* 인디고: priceGroups 가격 테이블 표시 */}
                           {g.method === 'INDIGO' && indigoSettingDetail?.priceGroups && (indigoSettingDetail.priceGroups as any[]).length > 0 && (
-                            <div className="border-t px-2 py-2 space-y-2 max-h-[300px] overflow-y-auto">
+                            <div className="border-t px-2 py-2 space-y-2">
                               {(indigoSettingDetail.priceGroups as any[]).map((pg: any, pgIdx: number) => {
                                 // paperPriceGroupMap에서 이 그룹에 속한 용지 찾기
                                 const paperMap = indigoSettingDetail.paperPriceGroupMap as Record<string, string | null> | undefined;
