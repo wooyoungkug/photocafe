@@ -1842,3 +1842,11 @@ function MembersPageContent() {
     </div>
   );
 }
+
+export default function MembersPage() {
+  return (
+    <Suspense>
+      <MembersPageContent />
+    </Suspense>
+  );
+}
