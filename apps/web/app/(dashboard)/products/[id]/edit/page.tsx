@@ -1254,7 +1254,7 @@ export default function EditProductPage() {
                                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pg.color || '#94a3b8' }} />
                                         <span className="text-[12px] font-medium">그룹{pgIdx + 1}</span>
                                         {assignedPaperNames.length > 0 && (
-                                          <span className="text-[8px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
+                                          <span className="text-[9px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
                                             {assignedPaperNames.join(', ')}
                                           </span>
                                         )}

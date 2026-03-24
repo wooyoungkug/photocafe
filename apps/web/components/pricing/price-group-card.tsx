@@ -50,7 +50,7 @@ export function PriceGroupCard({
           <span className="text-xl">{style.dot}</span>
           <span className={cn('font-bold text-base', style.text)}>{style.label}</span>
           {assignedPaperNames.length > 0 && (
-            <span className="text-[8px] text-gray-500 truncate max-w-[300px]">
+            <span className="text-[9px] text-gray-500 truncate max-w-[300px]">
               {assignedPaperNames.join(', ')}
             </span>
           )}
