@@ -44,11 +44,11 @@ export default function HomePage() {
       <section className="relative bg-neutral-900 text-white overflow-hidden">
         {/* Background image */}
         <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-30"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-70"
           style={{ backgroundImage: 'url(/images/image.png)' }}
         />
         {/* Dark gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/70 via-neutral-900/50 to-neutral-900/90" />
+        <div className="absolute inset-0 bg-gradient-to-b from-neutral-900/30 via-neutral-900/20 to-neutral-900/40" />
         {/* Gold accent line top */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
 
