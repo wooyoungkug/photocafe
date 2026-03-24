@@ -423,7 +423,9 @@
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\d production_setting_prices\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \":*)",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT s.name, s.nup, psp.\"\"pricePerPage\"\" FROM production_setting_prices psp JOIN specifications s ON s.id = psp.\"\"specificationId\"\" WHERE psp.\"\"productionSettingId\"\" = ''cmkkl7404000d10u6awja3pml'' AND s.nup = ''2up'' ORDER BY s.name;\")",
-      "Bash(cat -n /c/dev/printing114/apps/web/app/\\\\\\(shop\\\\\\)/mypage/orders/[id]/page.tsx)"
+      "Bash(cat -n /c/dev/printing114/apps/web/app/\\\\\\(shop\\\\\\)/mypage/orders/[id]/page.tsx)",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SET search_path TO public; SELECT table_name FROM information_schema.tables WHERE table_schema=''public'' AND table_name ILIKE ''%order%'' LIMIT 10;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\d order_files\")"
     ],
     "deny": [],
     "ask": [],
