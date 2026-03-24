@@ -1083,7 +1083,7 @@ export default function EditProductPage() {
                     <div key={idx} className="flex items-center gap-2 p-2 bg-white border rounded-lg">
                       <span className="font-medium text-[13px] flex-1">{b.name}</span>
                       {shouldShow('bindingDirection') && (
-                        <div className="flex items-center gap-3 mr-[400px]">
+                        <div className="flex items-center gap-3 mr-[300px]">
                           <Label className="text-xs text-slate-500">제본방향</Label>
                           {BINDING_DIRECTION_OPTIONS.map(opt => (
                             <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer">
