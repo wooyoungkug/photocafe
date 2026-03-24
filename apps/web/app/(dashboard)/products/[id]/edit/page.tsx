@@ -1254,16 +1254,11 @@ export default function EditProductPage() {
                                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pg.color || '#94a3b8' }} />
                                         <span className="text-[12px] font-medium">그룹{pgIdx + 1}</span>
                                         {assignedPaperNames.length > 0 && (
-                                          <span className="text-[11px] text-slate-400">{assignedPaperNames.length}개 용지</span>
-                                        )}
-                                      </div>
-                                      {assignedPaperNames.length > 0 && (
-                                        <div className="mt-1">
                                           <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
                                             {assignedPaperNames.join(', ')}
                                           </span>
-                                        </div>
-                                      )}
+                                        )}
+                                      </div>
                                     </div>
                                     {pg.upPrices && pg.upPrices.length > 0 && (
                                       <table className="w-full text-[11px]">
