@@ -970,20 +970,20 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <CardTitle>주문자 정보</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 text-[12px]">
                 <div>
-                  <p className="text-sm text-gray-500">이름</p>
+                  <p className="text-gray-500">이름</p>
                   <p className="font-normal">{order.client.clientName}</p>
                 </div>
                 {order.client.mobile && (
                   <div>
-                    <p className="text-sm text-gray-500">연락처</p>
+                    <p className="text-gray-500">연락처</p>
                     <p className="font-normal">{order.client.mobile}</p>
                   </div>
                 )}
                 {order.client.email && (
                   <div>
-                    <p className="text-sm text-gray-500">이메일</p>
+                    <p className="text-gray-500">이메일</p>
                     <p className="font-normal">{order.client.email}</p>
                   </div>
                 )}
@@ -994,9 +994,9 @@ export default function OrderDetailPage() {
             {retention && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-sm">파일 보관 정보</CardTitle>
+                  <CardTitle>파일 보관 정보</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
+                <CardContent className="space-y-2 text-[12px]">
                   <div className="flex justify-between">
                     <span className="text-gray-500">보관기간</span>
                     <span>{retention.retentionMonths}개월</span>
