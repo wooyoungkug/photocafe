@@ -110,12 +110,13 @@ function CartItemThumbnail({ item }: { item: CartItem }) {
   // serverFiles 썸네일 우선 (blob URL 대신 서버 URL), 그 다음 item.thumbnailUrl
   const thumbUrl = item.serverFiles?.[0]?.thumbnailUrl || item.thumbnailUrl;
 
-  // 펼친면(spread) + 우시작(RIGHT_START)인지 확인
+  // 펼친면(spread)이면 1p만 크롭 필요
   const isSpread = item.albumOrderInfo?.pageLayout === 'spread';
   const isRightStart = item.albumOrderInfo?.bindingDirection?.includes('RIGHT_START');
-  const needsCrop = isSpread && isRightStart;
+  const isLeftStart = item.albumOrderInfo?.bindingDirection?.includes('LEFT_START');
+  const needsCrop = isSpread && (isRightStart || isLeftStart);
 
-  // 펼친면+우시작: 첫 번째 썸네일의 오른쪽 절반만 크롭
+  // 펼친면: 좌시작→왼쪽 1p만, 우시작→오른쪽 1p만 크롭
   useEffect(() => {
     if (!needsCrop || !thumbUrl || imgError) {
       setCroppedUrl(null);
@@ -126,7 +127,6 @@ function CartItemThumbnail({ item }: { item: CartItem }) {
     img.crossOrigin = 'anonymous';
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      // 오른쪽 절반 크롭 → 가로 100px, 세로 비율 축소
       const halfWidth = Math.floor(img.naturalWidth / 2);
       const srcHeight = img.naturalHeight;
       const targetWidth = 100;
@@ -136,18 +136,19 @@ function CartItemThumbnail({ item }: { item: CartItem }) {
       canvas.height = targetHeight;
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        // 왼쪽 절반 버리고 오른쪽 절반만 그리기
+        // 우시작: 오른쪽 절반, 좌시작: 왼쪽 절반
+        const srcX = isRightStart ? halfWidth : 0;
         ctx.drawImage(
           img,
-          halfWidth, 0, halfWidth, srcHeight,  // source: 오른쪽 절반
-          0, 0, targetWidth, targetHeight       // dest: canvas 전체
+          srcX, 0, halfWidth, srcHeight,        // source: 해당 절반
+          0, 0, targetWidth, targetHeight        // dest: canvas 전체
         );
         setCroppedUrl(canvas.toDataURL('image/jpeg', 0.85));
       }
     };
     img.onerror = () => setImgError(true);
     img.src = normalizeImageUrl(thumbUrl);
-  }, [needsCrop, thumbUrl, imgError]);
+  }, [needsCrop, thumbUrl, imgError, isRightStart]);
 
   const displayUrl = needsCrop ? croppedUrl : thumbUrl ? normalizeImageUrl(thumbUrl) : null;
 
