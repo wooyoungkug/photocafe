@@ -1258,7 +1258,7 @@ export default function EditProductPage() {
                                         )}
                                       </div>
                                       {assignedPaperNames.length > 0 && (
-                                        <div className="mt-1 ml-[18px]">
+                                        <div className="mt-1">
                                           <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
                                             {assignedPaperNames.join(', ')}
                                           </span>
