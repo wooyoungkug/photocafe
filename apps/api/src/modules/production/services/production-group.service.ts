@@ -403,6 +403,21 @@ export class ProductionGroupService {
       throw new NotFoundException(`생산설정을 찾을 수 없습니다: ${id}`);
     }
 
+    // paperPriceGroupMap의 마스터 Paper ID → 이름 매핑 추가
+    const pgMap = (setting as any).paperPriceGroupMap as Record<string, string | null> | undefined;
+    if (pgMap && typeof pgMap === 'object') {
+      const paperIds = Object.keys(pgMap).filter(Boolean);
+      if (paperIds.length > 0) {
+        const papers = await this.prisma.paper.findMany({
+          where: { id: { in: paperIds } },
+          select: { id: true, name: true, grammage: true },
+        });
+        (setting as any).masterPaperMap = Object.fromEntries(
+          papers.map(p => [p.id, { name: p.name, grammage: p.grammage }])
+        );
+      }
+    }
+
     return setting;
   }
 
