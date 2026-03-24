@@ -1072,7 +1072,7 @@ export default function SchedulePage() {
                       className={cn(
                         'flex items-center gap-1.5 px-3 py-2 rounded-lg border text-[13px] font-medium transition-colors',
                         memoForm.scope === scope
-                          ? 'border-black bg-black text-white'
+                          ? 'border-red-300 bg-red-50 text-red-700'
                           : 'border-gray-200 bg-white text-black hover:bg-gray-50'
                       )}
                       onClick={() => setMemoForm({ ...memoForm, scope })}
