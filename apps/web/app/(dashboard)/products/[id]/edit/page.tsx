@@ -1063,7 +1063,7 @@ export default function EditProductPage() {
         />
         <CardContent className="px-6 pb-6 pt-2 space-y-5">
           {/* 제본/출력단가 선택 */}
-          <div className={`grid gap-6 ${shouldShow('binding') && showBinding ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          <div className="grid grid-cols-1 gap-6">
             {/* 제본 선택 - 상품유형에서 binding 표시 + 제본 토글 ON */}
             {shouldShow('binding') && showBinding && (
             <div className="space-y-3">
@@ -1190,7 +1190,7 @@ export default function EditProductPage() {
 
                           {/* 인디고: priceGroups 가격 테이블 표시 */}
                           {g.method === 'INDIGO' && indigoSettingDetail?.priceGroups && (indigoSettingDetail.priceGroups as any[]).length > 0 && (
-                            <div className="border-t px-2 py-2 space-y-2">
+                            <div className="border-t px-2 py-2 grid grid-cols-3 gap-2">
                               {(indigoSettingDetail.priceGroups as any[]).map((pg: any, pgIdx: number) => {
                                 // paperPriceGroupMap에서 이 그룹에 속한 용지 찾기
                                 const paperMap = indigoSettingDetail.paperPriceGroupMap as Record<string, string | null> | undefined;
