@@ -1196,12 +1196,21 @@ export default function EditProductPage() {
                                 const paperMap = indigoSettingDetail.paperPriceGroupMap as Record<string, string | null> | undefined;
                                 const assignedPaperIds = paperMap ? Object.entries(paperMap).filter(([_, gId]) => gId === pg.id).map(([pid]) => pid) : [];
                                 const allPapers = (product?.papers as any[]) ?? [];
+                                const masterPaperMap = (product as any)?.masterPaperMap as Record<string, { name: string; grammage?: number }> | undefined;
                                 const assignedPaperNames = assignedPaperIds.map(pid => {
+                                  // 1) product.papers에서 찾기
                                   const found = allPapers.find((p: any) => p.id === pid || p.paperId === pid || p.paper?.id === pid);
-                                  if (!found) return pid;
-                                  const baseName = found?.paper?.name || found?.name;
-                                  const grammage = found?.grammage || found?.paper?.grammage;
-                                  return baseName ? (grammage ? `${baseName} ${grammage}g` : baseName) : pid;
+                                  if (found) {
+                                    const baseName = found?.paper?.name || found?.name;
+                                    const grammage = found?.grammage || found?.paper?.grammage;
+                                    return baseName ? (grammage ? `${baseName} ${grammage}g` : baseName) : pid;
+                                  }
+                                  // 2) masterPaperMap에서 찾기 (product.papers가 없는 경우)
+                                  const master = masterPaperMap?.[pid];
+                                  if (master) {
+                                    return master.grammage ? `${master.name} ${master.grammage}g` : master.name;
+                                  }
+                                  return pid;
                                 });
                                 return (
                                   <div key={pg.id || pgIdx} className="border rounded p-2 bg-slate-50">

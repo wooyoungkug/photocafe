@@ -228,6 +228,28 @@ export class ProductService {
         }));
     }
 
+    // outputPriceSettings 내 paperPriceGroupMap의 마스터 Paper ID → 이름 매핑 추가
+    const outputSettingsForPaperMap = product.outputPriceSettings as any[];
+    if (outputSettingsForPaperMap && Array.isArray(outputSettingsForPaperMap)) {
+      const masterPaperIds = new Set<string>();
+      for (const setting of outputSettingsForPaperMap) {
+        if (setting?.paperPriceGroupMap) {
+          for (const pid of Object.keys(setting.paperPriceGroupMap)) {
+            if (pid) masterPaperIds.add(pid);
+          }
+        }
+      }
+      if (masterPaperIds.size > 0) {
+        const masterPapers = await this.prisma.paper.findMany({
+          where: { id: { in: Array.from(masterPaperIds) } },
+          select: { id: true, name: true, grammage: true },
+        });
+        (product as any).masterPaperMap = Object.fromEntries(
+          masterPapers.map(p => [p.id, { name: p.name, grammage: p.grammage }])
+        );
+      }
+    }
+
     return this.convertDecimalToNumber(product);
   }
 
