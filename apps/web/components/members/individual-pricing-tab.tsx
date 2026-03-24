@@ -789,8 +789,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
     const isNupPageRange = pricingType === 'nup_page_range';
     const hasInkjetSpecs = printMethod === 'inkjet' && specifications.length > 0 && !hasPriceGroups && !isNupPageRange;
 
-    // nupPageRanges
-    const nupPageRanges = useMemo(() => {
+    // nupPageRanges (useMemo 사용 불가 - map 내부 렌더함수이므로 일반 계산으로 처리)
+    const nupPageRanges = (() => {
       if (pricingType !== 'nup_page_range' && pricingType !== 'finishing_spec_nup') return [];
       return standardPrices
         .filter((p: any) => p.specificationId)
@@ -815,7 +815,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
             rangePrices,
           };
         });
-    }, [standardPrices, pricingType]);
+    })();
 
     // 1up 변경 시 자동 계산
     const handleOneUpChange = (grpId: string, field: string, value: string, upPricesForCalc?: any[]) => {
