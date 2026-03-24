@@ -3740,7 +3740,7 @@ function BindingPriceDetail({ setting }: { setting: ProductionSetting & { prices
     const formatNum = (n: number) => n ? n.toLocaleString() : '-';
 
     return (
-      <div className="border-2 border-green-400 rounded-lg p-3 space-y-2 w-1/2 mx-auto">
+      <div className="border-2 border-green-400 rounded-lg p-3 space-y-2 w-1/2">
         <div className="text-xs font-medium text-green-700 mb-1">제본 단가 ({setting.settingName || setting.codeName})</div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
