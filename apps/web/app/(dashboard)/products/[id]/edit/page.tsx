@@ -162,12 +162,12 @@ function FormRow({ label, required, children, className = '' }: {
   className?: string;
 }) {
   return (
-    <div className={`grid grid-cols-12 gap-x-3 items-center py-3.5 ${className}`}>
-      <Label className="col-span-2 text-left text-[11px] font-medium text-slate-500 select-none">
+    <div className={`flex items-center py-3.5 ${className}`}>
+      <Label className="w-[100px] shrink-0 text-left text-[11px] font-medium text-slate-500 select-none">
         {label}
         {required && <span className="text-rose-400 ml-0.5">*</span>}
       </Label>
-      <div className="col-span-10 -ml-[10px]">{children}</div>
+      <div className="flex-1">{children}</div>
     </div>
   );
 }
