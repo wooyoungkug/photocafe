@@ -405,7 +405,15 @@
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"UPDATE client_departments SET name = ''촬영팀'' WHERE name = ''사진작가''; UPDATE client_departments SET name = ''편집팀'' WHERE name = ''편집디자이너''; UPDATE client_departments SET name = ''관리팀'' WHERE name = ''관리부'';\")",
       "Bash(\"C:/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -f update_depts.sql)",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\pg_dump.exe\" -h 192.168.0.67 -p 5433 -U postgres -d printing_erp -f C:tmpprod_backup.sql)",
-      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \":*)"
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \":*)",
+      "Bash(ls -la /c/dev/printing114/apps/web/app/\\\\\\(shop\\\\\\)/product/[id]/_components/)",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT pf.id, pf.\"\"productId\"\", pf.name, pf.price, pf.\"\"isDefault\"\", pf.\"\"productionGroupId\"\" FROM \"\"ProductFinishing\"\" pf ORDER BY pf.\"\"productId\"\" LIMIT 20;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\dt *finishing*\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT * FROM product_finishings LIMIT 20;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name FROM production_groups WHERE id = ''cmkkl5cfm000910u634dg5itg'';\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT ps.id, ps.name, ps.\"\"groupId\"\" FROM production_settings ps WHERE ps.\"\"groupId\"\" = ''cmkkl5cfm000910u634dg5itg'' LIMIT 10;\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\d production_settings\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT ps.id, ps.\"\"settingName\"\", ps.\"\"codeName\"\", ps.\"\"pricingType\"\", ps.\"\"basePrice\"\" FROM production_settings ps WHERE ps.\"\"groupId\"\" = ''cmkkl5cfm000910u634dg5itg'';\")"
     ],
     "deny": [],
     "ask": [],
