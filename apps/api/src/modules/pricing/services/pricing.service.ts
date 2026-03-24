@@ -1170,9 +1170,47 @@ export class PricingService {
   }
 
   /**
+   * Nup 구간단가(rangePrices + specificationId) 저장 시,
+   * 같은 Nup 그룹의 모든 규격에 동일 가격을 적용하기 위해 가격 항목을 확장
+   */
+  private async expandNupPrices(prices: any[]): Promise<any[]> {
+    const expanded: any[] = [];
+
+    for (const priceData of prices) {
+      // rangePrices가 있고 specificationId가 있는 경우 = Nup 구간단가
+      if (priceData.specificationId && priceData.rangePrices) {
+        const spec = await this.prisma.specification.findUnique({
+          where: { id: priceData.specificationId },
+          select: { nup: true },
+        });
+
+        if (spec?.nup) {
+          // 같은 Nup의 모든 활성 규격 조회
+          const sameNupSpecs = await this.prisma.specification.findMany({
+            where: { nup: spec.nup, isActive: true },
+            select: { id: true },
+          });
+
+          // 각 규격에 대해 동일한 가격 항목 생성
+          for (const s of sameNupSpecs) {
+            expanded.push({ ...priceData, specificationId: s.id });
+          }
+          continue;
+        }
+      }
+      expanded.push(priceData);
+    }
+
+    return expanded;
+  }
+
+  /**
    * 그룹별 생산설정 단가 설정 (upsert) - 트랜잭션 배치 처리
    */
   async setGroupProductionSettingPrices(dto: SetGroupProductionSettingPricesDto) {
+    // Nup 구간단가를 같은 Nup 그룹의 모든 규격으로 확장
+    const expandedPrices = await this.expandNupPrices(dto.prices);
+
     return this.prisma.$transaction(async (tx) => {
       // 1. 기존 레코드 한번에 조회
       const existingRecords = await tx.groupProductionSettingPrice.findMany({
@@ -1196,7 +1234,7 @@ export class PricingService {
       const toCreate: any[] = [];
       const updateOps: Promise<any>[] = [];
 
-      for (const priceData of dto.prices) {
+      for (const priceData of expandedPrices) {
         const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}|${priceData.nupKey || ''}`;
         const data = {
           clientGroupId: dto.clientGroupId,
@@ -1325,6 +1363,9 @@ export class PricingService {
    * 거래처별 개별 생산설정 단가 설정 (upsert) - 트랜잭션 배치 처리
    */
   async setClientProductionSettingPrices(dto: SetClientProductionSettingPricesDto) {
+    // Nup 구간단가를 같은 Nup 그룹의 모든 규격으로 확장
+    const expandedPrices = await this.expandNupPrices(dto.prices);
+
     return this.prisma.$transaction(async (tx) => {
       // 1. 기존 레코드 한번에 조회
       const existingRecords = await tx.clientProductionSettingPrice.findMany({
@@ -1345,7 +1386,7 @@ export class PricingService {
       const toCreate: any[] = [];
       const updateOps: Promise<any>[] = [];
 
-      for (const priceData of dto.prices) {
+      for (const priceData of expandedPrices) {
         const key = `${priceData.specificationId || ''}|${priceData.priceGroupId || ''}|${priceData.minQuantity ?? ''}|${priceData.nupKey || ''}`;
         const data = {
           clientId: dto.clientId,
