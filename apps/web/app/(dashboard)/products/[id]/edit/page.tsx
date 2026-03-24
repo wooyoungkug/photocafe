@@ -1801,7 +1801,7 @@ export default function EditProductPage() {
                         className="cursor-pointer select-none"
                         onClick={() => toggleActive(!isActive)}
                       >
-                        {paper.grammage ? `${paper.grammage}g` : paper.name}
+                        {paper.grammage ? `${paper.name} ${paper.grammage}g` : paper.name}
                       </span>
                       {isActive && (
                         <button
