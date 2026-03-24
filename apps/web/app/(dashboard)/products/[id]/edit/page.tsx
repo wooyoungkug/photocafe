@@ -40,7 +40,7 @@ import { useSpecifications } from '@/hooks/use-specifications';
 import { useHalfProducts } from '@/hooks/use-half-products';
 import { useProduct, useUpdateProduct, useProcessTemplates, useProductTypeOptions } from '@/hooks/use-products';
 import { ProcessFlowSection } from '../../components/ProcessFlowSection';
-import { useProductionGroupTree, useProductionSettings, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice } from '@/hooks/use-production';
+import { useProductionGroupTree, useProductionSettings, useProductionSetting, type ProductionGroup, type ProductionSetting, type OutputPriceSelection, type IndigoUpPrice, type InkjetSpecPrice, type PriceGroup } from '@/hooks/use-production';
 import { useFoilColors, type FoilColorItem } from '@/hooks/use-copper-plates';
 import { useFabrics, FABRIC_CATEGORY_LABELS, type FabricCategory } from '@/hooks/use-fabrics';
 import { useToast } from '@/hooks/use-toast';
@@ -288,6 +288,13 @@ export default function EditProductPage() {
   const [outputPriceDialogOpen, setOutputPriceDialogOpen] = useState(false);
   const [printType, setPrintType] = useState<'single' | 'double' | 'customer'>('double');
   const [colorType, setColorType] = useState<'4c' | '6c' | 'both' | 'customer'>('both');
+  // 선택된 인디고 출력단가 설정 상세 조회 (priceGroups 포함)
+  const indigoSettingId = useMemo(() => {
+    const sel = outputPriceSelections.find(s => s.outputMethod === 'INDIGO');
+    return sel?.productionSettingId || '';
+  }, [outputPriceSelections]);
+  const { data: indigoSettingDetail } = useProductionSetting(indigoSettingId);
+
   // 규격 가격 필터 (인디고)
   const [indigoColorFilter, setIndigoColorFilter] = useState<'4도' | '6도'>('4도');
   const [indigoGroupIndex, setIndigoGroupIndex] = useState(0);
@@ -1180,6 +1187,52 @@ export default function EditProductPage() {
                               <X className="h-4 w-4 text-red-500" />
                             </button>
                           </div>
+
+                          {/* 인디고: priceGroups 가격 테이블 표시 */}
+                          {g.method === 'INDIGO' && indigoSettingDetail?.priceGroups && (indigoSettingDetail.priceGroups as any[]).length > 0 && (
+                            <div className="border-t px-2 py-2 space-y-2 max-h-[300px] overflow-y-auto">
+                              {(indigoSettingDetail.priceGroups as any[]).map((pg: any, pgIdx: number) => {
+                                // paperPriceGroupMap에서 이 그룹에 속한 용지 찾기
+                                const paperMap = indigoSettingDetail.paperPriceGroupMap as Record<string, string | null> | undefined;
+                                const paperCount = paperMap ? Object.values(paperMap).filter(gId => gId === pg.id).length : 0;
+                                return (
+                                  <div key={pg.id || pgIdx} className="border rounded p-2 bg-slate-50">
+                                    <div className="flex items-center gap-2 mb-1.5">
+                                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: pg.color || '#94a3b8' }} />
+                                      <span className="text-[12px] font-medium">그룹{pgIdx + 1}</span>
+                                      {paperCount > 0 && (
+                                        <span className="text-[11px] text-slate-400">{paperCount}개 용지</span>
+                                      )}
+                                    </div>
+                                    {pg.upPrices && pg.upPrices.length > 0 && (
+                                      <table className="w-full text-[11px]">
+                                        <thead>
+                                          <tr className="text-slate-500">
+                                            <th className="text-left py-0.5 px-1 font-medium w-10">Up</th>
+                                            <th className="text-center py-0.5 px-1 font-medium">4도단면</th>
+                                            <th className="text-center py-0.5 px-1 font-medium">4도양면</th>
+                                            <th className="text-center py-0.5 px-1 font-medium">6도단면</th>
+                                            <th className="text-center py-0.5 px-1 font-medium">6도양면</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {pg.upPrices.map((up: any) => (
+                                            <tr key={up.nupKey || up.up} className="border-t border-slate-200">
+                                              <td className="py-0.5 px-1 font-medium text-slate-700">{up.nupKey || `${up.up}up`}</td>
+                                              <td className="py-0.5 px-1 text-center font-mono">{up.fourColorSinglePrice > 0 ? up.fourColorSinglePrice.toLocaleString() : '-'}</td>
+                                              <td className="py-0.5 px-1 text-center font-mono">{up.fourColorDoublePrice > 0 ? up.fourColorDoublePrice.toLocaleString() : '-'}</td>
+                                              <td className="py-0.5 px-1 text-center font-mono">{up.sixColorSinglePrice > 0 ? up.sixColorSinglePrice.toLocaleString() : '-'}</td>
+                                              <td className="py-0.5 px-1 text-center font-mono">{up.sixColorDoublePrice > 0 ? up.sixColorDoublePrice.toLocaleString() : '-'}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
 
                           {/* INKJET: 규격 개수만 표시 (상세는 하단 규격정보에서 관리) */}
                         </div>
