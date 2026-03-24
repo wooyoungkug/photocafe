@@ -272,7 +272,7 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   );
 }
 
-// ==================== 공개 포토그라퍼 리스트 행 ====================
+// ==================== 공개 촬영파트너 리스트 행 ====================
 function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   const shootingDate = new Date(recruitment.shootingDate);
   const daysLeft = Math.ceil(
@@ -430,7 +430,7 @@ export default function RecruitmentListPage() {
   );
   const myTotalPages = Math.ceil(filteredMyRecruitments.length / ITEMS_PER_PAGE);
 
-  // ── 공개 포토그라퍼: 서버사이드 페이징 유지
+  // ── 공개 촬영파트너: 서버사이드 페이징 유지
   const { data: publicResponse, isLoading: publicLoading } = useRecruitments(
     activeTab === 'public'
       ? {
@@ -462,7 +462,7 @@ export default function RecruitmentListPage() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Briefcase className="h-5 w-5 text-gray-700" />
-          <h2 className="text-[18px] text-black font-bold">포토그라퍼</h2>
+          <h2 className="text-[18px] text-black font-bold">촬영파트너</h2>
         </div>
       </div>
 
@@ -479,7 +479,7 @@ export default function RecruitmentListPage() {
             )}
             <TabsTrigger value="public" className="text-[13px] rounded-md px-4">
               <Globe className="h-3.5 w-3.5 mr-1" />
-              공개 포토그라퍼
+              공개 촬영파트너
             </TabsTrigger>
           </TabsList>
 
@@ -590,7 +590,7 @@ export default function RecruitmentListPage() {
           </TabsContent>
         )}
 
-        {/* ==================== 공개 포토그라퍼 목록 (리스트 형태) ==================== */}
+        {/* ==================== 공개 촬영파트너 목록 (리스트 형태) ==================== */}
         <TabsContent value="public">
           {isLoading ? (
             <div className="flex items-center justify-center py-20">

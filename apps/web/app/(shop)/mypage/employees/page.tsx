@@ -682,7 +682,7 @@ function EditPermissionDialog({
               {enableRecruitment && (
                 <PermMenuToggleRow
                   icon={<Briefcase className="h-3.5 w-3.5" />}
-                  label="포토그라퍼"
+                  label="촬영파트너"
                   checked={canManageRecruitment}
                   onCheckedChange={setCanManageRecruitment}
                 />

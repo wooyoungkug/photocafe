@@ -63,9 +63,9 @@ function getMenuItems(user: {
     items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
   }
 
-  // 포토그라퍼: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
+  // 촬영파트너: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
   if (enableRecruitment && (!isEmployee || user?.canManageRecruitment)) {
-    items.push({ icon: Briefcase, label: '포토그라퍼', href: '/mypage/recruitment' });
+    items.push({ icon: Briefcase, label: '촬영파트너', href: '/mypage/recruitment' });
   }
 
   return items;

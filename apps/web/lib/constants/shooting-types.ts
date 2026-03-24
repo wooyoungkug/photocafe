@@ -1,5 +1,5 @@
 /**
- * 촬영유형 공용 상수 (일정관리 + 포토그라퍼 양쪽에서 사용)
+ * 촬영유형 공용 상수 (일정관리 + 촬영파트너 양쪽에서 사용)
  * 백엔드 shooting.constants.ts / recruitment.constants.ts와 동일한 값
  */
 

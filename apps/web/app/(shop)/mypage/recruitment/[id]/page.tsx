@@ -170,7 +170,7 @@ export default function RecruitmentDetailPage() {
       await goPublicMutation.mutateAsync(id);
       toast({
         title: '공개 전환 완료',
-        description: '공개 포토그라퍼로 전환되었습니다.',
+        description: '공개 촬영파트너로 전환되었습니다.',
       });
     } catch (error: any) {
       toast({

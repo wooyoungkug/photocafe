@@ -1601,7 +1601,7 @@ function MembersPageContent() {
                   </div>
                   <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
                     <div>
-                      <p className="text-sm font-medium">포토그라퍼</p>
+                      <p className="text-sm font-medium">촬영파트너</p>
                       <p className="text-xs text-muted-foreground">촬영 작가 구인·응찰 기능</p>
                     </div>
                     <Switch
