@@ -269,22 +269,28 @@ export class PricingService {
     // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
     const billingExtraPages = 0;
 
-    // 후가공비: 상품의 ProductFinishing → ProductionSetting → 규격별 pricePerPage 조회
+    // 후가공비: 상품의 ProductFinishing → ProductionSetting(이름매칭) → 규격별 pricePerPage 조회
     let postProcessingPrice = 0;
     if (dto.productId) {
       const finishings = await this.prisma.productFinishing.findMany({
         where: { productId: dto.productId },
-        select: { price: true, productionGroupId: true },
+        select: { name: true, price: true, productionGroupId: true },
       });
       for (const f of finishings) {
-        // productionGroupId가 있으면 해당 그룹의 자식 설정에서 규격별 단가 조회
+        // productionGroupId가 있으면 해당 그룹에서 이름이 일치하는 설정의 규격별 단가 조회
         if (f.productionGroupId) {
-          const childSettings = await this.prisma.productionSetting.findMany({
-            where: { groupId: f.productionGroupId },
+          // 이름 매칭 우선, 없으면 그룹 전체에서 조회
+          const matchedSetting = await this.prisma.productionSetting.findFirst({
+            where: { groupId: f.productionGroupId, settingName: f.name },
             select: { id: true },
           });
-          if (childSettings.length > 0) {
-            const settingIds = childSettings.map(s => s.id);
+          const settingIds = matchedSetting
+            ? [matchedSetting.id]
+            : (await this.prisma.productionSetting.findMany({
+                where: { groupId: f.productionGroupId },
+                select: { id: true },
+              })).map(s => s.id);
+          if (settingIds.length > 0) {
             const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
               where: {
                 productionSettingId: { in: settingIds },
@@ -710,14 +716,43 @@ export class PricingService {
     // 제본비 = 순수 제본비 + 표지비 (표지비는 제본비에 포함)
     const bindingPrice = rawBindingPrice + coverPrice;
 
-    // 8. 후가공비: 상품의 ProductFinishing 가격 합산 (코팅, 라미네이션, 박 등)
+    // 8. 후가공비: 상품의 ProductFinishing → ProductionSetting(이름매칭) → 규격별 pricePerPage × 페이지수
     let postProcessingPrice = 0;
     const finishings = await this.prisma.productFinishing.findMany({
       where: { productId: dto.productId },
-      select: { price: true },
+      select: { name: true, price: true, productionGroupId: true },
     });
     for (const f of finishings) {
-      postProcessingPrice += Number(f.price) || 0;
+      if (f.productionGroupId) {
+        // 이름 매칭 우선, 없으면 그룹 전체에서 조회
+        const matchedSetting = await this.prisma.productionSetting.findFirst({
+          where: { groupId: f.productionGroupId, settingName: f.name },
+          select: { id: true },
+        });
+        const settingIds = matchedSetting
+          ? [matchedSetting.id]
+          : (await this.prisma.productionSetting.findMany({
+              where: { groupId: f.productionGroupId },
+              select: { id: true },
+            })).map(s => s.id);
+        if (settingIds.length > 0) {
+          const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
+            where: {
+              productionSettingId: { in: settingIds },
+              specificationId: specification.id,
+            },
+            select: { pricePerPage: true, basePrice: true },
+          });
+          if (finishingPrice) {
+            const perPage = Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
+            postProcessingPrice += perPage * billingPageCount;
+            continue;
+          }
+        }
+      }
+      // productionGroupId가 없거나 규격별 단가를 못 찾으면 기존 price × 페이지수
+      const fallbackPrice = Number(f.price) || 0;
+      postProcessingPrice += fallbackPrice > 0 ? fallbackPrice * billingPageCount : 0;
     }
 
     // 총 단가 = 출력비 + 용지추가금 + 제본비(표지포함) + 후가공비 (VAT 포함)

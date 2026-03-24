@@ -1596,8 +1596,8 @@ export function calculateUploadedFolderPrice(folder: UploadedFolder, dbPrice: Db
   // 제본비 (표지비 포함, DB에서 조회)
   const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
 
-  // 후가공비 (DB에서 조회)
-  const postProcessingPrice = dbPrice.postProcessingPrice || 0;
+  // 후가공비 (DB에서 페이지당 단가 조회 → 페이지수 곱셈)
+  const postProcessingPrice = (dbPrice.postProcessingPrice || 0) * billingPageCount;
 
   // 단가 = 출력비 + 제본비 + 후가공비 (VAT 포함)
   const unitPrice = printPrice + bindingPrice + postProcessingPrice;
@@ -1643,8 +1643,8 @@ export function calculateAdditionalOrderPrice(
   // 제본비 (표지비 포함)
   const bindingPrice = dbPrice.bindingPrice + dbPrice.coverPrice;
 
-  // 후가공비
-  const postProcessingPrice = dbPrice.postProcessingPrice || 0;
+  // 후가공비 (DB에서 페이지당 단가 조회 → 페이지수 곱셈)
+  const postProcessingPrice = (dbPrice.postProcessingPrice || 0) * billingPageCount;
 
   // 단가 = 출력비 + 제본비 + 후가공비 (VAT 포함)
   const unitPrice = printPrice + bindingPrice + postProcessingPrice;
