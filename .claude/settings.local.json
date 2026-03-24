@@ -413,7 +413,8 @@
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT id, name FROM production_groups WHERE id = ''cmkkl5cfm000910u634dg5itg'';\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT ps.id, ps.name, ps.\"\"groupId\"\" FROM production_settings ps WHERE ps.\"\"groupId\"\" = ''cmkkl5cfm000910u634dg5itg'' LIMIT 10;\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"\\\\d production_settings\")",
-      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT ps.id, ps.\"\"settingName\"\", ps.\"\"codeName\"\", ps.\"\"pricingType\"\", ps.\"\"basePrice\"\" FROM production_settings ps WHERE ps.\"\"groupId\"\" = ''cmkkl5cfm000910u634dg5itg'';\")"
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT ps.id, ps.\"\"settingName\"\", ps.\"\"codeName\"\", ps.\"\"pricingType\"\", ps.\"\"basePrice\"\" FROM production_settings ps WHERE ps.\"\"groupId\"\" = ''cmkkl5cfm000910u634dg5itg'';\")",
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -p 5432 -c \"SELECT psp.id, psp.\"\"productionSettingId\"\", psp.\"\"specificationId\"\", psp.price FROM production_setting_prices psp WHERE psp.\"\"productionSettingId\"\" IN \\(''cmkkvrn1q001y1032yamghstu'', ''cmkkl7404000d10u6awja3pml''\\) LIMIT 20;\")"
     ],
     "deny": [],
     "ask": [],
