@@ -172,7 +172,7 @@ export function ShippingEditWithFeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto text-[11px] [&_label]:text-[11px] [&_input]:text-[11px] [&_textarea]:text-[11px] [&_button]:text-[11px] [&_select]:text-[11px] [&_[role=combobox]]:text-[11px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[13px]">
             <Truck className="h-4 w-4" />
@@ -241,8 +241,8 @@ export function ShippingEditWithFeeDialog({
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="studio">스튜디오 배송</SelectItem>
-                  <SelectItem value="direct_customer">고객 직배송</SelectItem>
+                  <SelectItem value="studio" className="text-[11px]">스튜디오 배송</SelectItem>
+                  <SelectItem value="direct_customer" className="text-[11px]">고객 직배송</SelectItem>
                 </SelectContent>
               </Select>
             </div>
