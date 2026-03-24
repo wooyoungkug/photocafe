@@ -172,7 +172,7 @@ export function ShippingEditWithFeeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto text-[11px] [&_label]:text-[11px] [&_input]:text-[11px] [&_textarea]:text-[11px] [&_button]:text-[11px] [&_select]:text-[11px] [&_[role=combobox]]:text-[11px]">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto text-[12px] [&_label]:text-[12px] [&_input]:text-[12px] [&_textarea]:text-[12px] [&_button]:text-[12px] [&_select]:text-[12px] [&_[role=combobox]]:text-[12px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[13px]">
             <Truck className="h-4 w-4" />
@@ -181,10 +181,10 @@ export function ShippingEditWithFeeDialog({
         </DialogHeader>
 
         {step === 'form' && (
-          <div className="space-y-4 text-[11px]">
+          <div className="space-y-4 text-[12px]">
             {/* 수령인 유형 */}
             <div className="space-y-1">
-              <Label className="text-[11px]">배송 유형</Label>
+              <Label className="text-[12px]">배송 유형</Label>
               <Select
                 value={form.receiverType}
                 onValueChange={(v) => {
@@ -233,7 +233,7 @@ export function ShippingEditWithFeeDialog({
                   }
                 }}
               >
-                <SelectTrigger className="h-8 text-[11px]">
+                <SelectTrigger className="h-8 text-[12px]">
                   <span>
                     {form.receiverType === 'studio' ? '스튜디오 배송'
                       : form.receiverType === 'direct_customer' ? '고객 직배송'
@@ -241,8 +241,8 @@ export function ShippingEditWithFeeDialog({
                   </span>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="studio" className="text-[11px]">스튜디오 배송</SelectItem>
-                  <SelectItem value="direct_customer" className="text-[11px]">고객 직배송</SelectItem>
+                  <SelectItem value="studio" className="text-[12px]">스튜디오 배송</SelectItem>
+                  <SelectItem value="direct_customer" className="text-[12px]">고객 직배송</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -251,67 +251,67 @@ export function ShippingEditWithFeeDialog({
 
             {/* 수령인 정보 */}
             <div className="space-y-3">
-              <p className="text-[11px] font-medium text-gray-500">수령인</p>
+              <p className="text-[12px] font-medium text-gray-500">수령인</p>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label className="text-[11px]">수령인 이름 *</Label>
+                  <Label className="text-[12px]">수령인 이름 *</Label>
                   <Input
                     value={form.recipientName}
                     onChange={(e) => set('recipientName', e.target.value)}
                     placeholder="수령인 이름"
-                    className="h-8 text-[11px]"
+                    className="h-8 text-[12px]"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px]">전화번호</Label>
+                  <Label className="text-[12px]">전화번호</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => set('phone', e.target.value)}
                     placeholder="010-0000-0000"
-                    className="h-8 text-[11px]"
+                    className="h-8 text-[12px]"
                   />
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px]">주소 *</Label>
+                <Label className="text-[12px]">주소 *</Label>
                 <div className="flex gap-1.5">
                   <Input
                     value={form.postalCode}
                     onChange={(e) => set('postalCode', e.target.value)}
                     placeholder="우편번호"
-                    className="h-8 text-[11px] w-24 shrink-0"
+                    className="h-8 text-[12px] w-24 shrink-0"
                   />
                   <Input
                     value={form.address}
                     onChange={(e) => set('address', e.target.value)}
                     placeholder="주소"
-                    className="h-8 text-[11px] flex-1"
+                    className="h-8 text-[12px] flex-1"
                   />
                 </div>
                 <Input
                   value={form.addressDetail}
                   onChange={(e) => set('addressDetail', e.target.value)}
                   placeholder="상세주소"
-                  className="h-8 text-[11px]"
+                  className="h-8 text-[12px]"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-[11px]">배송메모</Label>
+              <Label className="text-[12px]">배송메모</Label>
               <Textarea
                 value={form.deliveryMemo}
                 onChange={(e) => set('deliveryMemo', e.target.value)}
                 placeholder="배송 시 요청사항"
                 rows={2}
-                className="text-[11px] resize-none"
+                className="text-[12px] resize-none"
               />
             </div>
           </div>
         )}
 
         {step === 'confirm' && (
-          <div className="space-y-4 text-[11px]">
+          <div className="space-y-4 text-[12px]">
             {/* 배송지 요약 */}
             <div className="rounded-lg border p-3 space-y-1 bg-gray-50">
               <p className="font-medium">
@@ -339,7 +339,7 @@ export function ShippingEditWithFeeDialog({
                         배송 유형이 <strong>고객 직배송</strong>으로 변경되어 배송비가 추가될 수 있습니다.
                       </p>
                       <div className="space-y-1">
-                        <Label className="text-[11px]">결제 방법</Label>
+                        <Label className="text-[12px]">결제 방법</Label>
                         <div className="flex flex-col gap-2">
                           {isCashClient && (
                             <label className="flex items-center gap-2 cursor-pointer">
@@ -391,19 +391,19 @@ export function ShippingEditWithFeeDialog({
         <DialogFooter className="gap-2">
           {step === 'form' ? (
             <>
-              <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[11px]">
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="text-[12px]">
                 닫기
               </Button>
-              <Button onClick={handlePreview} className="text-[11px]">
+              <Button onClick={handlePreview} className="text-[12px]">
                 다음
               </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setStep('form')} className="text-[11px]">
+              <Button variant="outline" onClick={() => setStep('form')} className="text-[12px]">
                 이전
               </Button>
-              <Button onClick={handleSave} disabled={updateShippingWithFee.isPending} className="text-[11px]">
+              <Button onClick={handleSave} disabled={updateShippingWithFee.isPending} className="text-[12px]">
                 {updateShippingWithFee.isPending && <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />}
                 저장
               </Button>
