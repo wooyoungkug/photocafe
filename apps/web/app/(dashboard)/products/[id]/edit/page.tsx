@@ -1228,7 +1228,7 @@ export default function EditProductPage() {
                                         <span className="text-[11px] text-slate-400">{assignedPaperNames.length}개 용지</span>
                                       )}
                                       {assignedPaperNames.length > 0 && (
-                                        <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white truncate max-w-[200px]" title={assignedPaperNames.join(', ')}>
+                                        <span className="text-[11px] text-blue-600 border border-blue-300 rounded px-1.5 py-0.5 bg-white">
                                           {assignedPaperNames.join(', ')}
                                         </span>
                                       )}
