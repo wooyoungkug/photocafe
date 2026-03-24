@@ -521,7 +521,7 @@ export default function OrderDetailPage() {
                         {/* 제목 행 */}
                         <div className="flex items-start gap-2 mb-2">
                           <Folder className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                          <span className="font-normal text-black text-[14px] flex-1 leading-relaxed">{item.productName}</span>
+                          <span className="font-normal text-black text-[13px] flex-1 leading-relaxed">{item.productName}</span>
                           {/* 썸네일 클릭 */}
                           {item.thumbnailUrl && (
                             <div
@@ -541,16 +541,16 @@ export default function OrderDetailPage() {
 
                         {/* 편집 · 제본방향 행 */}
                         {(item.bindingType || item.pageLayout || item.bindingDirection || item.printMethod) && (
-                          <div className="flex items-center gap-2 text-[14px] text-gray-600 mb-1.5 flex-wrap">
+                          <div className="flex items-center gap-2 text-[13px] text-gray-600 mb-1.5 flex-wrap">
                             {item.bindingType && (
-                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[14px]">
+                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[13px]">
                                 {item.bindingType.split('_')[0].replace(/\s*\(.*?\)$/, '').trim() || item.bindingType}
                               </span>
                             )}
                             {item.pageLayout && (
                               <>
-                                <span className="text-[14px] text-black">편집</span>
-                                <span className={`px-1.5 py-0.5 text-[14px] rounded border ${
+                                <span className="text-[13px] text-black">편집</span>
+                                <span className={`px-1.5 py-0.5 text-[13px] rounded border ${
                                   item.pageLayout === 'spread'
                                     ? 'bg-blue-500 text-white border-blue-500'
                                     : 'bg-blue-500 text-white border-blue-500'
@@ -561,26 +561,26 @@ export default function OrderDetailPage() {
                             )}
                             {item.bindingDirection && (
                               <>
-                                <span className="text-[14px] text-black ml-2">제본방향</span>
-                                <span className="bg-white text-black px-1.5 py-0.5 rounded border border-gray-300 text-[14px]">
+                                <span className="text-[13px] text-black ml-2">제본방향</span>
+                                <span className="bg-white text-black px-1.5 py-0.5 rounded border border-gray-300 text-[13px]">
                                   {BINDING_DIRECTION_LABEL[item.bindingDirection] || item.bindingDirection}
                                 </span>
                               </>
                             )}
                             {item.printMethod && (
-                              <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 text-[14px] ml-2">{item.printMethod}</span>
+                              <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 text-[13px] ml-2">{item.printMethod}</span>
                             )}
                             {item.finishingOptions?.map((opt, i) => (
-                              <span key={i} className="bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 text-[14px]">{opt}</span>
+                              <span key={i} className="bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 text-[13px]">{opt}</span>
                             ))}
                           </div>
                         )}
 
                         {/* 원단 · 동판정보 행 */}
                         {(hasFabric || hasFoil || item.coverMaterial) && (
-                          <div className="flex items-center gap-1.5 flex-wrap text-[14px] text-gray-500 mb-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-gray-500 mb-1.5">
                             {(hasFabric || item.coverMaterial) && (
-                              <span className="text-[14px] text-black">원단</span>
+                              <span className="text-[13px] text-black">원단</span>
                             )}
                             {item.fabricName && (
                               <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1">
@@ -592,7 +592,7 @@ export default function OrderDetailPage() {
                               <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200">{item.coverMaterial}</span>
                             )}
                             {hasFoil && (
-                              <span className="text-[14px] text-black ml-3">동판정보</span>
+                              <span className="text-[13px] text-black ml-3">동판정보</span>
                             )}
                             {item.foilName && (
                               <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{item.foilName}</span>
@@ -608,11 +608,11 @@ export default function OrderDetailPage() {
 
                         {/* 규격 · 페이지 · 부수 · 가격 행 */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 text-[14px] flex-1">
+                          <div className="flex items-center gap-2 text-[13px] flex-1">
                             {item.size && (
                               <>
                                 <span className="text-black">규격</span>
-                                <span className="bg-white text-black px-1.5 py-0.5 rounded border border-gray-300 text-[14px]">{item.size}</span>
+                                <span className="bg-white text-black px-1.5 py-0.5 rounded border border-gray-300 text-[13px]">{item.size}</span>
                                 <span className="text-gray-300">|</span>
                               </>
                             )}
@@ -627,9 +627,9 @@ export default function OrderDetailPage() {
                             <span className="text-black">{item.quantity}</span>
                           </div>
                           <div className="text-right shrink-0">
-                            <p className="font-medium text-[14px] text-black">{item.totalPrice.toLocaleString()}원</p>
+                            <p className="font-medium text-[13px] text-black">{item.totalPrice.toLocaleString()}원</p>
                             {item.quantity > 1 && (
-                              <p className="text-[14px] text-gray-400">단가 {item.unitPrice.toLocaleString()}원</p>
+                              <p className="text-[13px] text-gray-400">단가 {item.unitPrice.toLocaleString()}원</p>
                             )}
                           </div>
                         </div>
@@ -640,7 +640,7 @@ export default function OrderDetailPage() {
                             <button
                               type="button"
                               onClick={() => toggleGallery(item.id)}
-                              className="flex items-center gap-1.5 text-[14px] text-gray-600 hover:text-gray-900 px-1 py-1 rounded hover:bg-green-100 transition-colors"
+                              className="flex items-center gap-1.5 text-[13px] text-gray-600 hover:text-gray-900 px-1 py-1 rounded hover:bg-green-100 transition-colors"
                             >
                               <ImageIcon className="h-3.5 w-3.5" />
                               <span>전체 페이지 보기 ({item.pages || thumbnailFiles.length}페이지)</span>
@@ -723,7 +723,7 @@ export default function OrderDetailPage() {
                   )}
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3 text-[14px]">
+              <CardContent className="space-y-3 text-[13px]">
                 <div className="flex items-start gap-3">
                   <User className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
@@ -895,7 +895,7 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <CardTitle>결제 정보</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-[14px]">
+              <CardContent className="space-y-3 text-[13px]">
                 <div className="flex justify-between">
                   <span className="text-gray-500">주문일시</span>
                   <span>
@@ -970,7 +970,7 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <CardTitle>주문자 정보</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-[14px]">
+              <CardContent className="space-y-3 text-[13px]">
                 <div>
                   <p className="text-gray-500">이름</p>
                   <p className="font-normal">{order.client.clientName}</p>
@@ -996,7 +996,7 @@ export default function OrderDetailPage() {
                 <CardHeader>
                   <CardTitle>파일 보관 정보</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-[14px]">
+                <CardContent className="space-y-2 text-[13px]">
                   <div className="flex justify-between">
                     <span className="text-gray-500">보관기간</span>
                     <span>{retention.retentionMonths}개월</span>
