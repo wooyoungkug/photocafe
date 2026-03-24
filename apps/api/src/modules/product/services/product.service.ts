@@ -346,6 +346,56 @@ export class ProductService {
       await this.prisma.productFabric.deleteMany({ where: { productId: id } });
     }
 
+    // outputPriceSettings에서 용지 자동 동기화: papers가 없거나 비어있을 때 출력단가의 용지를 ProductPaper에 추가
+    let syncedPapers = papers;
+    if (outputPriceSettings && (!papers || papers.length === 0)) {
+      const settingIds = (outputPriceSettings as any[])
+        .map((s: any) => s.productionSettingId)
+        .filter(Boolean);
+      if (settingIds.length > 0) {
+        const uniqueSettingIds = [...new Set(settingIds)] as string[];
+        const settings = await this.prisma.productionSetting.findMany({
+          where: { id: { in: uniqueSettingIds } },
+          select: { paperPriceGroupMap: true, printMethod: true },
+        });
+        // paperPriceGroupMap에서 모든 paperIds 추출
+        const paperIdSet = new Set<string>();
+        const paperPrintMethodMap = new Map<string, string>();
+        for (const setting of settings) {
+          const map = setting.paperPriceGroupMap as Record<string, string | null> | null;
+          if (map) {
+            for (const paperId of Object.keys(map)) {
+              paperIdSet.add(paperId);
+              if (setting.printMethod) {
+                paperPrintMethodMap.set(paperId, setting.printMethod);
+              }
+            }
+          }
+        }
+        if (paperIdSet.size > 0) {
+          const masterPapers = await this.prisma.paper.findMany({
+            where: { id: { in: [...paperIdSet] } },
+            select: { id: true, name: true, grammage: true, printMethods: true, isActive: true },
+          });
+          // 기존 papers 삭제 후 새로 생성
+          await this.prisma.productPaper.deleteMany({ where: { productId: id } });
+          syncedPapers = masterPapers.map((p, idx) => ({
+            paperId: p.id,
+            name: p.name,
+            type: 'normal',
+            printMethod: paperPrintMethodMap.get(p.id) || (p.printMethods as string[])?.[0] || 'indigo',
+            grammage: p.grammage ?? undefined,
+            price: 0,
+            isDefault: idx === 0,
+            isActive: true,
+            isActive4: true,
+            isActive6: true,
+            sortOrder: idx,
+          }));
+        }
+      }
+    }
+
     // 상품 업데이트
     return this.prisma.product.update({
       where: { id },
@@ -359,9 +409,9 @@ export class ProductService {
         bindings: bindings !== undefined && bindings.length > 0
           ? { create: bindings }
           : undefined,
-        papers: papers !== undefined && papers.length > 0
+        papers: syncedPapers !== undefined && syncedPapers.length > 0
           ? {
-              create: papers.map(({ paperId, ...rest }) => ({
+              create: syncedPapers.map(({ paperId, ...rest }) => ({
                 ...rest,
                 ...(paperId ? { paper: { connect: { id: paperId } } } : {}),
               })),
