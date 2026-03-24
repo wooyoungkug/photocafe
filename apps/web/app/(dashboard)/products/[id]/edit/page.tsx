@@ -167,7 +167,7 @@ function FormRow({ label, required, children, className = '' }: {
         {label}
         {required && <span className="text-rose-400 ml-0.5">*</span>}
       </Label>
-      <div className="col-span-10">{children}</div>
+      <div className="col-span-10 -ml-[10px]">{children}</div>
     </div>
   );
 }
