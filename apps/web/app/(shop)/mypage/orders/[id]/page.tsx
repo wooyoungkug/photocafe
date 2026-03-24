@@ -895,7 +895,7 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <CardTitle>결제 정보</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-[12px]">
+              <CardContent className="space-y-3 text-[14px]">
                 <div className="flex justify-between">
                   <span className="text-gray-500">주문일시</span>
                   <span>
@@ -970,7 +970,7 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <CardTitle>주문자 정보</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-[12px]">
+              <CardContent className="space-y-3 text-[14px]">
                 <div>
                   <p className="text-gray-500">이름</p>
                   <p className="font-normal">{order.client.clientName}</p>
@@ -996,7 +996,7 @@ export default function OrderDetailPage() {
                 <CardHeader>
                   <CardTitle>파일 보관 정보</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-2 text-[12px]">
+                <CardContent className="space-y-2 text-[14px]">
                   <div className="flex justify-between">
                     <span className="text-gray-500">보관기간</span>
                     <span>{retention.retentionMonths}개월</span>
