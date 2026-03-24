@@ -777,8 +777,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
 
   const totalPriceCount = clientPrices?.length || 0;
 
-  // ===== ClientSettingCard 컴포넌트 =====
-  const ClientSettingCard = ({ setting }: { setting: any }) => {
+  // ===== ClientSettingCard 렌더 함수 =====
+  const renderClientSettingCard = (setting: any) => {
     const printMethod = setting.printMethod;
     const pricingType = setting.pricingType || '';
     const priceGroups = setting.priceGroups || [];
@@ -1936,7 +1936,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
             ) : (
               <div>
                 {selectedProductionGroup.settings?.filter((s: any) => s.id === selectedSettingId).map((setting: any) => (
-                  <ClientSettingCard key={setting.id} setting={setting} />
+                  <React.Fragment key={setting.id}>{renderClientSettingCard(setting)}</React.Fragment>
                 ))}
               </div>
             )}
