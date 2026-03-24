@@ -670,7 +670,10 @@ export default function OrderDetailPage() {
                                         className="w-full h-auto block"
                                         loading="lazy"
                                         onError={(e) => {
-                                          e.currentTarget.style.display = 'none';
+                                          const img = e.currentTarget;
+                                          img.style.opacity = '0';
+                                          img.parentElement!.style.aspectRatio = '3/4';
+                                          img.parentElement!.style.backgroundColor = '#f3f4f6';
                                         }}
                                       />
                                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
@@ -892,8 +895,8 @@ export default function OrderDetailPage() {
               <CardHeader>
                 <CardTitle>결제 정보</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
+              <CardContent className="space-y-3 text-[12px]">
+                <div className="flex justify-between">
                   <span className="text-gray-500">주문일시</span>
                   <span>
                     {format(new Date(order.orderedAt), 'yyyy.MM.dd HH:mm', {
@@ -901,17 +904,17 @@ export default function OrderDetailPage() {
                     })}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-gray-500">상품 금액</span>
                   <span>{productAmount.toLocaleString()}원</span>
                 </div>
                 {taxAmount > 0 && (
-                  <div className="flex justify-between text-sm">
+                  <div className="flex justify-between">
                     <span className="text-gray-500">부가세 (10%)</span>
                     <span>{taxAmount.toLocaleString()}원</span>
                   </div>
                 )}
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between">
                   <span className="text-gray-500">배송비{deliveryLabel ? ` (${deliveryLabel})` : ''}</span>
                   {shippingFeeAmount > 0 ? (
                     <span>{shippingFeeAmount.toLocaleString()}원</span>
@@ -920,7 +923,7 @@ export default function OrderDetailPage() {
                   )}
                 </div>
                 {adjustmentAmount !== 0 && (
-                  <div className={`flex justify-between text-sm ${adjustmentAmount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className={`flex justify-between ${adjustmentAmount > 0 ? 'text-green-600' : 'text-red-600'}`}>
                     <div>
                       <span>조정 금액</span>
                       {(() => {
@@ -934,7 +937,7 @@ export default function OrderDetailPage() {
                   </div>
                 )}
                 <Separator />
-                <div className="flex justify-between text-lg font-normal">
+                <div className="flex justify-between font-normal">
                   <span>총 결제금액</span>
                   <span className="text-primary">
                     {displayTotal.toLocaleString()}원
@@ -944,12 +947,12 @@ export default function OrderDetailPage() {
                   <>
                     <Separator />
                     {Number(order.salesLedger.receivedAmount) > 0 && (
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between">
                         <span className="text-gray-500">선수금</span>
                         <span className="text-blue-600">-{Number(order.salesLedger.receivedAmount).toLocaleString()}원</span>
                       </div>
                     )}
-                    <div className="flex justify-between text-base font-medium">
+                    <div className="flex justify-between font-medium">
                       <span>결제할금액</span>
                       <span className={Number(order.salesLedger.outstandingAmount) <= 0 ? 'text-green-600' : 'text-red-600'}>
                         {Number(order.salesLedger.outstandingAmount) <= 0

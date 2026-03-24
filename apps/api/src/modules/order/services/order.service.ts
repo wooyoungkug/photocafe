@@ -378,7 +378,7 @@ export class OrderService {
         shipping: true,
         items: {
           include: {
-            files: { orderBy: { sortOrder: 'asc' }, take: 200 },
+            files: { orderBy: { sortOrder: 'asc' } },
             shipping: true,
           },
         },
