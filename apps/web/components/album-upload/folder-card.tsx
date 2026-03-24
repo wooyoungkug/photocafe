@@ -1435,11 +1435,37 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               );
             }
 
+            // 단가 출처 뱃지 (개별/그룹/표준) + 설정 바로가기
+            const renderPriceBadge = () => {
+              if (!albumPriceData?.priceSource) return null;
+              const src = albumPriceData.priceSource;
+              const badgeCls = cn(
+                "text-[9px] font-normal px-1 py-0 rounded border whitespace-nowrap",
+                src === 'client' ? "text-blue-600 border-blue-200 bg-blue-50"
+                  : src === 'group' ? "text-purple-600 border-purple-200 bg-purple-50"
+                  : "text-gray-500 border-gray-200 bg-gray-50"
+              );
+              const lbl = src === 'client' ? '개별단가'
+                : src === 'group' ? `그룹단가${albumPriceData.groupName ? `(${albumPriceData.groupName})` : ''}`
+                : '표준단가';
+              const href = src === 'client' ? `/company/members?edit=${user?.clientId}&tab=pricing`
+                : src === 'group' ? '/pricing/group'
+                : '/pricing/standard';
+              return isAdminImpersonating() ? (
+                <Link href={href} target="_blank" className={cn(badgeCls, "cursor-pointer hover:underline")}>{lbl}</Link>
+              ) : (
+                <span className={badgeCls}>{lbl}</span>
+              );
+            };
+
             return (
               <div className="space-y-1 text-[11px]">
                 {/* 제본비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium">■ 표지+제본비</div>
+                  <div className="text-gray-500 font-medium flex items-center gap-1">
+                    ■ 표지+제본비
+                    {renderPriceBadge()}
+                  </div>
                   <div className="text-gray-600 pl-2">
                     <span className="text-gray-400">방식:</span> {bName}
                   </div>
@@ -1479,7 +1505,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
                 {/* 출력비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium">■ 출력비</div>
+                  <div className="text-gray-500 font-medium flex items-center gap-1">
+                    ■ 출력비
+                    {renderPriceBadge()}
+                  </div>
                   <div className="text-gray-600 pl-2 truncate">
                     {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
                   </div>
@@ -1494,7 +1523,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
                 {/* 후가공비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium">■ 후가공비</div>
+                  <div className="text-gray-500 font-medium flex items-center gap-1">
+                    ■ 후가공비
+                    {renderPriceBadge()}
+                  </div>
                   <div className="text-gray-600 pl-2">
                     {postPrice === 0
                       ? <span className="text-gray-400">없음 (0원)</span>
