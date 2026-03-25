@@ -285,14 +285,19 @@ export class PricingService {
             where: { groupId: f.productionGroupId, settingName: f.name },
             select: { id: true, pricingType: true },
           });
-          const settingIds = matchedSetting
-            ? [matchedSetting.id]
-            : (await this.prisma.productionSetting.findMany({
-                where: { groupId: f.productionGroupId },
-                select: { id: true },
-              })).map(s => s.id);
-          // pricingType이 finishing_spec_nup이면 Nup(minQuantity) 기반 조회만 사용
-          const isNupPricing = matchedSetting?.pricingType === 'finishing_spec_nup';
+          let settingIds: string[];
+          let isNupPricing = false;
+          if (matchedSetting) {
+            settingIds = [matchedSetting.id];
+            isNupPricing = matchedSetting.pricingType === 'finishing_spec_nup';
+          } else {
+            const allSettings = await this.prisma.productionSetting.findMany({
+              where: { groupId: f.productionGroupId },
+              select: { id: true, pricingType: true },
+            });
+            settingIds = allSettings.map(s => s.id);
+            isNupPricing = allSettings.some(s => s.pricingType === 'finishing_spec_nup');
+          }
           if (settingIds.length > 0) {
             const finishingPriceWhere = isNupPricing
               ? { minQuantity: nupNum, specificationId: null as string | null }
@@ -302,6 +307,7 @@ export class PricingService {
                     { minQuantity: nupNum, specificationId: null as string | null },
                   ],
                 };
+            console.log(`[후가공] name=${f.name}, isNupPricing=${isNupPricing}, nupNum=${nupNum}, settingIds=${settingIds.join(',')}`);
             const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
               where: {
                 productionSettingId: { in: settingIds },
@@ -309,6 +315,7 @@ export class PricingService {
               },
               select: { pricePerPage: true, basePrice: true, productionSettingId: true },
             });
+            console.log(`[후가공] result=`, finishingPrice);
             if (finishingPrice) {
               postProcessingPrice += Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
               if (!postProcessingSettingId) postProcessingSettingId = finishingPrice.productionSettingId;
