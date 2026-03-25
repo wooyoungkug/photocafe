@@ -1238,7 +1238,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
             // 즉시 서버 업로드 시작
             if (productId) {
               const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
+              console.log('[MultiFolderUpload] enqueue check:', { productId, folderId: folder.id, found: !!currentFolder, filesWithFile: currentFolder?.files.filter(f => f.file).length });
               if (currentFolder) enqueueFolder(currentFolder);
+            } else {
+              console.warn('[MultiFolderUpload] productId is falsy, skipping enqueue');
             }
             if (result.reason) {
               duplicateMessages.push(result.reason);

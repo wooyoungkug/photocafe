@@ -94,8 +94,12 @@ export function useImmediateUpload(productId: string) {
   }, [updateFolderUploadStatus]);
 
   const processQueue = useCallback(async () => {
-    if (isProcessingRef.current) return;
+    if (isProcessingRef.current) {
+      console.log('[ImmediateUpload] processQueue skipped - already processing');
+      return;
+    }
     isProcessingRef.current = true;
+    console.log('[ImmediateUpload] processQueue started, queue length:', queueRef.current.length);
 
     const { accessToken } = useAuthStore.getState();
 
@@ -116,6 +120,7 @@ export function useImmediateUpload(productId: string) {
         if (controller.signal.aborted) break;
 
         try {
+          console.log('[ImmediateUpload] uploading file:', item.metadata.fileName, 'to folder:', item.tempFolderId);
           const result = await uploadAlbumFile(
             item.file,
             item.metadata,
@@ -135,6 +140,7 @@ export function useImmediateUpload(productId: string) {
           success = true;
           break;
         } catch (err: any) {
+          console.error('[ImmediateUpload] upload error:', err?.message || err, { fileName: item.metadata.fileName, attempt });
           if (err?.name === 'AbortError') break;
           if (attempt < maxRetries - 1) {
             await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
@@ -206,6 +212,7 @@ export function useImmediateUpload(productId: string) {
 
   const enqueueFolder = useCallback((folder: UploadedFolder) => {
     const tempFolderId = generateTempFolderId();
+    console.log('[ImmediateUpload] enqueueFolder called', { folderId: folder.id, folderName: folder.folderName, fileCount: folder.files.length, filesWithFile: folder.files.filter(f => f.file || f.canvasDataUrl).length });
 
     // AbortController 생성
     const controller = new AbortController();
@@ -248,7 +255,10 @@ export function useImmediateUpload(productId: string) {
         file = dataUrlToFile(uploadedFile.canvasDataUrl, uploadedFile.fileName);
       }
 
-      if (!file) return;
+      if (!file) {
+        console.warn('[ImmediateUpload] No file for:', uploadedFile.fileName, { hasFile: !!uploadedFile.file, hasCanvas: !!uploadedFile.canvasDataUrl });
+        return;
+      }
 
       const metadata: AlbumFileMetadata = {
         tempFolderId,
