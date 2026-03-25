@@ -4,6 +4,7 @@ import { useCartStore } from '@/stores/cart-store';
 import type { PhotoColorInfo, ColorGroup } from '@/lib/color-analysis';
 import { analyzeAndGroupPhotos } from '@/lib/color-analysis';
 import type { ProductPaper } from '@/lib/types/product';
+import { clearUploadSession } from '@/lib/upload-session';
 
 // 비율 허용 오차
 const RATIO_TOLERANCE = 0.01;
@@ -890,7 +891,21 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     }));
   },
 
-  clearFolders: () => set({ folders: [] }),
+  clearFolders: () => {
+    const { folders, productId } = get();
+    // 서버 임시 파일 삭제 (fire-and-forget)
+    const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '/api/v1').replace(/\/api\/v1\/?$/, '');
+    folders.forEach(folder => {
+      if (folder.tempFolderId) {
+        fetch(`${API_BASE}/api/v1/upload/temp/${folder.tempFolderId}`, { method: 'DELETE' }).catch(() => {});
+      }
+    });
+    // localStorage 세션 삭제
+    if (productId) {
+      clearUploadSession(productId);
+    }
+    set({ folders: [] });
+  },
 
   updateFolderUploadStatus: (folderId, updates) => {
     set(state => ({
