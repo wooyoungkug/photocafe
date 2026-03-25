@@ -1462,7 +1462,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               <div className="space-y-1 text-[11px]">
                 {/* 제본비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium flex items-center gap-1">
+                  <div className="text-gray-500 font-medium flex items-center justify-between">
                     ■ 표지+제본비
                     {renderPriceBadge()}
                   </div>
@@ -1505,7 +1505,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
                 {/* 출력비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium flex items-center gap-1">
+                  <div className="text-gray-500 font-medium flex items-center justify-between">
                     ■ 출력비
                     {renderPriceBadge()}
                   </div>
@@ -1523,7 +1523,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
                 {/* 후가공비 */}
                 <div className="space-y-0.5">
-                  <div className="text-gray-500 font-medium flex items-center gap-1">
+                  <div className="text-gray-500 font-medium flex items-center justify-between">
                     ■ 후가공비
                     {renderPriceBadge()}
                   </div>
