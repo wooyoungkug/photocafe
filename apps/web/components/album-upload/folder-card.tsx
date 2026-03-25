@@ -1512,13 +1512,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     {renderPriceBadge(productionSettingId)}
                   </div>
                   <div className="text-gray-600 pl-2 truncate">
-                    {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원{albumPriceData?.nup ? <span className="text-blue-500">({albumPriceData.nup})</span> : ''}/p
+                    {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
                     {extraPages > 0
-                      ? <>{perPage!.toLocaleString()}원 × {billingPages}p({pages}+{extraPages}) = {Math.round(printPrice).toLocaleString()}원</>
-                      : <>{perPage!.toLocaleString()}원 × {pages}p = {Math.round(printPrice).toLocaleString()}원</>
+                      ? <><span className="bg-blue-100 text-blue-700 px-0.5 rounded">{perPage!.toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {billingPages}p({pages}+{extraPages}) = {Math.round(printPrice).toLocaleString()}원</>
+                      : <><span className="bg-blue-100 text-blue-700 px-0.5 rounded">{perPage!.toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {pages}p = {Math.round(printPrice).toLocaleString()}원</>
                     }
                   </div>
                 </div>
