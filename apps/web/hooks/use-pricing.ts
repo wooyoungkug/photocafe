@@ -442,6 +442,8 @@ export interface AlbumOrderCalculateResult {
   appliedPolicy?: string;
   priceSource?: string; // 'client' | 'group' | 'standard'
   groupName?: string | null;
+  matchedProductionSettingId?: string | null; // 출력 생산설정 ID (딥링크용)
+  bindingProductionSettingId?: string | null; // 제본 생산설정 ID (딥링크용)
 }
 
 export function useCalculateAlbumOrderPrice(params: {

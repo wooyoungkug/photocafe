@@ -394,6 +394,12 @@ export class AlbumOrderPriceResultDto {
 
   @ApiPropertyOptional({ description: '추가 청구 페이지 수' })
   billingExtraPages?: number;
+
+  @ApiPropertyOptional({ description: '매칭된 출력 생산설정 ID (딥링크용)' })
+  matchedProductionSettingId?: string | null;
+
+  @ApiPropertyOptional({ description: '제본 생산설정 ID (딥링크용)' })
+  bindingProductionSettingId?: string | null;
 }
 
 // ==================== 가격 계산 요청 DTO ====================

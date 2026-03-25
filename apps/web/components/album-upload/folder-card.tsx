@@ -306,9 +306,10 @@ function AdditionalOrderPriceBlock({
               ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
               : '표준단가';
             const canLink = isAdminImpersonating() && clientId;
+            const settingParam = data?.matchedProductionSettingId ? `&settingId=${data.matchedProductionSettingId}` : '';
             return canLink ? (
               <Link
-                href={`/company/members?edit=${clientId}&tab=pricing`}
+                href={`/company/members?edit=${clientId}&tab=pricing${settingParam}`}
                 target="_blank"
                 className={cn(badgeClass, "cursor-pointer hover:underline")}
               >
