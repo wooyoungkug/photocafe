@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DebouncedInput } from '@/components/ui/debounced-input';
@@ -200,9 +201,11 @@ function TreeNode({
 }
 
 export function IndividualPricingTab({ clientId, clientName, groupId, groupName }: IndividualPricingTabProps) {
+  const searchParams = useSearchParams();
   const [selectedProductionGroupId, setSelectedProductionGroupId] = useState<string | null>(null);
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [highlightSettingId, setHighlightSettingId] = useState<string | null>(null);
 
   // 단가 편집 상태
   const [editingPrices, setEditingPrices] = useState<Record<string, string>>({});
@@ -368,6 +371,42 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
   };
 
   const collapseAll = () => setExpandedIds(new Set());
+
+  // URL settingId 파라미터로 자동 이동: 트리에서 해당 setting을 가진 그룹을 찾아 확장 + 선택
+  const findGroupBySetting = useCallback((groups: ProductionGroup[], settingId: string): { group: ProductionGroup; path: string[] } | null => {
+    for (const group of groups) {
+      if (group.settings?.some((s: any) => s.id === settingId)) {
+        return { group, path: [] };
+      }
+      if (group.children) {
+        const found = findGroupBySetting(group.children, settingId);
+        if (found) return { group: found.group, path: [group.id, ...found.path] };
+      }
+    }
+    return null;
+  }, []);
+
+  useEffect(() => {
+    const targetSettingId = searchParams.get('settingId');
+    if (!targetSettingId || !productionTree || productionTree.length === 0) return;
+
+    const result = findGroupBySetting(productionTree, targetSettingId);
+    if (!result) return;
+
+    // 경로상의 모든 부모 그룹 + 대상 그룹 자체를 확장
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      result.path.forEach(id => next.add(id));
+      next.add(result.group.id);
+      return next;
+    });
+    setSelectedProductionGroupId(result.group.id);
+    setHighlightSettingId(targetSettingId);
+
+    // 하이라이트 3초 후 제거
+    const timer = setTimeout(() => setHighlightSettingId(null), 3000);
+    return () => clearTimeout(timer);
+  }, [searchParams, productionTree, findGroupBySetting]);
 
   const findSelectedGroup = (groups: ProductionGroup[], id: string): ProductionGroup | null => {
     for (const group of groups) {
@@ -1913,10 +1952,13 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                   return (
                     <div key={setting.id} className={cn(
                         "group flex items-center justify-between gap-3 p-3 border rounded-lg cursor-pointer transition-colors",
-                        savedCount > 0
+                        highlightSettingId === setting.id
+                          ? "border-amber-400 bg-amber-50 ring-2 ring-amber-300 animate-pulse"
+                          : savedCount > 0
                           ? "border-blue-400 bg-blue-50/50 hover:bg-blue-100/50"
                           : "hover:bg-indigo-50 hover:border-indigo-200"
                       )}
+                      ref={highlightSettingId === setting.id ? (el) => el?.scrollIntoView({ behavior: 'smooth', block: 'center' }) : undefined}
                       onClick={() => setSelectedSettingId(setting.id)}>
                       <div className="flex items-center gap-3 flex-wrap min-w-0">
                         {savedCount > 0 && <div className="w-3 h-3 rounded-full bg-green-500 shrink-0" />}

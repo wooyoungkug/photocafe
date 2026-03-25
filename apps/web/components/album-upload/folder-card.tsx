@@ -1435,8 +1435,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               );
             }
 
-            // 단가 출처 뱃지 (개별/그룹/표준) + 설정 바로가기
-            const renderPriceBadge = () => {
+            // 단가 출처 뱃지 (개별/그룹/표준) + 설정 바로가기 (settingId로 딥링크)
+            const renderPriceBadge = (targetSettingId?: string) => {
               if (!albumPriceData?.priceSource) return null;
               const src = albumPriceData.priceSource;
               const badgeCls = cn(
@@ -1448,7 +1448,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               const lbl = src === 'client' ? '개별단가'
                 : src === 'group' ? `그룹단가${albumPriceData.groupName ? `(${albumPriceData.groupName})` : ''}`
                 : '표준단가';
-              const href = src === 'client' ? `/company/members?edit=${user?.clientId}&tab=pricing`
+              const settingParam = targetSettingId ? `&settingId=${targetSettingId}` : '';
+              const href = src === 'client' ? `/company/members?edit=${user?.clientId}&tab=pricing${settingParam}`
                 : src === 'group' ? '/pricing/group'
                 : '/pricing/standard';
               return isAdminImpersonating() ? (
@@ -1464,7 +1465,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 표지+제본비
-                    {renderPriceBadge()}
+                    {renderPriceBadge(bindingProductionSettingId)}
                   </div>
                   <div className="text-gray-600 pl-2">
                     <span className="text-gray-400">방식:</span> {bName}
@@ -1507,7 +1508,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 출력비
-                    {renderPriceBadge()}
+                    {renderPriceBadge(productionSettingId)}
                   </div>
                   <div className="text-gray-600 pl-2 truncate">
                     {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
@@ -1525,7 +1526,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 후가공비
-                    {renderPriceBadge()}
+                    {renderPriceBadge(albumPriceData?.postProcessingSettingId || undefined)}
                   </div>
                   <div className="text-gray-600 pl-2">
                     {postPrice === 0
@@ -1564,9 +1565,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         ? `그룹단가${albumPriceData.groupName ? ` (${albumPriceData.groupName})` : ''}`
                         : '표준단가';
                       const canLink = isAdminImpersonating() && user?.clientId;
+                      const settingParam = productionSettingId ? `&settingId=${productionSettingId}` : '';
                       return canLink ? (
                         <Link
-                          href={`/company/members?edit=${user.clientId}&tab=pricing`}
+                          href={`/company/members?edit=${user.clientId}&tab=pricing${settingParam}`}
                           target="_blank"
                           className={cn(badgeClass, "cursor-pointer hover:underline")}
                         >

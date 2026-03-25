@@ -390,6 +390,7 @@ export interface AlbumPagePriceResult {
   priceSource?: string | null; // 'client' | 'group' | 'standard'
   groupName?: string | null;   // 그룹 단가인 경우 그룹명
   postProcessingPrice: number; // 후가공비 (코팅 등)
+  postProcessingSettingId?: string | null; // 후가공 생산설정 ID (딥링크용)
 }
 
 export function useAlbumPagePrice(
