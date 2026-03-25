@@ -513,6 +513,9 @@ interface MultiFolderUploadState {
     'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateServerFiles'
   >>) => void;
 
+  // 개별 파일 메타데이터 업데이트 (복원 시 썸네일 비율 반영 등)
+  updateFileInFolder: (folderId: string, fileId: string, updates: Partial<UploadedFile>) => void;
+
   // 유틸리티
   getSelectedFolders: () => UploadedFolder[];
   validateFolder: (folder: UploadedFolder) => UploadedFolder;
@@ -911,6 +914,16 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     set(state => ({
       folders: state.folders.map(f =>
         f.id === folderId ? { ...f, ...updates } : f
+      ),
+    }));
+  },
+
+  updateFileInFolder: (folderId, fileId, updates) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId
+          ? { ...f, files: f.files.map(file => file.id === fileId ? { ...file, ...updates } : file) }
+          : f
       ),
     }));
   },

@@ -347,7 +347,7 @@ export function useImmediateUpload(productId: string) {
           filePath: sf.folderName,
           fileSize: serverFile.fileSize,
           pageNumber: serverFile.sortOrder,
-          widthPx: 0, // 서버에서 메타데이터 미저장 - 복원 시 0
+          widthPx: 0,
           heightPx: 0,
           dpi: sf.folderMeta.dpi || 0,
           widthInch: 0,
@@ -357,6 +357,23 @@ export function useImmediateUpload(productId: string) {
           thumbnailUrl: serverFile.thumbnailUrl,
           status: 'EXACT_MATCH' as const,
         }));
+
+        // 썸네일 이미지를 로드하여 실제 비율 추출 (비동기, 표시 품질 개선)
+        const thumbBaseUrl = API_BASE || '';
+        files.forEach((f) => {
+          if (!f.thumbnailUrl) return;
+          const img = new Image();
+          img.onload = () => {
+            const { updateFileInFolder } = useMultiFolderUploadStore.getState();
+            if (typeof updateFileInFolder === 'function') {
+              updateFileInFolder(sf.folderId, f.id, {
+                widthPx: img.naturalWidth,
+                heightPx: img.naturalHeight,
+              });
+            }
+          };
+          img.src = f.thumbnailUrl.startsWith('http') ? f.thumbnailUrl : `${thumbBaseUrl}${f.thumbnailUrl}`;
+        });
 
         const meta = sf.folderMeta;
         const restoredFolder: UploadedFolder = {
