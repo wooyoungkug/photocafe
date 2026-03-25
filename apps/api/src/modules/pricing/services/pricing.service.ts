@@ -292,10 +292,14 @@ export class PricingService {
                 select: { id: true },
               })).map(s => s.id);
           if (settingIds.length > 0) {
+            // 규격별 단가 조회 (출력비와 동일하게 specificationId 또는 minQuantity(nup) 매칭)
             const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
               where: {
                 productionSettingId: { in: settingIds },
-                specificationId,
+                OR: [
+                  { specificationId },
+                  { minQuantity: nupNum, specificationId: null },
+                ],
               },
               select: { pricePerPage: true, basePrice: true, productionSettingId: true },
             });
