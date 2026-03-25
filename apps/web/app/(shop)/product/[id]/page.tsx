@@ -2,7 +2,7 @@
 
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronDown, ChevronUp, Minus, Plus, ShoppingCart, Heart, Share2, Star, FolderHeart, Loader2, Upload, BookOpen, AlertTriangle, Pencil, Clock } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useProduct } from '@/hooks/use-products';
 import { Button } from '@/components/ui/button';
@@ -1077,6 +1077,19 @@ export default function ProductPage() {
                 </div>
               </div>
             </div>
+            {uploadFolders.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-2">
+                <div className="flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-amber-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-amber-900">업로드 데이터 보관 안내</h4>
+                    <p className="text-sm text-amber-700 mt-1">
+                      업로드된 데이터는 장바구니에 담기 전까지 임시 저장 상태이며, <strong>24시간 이내에 장바구니로 이동</strong>하지 않으면 자동 삭제됩니다. 새로고침 시에도 업로드 데이터가 초기화되오니 주문 완료까지 진행해주세요.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
