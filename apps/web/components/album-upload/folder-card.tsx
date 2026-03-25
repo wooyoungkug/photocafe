@@ -636,6 +636,23 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     productId,
   );
 
+  // DEBUG: 가격 조회 파라미터 추적 (새로고침 시 가격 미표시 디버깅용)
+  useEffect(() => {
+    console.log('[FolderCard Price Debug]', folder.folderName, {
+      productionSettingId,
+      specificationId: folder.specificationId,
+      colorMode: folder.colorMode,
+      resolvedPrintSide,
+      bindingProductionSettingId,
+      actualPaperId,
+      clientId: user?.clientId,
+      productId,
+      albumPriceData: albumPriceData ? { pricePerPage: albumPriceData.pricePerPage, priceSource: albumPriceData.priceSource } : null,
+      isPriceFetching,
+      enabled: !!productionSettingId && !!folder.specificationId,
+    });
+  }, [productionSettingId, folder.specificationId, albumPriceData, isPriceFetching]);
+
   // 제본단가 계산 (rangePrices 우선, 없으면 basePrice + pricePerPage * pageCount)
   const dbBindingPrice = useMemo(() => {
     if (!albumPriceData) return defaultBindingPrice;
@@ -1485,6 +1502,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             const unitPrice = folderPrice.unitPrice;
 
             if (!hasAllPrices) {
+              // productionSettingId 또는 specificationId가 아직 로드되지 않았으면 로딩 표시
+              if (!productionSettingId || !folder.specificationId || isPriceFetching) {
+                return (
+                  <div className="text-[11px] text-blue-500 animate-pulse">
+                    단가 조회중...
+                  </div>
+                );
+              }
               return (
                 <div className="text-[11px] text-red-500">
                   가격 미등록 <span className="text-[10px] font-normal">관리자 문의</span>
