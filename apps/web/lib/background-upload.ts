@@ -10,7 +10,7 @@ function generateTempFolderId(): string {
   return `tf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function dataUrlToFile(dataUrl: string, fileName: string): File {
+export function dataUrlToFile(dataUrl: string, fileName: string): File {
   const parts = dataUrl.split(',');
   const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/jpeg';
   const byteString = atob(parts[1]);

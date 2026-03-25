@@ -46,6 +46,7 @@ import { useIndigoSpecifications } from '@/hooks/use-specifications';
 import { useAlbumPagePrice } from '@/hooks/use-pricing';
 import { toast } from '@/hooks/use-toast';
 import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
+import { useImmediateUpload } from '@/hooks/use-immediate-upload';
 
 // 편집스타일 아이콘 컴포넌트
 function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSelected: boolean }) {
@@ -156,6 +157,40 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     applyGlobalCoverSource,
     setFolderCoverSource,
   } = useMultiFolderUploadStore();
+
+  // 즉시 서버 업로드 훅
+  const { enqueueFolder, cancelFolderUpload, retryFolder, restoreSession } = useImmediateUpload(productId || '');
+
+  // 세션 복원 (마운트 시 1회)
+  const sessionRestoredRef = useRef(false);
+  useEffect(() => {
+    if (!productId || sessionRestoredRef.current) return;
+    sessionRestoredRef.current = true;
+    restoreSession().then((restored) => {
+      if (restored) {
+        toast({ variant: 'success', title: '이전 업로드 데이터가 복원되었습니다.' });
+      }
+    });
+  }, [productId, restoreSession]);
+
+  // 재시도/취소 이벤트 리스너 (FolderCard에서 발생)
+  useEffect(() => {
+    const handleRetry = (e: Event) => {
+      const { folderId } = (e as CustomEvent).detail;
+      const folder = folders.find(f => f.id === folderId);
+      if (folder) retryFolder(folder);
+    };
+    const handleCancel = (e: Event) => {
+      const { folderId } = (e as CustomEvent).detail;
+      cancelFolderUpload(folderId);
+    };
+    window.addEventListener('retry-folder-upload', handleRetry);
+    window.addEventListener('cancel-folder-upload', handleCancel);
+    return () => {
+      window.removeEventListener('retry-folder-upload', handleRetry);
+      window.removeEventListener('cancel-folder-upload', handleCancel);
+    };
+  }, [folders, retryFolder, cancelFolderUpload]);
 
   // productId를 store에 저장
   useEffect(() => {
@@ -1200,6 +1235,11 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
             existingFolderNames.add(folder.folderName);
             // 색상 그룹 계산
             computeColorGroups(folder.id);
+            // 즉시 서버 업로드 시작
+            if (productId) {
+              const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
+              if (currentFolder) enqueueFolder(currentFolder);
+            }
             if (result.reason) {
               duplicateMessages.push(result.reason);
             }
@@ -1478,6 +1518,11 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         } else {
           existingFolderNames.add(folder.folderName);
           computeColorGroups(folder.id);
+          // 즉시 서버 업로드 시작
+          if (productId) {
+            const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
+            if (currentFolder) enqueueFolder(currentFolder);
+          }
           if (result.reason) {
             duplicateMessages.push(result.reason);
           }
@@ -1752,6 +1797,11 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         toast({ title: tu('duplicateFolderDetected'), description: result.reason || tu('duplicateName', { name: folder.folderName }), variant: 'destructive' });
       } else {
         computeColorGroups(folder.id);
+        // 즉시 서버 업로드 시작
+        if (productId) {
+          const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
+          if (currentFolder) enqueueFolder(currentFolder);
+        }
       }
 
       // 새 폴더로 스크롤

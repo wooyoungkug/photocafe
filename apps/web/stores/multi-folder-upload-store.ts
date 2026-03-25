@@ -350,6 +350,19 @@ export interface UploadedFolder {
   // 업로드 시각
   uploadedAt: number; // Date.now()
 
+  // --- 즉시 서버 업로드 관련 ---
+  tempFolderId?: string;
+  immediateUploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed' | 'partial';
+  immediateUploadProgress?: number;       // 0-100
+  immediateUploadedCount?: number;        // 업로드 완료 파일 수
+  immediateServerFiles?: Array<{
+    tempFileId: string;
+    fileUrl: string;
+    thumbnailUrl: string;
+    sortOrder: number;
+    fileName: string;
+  }>;
+
   // 업로드 시 계산된 가격 정보 (FolderCard에서 설정, 장바구니 담을 때 그대로 사용)
   computedPriceInfo?: {
     pricePerPage: number;
@@ -493,6 +506,11 @@ interface MultiFolderUploadState {
   // 배송 정보
   setFolderShipping: (folderId: string, shipping: FolderShippingInfo) => void;
   applyShippingToAll: (shipping: FolderShippingInfo) => void;
+
+  // 즉시 서버 업로드 상태 업데이트
+  updateFolderUploadStatus: (folderId: string, updates: Partial<Pick<UploadedFolder,
+    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateServerFiles'
+  >>) => void;
 
   // 유틸리티
   getSelectedFolders: () => UploadedFolder[];
@@ -861,12 +879,26 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   },
 
   removeFolder: (folderId) => {
+    const folder = get().folders.find(f => f.id === folderId);
+    // 서버 임시 파일 삭제 (fire-and-forget)
+    if (folder?.tempFolderId) {
+      const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '/api/v1').replace(/\/api\/v1\/?$/, '');
+      fetch(`${API_BASE}/api/v1/upload/temp/${folder.tempFolderId}`, { method: 'DELETE' }).catch(() => {});
+    }
     set(state => ({
       folders: state.folders.filter(f => f.id !== folderId),
     }));
   },
 
   clearFolders: () => set({ folders: [] }),
+
+  updateFolderUploadStatus: (folderId, updates) => {
+    set(state => ({
+      folders: state.folders.map(f =>
+        f.id === folderId ? { ...f, ...updates } : f
+      ),
+    }));
+  },
 
   setFolderTitle: (folderId, title) => {
     set(state => ({

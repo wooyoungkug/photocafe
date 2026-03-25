@@ -350,6 +350,56 @@ export class FileStorageService implements OnModuleInit {
     return `${prefix}_${safeName}${ext}`;
   }
 
+  /** 임시 폴더의 업로드된 파일 목록 조회 */
+  listTempFiles(tempFolderId: string): {
+    tempFolderId: string;
+    files: Array<{
+      fileName: string;
+      sortOrder: number;
+      fileSize: number;
+      fileUrl: string;
+      thumbnailUrl: string;
+    }>;
+    totalCount: number;
+  } | null {
+    const originalsDir = join(this.basePath, 'temp', tempFolderId, 'originals');
+    if (!existsSync(originalsDir)) return null;
+
+    const thumbnailsDir = join(this.basePath, 'temp', tempFolderId, 'thumbnails');
+    const fileNames = readdirSync(originalsDir).filter(f => {
+      try { return statSync(join(originalsDir, f)).isFile(); } catch { return false; }
+    });
+
+    const files = fileNames.map(fileName => {
+      const st = statSync(join(originalsDir, fileName));
+      // 파일명 형식: "NN_originalBaseName.ext" → sortOrder = NN
+      const match = fileName.match(/^(\d+)_/);
+      const sortOrder = match ? parseInt(match[1], 10) : 0;
+
+      // 썸네일 URL
+      const ext = extname(fileName);
+      const base = fileName.slice(0, -ext.length);
+      const thumbName = `${base}_thumb.jpg`;
+      const thumbExists = existsSync(join(thumbnailsDir, thumbName));
+      const encodedThumbName = /[^\x00-\x7F]/.test(thumbName) || thumbName.includes(' ')
+        ? encodeURIComponent(thumbName) : thumbName;
+      const encodedFileName = /[^\x00-\x7F]/.test(fileName) || fileName.includes(' ')
+        ? encodeURIComponent(fileName) : fileName;
+
+      return {
+        fileName,
+        sortOrder,
+        fileSize: st.size,
+        fileUrl: `/uploads/temp/${tempFolderId}/originals/${encodedFileName}`,
+        thumbnailUrl: thumbExists
+          ? `/uploads/temp/${tempFolderId}/thumbnails/${encodedThumbName}`
+          : '',
+      };
+    }).sort((a, b) => a.sortOrder - b.sortOrder);
+
+    return { tempFolderId, files, totalCount: files.length };
+  }
+
   get uploadBasePath(): string {
     return this.basePath;
   }

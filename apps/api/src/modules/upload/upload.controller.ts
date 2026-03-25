@@ -164,6 +164,24 @@ export class UploadController {
     }
 
     @Public()
+    @Get('temp/:tempFolderId/files')
+    @ApiOperation({ summary: '임시 업로드 파일 목록 조회' })
+    listTempFiles(@Param('tempFolderId') tempFolderId: string) {
+        const safeTempFolderId = tempFolderId
+            .replace(/\.\./g, '')
+            .replace(/[/\\]/g, '')
+            .trim();
+        if (!safeTempFolderId) {
+            throw new BadRequestException('유효하지 않은 tempFolderId입니다.');
+        }
+        const result = this.fileStorage.listTempFiles(safeTempFolderId);
+        if (!result) {
+            return { tempFolderId: safeTempFolderId, files: [], totalCount: 0 };
+        }
+        return result;
+    }
+
+    @Public()
     @Delete('temp/:tempFolderId')
     @ApiOperation({ summary: '임시 업로드 파일 삭제' })
     deleteTempFolder(@Param('tempFolderId') tempFolderId: string) {

@@ -37,7 +37,11 @@ import {
   Image as ImageIcon,
   Clock,
   Palette,
+  Loader2,
+  Upload,
+  RefreshCw,
 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 import { ColorGroupBadge } from './color-group-badge';
@@ -710,6 +714,58 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         actualStatus.bgColor
       )}
     >
+      {/* 즉시 서버 업로드 진행률 */}
+      {folder.immediateUploadStatus && folder.immediateUploadStatus !== 'pending' && (
+        <div className={cn(
+          'mt-3 px-3 py-2 rounded-lg border flex items-center gap-2',
+          folder.immediateUploadStatus === 'uploading' && 'bg-blue-50 border-blue-200',
+          folder.immediateUploadStatus === 'completed' && 'bg-emerald-50 border-emerald-200',
+          (folder.immediateUploadStatus === 'failed' || folder.immediateUploadStatus === 'partial') && 'bg-amber-50 border-amber-200',
+        )}>
+          {folder.immediateUploadStatus === 'uploading' && (
+            <>
+              <Loader2 className="h-3.5 w-3.5 text-blue-500 animate-spin shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-medium text-blue-700">
+                    서버 업로드 중 ({folder.immediateUploadedCount || 0}/{folder.files.length})
+                  </span>
+                  <span className="text-[10px] text-blue-500">{folder.immediateUploadProgress || 0}%</span>
+                </div>
+                <Progress value={folder.immediateUploadProgress || 0} className="h-1.5" />
+              </div>
+            </>
+          )}
+          {folder.immediateUploadStatus === 'completed' && (
+            <>
+              <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
+              <span className="text-[11px] font-medium text-emerald-700">서버 저장 완료</span>
+            </>
+          )}
+          {(folder.immediateUploadStatus === 'failed' || folder.immediateUploadStatus === 'partial') && (
+            <>
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              <span className="text-[11px] font-medium text-amber-700">
+                업로드 일부 실패 ({folder.immediateUploadedCount || 0}/{folder.files.length})
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-5 px-2 text-[10px] text-amber-700 hover:text-amber-900 ml-auto"
+                onClick={() => {
+                  // retryFolder는 multi-folder-upload에서 처리
+                  const event = new CustomEvent('retry-folder-upload', { detail: { folderId: folder.id } });
+                  window.dispatchEvent(event);
+                }}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                재시도
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* CMYK 파일 경고 */}
       {(() => {
         const cmykFiles = folder.files.filter(f => f.colorSpace === 'CMYK');
@@ -1591,7 +1647,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           size="icon"
           variant="ghost"
           className="h-8 w-8 text-gray-400 hover:text-red-500"
-          onClick={() => removeFolder(folder.id)}
+          onClick={() => {
+            // 즉시 업로드 취소 이벤트
+            if (folder.tempFolderId) {
+              window.dispatchEvent(new CustomEvent('cancel-folder-upload', { detail: { folderId: folder.id } }));
+            }
+            removeFolder(folder.id);
+          }}
         >
           <Trash2 className="h-4 w-4" />
         </Button>

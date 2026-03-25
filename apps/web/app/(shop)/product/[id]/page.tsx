@@ -97,7 +97,7 @@ export default function ProductPage() {
   const t = useTranslations('product');
   const tc = useTranslations('common');
   const { data: product, isLoading, error } = useProduct(productId);
-  const { addItem } = useCartStore();
+  const { addItem, updateUploadStatus } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
 
   const { data: ownedCopperPlates } = useCopperPlatesByClient(isAuthenticated ? user?.clientId : undefined);
@@ -398,9 +398,40 @@ export default function ProductPage() {
           if (relatedCartItems.length > 0) {
             const ids = relatedCartItems.map((i) => i.id);
             primaryIds.push(ids[0]);
-            startBackgroundUpload(ids, folderData);
+
+            // 즉시 업로드 완료된 폴더는 재업로드 스킵
+            const originalFolder = validFolders.find(f => f.id === folderId);
+            if (originalFolder?.immediateUploadStatus === 'completed' && originalFolder.tempFolderId && originalFolder.immediateServerFiles) {
+              // 이미 서버에 있으므로 바로 completed 설정
+              const serverFiles = originalFolder.immediateServerFiles.map(sf => ({
+                tempFileId: sf.tempFileId,
+                fileUrl: sf.fileUrl,
+                thumbnailUrl: sf.thumbnailUrl,
+                sortOrder: sf.sortOrder,
+                fileName: sf.fileName,
+                widthPx: 0, heightPx: 0, widthInch: 0, heightInch: 0, dpi: 0, fileSize: 0,
+              }));
+              ids.forEach(id => {
+                updateUploadStatus(id, {
+                  uploadStatus: 'completed',
+                  uploadProgress: 100,
+                  uploadedFileCount: serverFiles.length,
+                  totalFileCount: serverFiles.length,
+                  serverFiles,
+                  tempFolderId: originalFolder.tempFolderId,
+                });
+              });
+            } else {
+              startBackgroundUpload(ids, folderData);
+            }
           }
         });
+
+        // 즉시 업로드 세션 정리
+        if (product?.id) {
+          const { clearUploadSession } = await import('@/lib/upload-session');
+          clearUploadSession(product.id);
+        }
 
         clearFolders();
         setUploadModalState({ isOpen: true, newCartItemIds: newItems.map((i) => i.id), primaryIds });
@@ -1084,7 +1115,7 @@ export default function ProductPage() {
                   <div>
                     <h4 className="font-medium text-amber-900">업로드 데이터 보관 안내</h4>
                     <p className="text-sm text-amber-700 mt-1">
-                      업로드된 데이터는 장바구니에 담기 전까지 임시 저장 상태이며, <strong>24시간 이내에 장바구니로 이동</strong>하지 않으면 자동 삭제됩니다. 새로고침 시에도 업로드 데이터가 초기화되오니 주문 완료까지 진행해주세요.
+                      업로드된 데이터는 서버에 임시 저장되며, <strong>24시간 이내에 장바구니로 이동</strong>하지 않으면 자동 삭제됩니다. 새로고침 시에도 업로드 데이터가 유지됩니다.
                     </p>
                   </div>
                 </div>
