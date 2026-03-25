@@ -1512,7 +1512,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     {renderPriceBadge(productionSettingId)}
                   </div>
                   <div className="text-gray-600 pl-2 truncate">
-                    {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
+                    {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원{albumPriceData?.nup ? <span className="text-blue-500">({albumPriceData.nup})</span> : ''}/p
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
