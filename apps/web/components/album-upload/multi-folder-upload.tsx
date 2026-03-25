@@ -47,6 +47,7 @@ import { useAlbumPagePrice } from '@/hooks/use-pricing';
 import { toast } from '@/hooks/use-toast';
 import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
 import { useImmediateUpload } from '@/hooks/use-immediate-upload';
+import { useAuthStore } from '@/stores/auth-store';
 
 // 편집스타일 아이콘 컴포넌트
 function PageLayoutIcon({ type, isSelected }: { type: 'single' | 'spread'; isSelected: boolean }) {
@@ -157,6 +158,9 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     applyGlobalCoverSource,
     setFolderCoverSource,
   } = useMultiFolderUploadStore();
+
+  // 로그인 사용자 정보
+  const { user } = useAuthStore();
 
   // 즉시 서버 업로드 훅
   const { enqueueFolder, cancelFolderUpload, retryFolder, restoreSession } = useImmediateUpload(productId || '');
@@ -1896,23 +1900,41 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     totalPrintSide,
     storeBindingPsId,
     totalActualPaperId,
+    user?.clientId,
+    productId,
   );
 
   const totalDbPrice: DbPriceInfo = useMemo(() => {
     if (!albumPriceForTotal) return { pricePerPage: 0, bindingPrice: 0, coverPrice: 0 };
     const { bindingRangePrices, bindingBasePrice, bindingPricePerPage } = albumPriceForTotal;
     const pageCount = firstSelected?.pageCount || 0;
-    const pageKey = String(pageCount);
+    const billingPc = pageCount + (albumPriceForTotal.billingExtraPages || 0);
+    const pageKey = String(billingPc);
     let binding = 0;
     if (bindingRangePrices && pageKey in bindingRangePrices) {
       binding = bindingRangePrices[pageKey];
+    } else if (bindingRangePrices) {
+      // 보간: 가장 가까운 하위 구간에서 pricePerPage 적용
+      const numericKeys = Object.keys(bindingRangePrices)
+        .filter((k) => !k.startsWith('__'))
+        .map(Number)
+        .filter((k) => !isNaN(k))
+        .sort((a, b) => a - b);
+      const lowerKey = numericKeys.filter((k) => k <= billingPc).pop();
+      if (lowerKey !== undefined) {
+        binding = (bindingRangePrices[String(lowerKey)] || 0) + bindingPricePerPage * (billingPc - lowerKey);
+      } else if (bindingBasePrice || bindingPricePerPage) {
+        binding = bindingBasePrice + bindingPricePerPage * billingPc;
+      }
     } else if (bindingBasePrice || bindingPricePerPage) {
-      binding = bindingBasePrice + bindingPricePerPage * pageCount;
+      binding = bindingBasePrice + bindingPricePerPage * billingPc;
     }
     return {
       pricePerPage: albumPriceForTotal.pricePerPage,
       bindingPrice: binding,
       coverPrice: albumPriceForTotal.coverPrice || 0,
+      billingPageCount: billingPc,
+      postProcessingPrice: albumPriceForTotal.postProcessingPrice || 0,
     };
   }, [albumPriceForTotal, firstSelected]);
 
