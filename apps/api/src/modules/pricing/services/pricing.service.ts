@@ -283,7 +283,7 @@ export class PricingService {
           // 이름 매칭 우선, 없으면 그룹 전체에서 조회
           const matchedSetting = await this.prisma.productionSetting.findFirst({
             where: { groupId: f.productionGroupId, settingName: f.name },
-            select: { id: true },
+            select: { id: true, pricingType: true },
           });
           const settingIds = matchedSetting
             ? [matchedSetting.id]
@@ -291,15 +291,21 @@ export class PricingService {
                 where: { groupId: f.productionGroupId },
                 select: { id: true },
               })).map(s => s.id);
+          // pricingType이 finishing_spec_nup이면 Nup(minQuantity) 기반 조회만 사용
+          const isNupPricing = matchedSetting?.pricingType === 'finishing_spec_nup';
           if (settingIds.length > 0) {
-            // 규격별 단가 조회 (출력비와 동일하게 specificationId 또는 minQuantity(nup) 매칭)
+            const finishingPriceWhere = isNupPricing
+              ? { minQuantity: nupNum, specificationId: null as string | null }
+              : {
+                  OR: [
+                    { specificationId },
+                    { minQuantity: nupNum, specificationId: null as string | null },
+                  ],
+                };
             const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
               where: {
                 productionSettingId: { in: settingIds },
-                OR: [
-                  { specificationId },
-                  { minQuantity: nupNum, specificationId: null },
-                ],
+                ...finishingPriceWhere,
               },
               select: { pricePerPage: true, basePrice: true, productionSettingId: true },
             });
