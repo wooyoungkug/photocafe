@@ -148,6 +148,49 @@ export class PricingService {
       }
     }
 
+    // 2-2. priceGroups JSON 폴백 (잉크젯 specPrices 전용 - specificationId 정확 매칭)
+    if (!pricePerPage) {
+      const setting = await this.prisma.productionSetting.findUnique({
+        where: { id: productionSettingId },
+        select: { priceGroups: true, paperPriceGroupMap: true, printMethod: true },
+      });
+
+      if (setting) {
+        const priceGroups = setting.priceGroups as any[] | null;
+        if (priceGroups && priceGroups.length > 0) {
+          let group = priceGroups[0];
+          if (dto.paperId && setting.paperPriceGroupMap) {
+            const groupMap = setting.paperPriceGroupMap as Record<string, string>;
+            const targetGroupId = groupMap[dto.paperId];
+            if (targetGroupId) {
+              const matchedGroup = priceGroups.find((g: any) => g.id === targetGroupId);
+              if (matchedGroup) group = matchedGroup;
+            }
+          }
+
+          // 인디고: upPrices에서 specificationId 정확 매칭만 허용 (nup 매칭 제거)
+          if (group?.upPrices && Array.isArray(group.upPrices)) {
+            const upPrice = group.upPrices.find((u: any) => u.specificationId === specificationId);
+            if (upPrice && upPrice[priceField] != null) {
+              pricePerPage = Number(upPrice[priceField]);
+              if (pricePerPage) priceSource = 'priceGroups';
+            }
+          }
+
+          // 잉크젯: specPrices에서 specificationId 매칭
+          if (!pricePerPage && group?.specPrices && Array.isArray(group.specPrices)) {
+            const specPrice = group.specPrices.find(
+              (sp: any) => sp.specificationId === specificationId,
+            );
+            if (specPrice) {
+              pricePerPage = Number(specPrice.singleSidedPrice) || 0;
+              if (pricePerPage) priceSource = 'priceGroups';
+            }
+          }
+        }
+      }
+    }
+
     // 3. 제본단가 정보 조회 (bindingPsId의 basePrice/pricePerPage/rangePrices)
     let bindingBasePrice = 0;
     let bindingPricePerPage = 0;
