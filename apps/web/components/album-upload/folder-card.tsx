@@ -282,7 +282,12 @@ function AdditionalOrderPriceBlock({
             <span className="text-gray-400 font-normal">소계:</span> {perPage.toLocaleString()}원 × {billingPages}p = {Math.round(perPage * billingPages).toLocaleString()}원
           </div>
         )}
-        <div className="text-[11px] text-gray-500 font-medium mt-0.5">■ 후가공비</div>
+        <div className="text-[11px] text-gray-500 font-medium mt-0.5">
+          ■ 후가공비
+          {data.postProcessingNames && data.postProcessingNames.length > 0 && (
+            <span className="text-gray-400 font-normal"> ({data.postProcessingNames.join(', ')})</span>
+          )}
+        </div>
         <div className="text-[11px] text-gray-600 pl-2">
           {postProcessingPrice === 0
             ? <span className="text-gray-400">없음 (0원)</span>
@@ -1672,6 +1677,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 후가공비
+                    {albumPriceData?.postProcessingNames && albumPriceData.postProcessingNames.length > 0 && (
+                      <span className="text-gray-400 font-normal">({albumPriceData.postProcessingNames.join(', ')})</span>
+                    )}
                     {renderPriceBadge(albumPriceData?.postProcessingSettingId || undefined)}
                   </div>
                   <div className="text-gray-600 pl-2">

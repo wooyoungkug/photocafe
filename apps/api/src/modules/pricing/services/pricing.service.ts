@@ -36,7 +36,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; postProcessingPrice: number; postProcessingSettingId: string | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; postProcessingPrice: number; postProcessingSettingId: string | null; postProcessingNames: string[] }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -272,6 +272,7 @@ export class PricingService {
     // 후가공비: 상품의 ProductFinishing → ProductionSetting(이름매칭) → 규격별 pricePerPage 조회
     let postProcessingPrice = 0;
     let postProcessingSettingId: string | null = null;
+    const postProcessingNames: string[] = [];
     if (dto.productId) {
       const finishings = await this.prisma.productFinishing.findMany({
         where: { productId: dto.productId },
@@ -317,16 +318,18 @@ export class PricingService {
             if (finishingPrice) {
               postProcessingPrice += Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
               if (!postProcessingSettingId) postProcessingSettingId = finishingPrice.productionSettingId;
+              if (f.name) postProcessingNames.push(f.name);
               continue;
             }
           }
         }
         // productionGroupId가 없거나 규격별 단가를 못 찾으면 기존 price 사용
         postProcessingPrice += Number(f.price) || 0;
+        if (f.name) postProcessingNames.push(f.name);
       }
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, postProcessingPrice, postProcessingSettingId };
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, postProcessingPrice, postProcessingSettingId, postProcessingNames };
   }
 
   /**
@@ -735,6 +738,7 @@ export class PricingService {
 
     // 8. 후가공비: 상품의 ProductFinishing → ProductionSetting(이름매칭) → 규격별 pricePerPage × 페이지수
     let postProcessingPrice = 0;
+    const postProcessingNames: string[] = [];
     const finishings = await this.prisma.productFinishing.findMany({
       where: { productId: dto.productId },
       select: { name: true, price: true, productionGroupId: true },
@@ -769,6 +773,7 @@ export class PricingService {
           if (finishingPrice) {
             const perPage = Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
             postProcessingPrice += perPage * billingPageCount;
+            if (f.name) postProcessingNames.push(f.name);
             continue;
           }
         }
@@ -776,6 +781,7 @@ export class PricingService {
       // productionGroupId가 없거나 규격별 단가를 못 찾으면 기존 price × 페이지수
       const fallbackPrice = Number(f.price) || 0;
       postProcessingPrice += fallbackPrice > 0 ? fallbackPrice * billingPageCount : 0;
+      if (f.name) postProcessingNames.push(f.name);
     }
 
     // 총 단가 = 출력비 + 용지추가금 + 제본비(표지포함) + 후가공비 (VAT 포함)
@@ -801,6 +807,7 @@ export class PricingService {
       billingExtraPages,
       matchedProductionSettingId: matchedProductionSettingId || null,
       bindingProductionSettingId: defaultBinding?.productionSettingId || null,
+      postProcessingNames,
     };
   }
 

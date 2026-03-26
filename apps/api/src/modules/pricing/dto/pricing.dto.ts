@@ -400,6 +400,9 @@ export class AlbumOrderPriceResultDto {
 
   @ApiPropertyOptional({ description: '제본 생산설정 ID (딥링크용)' })
   bindingProductionSettingId?: string | null;
+
+  @ApiPropertyOptional({ description: '후가공 이름 목록', type: [String] })
+  postProcessingNames?: string[];
 }
 
 // ==================== 가격 계산 요청 DTO ====================

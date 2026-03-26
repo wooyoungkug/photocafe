@@ -391,6 +391,7 @@ export interface AlbumPagePriceResult {
   groupName?: string | null;   // 그룹 단가인 경우 그룹명
   postProcessingPrice: number; // 후가공비 (코팅 등)
   postProcessingSettingId?: string | null; // 후가공 생산설정 ID (딥링크용)
+  postProcessingNames?: string[]; // 후가공 이름 목록 (예: ["수성무광코팅"])
 }
 
 export function useAlbumPagePrice(
@@ -444,6 +445,7 @@ export interface AlbumOrderCalculateResult {
   groupName?: string | null;
   matchedProductionSettingId?: string | null; // 출력 생산설정 ID (딥링크용)
   bindingProductionSettingId?: string | null; // 제본 생산설정 ID (딥링크용)
+  postProcessingNames?: string[]; // 후가공 이름 목록
 }
 
 export function useCalculateAlbumOrderPrice(params: {
