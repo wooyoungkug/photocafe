@@ -299,14 +299,12 @@ export class PricingService {
             isNupPricing = allSettings.some(s => s.pricingType === 'finishing_spec_nup');
           }
           if (settingIds.length > 0) {
-            const finishingPriceWhere = isNupPricing
-              ? { minQuantity: nupNum, specificationId: null as string | null }
-              : {
-                  OR: [
-                    { specificationId },
-                    { minQuantity: nupNum, specificationId: null as string | null },
-                  ],
-                };
+            const finishingPriceWhere = {
+              OR: [
+                { specificationId },
+                { minQuantity: nupNum, specificationId: null as string | null },
+              ],
+            };
             console.log(`[후가공] name=${f.name}, isNupPricing=${isNupPricing}, nupNum=${nupNum}, settingIds=${settingIds.join(',')}`);
             const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
               where: {
@@ -755,10 +753,16 @@ export class PricingService {
               select: { id: true },
             })).map(s => s.id);
         if (settingIds.length > 0) {
+          const nupNumForFinishing = specification.nup
+            ? parseInt(specification.nup.replace(/[^0-9]/g, '')) || 1
+            : 1;
           const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
             where: {
               productionSettingId: { in: settingIds },
-              specificationId: specification.id,
+              OR: [
+                { specificationId: specification.id },
+                { minQuantity: nupNumForFinishing, specificationId: null },
+              ],
             },
             select: { pricePerPage: true, basePrice: true },
           });
