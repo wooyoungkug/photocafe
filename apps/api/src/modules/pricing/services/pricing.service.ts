@@ -66,13 +66,8 @@ export class PricingService {
       select: { settingName: true },
     });
 
-    // 출력 단가 조회용 OR 조건: specificationId 매칭 또는 minQuantity(nup) 매칭
-    const outputPriceWhere = {
-      OR: [
-        { specificationId },
-        { minQuantity: nupNum, specificationId: null as string | null },
-      ],
-    };
+    // 출력 단가 조회: specificationId 정확 매칭만 사용
+    const outputPriceWhere = { specificationId };
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -148,50 +143,6 @@ export class PricingService {
           const rp = standardPrice.rangePrices as Record<string, any> | null;
           if (rp && rp['__coverPrice'] != null) {
             coverPrice = Number(rp['__coverPrice']);
-          }
-        }
-      }
-    }
-
-    // 2-2. priceGroups JSON 폴백 (ProductionSettingPrice에 가격이 없는 경우)
-    if (!pricePerPage) {
-      const setting = await this.prisma.productionSetting.findUnique({
-        where: { id: productionSettingId },
-        select: { priceGroups: true, paperPriceGroupMap: true, printMethod: true },
-      });
-
-      if (setting) {
-        const priceGroups = setting.priceGroups as any[] | null;
-        if (priceGroups && priceGroups.length > 0) {
-          // paperId가 있으면 paperPriceGroupMap에서 해당 용지의 그룹을 찾기
-          let group = priceGroups[0]; // 기본 첫 번째 그룹
-          if (dto.paperId && setting.paperPriceGroupMap) {
-            const groupMap = setting.paperPriceGroupMap as Record<string, string>;
-            const targetGroupId = groupMap[dto.paperId];
-            if (targetGroupId) {
-              const matchedGroup = priceGroups.find((g: any) => g.id === targetGroupId);
-              if (matchedGroup) group = matchedGroup;
-            }
-          }
-
-          // 인디고: upPrices에서 nup 매칭
-          if (group?.upPrices && Array.isArray(group.upPrices)) {
-            const upPrice = group.upPrices.find((u: any) => u.up === nupNum);
-            if (upPrice && upPrice[priceField] != null) {
-              pricePerPage = Number(upPrice[priceField]);
-              if (pricePerPage) priceSource = 'priceGroups';
-            }
-          }
-
-          // 잉크젯: specPrices에서 specificationId 매칭
-          if (!pricePerPage && group?.specPrices && Array.isArray(group.specPrices)) {
-            const specPrice = group.specPrices.find(
-              (sp: any) => sp.specificationId === specificationId,
-            );
-            if (specPrice) {
-              pricePerPage = Number(specPrice.singleSidedPrice) || 0;
-              if (pricePerPage) priceSource = 'priceGroups';
-            }
           }
         }
       }
