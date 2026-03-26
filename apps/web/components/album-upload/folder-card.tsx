@@ -267,10 +267,12 @@ function AdditionalOrderPriceBlock({
             <span className="text-gray-400">표지비:</span> {Math.round(coverPrice).toLocaleString()}원
           </div>
         )}
-        <div className="text-[11px] text-gray-700 pl-2 font-medium">
-          <span className="text-gray-400 font-normal">소계:</span> {Math.round(bindingPrice).toLocaleString()}원
-          {coverPrice > 0 && <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>}
-        </div>
+        {coverPrice > 0 && (
+          <div className="text-[11px] text-gray-700 pl-2 font-medium">
+            <span className="text-gray-400 font-normal">소계:</span> {Math.round(bindingPrice).toLocaleString()}원
+            <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>
+          </div>
+        )}
         <div className="text-[11px] text-gray-500 font-medium mt-0.5">
           ■ 출력비
           <span className="text-gray-400 font-normal"> ({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {data?.printSide === 'double' ? '양면' : '단면'})</span>
@@ -1642,10 +1644,12 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       <span className="text-gray-400">표지비:</span> {Math.round(coverPrice).toLocaleString()}원
                     </div>
                   )}
-                  <div className="text-gray-700 pl-2 font-medium">
-                    <span className="text-gray-400 font-normal">소계:</span> {Math.round(totalBindingPrice).toLocaleString()}원
-                    {coverPrice > 0 && <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>}
-                  </div>
+                  {coverPrice > 0 && (
+                    <div className="text-gray-700 pl-2 font-medium">
+                      <span className="text-gray-400 font-normal">소계:</span> {Math.round(totalBindingPrice).toLocaleString()}원
+                      <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* 출력비 */}
