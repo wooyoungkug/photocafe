@@ -1420,7 +1420,11 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 const otherSizes = folder.availableSizes.filter(
                   s => `${s.width}x${s.height}` !== currentKey
                 );
-                if (otherSizes.length === 0) return null;
+                if (otherSizes.length === 0) return (
+                  <span className="text-xs text-black font-medium border rounded px-1.5 py-0.5 bg-white">
+                    {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}
+                  </span>
+                );
                 return (
                   <select
                     value={currentKey}
