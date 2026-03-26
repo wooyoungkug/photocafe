@@ -340,11 +340,15 @@ export function useImmediateUpload(productId: string) {
         }
 
         // UploadedFile[] 재구성 (file=undefined, 서버 URL 사용)
-        // folderMeta에서 파일 크기 복원 (pageLayout에 따라 fileSpec → 원본 파일 크기 역산)
+        // folderMeta의 albumWidth/Height는 앨범 규격 (spread면 절반 크기)
+        // 파일 원본 크기를 역산: spread이면 가로 × 2
         const metaDpi = sf.folderMeta.dpi || 300;
-        const metaFileW = sf.folderMeta.fileSpecWidth || sf.folderMeta.albumWidth || 0;
-        const metaFileH = sf.folderMeta.fileSpecHeight || sf.folderMeta.albumHeight || 0;
-        const metaRatio = metaFileW && metaFileH ? metaFileW / metaFileH : 0;
+        const albumW = sf.folderMeta.albumWidth || sf.folderMeta.fileSpecWidth || 0;
+        const albumH = sf.folderMeta.albumHeight || sf.folderMeta.fileSpecHeight || 0;
+        const isSpread = sf.folderMeta.pageLayout === 'spread';
+        const rawFileW = isSpread ? albumW * 2 : albumW;
+        const rawFileH = albumH;
+        const metaRatio = rawFileW && rawFileH ? rawFileW / rawFileH : 0;
         const files: UploadedFile[] = data.files.map((serverFile: any, idx: number) => ({
           id: `restored-${sf.folderId}-${idx}`,
           file: undefined,
@@ -352,11 +356,11 @@ export function useImmediateUpload(productId: string) {
           filePath: sf.folderName,
           fileSize: serverFile.fileSize,
           pageNumber: serverFile.sortOrder,
-          widthPx: Math.round(metaFileW * metaDpi),
-          heightPx: Math.round(metaFileH * metaDpi),
+          widthPx: Math.round(rawFileW * metaDpi),
+          heightPx: Math.round(rawFileH * metaDpi),
           dpi: metaDpi,
-          widthInch: metaFileW,
-          heightInch: metaFileH,
+          widthInch: rawFileW,
+          heightInch: rawFileH,
           ratio: metaRatio,
           coverType: 'INNER_PAGE' as const,
           thumbnailUrl: serverFile.thumbnailUrl,
