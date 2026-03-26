@@ -297,8 +297,8 @@ function AdditionalOrderPriceBlock({
         <div className="text-[11px] font-bold text-primary border-t border-gray-200 pt-0.5 mt-0.5">
           <span className="text-gray-400 text-[11px] font-normal">합계:</span>{' '}
           {order.quantity > 1
-            ? <><span className="text-[16px]">{Math.round(unitPrice).toLocaleString()}원</span> ×{order.quantity}부 = <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}원</span></>
-            : <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}원</span>
+            ? <><span className="text-[16px]">{Math.round(unitPrice).toLocaleString()}<span className="text-[11px]">원</span></span> ×{order.quantity}부 = <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}<span className="text-[11px]">원</span></span></>
+            : <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}<span className="text-[11px]">원</span></span>
           }
           {data?.priceSource && (() => {
             const badgeClass = cn(
@@ -1691,13 +1691,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     <span className="text-gray-400">단가(1권):</span>{' '}
                     {Math.round(totalBindingPrice).toLocaleString()} + {Math.round(printPrice).toLocaleString()}
                     {postPrice > 0 && <> + {Math.round(postPrice).toLocaleString()}</>}
-                    {' '}= <span className="font-medium">{Math.round(unitPrice).toLocaleString()}원</span>
+                    {' '}= <span className="font-medium">{Math.round(unitPrice).toLocaleString()}<span className="text-[11px]">원</span></span>
                   </div>
                   <div className={cn("font-bold text-[11px]", "text-primary")}>
                     <span className="text-gray-400 font-normal">합계:</span>{' '}
                     {folder.quantity > 1
-                      ? <><span className="text-[16px]">{Math.round(unitPrice).toLocaleString()}원</span> × {folder.quantity}부 = <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}원</span></>
-                      : <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}원</span>
+                      ? <><span className="text-[16px]">{Math.round(unitPrice).toLocaleString()}<span className="text-[11px]">원</span></span> × {folder.quantity}부 = <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}<span className="text-[11px]">원</span></span></>
+                      : <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}<span className="text-[11px]">원</span></span>
                     }
                   </div>
                 </div>
