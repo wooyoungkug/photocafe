@@ -452,13 +452,14 @@ export function useImmediateUpload(productId: string) {
           })),
         };
 
-        // store에 직접 추가 (addFolder → validateFolder가 specificationId를 덮어쓰므로 우회)
-        const state = useMultiFolderUploadStore.getState();
-        const duplicate = state.folders.find(f => f.folderName === restoredFolder.folderName);
-        if (!duplicate) {
-          useMultiFolderUploadStore.setState(prev => ({
-            folders: [restoredFolder, ...prev.folders],
-          }));
+        // addFolder로 추가 (validateFolder로 availableSizes 등 계산)
+        // 이후 specificationId를 세션 메타에서 복원 (validateFolder가 파일 크기 기반으로 덮어쓰므로)
+        const { addFolder, updateFolder: updateFolderInStore } = useMultiFolderUploadStore.getState();
+        const result = addFolder(restoredFolder);
+        if (result.added) {
+          if (meta.specificationId) {
+            updateFolderInStore(sf.folderId, { specificationId: meta.specificationId });
+          }
           restored = true;
         }
       } catch {
