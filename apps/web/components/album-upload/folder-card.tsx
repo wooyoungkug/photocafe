@@ -207,7 +207,7 @@ function AdditionalOrderPriceBlock({
   const paperLabel = order.selectedPaperName ?? folder.selectedPaperName ?? '';
   const selectedPaperObj = availablePapers.find(p => p.id === paperId);
   const paperGrammage = selectedPaperObj?.grammage;
-  const bName = bindingName || '제본';
+  const bName = (bindingName || '제본').replace(/\s*\(구간별[^)]*\)/g, '');
 
   if (isLoading || !data) {
     return (
@@ -273,7 +273,7 @@ function AdditionalOrderPriceBlock({
         </div>
         <div className="text-[11px] text-gray-500 font-medium mt-0.5">
           ■ 출력비
-          <span className="text-gray-400 font-normal"> ({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''}{data?.nup ? ` ${data.nup}` : ''} · 단가 {perPage > 0 ? `${perPage.toLocaleString()}원/p` : 'None'})</span>
+          <span className="text-gray-400 font-normal"> ({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {data?.printSide === 'double' ? '양면' : '단면'})</span>
         </div>
         {perPage > 0 && (
           <div className="text-[11px] text-gray-700 pl-2 font-medium">
@@ -1543,7 +1543,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             const selectedPaperObj = availablePapers.find(p => p.id === folder.selectedPaperId);
             const paperGrammage = selectedPaperObj?.grammage;
             const perPage = albumPriceData?.pricePerPage ?? null;
-            const bName = bindingName || '제본';
+            const bName = (bindingName || '제본').replace(/\s*\(구간별[^)]*\)/g, '');
             const hasAllPrices = !!albumPriceData && !!perPage && perPage > 0;
 
             // 청구 페이지 정보
@@ -1652,7 +1652,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 출력비
-                    <span className="text-gray-400 font-normal">({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {resolvedPrintSide === 'single' ? '단면' : '양면'} · 단가 {perPage!.toLocaleString()}원/p)</span>
+                    <span className="text-gray-400 font-normal">({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {resolvedPrintSide === 'single' ? '단면' : '양면'})</span>
                     {renderPriceBadge(productionSettingId)}
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
