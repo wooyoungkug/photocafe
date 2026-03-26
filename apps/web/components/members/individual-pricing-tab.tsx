@@ -401,6 +401,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
       return next;
     });
     setSelectedProductionGroupId(result.group.id);
+    setSelectedSettingId(targetSettingId);
     setHighlightSettingId(targetSettingId);
 
     // 하이라이트 3초 후 제거
