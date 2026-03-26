@@ -298,6 +298,34 @@ function AdditionalOrderPriceBlock({
             ? <>{Math.round(unitPrice).toLocaleString()}원 ×{order.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
             : <>{Math.round(totalPrice).toLocaleString()}원</>
           }
+          {data?.priceSource && (() => {
+            const badgeClass = cn(
+              "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
+              data.priceSource === 'client'
+                ? "text-blue-600 border-blue-200 bg-blue-50"
+                : data.priceSource === 'group'
+                ? "text-purple-600 border-purple-200 bg-purple-50"
+                : "text-gray-500 border-gray-200 bg-gray-50"
+            );
+            const label = data.priceSource === 'client'
+              ? '개별단가'
+              : data.priceSource === 'group'
+              ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
+              : '표준단가';
+            const canLink = isAdminImpersonating() && clientId;
+            const settingParam = data?.matchedProductionSettingId ? `&settingId=${data.matchedProductionSettingId}` : '';
+            return canLink ? (
+              <Link
+                href={`/company/members?edit=${clientId}&tab=pricing${settingParam}`}
+                target="_blank"
+                className={cn(badgeClass, "cursor-pointer hover:underline")}
+              >
+                {label}
+              </Link>
+            ) : (
+              <span className={badgeClass}>{label}</span>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -1559,8 +1587,27 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             }
 
             // 단가 출처 뱃지 (개별/그룹/표준) + 설정 바로가기 (settingId로 딥링크)
-            const renderPriceBadge = (_targetSettingId?: string) => {
-              return null;
+            const renderPriceBadge = (targetSettingId?: string) => {
+              if (!albumPriceData?.priceSource) return null;
+              const src = albumPriceData.priceSource;
+              const badgeCls = cn(
+                "text-[9px] font-normal px-1 py-0 rounded border whitespace-nowrap",
+                src === 'client' ? "text-blue-600 border-blue-200 bg-blue-50"
+                  : src === 'group' ? "text-purple-600 border-purple-200 bg-purple-50"
+                  : "text-gray-500 border-gray-200 bg-gray-50"
+              );
+              const lbl = src === 'client' ? '개별단가'
+                : src === 'group' ? `그룹단가${albumPriceData.groupName ? `(${albumPriceData.groupName})` : ''}`
+                : '표준단가';
+              const settingParam = targetSettingId ? `&settingId=${targetSettingId}` : '';
+              const href = src === 'client' ? `/company/members?edit=${user?.clientId}&tab=pricing${settingParam}`
+                : src === 'group' ? '/pricing/group'
+                : '/pricing/standard';
+              return isAdminImpersonating() ? (
+                <Link href={href} target="_blank" className={cn(badgeCls, "cursor-pointer hover:underline")}>{lbl}</Link>
+              ) : (
+                <span className={badgeCls}>{lbl}</span>
+              );
             };
 
             return (
