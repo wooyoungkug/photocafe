@@ -604,7 +604,44 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     folder.validationStatus === 'EXACT_MATCH' ||
     (folder.validationStatus === 'RATIO_MATCH' && folder.isApproved);
 
-  const canSelect = hasValidStatus && folder.specFoundInDB !== false;
+  // 출력방식 호환성 체크: 매칭된 규격이 현재 출력방식과 맞는지
+  const matchedSpec = useMemo(() => {
+    if (!folder.specFoundInDB || folder.availableSizes.length === 0) return null;
+    return folder.availableSizes.find(
+      s => s.width === folder.albumWidth && s.height === folder.albumHeight
+    ) || folder.availableSizes[0];
+  }, [folder.specFoundInDB, folder.availableSizes, folder.albumWidth, folder.albumHeight]);
+
+  const specCompatibility = useMemo(() => {
+    if (!matchedSpec || !folder.printMethod) return { compatible: true, message: '' };
+    if (folder.printMethod === 'indigo') {
+      const ok = !!(matchedSpec.forIndigo || matchedSpec.forIndigoAlbum);
+      if (!ok) {
+        const hasInkjet = !!(matchedSpec.forInkjet || matchedSpec.forAlbum);
+        return {
+          compatible: false,
+          message: hasInkjet
+            ? `${folder.albumLabel}은(는) 잉크젯 전용 규격입니다. 출력을 잉크젯으로 변경해주세요.`
+            : `${folder.albumLabel}은(는) 인디고 출력을 지원하지 않는 규격입니다.`,
+        };
+      }
+    }
+    if (folder.printMethod === 'inkjet') {
+      const ok = !!(matchedSpec.forInkjet || matchedSpec.forAlbum);
+      if (!ok) {
+        const hasIndigo = !!(matchedSpec.forIndigo || matchedSpec.forIndigoAlbum);
+        return {
+          compatible: false,
+          message: hasIndigo
+            ? `${folder.albumLabel}은(는) 인디고 전용 규격입니다. 출력을 인디고로 변경해주세요.`
+            : `${folder.albumLabel}은(는) 잉크젯 출력을 지원하지 않는 규격입니다.`,
+        };
+      }
+    }
+    return { compatible: true, message: '' };
+  }, [matchedSpec, folder.printMethod, folder.albumLabel]);
+
+  const canSelect = hasValidStatus && folder.specFoundInDB !== false && specCompatibility.compatible;
 
   // 출력구분 결정: 사용자가 직접 선택한 값 우선, 없으면 상품 printType 또는 pageLayout 기반 추론
   const resolvedPrintSide = useMemo(() => {
@@ -850,6 +887,19 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               {t('confirmAndApprove')}
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* 출력방식 비호환 경고 */}
+      {folder.specFoundInDB && !specCompatibility.compatible && (
+        <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+          <div className="flex items-center gap-2 text-orange-700 text-sm font-medium">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            출력방식 변경 필요
+          </div>
+          <p className="text-xs text-orange-600 mt-1">
+            {specCompatibility.message}
+          </p>
         </div>
       )}
 
@@ -1146,7 +1196,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       {/* 헤더 (체크박스 + 제목 + 가격) */}
       <div className="flex items-start gap-3 mt-3">
         {/* 체크박스 */}
-        <div className="pt-1" title={!canSelect && folder.specFoundInDB === false ? 'DB에 등록된 규격이 없어 주문할 수 없습니다' : undefined}>
+        <div className="pt-1" title={!canSelect ? (!folder.specFoundInDB ? 'DB에 등록된 규격이 없어 주문할 수 없습니다' : !specCompatibility.compatible ? specCompatibility.message : undefined) : undefined}>
           <Checkbox
             checked={folder.isSelected}
             disabled={!canSelect}
@@ -1420,25 +1470,15 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 const otherSizes = folder.availableSizes.filter(
                   s => `${s.width}x${s.height}` !== currentKey
                 );
-                // 출력방식 호환성 체크
-                const matchedSpec = folder.availableSizes.find(
-                  s => s.width === folder.albumWidth && s.height === folder.albumHeight
-                ) || folder.availableSizes[0];
-                const isIncompatible = folder.specFoundInDB && folder.printMethod && matchedSpec && (() => {
-                  if (folder.printMethod === 'indigo') return !matchedSpec.forIndigo && !matchedSpec.forIndigoAlbum;
-                  if (folder.printMethod === 'inkjet') return !matchedSpec.forInkjet && !matchedSpec.forAlbum;
-                  return false;
-                })();
+                const isIncompatible = !specCompatibility.compatible;
                 const compatLabel = isIncompatible
                   ? (folder.printMethod === 'indigo' ? ' (잉크젯 전용)' : ' (인디고 전용)')
                   : '';
 
                 if (otherSizes.length === 0) return (
-                  <>
-                    <span className={`text-xs font-medium border rounded px-1.5 py-0.5 bg-white ${isIncompatible ? 'text-orange-600 border-orange-300' : 'text-black'}`}>
-                      {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}{compatLabel}
-                    </span>
-                  </>
+                  <span className={`text-xs font-medium border rounded px-1.5 py-0.5 bg-white ${isIncompatible ? 'text-orange-600 border-orange-300' : 'text-black'}`}>
+                    {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}{compatLabel}
+                  </span>
                 );
                 return (
                   <select
