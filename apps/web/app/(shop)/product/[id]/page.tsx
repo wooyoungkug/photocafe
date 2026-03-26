@@ -1097,7 +1097,7 @@ export default function ProductPage() {
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
               <Upload className="h-5 w-5" />{t('dataUpload')}
             </h3>
-            <MultiFolderUpload productionSettingId={defaultOutputProductionSettingId} bindingProductionSettingId={defaultBindingProductionSettingId} productId={product?.id} printMethod={(selectedOptions.printMethod as 'indigo' | 'inkjet') || 'indigo'} onAddToCart={async (folders) => {
+            <MultiFolderUpload productionSettingId={defaultOutputProductionSettingId} bindingProductionSettingId={defaultBindingProductionSettingId} productId={product?.id} onAddToCart={async (folders) => {
               if (user?.clientId) {
                 try {
                   const result = await api.post<{ duplicates: { folderName: string; orderNumber: string; orderedAt: string; status: string }[]; months: number }>(

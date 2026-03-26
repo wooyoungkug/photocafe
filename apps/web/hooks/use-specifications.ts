@@ -132,24 +132,17 @@ export function useIndigoSpecifications() {
   });
 }
 
-// 출력방식(printMethod)에 따라 적절한 규격 조회
-export function useSpecificationsByPrintMethod(printMethod: 'indigo' | 'inkjet' | undefined) {
+// 앨범 업로드용 규격 조회 (규격 매칭에 사용 - 출력방식 무관, 모든 활성 규격)
+export function useAllAlbumSpecifications() {
   return useQuery({
-    queryKey: [SPECIFICATIONS_KEY, 'byPrintMethod', printMethod],
+    queryKey: [SPECIFICATIONS_KEY, 'allAlbum'],
     staleTime: 0,
     queryFn: async () => {
       const data = await api.get<Specification[]>('/specifications');
       if (!data) return [];
-      if (printMethod === 'inkjet') {
-        return data.filter(spec => spec.forInkjet || spec.forAlbum || spec.forFrame);
-      }
-      if (printMethod === 'indigo') {
-        return data.filter(spec => spec.forIndigo);
-      }
-      // 미지정 시 전체 (인디고 + 잉크젯 + 앨범)
-      return data.filter(spec => spec.forIndigo || spec.forInkjet || spec.forAlbum);
+      // 인디고/잉크젯/앨범 중 하나라도 true인 모든 규격
+      return data.filter(spec => spec.forIndigo || spec.forInkjet || spec.forAlbum || spec.forIndigoAlbum);
     },
-    enabled: printMethod !== undefined,
   });
 }
 
