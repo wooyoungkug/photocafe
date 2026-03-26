@@ -222,7 +222,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
   // DB에서 모든 앨범 관련 규격 가져오기 (규격 매칭용 - 출력방식 무관)
   const { data: indigoSpecsRaw } = useAllAlbumSpecifications();
 
-  // 인디고 규격을 StandardSize 형태로 변환하여 스토어에 저장
+  // DB 규격을 StandardSize 형태로 변환하여 스토어에 저장
   useEffect(() => {
     if (indigoSpecsRaw && indigoSpecsRaw.length > 0) {
       const converted: StandardSize[] = indigoSpecsRaw.map(spec => ({
@@ -231,6 +231,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         height: Number(spec.heightInch),
         label: `${spec.widthInch}×${spec.heightInch}인치`,
         ratio: Number(spec.widthInch) / Number(spec.heightInch),
+        forIndigo: spec.forIndigo,
+        forInkjet: spec.forInkjet,
+        forAlbum: spec.forAlbum,
+        forIndigoAlbum: spec.forIndigoAlbum,
       }));
       setIndigoSpecs(converted);
 

@@ -34,13 +34,18 @@ function isRatioEquivalent(ratio1: number, ratio2: number): boolean {
   return false;
 }
 
-// 표준 규격 타입 (DB 인디고 규격에서 변환)
+// 표준 규격 타입 (DB 규격에서 변환)
 export interface StandardSize {
   id: string;      // specificationId (DB에서 가져온 규격 ID)
   width: number;
   height: number;
   label: string;
   ratio: number;
+  // 출력방식 호환 플래그
+  forIndigo?: boolean;
+  forInkjet?: boolean;
+  forAlbum?: boolean;
+  forIndigoAlbum?: boolean;
 }
 
 // 주문 유형: 펼친면 vs 낱장

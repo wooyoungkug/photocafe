@@ -1420,10 +1420,25 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 const otherSizes = folder.availableSizes.filter(
                   s => `${s.width}x${s.height}` !== currentKey
                 );
+                // 출력방식 호환성 체크
+                const matchedSpec = folder.availableSizes.find(
+                  s => s.width === folder.albumWidth && s.height === folder.albumHeight
+                ) || folder.availableSizes[0];
+                const isIncompatible = folder.specFoundInDB && folder.printMethod && matchedSpec && (() => {
+                  if (folder.printMethod === 'indigo') return !matchedSpec.forIndigo && !matchedSpec.forIndigoAlbum;
+                  if (folder.printMethod === 'inkjet') return !matchedSpec.forInkjet && !matchedSpec.forAlbum;
+                  return false;
+                })();
+                const compatLabel = isIncompatible
+                  ? (folder.printMethod === 'indigo' ? ' (잉크젯 전용)' : ' (인디고 전용)')
+                  : '';
+
                 if (otherSizes.length === 0) return (
-                  <span className="text-xs text-black font-medium border rounded px-1.5 py-0.5 bg-white">
-                    {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}
-                  </span>
+                  <>
+                    <span className={`text-xs font-medium border rounded px-1.5 py-0.5 bg-white ${isIncompatible ? 'text-orange-600 border-orange-300' : 'text-black'}`}>
+                      {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}{compatLabel}
+                    </span>
+                  </>
                 );
                 return (
                   <select
@@ -1435,11 +1450,11 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       const selectedSize = folder.availableSizes.find(s => s.width === w && s.height === h);
                       if (selectedSize) changeFolderSpec(folder.id, selectedSize);
                     }}
-                    className="text-xs border rounded px-1.5 py-0.5 bg-white text-black"
+                    className={`text-xs border rounded px-1.5 py-0.5 bg-white ${isIncompatible ? 'text-orange-600 border-orange-300' : 'text-black'}`}
                     aria-label="제작가능규격 선택"
                   >
                     <option value={currentKey}>
-                      {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}
+                      {folder.albumLabel}{!folder.specFoundInDB ? ' ⚠ DB미등록' : ''}{compatLabel}
                     </option>
                     {otherSizes.map((size) => (
                       <option key={size.label} value={`${size.width}x${size.height}`}>
