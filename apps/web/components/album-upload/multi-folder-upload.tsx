@@ -233,6 +233,20 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         ratio: Number(spec.widthInch) / Number(spec.heightInch),
       }));
       setIndigoSpecs(converted);
+
+      // indigoSpecs 로딩 후 복원된 폴더의 availableSizes 재계산
+      const { folders, validateFolder, updateFolder: storeUpdateFolder } = useMultiFolderUploadStore.getState();
+      for (const folder of folders) {
+        if (folder.availableSizes.length === 0 && folder.files.length > 0) {
+          const savedSpecId = folder.specificationId;
+          const revalidated = validateFolder(folder);
+          storeUpdateFolder(folder.id, {
+            availableSizes: revalidated.availableSizes,
+            specFoundInDB: revalidated.specFoundInDB,
+            specificationId: savedSpecId || revalidated.specificationId,
+          });
+        }
+      }
     }
   }, [indigoSpecsRaw, setIndigoSpecs]);
 
