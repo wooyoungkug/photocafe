@@ -257,15 +257,10 @@ function AdditionalOrderPriceBlock({
   return (
     <div className="text-right flex-shrink-0 max-w-[280px]">
       <div className="space-y-0.5">
-        <div className="text-[11px] text-gray-500 font-medium">■ 표지+제본비</div>
-        <div className="text-[11px] text-gray-600 pl-2">
-          <span className="text-gray-400">방식:</span> {bName}
+        <div className="text-[11px] text-gray-500 font-medium">
+          ■ 표지+제본비
+          <span className="text-gray-400 font-normal"> ({bName}{billingExtraPages > 0 ? ` · ${billingPages}p(${pages}+${billingExtraPages})` : ''})</span>
         </div>
-        {billingExtraPages > 0 && (
-          <div className="text-[11px] text-gray-600 pl-2">
-            <span className="text-gray-400">청구:</span> {pages}p + 추가{billingExtraPages}p = <span className="font-medium">{billingPages}p</span>
-          </div>
-        )}
         <div className="text-[11px] text-gray-600 pl-2">{renderBindingCalc()}</div>
         {coverPrice > 0 && (
           <div className="text-[11px] text-gray-600 pl-2">
@@ -1621,16 +1616,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 표지+제본비
+                    <span className="text-gray-400 font-normal">({bName}{extraPages > 0 ? ` · ${billingPages}p(${pages}+${extraPages})` : ''})</span>
                     {renderPriceBadge(bindingProductionSettingId)}
                   </div>
-                  <div className="text-gray-600 pl-2">
-                    <span className="text-gray-400">방식:</span> {bName}
-                  </div>
-                  {extraPages > 0 && (
-                    <div className="text-gray-600 pl-2">
-                      <span className="text-gray-400">청구:</span> {pages}p + 추가{extraPages}p = <span className="font-medium">{billingPages}p</span>
-                    </div>
-                  )}
                   <div className="text-gray-600 pl-2">
                     {isRangePricing ? (
                       <><span className="text-gray-400">산출:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
