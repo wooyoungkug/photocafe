@@ -186,6 +186,7 @@ function AdditionalOrderPriceBlock({
   bindingName: string | undefined;
   clientId?: string;
 }) {
+  const { availablePapers } = useMultiFolderUploadStore();
   const colorMode = (order.colorMode ?? folder.colorMode ?? '4c') as '4c' | '6c';
   const pageLayout = (folder.pageLayout ?? 'single') as 'single' | 'spread';
   const paperId = order.selectedPaperId ?? folder.selectedPaperId ?? undefined;
@@ -204,6 +205,8 @@ function AdditionalOrderPriceBlock({
   const pages = folder.pageCount;
   const colorLabel = colorMode === '6c' ? '인디고6도' : '인디고4도';
   const paperLabel = order.selectedPaperName ?? folder.selectedPaperName ?? '';
+  const selectedPaperObj = availablePapers.find(p => p.id === paperId);
+  const paperGrammage = selectedPaperObj?.grammage;
   const bName = bindingName || '제본';
 
   if (isLoading || !data) {
@@ -273,9 +276,9 @@ function AdditionalOrderPriceBlock({
           <span className="text-gray-400 font-normal">소계:</span> {Math.round(bindingPrice).toLocaleString()}원
           {coverPrice > 0 && <span className="text-gray-400 font-normal text-[10px]"> (제본+표지)</span>}
         </div>
-        <div className="text-[11px] text-gray-500 font-medium mt-0.5">■ 출력비</div>
-        <div className="text-[11px] text-gray-600 pl-2">
-          {colorLabel} {paperLabel}{data?.nup ? ` ${data.nup}` : ''} · <span className="text-gray-400">단가</span> {perPage > 0 ? `${perPage.toLocaleString()}원/p` : <span className="text-red-500">None</span>}
+        <div className="text-[11px] text-gray-500 font-medium mt-0.5">
+          ■ 출력비
+          <span className="text-gray-400 font-normal"> ({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''}{data?.nup ? ` ${data.nup}` : ''} · 단가 {perPage > 0 ? `${perPage.toLocaleString()}원/p` : 'None'})</span>
         </div>
         {perPage > 0 && (
           <div className="text-[11px] text-gray-700 pl-2 font-medium">
@@ -1542,6 +1545,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             const pages = folder.pageCount;
             const colorLabel = folder.colorMode === '6c' ? '인디고6도' : '인디고4도';
             const paperLabel = folder.selectedPaperName || '';
+            const selectedPaperObj = availablePapers.find(p => p.id === folder.selectedPaperId);
+            const paperGrammage = selectedPaperObj?.grammage;
             const perPage = albumPriceData?.pricePerPage ?? null;
             const bName = bindingName || '제본';
             const hasAllPrices = !!albumPriceData && !!perPage && perPage > 0;
@@ -1659,10 +1664,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 <div className="space-y-0.5">
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 출력비
+                    <span className="text-gray-400 font-normal">({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {resolvedPrintSide === 'single' ? '단면' : '양면'} · 단가 {perPage!.toLocaleString()}원/p)</span>
                     {renderPriceBadge(productionSettingId)}
-                  </div>
-                  <div className="text-gray-600 pl-2 truncate">
-                    {colorLabel} | {paperLabel} | {resolvedPrintSide === 'single' ? '단면' : '양면'} · <span className="text-gray-400">단가</span> {perPage!.toLocaleString()}원/p
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
