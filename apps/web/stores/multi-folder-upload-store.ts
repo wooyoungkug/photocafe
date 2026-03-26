@@ -1239,6 +1239,14 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       };
     });
 
+    // [DEBUG] 첫 파일의 원시 크기 정보
+    if (filesWithAlbum.length > 0) {
+      const f = filesWithAlbum[0];
+      const raw = folder.files[0];
+      console.log('[규격감지] 첫 파일 원시:', { name: raw.name, widthPx: raw.widthPx, heightPx: raw.heightPx, dpi: raw.dpi, widthInch: raw.widthInch, heightInch: raw.heightInch });
+      console.log('[규격감지] 첫 파일 앨범크기:', { albumWidth: f.albumWidth, albumHeight: f.albumHeight, ratio: f.ratio, pageLayout: folder.pageLayout });
+    }
+
     // 2. 가장 많은 비율을 가진 규격 찾기 (대표규격)
     const ratioCount: Record<string, { count: number; width: number; height: number; ratio: number }> = {};
     for (const file of filesWithAlbum) {
@@ -1274,6 +1282,9 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       ? Math.abs(representativeWidth - closestSize.width) + Math.abs(representativeHeight - closestSize.height)
       : Infinity;
     const isSnapped = snapDiff < 0.5; // DB 규격에 정확히 매칭됨
+    console.log('[규격감지] 대표규격:', { representativeWidth, representativeHeight, representativeRatio });
+    console.log('[규격감지] DB 최근접 규격:', closestSize ? { width: closestSize.width, height: closestSize.height, label: closestSize.label } : 'none');
+    console.log('[규격감지] snapDiff:', snapDiff, '| isSnapped:', isSnapped, '| 기준: 0.5');
     const albumWidth = isSnapped ? closestSize!.width : representativeWidth;
     const albumHeight = isSnapped ? closestSize!.height : representativeHeight;
     const albumRatio = calculateNormalizedRatio(albumWidth, albumHeight);
