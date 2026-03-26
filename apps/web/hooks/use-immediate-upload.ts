@@ -452,10 +452,13 @@ export function useImmediateUpload(productId: string) {
           })),
         };
 
-        // store에 추가 (addFolder의 중복 체크를 우회하기 위해 직접 updateFolder 또는 addFolder 사용)
-        const { addFolder } = useMultiFolderUploadStore.getState();
-        const result = addFolder(restoredFolder);
-        if (result.added) {
+        // store에 직접 추가 (addFolder → validateFolder가 specificationId를 덮어쓰므로 우회)
+        const state = useMultiFolderUploadStore.getState();
+        const duplicate = state.folders.find(f => f.folderName === restoredFolder.folderName);
+        if (!duplicate) {
+          useMultiFolderUploadStore.setState(prev => ({
+            folders: [restoredFolder, ...prev.folders],
+          }));
           restored = true;
         }
       } catch {
