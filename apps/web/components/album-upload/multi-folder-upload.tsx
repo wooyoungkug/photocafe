@@ -42,7 +42,7 @@ import {
   hasDesignCoverFiles,
   type CoverSourceType,
 } from '@/stores/multi-folder-upload-store';
-import { useIndigoSpecifications } from '@/hooks/use-specifications';
+import { useSpecificationsByPrintMethod } from '@/hooks/use-specifications';
 import { useAlbumPagePrice } from '@/hooks/use-pricing';
 import { toast } from '@/hooks/use-toast';
 import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
@@ -131,9 +131,10 @@ interface MultiFolderUploadProps {
   productionSettingId?: string;
   bindingProductionSettingId?: string;
   productId?: string;
+  printMethod?: 'indigo' | 'inkjet';
 }
 
-export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingProductionSettingId, productId }: MultiFolderUploadProps) {
+export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingProductionSettingId, productId, printMethod }: MultiFolderUploadProps) {
   const {
     folders,
     isUploading,
@@ -219,8 +220,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
   const { clientInfo } = useShippingData();
 
 
-  // DB에서 인디고출력 규격 가져오기
-  const { data: indigoSpecsRaw } = useIndigoSpecifications();
+  // DB에서 출력방식에 맞는 규격 가져오기 (인디고/잉크젯)
+  const { data: indigoSpecsRaw } = useSpecificationsByPrintMethod(printMethod || 'indigo');
 
   // 인디고 규격을 StandardSize 형태로 변환하여 스토어에 저장
   useEffect(() => {

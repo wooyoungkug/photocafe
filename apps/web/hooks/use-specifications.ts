@@ -132,6 +132,27 @@ export function useIndigoSpecifications() {
   });
 }
 
+// 출력방식(printMethod)에 따라 적절한 규격 조회
+export function useSpecificationsByPrintMethod(printMethod: 'indigo' | 'inkjet' | undefined) {
+  return useQuery({
+    queryKey: [SPECIFICATIONS_KEY, 'byPrintMethod', printMethod],
+    staleTime: 0,
+    queryFn: async () => {
+      const data = await api.get<Specification[]>('/specifications');
+      if (!data) return [];
+      if (printMethod === 'inkjet') {
+        return data.filter(spec => spec.forInkjet || spec.forAlbum || spec.forFrame);
+      }
+      if (printMethod === 'indigo') {
+        return data.filter(spec => spec.forIndigo);
+      }
+      // 미지정 시 전체 (인디고 + 잉크젯 + 앨범)
+      return data.filter(spec => spec.forIndigo || spec.forInkjet || spec.forAlbum);
+    },
+    enabled: printMethod !== undefined,
+  });
+}
+
 // 단일 전역 규격 조회
 export function useSpecification(id: string) {
   return useQuery({
