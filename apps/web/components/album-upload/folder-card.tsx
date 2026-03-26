@@ -1632,34 +1632,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       ? <>{Math.round(unitPrice).toLocaleString()}원 × {folder.quantity}부 = {Math.round(totalPrice).toLocaleString()}원</>
                       : <>{Math.round(totalPrice).toLocaleString()}원</>
                     }
-                    {albumPriceData?.priceSource && (() => {
-                      const badgeClass = cn(
-                        "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
-                        albumPriceData.priceSource === 'client'
-                          ? "text-blue-600 border-blue-200 bg-blue-50"
-                          : albumPriceData.priceSource === 'group'
-                          ? "text-purple-600 border-purple-200 bg-purple-50"
-                          : "text-gray-500 border-gray-200 bg-gray-50"
-                      );
-                      const label = albumPriceData.priceSource === 'client'
-                        ? '개별단가'
-                        : albumPriceData.priceSource === 'group'
-                        ? `그룹단가${albumPriceData.groupName ? ` (${albumPriceData.groupName})` : ''}`
-                        : '표준단가';
-                      const canLink = isAdminImpersonating() && user?.clientId;
-                      const settingParam = productionSettingId ? `&settingId=${productionSettingId}` : '';
-                      return canLink ? (
-                        <Link
-                          href={`/company/members?edit=${user.clientId}&tab=pricing${settingParam}`}
-                          target="_blank"
-                          className={cn(badgeClass, "cursor-pointer hover:underline")}
-                        >
-                          {label}
-                        </Link>
-                      ) : (
-                        <span className={badgeClass}>{label}</span>
-                      );
-                    })()}
                   </div>
                 </div>
               </div>
