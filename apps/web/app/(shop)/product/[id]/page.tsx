@@ -403,14 +403,22 @@ export default function ProductPage() {
             const originalFolder = validFolders.find(f => f.id === folderId);
             if (originalFolder?.immediateUploadStatus === 'completed' && originalFolder.tempFolderId && originalFolder.immediateServerFiles) {
               // 이미 서버에 있으므로 바로 completed 설정
-              const serverFiles = originalFolder.immediateServerFiles.map(sf => ({
-                tempFileId: sf.tempFileId,
-                fileUrl: sf.fileUrl,
-                thumbnailUrl: sf.thumbnailUrl,
-                sortOrder: sf.sortOrder,
-                fileName: sf.fileName,
-                widthPx: 0, heightPx: 0, widthInch: 0, heightInch: 0, dpi: 0, fileSize: 0,
-              }));
+              const serverFiles = originalFolder.immediateServerFiles.map(sf => {
+                const origFile = originalFolder.files.find(f => f.fileName === sf.fileName);
+                return {
+                  tempFileId: sf.tempFileId,
+                  fileUrl: sf.fileUrl,
+                  thumbnailUrl: sf.thumbnailUrl,
+                  sortOrder: sf.sortOrder,
+                  fileName: sf.fileName,
+                  widthPx: origFile?.widthPx || 0,
+                  heightPx: origFile?.heightPx || 0,
+                  widthInch: origFile?.widthInch || 0,
+                  heightInch: origFile?.heightInch || 0,
+                  dpi: origFile?.dpi || 0,
+                  fileSize: origFile?.fileSize || 0,
+                };
+              });
               ids.forEach(id => {
                 updateUploadStatus(id, {
                   uploadStatus: 'completed',
