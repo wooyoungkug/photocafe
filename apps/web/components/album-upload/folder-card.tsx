@@ -604,20 +604,25 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     folder.validationStatus === 'EXACT_MATCH' ||
     (folder.validationStatus === 'RATIO_MATCH' && folder.isApproved);
 
-  // 출력방식 호환성 체크: 매칭된 규격이 현재 출력방식과 맞는지
-  const matchedSpec = useMemo(() => {
-    if (!folder.specFoundInDB || folder.availableSizes.length === 0) return null;
-    return folder.availableSizes.find(
-      s => s.width === folder.albumWidth && s.height === folder.albumHeight
-    ) || folder.availableSizes[0];
-  }, [folder.specFoundInDB, folder.availableSizes, folder.albumWidth, folder.albumHeight]);
+  // 출력방식 호환성 체크: 스토어의 전체 규격 목록에서 플래그 조회
+  const allSpecs = useMultiFolderUploadStore(s => s.indigoSpecs);
 
   const specCompatibility = useMemo(() => {
-    if (!matchedSpec || !folder.printMethod) return { compatible: true, message: '' };
+    if (!folder.specFoundInDB || !folder.printMethod || !folder.specificationId) {
+      return { compatible: true, message: '' };
+    }
+    // 스토어 전체 규격에서 해당 규격의 플래그 조회 (최신 데이터)
+    const specFromStore = allSpecs.find(s => s.id === folder.specificationId);
+    if (!specFromStore) return { compatible: true, message: '' };
+    // 플래그가 아직 로딩 안된 경우 (undefined) → 호환으로 간주
+    if (specFromStore.forIndigo === undefined && specFromStore.forInkjet === undefined) {
+      return { compatible: true, message: '' };
+    }
+
     if (folder.printMethod === 'indigo') {
-      const ok = !!(matchedSpec.forIndigo || matchedSpec.forIndigoAlbum);
+      const ok = !!(specFromStore.forIndigo || specFromStore.forIndigoAlbum);
       if (!ok) {
-        const hasInkjet = !!(matchedSpec.forInkjet || matchedSpec.forAlbum);
+        const hasInkjet = !!(specFromStore.forInkjet || specFromStore.forAlbum);
         return {
           compatible: false,
           message: hasInkjet
@@ -627,9 +632,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       }
     }
     if (folder.printMethod === 'inkjet') {
-      const ok = !!(matchedSpec.forInkjet || matchedSpec.forAlbum);
+      const ok = !!(specFromStore.forInkjet || specFromStore.forAlbum);
       if (!ok) {
-        const hasIndigo = !!(matchedSpec.forIndigo || matchedSpec.forIndigoAlbum);
+        const hasIndigo = !!(specFromStore.forIndigo || specFromStore.forIndigoAlbum);
         return {
           compatible: false,
           message: hasIndigo
@@ -639,7 +644,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       }
     }
     return { compatible: true, message: '' };
-  }, [matchedSpec, folder.printMethod, folder.albumLabel]);
+  }, [allSpecs, folder.specFoundInDB, folder.printMethod, folder.specificationId, folder.albumLabel]);
 
   const canSelect = hasValidStatus && folder.specFoundInDB !== false && specCompatibility.compatible;
 
