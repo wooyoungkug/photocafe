@@ -238,20 +238,20 @@ function AdditionalOrderPriceBlock({
 
   const renderBindingCalc = () => {
     if (isRangePricing) {
-      return <><span className="text-gray-400">산출:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+      return <><span className="text-gray-400">소계:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
     }
     if (isInterpolatedRange) {
       const numericKeys = Object.keys(rangePrices!).filter(k => !k.startsWith('__')).map(Number).filter(k => !isNaN(k)).sort((a, b) => a - b);
       const lowerKey = numericKeys.filter(k => k <= billingPages).pop();
       const lowerPrice = lowerKey !== undefined ? (rangePrices![String(lowerKey)] || 0) : 0;
-      return <><span className="text-gray-400">산출:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {bindingPricePerPage.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+      return <><span className="text-gray-400">소계:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {bindingPricePerPage.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
     }
     if (bindingBasePrice > 0 || bindingPricePerPage > 0) {
       return bindingPricePerPage > 0
-        ? <><span className="text-gray-400">산출:</span> 기본 {bindingBasePrice.toLocaleString()} + {bindingPricePerPage.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
-        : <><span className="text-gray-400">산출:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+        ? <><span className="text-gray-400">소계:</span> 기본 {bindingBasePrice.toLocaleString()} + {bindingPricePerPage.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+        : <><span className="text-gray-400">소계:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
     }
-    return <><span className="text-gray-400">산출:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+    return <><span className="text-gray-400">소계:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
   };
 
   return (
@@ -1623,20 +1623,20 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   </div>
                   <div className="text-gray-600 pl-2">
                     {isRangePricing ? (
-                      <><span className="text-gray-400">산출:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                      <><span className="text-gray-400">소계:</span> 구간단가({billingPages}p) = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
                     ) : isInterpolatedRange ? (
                       (() => {
                         const numericKeys = Object.keys(rangePrices!).filter(k => !k.startsWith('__')).map(Number).filter(k => !isNaN(k)).sort((a, b) => a - b);
                         const lowerKey = numericKeys.filter(k => k <= billingPages).pop();
                         const lowerPrice = lowerKey !== undefined ? (rangePrices![String(lowerKey)] || 0) : 0;
-                        return <><span className="text-gray-400">산출:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
+                        return <><span className="text-gray-400">소계:</span> {lowerKey}p구간 {lowerPrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages - (lowerKey ?? 0)}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>;
                       })()
                     ) : basePrice > 0 || pricePerPageBinding > 0 ? (
                       pricePerPageBinding > 0
-                        ? <><span className="text-gray-400">산출:</span> 기본 {basePrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
-                        : <><span className="text-gray-400">산출:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                        ? <><span className="text-gray-400">소계:</span> 기본 {basePrice.toLocaleString()} + {pricePerPageBinding.toLocaleString()}원×{billingPages}p = {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                        : <><span className="text-gray-400">소계:</span> 고정가 {Math.round(bindingOnlyPrice).toLocaleString()}원</>
                     ) : (
-                      <><span className="text-gray-400">산출:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>
+                      <><span className="text-gray-400">소계:</span> {Math.round(bindingOnlyPrice).toLocaleString()}원</>
                     )}
                   </div>
                   {coverPrice > 0 && (
