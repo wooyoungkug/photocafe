@@ -1598,8 +1598,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
                     {extraPages > 0
-                      ? <><span className="bg-blue-100 text-blue-700 px-0.5 rounded">{perPage!.toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {billingPages}p({pages}+{extraPages}) = {Math.round(printPrice).toLocaleString()}원</>
-                      : <><span className="bg-blue-100 text-blue-700 px-0.5 rounded">{perPage!.toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {pages}p = {Math.round(printPrice).toLocaleString()}원</>
+                      ? <><span className="text-black">{perPage!.toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {billingPages}p({pages}+{extraPages}) = {Math.round(printPrice).toLocaleString()}원</>
+                      : <><span className="text-black">{perPage!.toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {pages}p = {Math.round(printPrice).toLocaleString()}원</>
                     }
                   </div>
                 </div>
@@ -1613,7 +1613,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <div className="text-gray-600 pl-2">
                     {postPrice === 0
                       ? <span className="text-gray-400">없음 (0원)</span>
-                      : <><span className="text-gray-400">소계:</span> <span className="bg-blue-100 text-blue-700 px-0.5 rounded">{Math.round(postPrice / billingPages).toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {billingPages}p = {Math.round(postPrice).toLocaleString()}원</>
+                      : <><span className="text-gray-400">소계:</span> <span className="text-black">{Math.round(postPrice / billingPages).toLocaleString()}원{albumPriceData?.nup ? `(${albumPriceData.nup})` : ''}</span> × {billingPages}p = {Math.round(postPrice).toLocaleString()}원</>
                     }
                   </div>
                 </div>
