@@ -300,34 +300,6 @@ function AdditionalOrderPriceBlock({
             ? <><span className="text-[16px]">{Math.round(unitPrice).toLocaleString()}<span className="text-[11px]">원</span></span> ×{order.quantity}부 = <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}<span className="text-[11px]">원</span></span></>
             : <span className="text-[16px]">{Math.round(totalPrice).toLocaleString()}<span className="text-[11px]">원</span></span>
           }
-          {data?.priceSource && (() => {
-            const badgeClass = cn(
-              "ml-1.5 text-[10px] font-normal px-1 py-0 rounded border",
-              data.priceSource === 'client'
-                ? "text-blue-600 border-blue-200 bg-blue-50"
-                : data.priceSource === 'group'
-                ? "text-purple-600 border-purple-200 bg-purple-50"
-                : "text-gray-500 border-gray-200 bg-gray-50"
-            );
-            const label = data.priceSource === 'client'
-              ? '개별단가'
-              : data.priceSource === 'group'
-              ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
-              : '표준단가';
-            const canLink = isAdminImpersonating() && clientId;
-            const settingParam = data?.matchedProductionSettingId ? `&settingId=${data.matchedProductionSettingId}` : '';
-            return canLink ? (
-              <Link
-                href={`/company/members?edit=${clientId}&tab=pricing${settingParam}`}
-                target="_blank"
-                className={cn(badgeClass, "cursor-pointer hover:underline")}
-              >
-                {label}
-              </Link>
-            ) : (
-              <span className={badgeClass}>{label}</span>
-            );
-          })()}
         </div>
       </div>
     </div>
