@@ -10,6 +10,7 @@ import {
 } from "@/lib/types/specification";
 
 const BASIC_SPECIFICATIONS_KEY = "basic-specifications";
+const SPECIFICATIONS_KEY = "specifications";
 
 // ==================== 규격정보 조회 ====================
 
@@ -51,6 +52,7 @@ export function useCreateBasicSpecification() {
             api.post<Specification>("/specifications", data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [BASIC_SPECIFICATIONS_KEY] });
+            queryClient.invalidateQueries({ queryKey: [SPECIFICATIONS_KEY] });
         },
     });
 }
@@ -65,6 +67,7 @@ export function useUpdateBasicSpecification() {
             api.put<Specification>(`/specifications/${id}`, data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [BASIC_SPECIFICATIONS_KEY] });
+            queryClient.invalidateQueries({ queryKey: [SPECIFICATIONS_KEY] });
         },
     });
 }
@@ -78,6 +81,7 @@ export function useDeleteBasicSpecification() {
         mutationFn: (id: string) => api.delete<void>(`/specifications/${id}`),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [BASIC_SPECIFICATIONS_KEY] });
+            queryClient.invalidateQueries({ queryKey: [SPECIFICATIONS_KEY] });
         },
     });
 }
@@ -92,6 +96,7 @@ export function useReorderBasicSpecifications() {
             api.post<{ success: boolean }>("/specifications/reorder", items),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [BASIC_SPECIFICATIONS_KEY] });
+            queryClient.invalidateQueries({ queryKey: [SPECIFICATIONS_KEY] });
         },
     });
 }

@@ -110,6 +110,7 @@ export function useSpecifications(params?: {
 export function useInkjetSpecifications() {
   return useQuery({
     queryKey: [SPECIFICATIONS_KEY, 'inkjet'],
+    staleTime: 0,
     queryFn: async () => {
       const data = await api.get<Specification[]>('/specifications');
       // 잉크젯출력전용, 앨범전용, 액자전용 중 하나라도 true인 규격 필터링
@@ -122,6 +123,7 @@ export function useInkjetSpecifications() {
 export function useIndigoSpecifications() {
   return useQuery({
     queryKey: [SPECIFICATIONS_KEY, 'indigo'],
+    staleTime: 0,
     queryFn: async () => {
       const data = await api.get<Specification[]>('/specifications');
       // 인디고출력전용인 규격 필터링
