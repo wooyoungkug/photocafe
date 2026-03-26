@@ -340,6 +340,11 @@ export function useImmediateUpload(productId: string) {
         }
 
         // UploadedFile[] 재구성 (file=undefined, 서버 URL 사용)
+        // folderMeta에서 파일 크기 복원 (pageLayout에 따라 fileSpec → 원본 파일 크기 역산)
+        const metaDpi = sf.folderMeta.dpi || 300;
+        const metaFileW = sf.folderMeta.fileSpecWidth || sf.folderMeta.albumWidth || 0;
+        const metaFileH = sf.folderMeta.fileSpecHeight || sf.folderMeta.albumHeight || 0;
+        const metaRatio = metaFileW && metaFileH ? metaFileW / metaFileH : 0;
         const files: UploadedFile[] = data.files.map((serverFile: any, idx: number) => ({
           id: `restored-${sf.folderId}-${idx}`,
           file: undefined,
@@ -347,12 +352,12 @@ export function useImmediateUpload(productId: string) {
           filePath: sf.folderName,
           fileSize: serverFile.fileSize,
           pageNumber: serverFile.sortOrder,
-          widthPx: 0,
-          heightPx: 0,
-          dpi: sf.folderMeta.dpi || 0,
-          widthInch: 0,
-          heightInch: 0,
-          ratio: 0,
+          widthPx: Math.round(metaFileW * metaDpi),
+          heightPx: Math.round(metaFileH * metaDpi),
+          dpi: metaDpi,
+          widthInch: metaFileW,
+          heightInch: metaFileH,
+          ratio: metaRatio,
           coverType: 'INNER_PAGE' as const,
           thumbnailUrl: serverFile.thumbnailUrl,
           status: 'EXACT_MATCH' as const,
