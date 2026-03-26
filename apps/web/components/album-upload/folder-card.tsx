@@ -1401,7 +1401,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 className="text-[12px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black"
               >
                 {filteredPapersForFolder.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
+                  <option key={p.id} value={p.id}>{p.name}{p.grammage ? ` ${p.grammage}g` : ''}</option>
                 ))}
               </select>
               <button
@@ -1887,7 +1887,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                                 className="text-[12px] border rounded px-1.5 py-0.5 bg-emerald-50 text-black"
                               >
                                 {filteredPapersForOrder.map(p => (
-                                  <option key={p.id} value={p.id}>{p.name}</option>
+                                  <option key={p.id} value={p.id}>{p.name}{p.grammage ? ` ${p.grammage}g` : ''}</option>
                                 ))}
                               </select>
                             </div>
