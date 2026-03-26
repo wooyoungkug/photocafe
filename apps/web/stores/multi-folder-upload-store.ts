@@ -678,13 +678,15 @@ function checkRatioMatch(
   return 'RATIO_MISMATCH';
 }
 
-// 같은 비율의 앨범규격 찾기 (방향도 일치해야 함, 면적 크기순 정렬)
+// 같은 비율의 앨범규격 찾기 (방향도 일치해야 함, 앨범용 규격만, 면적 크기순 정렬)
 function findAvailableSizes(sizes: StandardSize[], ratio: number, isLandscape: boolean) {
   return sizes.filter(size => {
     const sizeRatio = calculateNormalizedRatio(size.width, size.height);
     const sizeIsLandscape = size.width >= size.height; // 가로형 여부
-    // 비율이 일치하고(등가 그룹 포함), 방향도 일치해야 함
-    return isRatioEquivalent(sizeRatio, ratio) && sizeIsLandscape === isLandscape;
+    // 앨범용 규격인지 확인 (forAlbum 또는 forIndigoAlbum이 true인 것만)
+    const isAlbumSpec = size.forAlbum || size.forIndigoAlbum;
+    // 비율이 일치하고(등가 그룹 포함), 방향도 일치하고, 앨범 규격이어야 함
+    return isAlbumSpec && isRatioEquivalent(sizeRatio, ratio) && sizeIsLandscape === isLandscape;
   }).sort((a, b) => (a.width * a.height) - (b.width * b.height));
 }
 
