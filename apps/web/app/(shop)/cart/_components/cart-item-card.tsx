@@ -105,11 +105,19 @@ const BINDING_DIRECTION_OPTIONS = [
 
 function CartItemThumbnail({ item }: { item: CartItem }) {
   const [imgError, setImgError] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [croppedUrl, setCroppedUrl] = useState<string | null>(null);
 
-  // serverFiles 썸네일 우선 (blob URL 대신 서버 URL), 그 다음 item.thumbnailUrl
-  const thumbUrl = item.serverFiles?.[0]?.thumbnailUrl || item.thumbnailUrl;
+  // 서버 URL 우선, 실패 시 현재 세션 blob URL로 fallback
+  const serverThumbUrl = item.serverFiles?.[0]?.thumbnailUrl;
+  const blobThumbUrl = item.thumbnailUrl;
+  const thumbUrl = (!useFallback && serverThumbUrl) ? serverThumbUrl : blobThumbUrl;
+
+  // fallback으로 전환 시 imgError 리셋
+  useEffect(() => {
+    if (useFallback) setImgError(false);
+  }, [useFallback]);
 
   // 펼친면(spread)이면 1p만 크롭 필요
   const isSpread = item.albumOrderInfo?.pageLayout === 'spread';
@@ -149,7 +157,7 @@ function CartItemThumbnail({ item }: { item: CartItem }) {
     };
     img.onerror = () => setImgError(true);
     img.src = normalizeImageUrl(thumbUrl);
-  }, [needsCrop, thumbUrl, imgError, isRightStart]);
+  }, [needsCrop, thumbUrl, imgError, isRightStart, useFallback]);
 
   const displayUrl = needsCrop ? croppedUrl : thumbUrl ? normalizeImageUrl(thumbUrl) : null;
 
@@ -161,7 +169,14 @@ function CartItemThumbnail({ item }: { item: CartItem }) {
           alt={item.name}
           className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
           loading="lazy"
-          onError={() => setImgError(true)}
+          onError={() => {
+            // 서버 URL 실패 시 blob URL fallback 시도
+            if (!useFallback && serverThumbUrl && blobThumbUrl && blobThumbUrl !== serverThumbUrl) {
+              setUseFallback(true);
+            } else {
+              setImgError(true);
+            }
+          }}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">
