@@ -149,8 +149,8 @@ export function ShippingEditWithFeeDialog({
       toast({ title: '수령인 주소를 입력해주세요.', variant: 'destructive' });
       return;
     }
-    if (isApartment && !form.addressDetail.trim()) {
-      toast({ title: '아파트/연립 동호수를 입력해주세요.', description: '배송 오류 방지를 위해 동호수는 필수입력입니다.', variant: 'destructive' });
+    if (!form.addressDetail.trim()) {
+      toast({ title: '상세주소를 입력해주세요.', description: '건물명, 층수, 동호수 등을 입력해주세요.', variant: 'destructive' });
       return;
     }
     setStep('confirm');
@@ -319,13 +319,13 @@ export function ShippingEditWithFeeDialog({
                   <Input
                     value={form.addressDetail}
                     onChange={(e) => set('addressDetail', e.target.value)}
-                    placeholder={isApartment ? '동호수 입력 (필수)' : '상세주소 (건물명, 층수 등)'}
-                    className={`h-8 text-[12px] ${isApartment && !form.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                    placeholder="상세주소 (건물명, 층수, 동호수 등) *"
+                    className={`h-8 text-[12px] ${!form.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
                   />
-                  {isApartment && !form.addressDetail.trim() && (
+                  {!form.addressDetail.trim() && (
                     <p className="flex items-center gap-1 text-[11px] text-red-500">
                       <AlertCircle className="h-3 w-3" />
-                      아파트/연립은 동호수 입력이 필수입니다
+                      상세주소를 입력해주세요
                     </p>
                   )}
                 </div>
