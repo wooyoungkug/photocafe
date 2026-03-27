@@ -59,6 +59,7 @@ export class PricingService {
     let coverPrice = 0;
     let priceSource: string | null = null;
     let groupName: string | null = null;
+    let groupId: string | null = null;
 
     // 생산설정 이름 + paperPriceGroupMap 조회
     const prodSetting = await this.prisma.productionSetting.findUnique({
@@ -128,6 +129,7 @@ export class PricingService {
             }
             if (pricePerPage) {
               priceSource = 'group';
+              groupId = client.groupId;
               const group = await this.prisma.clientGroup.findUnique({
                 where: { id: client.groupId },
                 select: { groupName: true },
@@ -213,6 +215,7 @@ export class PricingService {
     let bindingFound = false;
     let bindingPriceSource: string | null = null;
     let bindingGroupName: string | null = null;
+    let bindingGroupId: string | null = null;
 
     // 제본단가 조회: specificationId 또는 minQuantity(nup) 매칭
     const bindingPriceOR = [
@@ -258,6 +261,7 @@ export class PricingService {
           bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
           bindingFound = true;
           bindingPriceSource = 'group';
+          bindingGroupId = clientForBinding.groupId;
           const bindingGroup = await this.prisma.clientGroup.findUnique({
             where: { id: clientForBinding.groupId },
             select: { groupName: true },
@@ -300,6 +304,7 @@ export class PricingService {
     const postProcessingNames: string[] = [];
     let postProcessingPriceSource: string | null = null;
     let postProcessingGroupName: string | null = null;
+    let postProcessingGroupId: string | null = null;
     if (dto.productId) {
       const finishings = await this.prisma.productFinishing.findMany({
         where: { productId: dto.productId },
@@ -362,6 +367,7 @@ export class PricingService {
                 });
                 if (finishingPriceRecord) {
                   finishingSource = 'group';
+                  postProcessingGroupId = clientForFinishing.groupId;
                   if (!postProcessingGroupName) {
                     const ppGroup = await this.prisma.clientGroup.findUnique({
                       where: { id: clientForFinishing.groupId },
@@ -402,7 +408,7 @@ export class PricingService {
       }
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, bindingPriceSource, bindingGroupName, postProcessingPrice, postProcessingSettingId, postProcessingNames, postProcessingPriceSource, postProcessingGroupName };
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, groupId, bindingPriceSource, bindingGroupName, bindingGroupId, postProcessingPrice, postProcessingSettingId, postProcessingNames, postProcessingPriceSource, postProcessingGroupName, postProcessingGroupId };
   }
 
   /**
