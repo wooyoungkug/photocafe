@@ -66,8 +66,11 @@ export class PricingService {
       select: { settingName: true },
     });
 
-    // 출력 단가 조회: specificationId 정확 매칭만 사용
-    const outputPriceWhere = { specificationId };
+    // 출력 단가 조회: specificationId 또는 minQuantity(nup) 매칭
+    const outputPriceOR = [
+      { specificationId },
+      { minQuantity: nupNum, specificationId: null },
+    ];
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -75,7 +78,7 @@ export class PricingService {
         where: {
           clientId,
           productionSettingId,
-          ...outputPriceWhere,
+          OR: outputPriceOR,
         },
       });
 
@@ -101,7 +104,7 @@ export class PricingService {
             where: {
               clientGroupId: client.groupId,
               productionSettingId,
-              ...outputPriceWhere,
+              OR: outputPriceOR,
             },
           });
 
@@ -130,7 +133,7 @@ export class PricingService {
       const standardPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId,
-          ...outputPriceWhere,
+          OR: outputPriceOR,
         },
       });
       if (standardPrice) {
@@ -197,13 +200,19 @@ export class PricingService {
     let bindingRangePrices: Record<string, number> | null = null;
     let bindingFound = false;
 
+    // 제본단가 조회: specificationId 또는 minQuantity(nup) 매칭
+    const bindingPriceOR = [
+      { specificationId },
+      { minQuantity: nupNum, specificationId: null },
+    ];
+
     // 3-1. 거래처 개별 제본 단가
     if (clientId && !bindingFound) {
       const clientBindingPrice = await this.prisma.clientProductionSettingPrice.findFirst({
         where: {
           clientId,
           productionSettingId: bindingPsId,
-          specificationId,
+          OR: bindingPriceOR,
         },
       });
       if (clientBindingPrice && (Number(clientBindingPrice.basePrice) || Number(clientBindingPrice.pricePerPage))) {
@@ -225,7 +234,7 @@ export class PricingService {
           where: {
             clientGroupId: clientForBinding.groupId,
             productionSettingId: bindingPsId,
-            specificationId,
+            OR: bindingPriceOR,
           },
         });
         if (groupBindingPrice && (Number(groupBindingPrice.basePrice) || Number(groupBindingPrice.pricePerPage))) {
@@ -242,7 +251,7 @@ export class PricingService {
       const standardBindingPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId: bindingPsId,
-          specificationId,
+          OR: bindingPriceOR,
         },
       });
       if (standardBindingPrice) {
