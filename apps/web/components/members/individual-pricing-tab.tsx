@@ -320,6 +320,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
           } else {
             map.set(`${gp.productionSettingId}_${mqKey}_${specKey}`, gp);
           }
+        }
       });
     }
     return map;
