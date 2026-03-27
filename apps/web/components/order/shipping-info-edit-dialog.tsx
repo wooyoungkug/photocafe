@@ -110,6 +110,18 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
   const set = (key: keyof FormState, value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
+  const formatPhone = (value: string) => {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    if (digits.startsWith('02')) {
+      if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
+    }
+    if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+  };
+
   const handleSave = () => {
     if (!form.recipientName.trim()) {
       toast({ title: '수령인 이름을 입력해주세요.', variant: 'destructive' });
@@ -197,8 +209,9 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
                 <Label className="text-[11px]">발송인 전화번호</Label>
                 <Input
                   value={form.senderPhone}
-                  onChange={(e) => set('senderPhone', e.target.value)}
+                  onChange={(e) => set('senderPhone', formatPhone(e.target.value))}
                   placeholder="010-0000-0000"
+                  maxLength={13}
                   className="h-8 text-[11px]"
                 />
               </div>
@@ -270,8 +283,9 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
                 <Label className="text-[11px]">수령인 전화번호</Label>
                 <Input
                   value={form.phone}
-                  onChange={(e) => set('phone', e.target.value)}
+                  onChange={(e) => set('phone', formatPhone(e.target.value))}
                   placeholder="010-0000-0000"
+                  maxLength={13}
                   className="h-8 text-[11px]"
                 />
               </div>
