@@ -832,11 +832,13 @@ export default function EditProductPage() {
       const result = await updateProduct.mutateAsync({ id: productId, data: productData });
       toast({ variant: 'success', title: '상품이 수정되었습니다.' });
       router.push('/products');
-    } catch (error) {
+    } catch (error: any) {
+      console.error('[상품수정 에러]', error);
+      console.error('[상품수정 에러 상세]', error?.response?.data || error?.message || error);
       toast({
         variant: 'destructive',
         title: '상품 수정 실패',
-        description: error instanceof Error ? error.message : '알 수 없는 오류',
+        description: error?.response?.data?.message || (error instanceof Error ? error.message : '알 수 없는 오류'),
       });
     }
   };
