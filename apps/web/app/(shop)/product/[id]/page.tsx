@@ -452,16 +452,22 @@ export default function ProductPage() {
   const isAlbum = useMemo(() => isAlbumProduct(product?.bindings, product?.category?.name), [product?.bindings, product?.category?.name]);
   const needsUpload = isAlbum || product?.requiresUpload;
 
-  // 출력 생산설정 ID (앨범 페이지 출력단가 조회용) - outputPriceSettings에서 추출
+  // 출력 생산설정 ID (앨범 페이지 출력단가 조회용) - outputPriceSettings에서 선택된 출력방식에 맞는 항목 추출
   const defaultOutputProductionSettingId = useMemo(() => {
     const outputSettings = (product as any)?.outputPriceSettings as any[] | undefined;
     if (outputSettings && outputSettings.length > 0) {
+      // 선택된 출력방식(indigo/inkjet)에 맞는 설정 찾기
+      const printMethod = selectedOptions.printMethod || 'indigo';
+      const outputMethod = printMethod === 'inkjet' ? 'INKJET' : 'INDIGO';
+      const matched = outputSettings.find((s: any) => s.outputMethod === outputMethod);
+      if (matched) return matched.productionSettingId;
+      // 매칭 없으면 첫 번째 사용
       return outputSettings[0]?.productionSettingId;
     }
     // fallback: 제본의 productionSettingId
     const defaultBinding = product?.bindings?.find(b => b.isDefault) || product?.bindings?.[0];
     return defaultBinding?.productionSettingId;
-  }, [product]);
+  }, [product, selectedOptions.printMethod]);
 
   // 제본 생산설정 ID (제본단가 조회용)
   const defaultBindingProductionSettingId = useMemo(() => {
