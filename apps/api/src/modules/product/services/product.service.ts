@@ -444,9 +444,21 @@ export class ProductService {
           : undefined,
         papers: syncedPapers !== undefined && syncedPapers.length > 0
           ? {
-              create: syncedPapers.map(({ paperId, ...rest }) => ({
-                ...rest,
-                ...(paperId ? { paper: { connect: { id: paperId } } } : {}),
+              create: syncedPapers.map((p) => ({
+                name: p.name,
+                type: p.type,
+                price: p.price,
+                isDefault: p.isDefault,
+                sortOrder: p.sortOrder,
+                grammage: p.grammage,
+                printMethod: p.printMethod,
+                frontCoating: p.frontCoating,
+                grade: p.grade,
+                isActive: p.isActive,
+                isActive4: p.isActive4,
+                isActive6: p.isActive6,
+                defaultColorType: p.defaultColorType,
+                ...(p.paperId ? { paper: { connect: { id: p.paperId } } } : {}),
               })),
             }
           : undefined,
@@ -466,7 +478,7 @@ export class ProductService {
             })) }
           : undefined,
         fabrics: fabricIds !== undefined && fabricIds.length > 0
-          ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
+          ? { create: fabricIds.map((fabricId, idx) => ({ fabric: { connect: { id: fabricId } }, sortOrder: idx })) }
           : undefined,
       },
       include: {
