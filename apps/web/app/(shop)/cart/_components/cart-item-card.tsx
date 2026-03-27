@@ -948,7 +948,6 @@ export function CartItemCard({
           const galleryUrls = item.thumbnailUrls?.length
             ? item.thumbnailUrls
             : (item.serverFiles?.map((f) => f.thumbnailUrl).filter(Boolean) as string[] | undefined) ?? [];
-          console.log('[CartThumb Debug]', { thumbnailUrlsLen: item.thumbnailUrls?.length, serverFilesLen: item.serverFiles?.length, galleryUrlsLen: galleryUrls.length, sample: galleryUrls[0]?.substring(0, 80) });
           return galleryUrls.length > 1 ? (
             <CartThumbnailGallery
               thumbnailUrls={galleryUrls}

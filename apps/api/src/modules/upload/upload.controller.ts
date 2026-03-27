@@ -5,7 +5,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
@@ -37,57 +37,6 @@ export class UploadController {
         private readonly fileStorage: FileStorageService,
         private readonly thumbnailService: ThumbnailService,
     ) {}
-
-    // ==================== 진단용 엔드포인트 (디버그) ====================
-
-    @Public()
-    @Get('debug/storage-info')
-    @ApiOperation({ summary: '업로드 스토리지 경로 진단 (임시)' })
-    debugStorageInfo() {
-        const basePath = getUploadBasePath();
-        const dirs: Record<string, string[]> = {};
-        try {
-            const entries = readdirSync(basePath);
-            dirs['root'] = entries;
-            for (const entry of entries) {
-                const sub = join(basePath, entry);
-                try {
-                    const subEntries = readdirSync(sub);
-                    dirs[entry] = subEntries.slice(0, 10);
-                } catch { /* not a dir */ }
-            }
-        } catch (err: any) {
-            return { basePath, error: err.message };
-        }
-        return { basePath, cwd: process.cwd(), dirs };
-    }
-
-    @Public()
-    @Get('debug/deep-ls')
-    @ApiOperation({ summary: '특정 경로 깊이 탐색 (임시)' })
-    debugDeepLs(@Param() _params: any, @Res() res: Response) {
-        const basePath = getUploadBasePath();
-        const result: Record<string, string[]> = {};
-        const walk = (dir: string, prefix: string, depth: number) => {
-            if (depth > 5) return;
-            try {
-                const entries = readdirSync(dir);
-                result[prefix] = entries.slice(0, 20);
-                for (const entry of entries.slice(0, 5)) {
-                    const sub = join(dir, entry);
-                    try {
-                        readdirSync(sub);
-                        walk(sub, `${prefix}/${entry}`, depth + 1);
-                    } catch { /* not a dir */ }
-                }
-            } catch { /* ignore */ }
-        };
-        // 실제 주문 파일 확인을 위해 depth 5까지 탐색
-        walk(join(basePath, 'orders', '2026', '02', '23'), 'orders/2026/02/23', 0);
-        // 최근 주문도 확인
-        walk(join(basePath, 'orders', '2026', '03', '21'), 'orders/2026/03/21', 0);
-        return res.json({ basePath, tree: result });
-    }
 
     // ==================== 앨범 원본 파일 업로드 ====================
 
