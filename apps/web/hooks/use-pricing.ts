@@ -387,11 +387,15 @@ export interface AlbumPagePriceResult {
   missingReason: string | null;
   billingExtraPages: number;
   nup?: string | null;
-  priceSource?: string | null; // 'client' | 'group' | 'standard'
-  groupName?: string | null;   // 그룹 단가인 경우 그룹명
+  priceSource?: string | null; // 출력 단가 출처: 'client' | 'group' | 'standard'
+  groupName?: string | null;   // 출력 그룹 단가인 경우 그룹명
+  bindingPriceSource?: string | null; // 제본 단가 출처
+  bindingGroupName?: string | null;   // 제본 그룹 단가인 경우 그룹명
   postProcessingPrice: number; // 후가공비 (코팅 등)
   postProcessingSettingId?: string | null; // 후가공 생산설정 ID (딥링크용)
   postProcessingNames?: string[]; // 후가공 이름 목록 (예: ["수성무광코팅"])
+  postProcessingPriceSource?: string | null; // 후가공 단가 출처
+  postProcessingGroupName?: string | null;   // 후가공 그룹 단가인 경우 그룹명
 }
 
 export function useAlbumPagePrice(

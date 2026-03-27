@@ -1572,9 +1572,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             }
 
             // 단가 출처 뱃지 (개별/그룹/표준) + 설정 바로가기 (settingId로 딥링크)
-            const renderPriceBadge = (targetSettingId?: string) => {
-              if (!albumPriceData?.priceSource) return null;
-              const src = albumPriceData.priceSource;
+            const renderPriceBadge = (targetSettingId?: string, itemPriceSource?: string | null, itemGroupName?: string | null) => {
+              const src = itemPriceSource || albumPriceData?.priceSource;
+              if (!src) return null;
+              const gName = itemGroupName ?? albumPriceData?.groupName;
               const badgeCls = cn(
                 "text-[9px] font-normal px-1 py-0 rounded border whitespace-nowrap",
                 src === 'client' ? "text-blue-600 border-blue-200 bg-blue-50"
@@ -1582,7 +1583,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   : "text-gray-500 border-gray-200 bg-gray-50"
               );
               const lbl = src === 'client' ? '개별단가'
-                : src === 'group' ? `그룹단가${albumPriceData.groupName ? `(${albumPriceData.groupName})` : ''}`
+                : src === 'group' ? `그룹단가${gName ? `(${gName})` : ''}`
                 : '표준단가';
               const settingParam = targetSettingId ? `&settingId=${targetSettingId}` : '';
               const href = src === 'client' ? `/company/members?edit=${user?.clientId}&tab=pricing${settingParam}`
@@ -1602,7 +1603,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 표지+제본비
                     <span className="text-gray-400 font-normal">({bName}{extraPages > 0 ? ` · ${billingPages}p(${pages}+${extraPages})` : ''})</span>
-                    {renderPriceBadge(bindingProductionSettingId)}
+                    {renderPriceBadge(bindingProductionSettingId, albumPriceData?.bindingPriceSource, albumPriceData?.bindingGroupName)}
                   </div>
                   <div className="text-gray-600 pl-2">
                     {isRangePricing ? (
@@ -1640,7 +1641,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <div className="text-gray-500 font-medium flex items-center justify-end gap-1">
                     ■ 출력비
                     <span className="text-gray-400 font-normal">({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {resolvedPrintSide === 'single' ? '단면' : '양면'})</span>
-                    {renderPriceBadge(productionSettingId)}
+                    {renderPriceBadge(productionSettingId, albumPriceData?.priceSource, albumPriceData?.groupName)}
                   </div>
                   <div className="text-gray-700 pl-2 font-medium">
                     <span className="text-gray-400 font-normal">소계:</span>{' '}
@@ -1658,7 +1659,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     {albumPriceData?.postProcessingNames && albumPriceData.postProcessingNames.length > 0 && (
                       <span className="text-gray-400 font-normal">({albumPriceData.postProcessingNames.join(', ')})</span>
                     )}
-                    {renderPriceBadge(albumPriceData?.postProcessingSettingId || undefined)}
+                    {renderPriceBadge(albumPriceData?.postProcessingSettingId || undefined, albumPriceData?.postProcessingPriceSource, albumPriceData?.postProcessingGroupName)}
                   </div>
                   <div className="text-gray-600 pl-2">
                     {postPrice === 0

@@ -36,7 +36,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; postProcessingPrice: number; postProcessingSettingId: string | null; postProcessingNames: string[] }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; bindingPriceSource: string | null; bindingGroupName: string | null; postProcessingPrice: number; postProcessingSettingId: string | null; postProcessingNames: string[]; postProcessingPriceSource: string | null; postProcessingGroupName: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
@@ -211,6 +211,8 @@ export class PricingService {
     let bindingPricePerPage = 0;
     let bindingRangePrices: Record<string, number> | null = null;
     let bindingFound = false;
+    let bindingPriceSource: string | null = null;
+    let bindingGroupName: string | null = null;
 
     // 제본단가 조회: specificationId 또는 minQuantity(nup) 매칭
     const bindingPriceOR = [
@@ -232,6 +234,7 @@ export class PricingService {
         bindingPricePerPage = Number(clientBindingPrice.pricePerPage) || 0;
         bindingRangePrices = clientBindingPrice.rangePrices as Record<string, number> | null;
         bindingFound = true;
+        bindingPriceSource = 'client';
       }
     }
 
@@ -254,6 +257,12 @@ export class PricingService {
           bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
           bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
           bindingFound = true;
+          bindingPriceSource = 'group';
+          const bindingGroup = await this.prisma.clientGroup.findUnique({
+            where: { id: clientForBinding.groupId },
+            select: { groupName: true },
+          });
+          bindingGroupName = bindingGroup?.groupName || null;
         }
       }
     }
@@ -270,6 +279,7 @@ export class PricingService {
         bindingBasePrice = Number(standardBindingPrice.basePrice) || 0;
         bindingPricePerPage = Number(standardBindingPrice.pricePerPage) || 0;
         bindingRangePrices = standardBindingPrice.rangePrices as Record<string, number> | null;
+        if (!bindingPriceSource) bindingPriceSource = 'standard';
       }
     }
 
@@ -288,6 +298,8 @@ export class PricingService {
     let postProcessingPrice = 0;
     let postProcessingSettingId: string | null = null;
     const postProcessingNames: string[] = [];
+    let postProcessingPriceSource: string | null = null;
+    let postProcessingGroupName: string | null = null;
     if (dto.productId) {
       const finishings = await this.prisma.productFinishing.findMany({
         where: { productId: dto.productId },
@@ -318,6 +330,7 @@ export class PricingService {
             ];
 
             let finishingPriceRecord: any = null;
+            let finishingSource: string | null = null;
 
             // 8-1. 거래처 개별 후가공 단가
             if (clientId) {
@@ -329,6 +342,7 @@ export class PricingService {
                 },
                 select: { price: true, pricePerPage: true, basePrice: true, productionSettingId: true },
               });
+              if (finishingPriceRecord) finishingSource = 'client';
             }
 
             // 8-2. 거래처 그룹 후가공 단가
@@ -346,6 +360,16 @@ export class PricingService {
                   },
                   select: { price: true, pricePerPage: true, basePrice: true, productionSettingId: true },
                 });
+                if (finishingPriceRecord) {
+                  finishingSource = 'group';
+                  if (!postProcessingGroupName) {
+                    const ppGroup = await this.prisma.clientGroup.findUnique({
+                      where: { id: clientForFinishing.groupId },
+                      select: { groupName: true },
+                    });
+                    postProcessingGroupName = ppGroup?.groupName || null;
+                  }
+                }
               }
             }
 
@@ -358,6 +382,7 @@ export class PricingService {
                 },
                 select: { pricePerPage: true, basePrice: true, productionSettingId: true },
               });
+              if (finishingPriceRecord) finishingSource = 'standard';
             }
 
             if (finishingPriceRecord) {
@@ -365,6 +390,7 @@ export class PricingService {
               const unitPrice = Number(finishingPriceRecord.price) || Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
               postProcessingPrice += unitPrice;
               if (!postProcessingSettingId) postProcessingSettingId = finishingPriceRecord.productionSettingId;
+              if (!postProcessingPriceSource && finishingSource) postProcessingPriceSource = finishingSource;
               if (f.name) postProcessingNames.push(f.name);
               continue;
             }
@@ -376,7 +402,7 @@ export class PricingService {
       }
     }
 
-    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, postProcessingPrice, postProcessingSettingId, postProcessingNames };
+    return { pricePerPage, bindingBasePrice, bindingPricePerPage, bindingRangePrices, coverPrice, missingReason, billingExtraPages, nup: specInfo?.nup ?? null, priceSource, groupName, bindingPriceSource, bindingGroupName, postProcessingPrice, postProcessingSettingId, postProcessingNames, postProcessingPriceSource, postProcessingGroupName };
   }
 
   /**
