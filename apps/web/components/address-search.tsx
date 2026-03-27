@@ -51,6 +51,7 @@ interface AddressSearchProps {
     postalCode: string;
     address: string;
     addressDetail?: string;
+    isApartment?: boolean;
   }) => void;
   className?: string;
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
@@ -115,6 +116,7 @@ export function AddressSearch({
       onComplete({
         postalCode: data.zonecode,
         address: address + (extraAddress ? ` (${extraAddress})` : ''),
+        isApartment: data.apartment === 'Y',
       });
 
       setShowEmbed(false);

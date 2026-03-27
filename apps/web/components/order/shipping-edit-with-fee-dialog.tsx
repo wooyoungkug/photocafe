@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Truck, Loader2, ArrowRight, CreditCard, Building2 } from 'lucide-react';
+import { Truck, Loader2, ArrowRight, CreditCard, Building2, AlertCircle } from 'lucide-react';
+import { AddressSearch } from '@/components/address-search';
 import {
   Dialog,
   DialogContent,
@@ -85,6 +86,7 @@ export function ShippingEditWithFeeDialog({
 
   const [step, setStep] = useState<'form' | 'confirm'>('form');
   const [form, setForm] = useState<FormState>(toFormState(shipping));
+  const [isApartment, setIsApartment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<string>(
     isCashClient ? 'bank_transfer' : 'credit'
   );
@@ -105,6 +107,7 @@ export function ShippingEditWithFeeDialog({
       setForm(initial);
       setPaymentMethod(isCashClient ? 'bank_transfer' : 'credit');
       setResult(null);
+      setIsApartment(false);
       setSavedDirectCustomerForm(
         shipping?.receiverType === 'direct_customer'
           ? { recipientName: shipping.recipientName, phone: shipping.phone, postalCode: shipping.postalCode, address: shipping.address, addressDetail: shipping.addressDetail ?? '', deliveryMemo: shipping.deliveryMemo ?? '' }
@@ -135,6 +138,10 @@ export function ShippingEditWithFeeDialog({
     }
     if (!form.address.trim()) {
       toast({ title: '수령인 주소를 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+    if (isApartment && !form.addressDetail.trim()) {
+      toast({ title: '아파트/연립 동호수를 입력해주세요.', description: '배송 오류 방지를 위해 동호수는 필수입력입니다.', variant: 'destructive' });
       return;
     }
     setStep('confirm');
@@ -286,27 +293,47 @@ export function ShippingEditWithFeeDialog({
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-[12px]">주소 *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[12px]">주소 *</Label>
+                  <AddressSearch
+                    size="sm"
+                    inline
+                    onComplete={({ postalCode, address, isApartment: apt }) => {
+                      set('postalCode', postalCode);
+                      set('address', address);
+                      set('addressDetail', '');
+                      setIsApartment(!!apt);
+                    }}
+                  />
+                </div>
                 <div className="flex gap-1.5">
                   <Input
                     value={form.postalCode}
-                    onChange={(e) => set('postalCode', e.target.value)}
+                    readOnly
                     placeholder="우편번호"
-                    className="h-8 text-[12px] w-24 shrink-0"
+                    className="h-8 text-[12px] w-24 shrink-0 bg-gray-50"
                   />
                   <Input
                     value={form.address}
-                    onChange={(e) => set('address', e.target.value)}
-                    placeholder="주소"
-                    className="h-8 text-[12px] flex-1"
+                    readOnly
+                    placeholder="주소 검색 버튼을 눌러주세요"
+                    className="h-8 text-[12px] flex-1 bg-gray-50"
                   />
                 </div>
-                <Input
-                  value={form.addressDetail}
-                  onChange={(e) => set('addressDetail', e.target.value)}
-                  placeholder="상세주소"
-                  className="h-8 text-[12px]"
-                />
+                <div className="space-y-1">
+                  <Input
+                    value={form.addressDetail}
+                    onChange={(e) => set('addressDetail', e.target.value)}
+                    placeholder={isApartment ? '동호수 입력 (필수)' : '상세주소 (건물명, 층수 등)'}
+                    className={`h-8 text-[12px] ${isApartment && !form.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+                  />
+                  {isApartment && !form.addressDetail.trim() && (
+                    <p className="flex items-center gap-1 text-[11px] text-red-500">
+                      <AlertCircle className="h-3 w-3" />
+                      아파트/연립은 동호수 입력이 필수입니다
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
 
