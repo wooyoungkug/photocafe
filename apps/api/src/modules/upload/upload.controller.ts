@@ -5,7 +5,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync } from 'fs';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
@@ -37,6 +37,30 @@ export class UploadController {
         private readonly fileStorage: FileStorageService,
         private readonly thumbnailService: ThumbnailService,
     ) {}
+
+    // ==================== 진단용 엔드포인트 (디버그) ====================
+
+    @Public()
+    @Get('debug/storage-info')
+    @ApiOperation({ summary: '업로드 스토리지 경로 진단 (임시)' })
+    debugStorageInfo() {
+        const basePath = getUploadBasePath();
+        const dirs: Record<string, string[]> = {};
+        try {
+            const entries = readdirSync(basePath);
+            dirs['root'] = entries;
+            for (const entry of entries) {
+                const sub = join(basePath, entry);
+                try {
+                    const subEntries = readdirSync(sub);
+                    dirs[entry] = subEntries.slice(0, 10);
+                } catch { /* not a dir */ }
+            }
+        } catch (err: any) {
+            return { basePath, error: err.message };
+        }
+        return { basePath, cwd: process.cwd(), dirs };
+    }
 
     // ==================== 앨범 원본 파일 업로드 ====================
 
