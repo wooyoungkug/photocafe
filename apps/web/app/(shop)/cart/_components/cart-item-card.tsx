@@ -290,7 +290,7 @@ export function CartItemCard({
   const shippingComplete = isShippingComplete(itemShipping);
 
   // 배송정보 아코디언: 미완료 시 자동 열림, 사용자가 수동 조작한 뒤에는 자동 닫힘 방지
-  const [accordionOpen, setAccordionOpen] = useState<string>(shippingComplete ? '' : 'shipping');
+  const [accordionOpen, setAccordionOpen] = useState<string>('');
   const userToggled = useRef(false);
   useEffect(() => {
     // 사용자가 직접 토글한 적이 없을 때만 자동 닫힘
@@ -744,7 +744,7 @@ export function CartItemCard({
               type="single"
               collapsible
               value={accordionOpen}
-              onValueChange={setAccordionOpen}
+              onValueChange={(val) => { userToggled.current = true; setAccordionOpen(val); }}
             >
               <AccordionItem value={item.id} className="border-0">
                 <AccordionTrigger className="px-4 py-3 hover:bg-gray-50/50 hover:no-underline">
