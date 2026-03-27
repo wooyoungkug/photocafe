@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { AddressSearch } from '@/components/address-search';
+import { AddressSearchInput } from '@/components/address-search-input';
 import { Save, X, AlertCircle } from 'lucide-react';
 import type { ClientAddress, CreateClientAddressDto } from '@/types/address';
 
@@ -64,10 +64,10 @@ export function AddressDialog({ open, onOpenChange, address, onSave, isPending }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isApartment && !formData.addressDetail.trim()) {
-      alert('아파트/연립은 동호수 입력이 필수입니다.');
-      return;
-    }
+    if (!formData.recipientName.trim()) { alert('수령인 이름을 입력해주세요.'); return; }
+    if (!formData.phone.trim()) { alert('연락처를 입력해주세요.'); return; }
+    if (!formData.address.trim()) { alert('주소를 입력해주세요.'); return; }
+    if (isApartment && !(formData.addressDetail ?? '').trim()) { alert('아파트/연립은 동호수 필수입니다.'); return; }
     await onSave(formData);
   };
 
@@ -125,29 +125,19 @@ export function AddressDialog({ open, onOpenChange, address, onSave, isPending }
             <Label>
               주소 <span className="text-red-500">*</span>
             </Label>
-            <AddressSearch
-              inline={true}
-              onComplete={(data) => {
+            <AddressSearchInput
+              value={formData.address}
+              onChange={(val) => setFormData({ ...formData, address: val })}
+              onSelect={(data) => {
                 setFormData({
                   ...formData,
                   postalCode: data.postalCode,
                   address: data.address,
                   addressDetail: '',
                 });
-                setIsApartment(!!data.isApartment);
+                setIsApartment(data.isApartment);
               }}
-            />
-          </div>
-
-          {/* Address (read-only display) */}
-          <div className="space-y-2">
-            <Label htmlFor="address">주소</Label>
-            <Input
-              id="address"
-              value={formData.address}
-              readOnly
-              placeholder="검색해주세요"
-              required
+              placeholder="주소 또는 건물명 검색"
             />
           </div>
 
@@ -163,9 +153,9 @@ export function AddressDialog({ open, onOpenChange, address, onSave, isPending }
               onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
               placeholder={isApartment ? '동호수 입력 (필수)' : '상세주소를 입력하세요'}
               maxLength={255}
-              className={isApartment && !formData.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}
+              className={isApartment && !(formData.addressDetail ?? '').trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}
             />
-            {isApartment && !formData.addressDetail.trim() && (
+            {isApartment && !(formData.addressDetail ?? '').trim() && (
               <p className="flex items-center gap-1 text-[12px] text-red-500">
                 <AlertCircle className="h-3 w-3" />
                 아파트/연립은 동호수 입력이 필수입니다

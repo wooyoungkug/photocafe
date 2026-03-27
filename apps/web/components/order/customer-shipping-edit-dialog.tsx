@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AddressSearch } from '@/components/address-search';
+import { AddressSearchInput } from '@/components/address-search-input';
 import { useUpdateShipping } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
 
@@ -168,27 +168,18 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label className="text-[11px]">배송 주소 *</Label>
-                <p className="text-[10px] text-gray-400">건물명·아파트명으로도 검색 가능</p>
-              </div>
-              <AddressSearch
-                size="sm"
-                inline
-                onComplete={({ postalCode, address, isApartment: apt }) => {
-                  set('postalCode', postalCode);
-                  set('address', address);
-                  set('addressDetail', '');
-                  setIsApartment(!!apt);
-                }}
-              />
-            </div>
-            <Input
+            <Label className="text-[11px]">배송지 주소 *</Label>
+            <AddressSearchInput
               value={form.address}
-              readOnly
-              placeholder="주소 검색 버튼을 눌러주세요"
-              className="h-8 text-[11px] bg-gray-50"
+              onChange={(val) => set('address', val)}
+              onSelect={({ postalCode, address, isApartment: apt }) => {
+                set('postalCode', postalCode);
+                set('address', address);
+                set('addressDetail', '');
+                setIsApartment(apt);
+              }}
+              placeholder="주소 또는 건물명 검색"
+              className="h-8 text-[11px]"
             />
             <div className="space-y-1">
               <Input

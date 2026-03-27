@@ -21,7 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { AddressSearch } from '@/components/address-search';
+import { AddressSearchInput } from '@/components/address-search-input';
 import { useUpdateShipping, OrderShipping } from '@/hooks/use-orders';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { toast } from '@/hooks/use-toast';
@@ -235,21 +235,15 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
               </div>
             </div>
             <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-[11px]">발송인 주소</Label>
-                <AddressSearch
-                  size="sm"
-                  inline
-                  onComplete={({ postalCode, address }) => {
-                    set('senderPostalCode', postalCode);
-                    set('senderAddress', address);
-                  }}
-                />
-              </div>
-              <Input
+              <Label className="text-[11px]">발송인 주소</Label>
+              <AddressSearchInput
                 value={form.senderAddress}
-                onChange={(e) => set('senderAddress', e.target.value)}
-                placeholder="주소"
+                onChange={(val) => set('senderAddress', val)}
+                onSelect={({ postalCode, address }) => {
+                  set('senderPostalCode', postalCode);
+                  set('senderAddress', address);
+                }}
+                placeholder="주소 또는 건물명 검색"
                 className="h-8 text-[11px]"
               />
               <Input
@@ -300,26 +294,17 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
               </div>
             </div>
             <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-[11px]">수령인 주소 *</Label>
-                  <p className="text-[10px] text-gray-400">건물명·아파트명으로도 검색 가능</p>
-                </div>
-                <AddressSearch
-                  size="sm"
-                  inline
-                  onComplete={({ postalCode, address, isApartment: apt }) => {
-                    set('postalCode', postalCode);
-                    set('address', address);
-                    set('addressDetail', '');
-                    setIsRecipientApartment(!!apt);
-                  }}
-                />
-              </div>
-              <Input
+              <Label className="text-[11px]">수령인 주소 *</Label>
+              <AddressSearchInput
                 value={form.address}
-                onChange={(e) => set('address', e.target.value)}
-                placeholder="주소"
+                onChange={(val) => set('address', val)}
+                onSelect={({ postalCode, address, isApartment: apt }) => {
+                  set('postalCode', postalCode);
+                  set('address', address);
+                  set('addressDetail', '');
+                  setIsRecipientApartment(apt);
+                }}
+                placeholder="주소 또는 건물명 검색"
                 className="h-8 text-[11px]"
               />
               <div className="space-y-1">

@@ -16,6 +16,7 @@ export interface PlaceSearchResult {
   placeName: string;
   address: string;
   roadAddress?: string;
+  postalCode?: string;
   phone?: string;
   categoryName?: string;
   coordinates: Coordinates;
@@ -67,6 +68,7 @@ export class KakaoMapService {
         placeName: doc.place_name,
         address: doc.address_name,
         roadAddress: doc.road_address_name || undefined,
+        postalCode: doc.road_address?.zone_no || undefined,
         phone: doc.phone || undefined,
         categoryName: doc.category_name || undefined,
         coordinates: { lat: parseFloat(doc.y), lng: parseFloat(doc.x) },

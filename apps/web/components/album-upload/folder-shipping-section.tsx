@@ -13,8 +13,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Truck, Building2, MapPin, Package, Search } from 'lucide-react';
-import { AddressSearch } from '@/components/address-search';
+import { Truck, Building2, MapPin, Package } from 'lucide-react';
+import { AddressSearchInput } from '@/components/address-search-input';
 import {
   type FolderShippingInfo,
   type SenderType,
@@ -437,7 +437,6 @@ function DirectCustomerForm({
   onAddressComplete: (data: { postalCode: string; address: string }) => void;
 }) {
   const [showPhone2, setShowPhone2] = useState(!!directPhone2);
-  const [addressSearchOpen, setAddressSearchOpen] = useState(false);
 
   const missingFields = [
     !directRecipientName.trim() && '수령인',
@@ -503,54 +502,17 @@ function DirectCustomerForm({
         </div>
       )}
 
-      {/* Row 2: 주소 - 클릭하면 바로 다음 검색 열림 */}
+      {/* Row 2: 주소 검색 */}
       <div className="space-y-1.5">
         <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
-        {directAddress ? (
-          // 주소가 입력된 상태: 주소 표시 + 재검색 클릭 영역
-          <div
-            className="flex items-center gap-2 bg-gray-50 rounded px-2.5 py-1.5 text-[14px] text-black font-normal cursor-pointer hover:bg-gray-100 transition-colors"
-            onClick={() => setAddressSearchOpen(true)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setAddressSearchOpen(true); }}
-          >
-            <Search className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-            <span className="flex-1 truncate">
-              {directPostalCode && <span className="text-gray-500 text-xs">[{directPostalCode}] </span>}
-              {directAddress}
-            </span>
-            <span className="text-[11px] text-blue-500 flex-shrink-0">변경</span>
-          </div>
-        ) : (
-          // 주소 미입력: 검색 유도 클릭 영역
-          <div
-            className={`flex items-center gap-2 rounded px-2.5 py-2 cursor-pointer transition-colors ${
-              !directAddress.trim()
-                ? 'bg-red-50 border border-red-200 text-red-400 hover:bg-red-100'
-                : 'bg-gray-50 text-gray-400 hover:bg-gray-100'
-            }`}
-            onClick={() => setAddressSearchOpen(true)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setAddressSearchOpen(true); }}
-          >
-            <Search className="h-3.5 w-3.5 flex-shrink-0" />
-            <span className="text-sm">클릭하여 주소 검색</span>
-          </div>
-        )}
-
-        {/* 다음 우편번호 인라인 embed */}
-        <AddressSearch
-          headless
-          inline
-          isOpen={addressSearchOpen}
-          onOpenChange={setAddressSearchOpen}
-          embedHeight={350}
-          onComplete={(data) => {
-            onAddressComplete(data);
-            setAddressSearchOpen(false);
+        <AddressSearchInput
+          value={directAddress}
+          onChange={(val) => onAddressComplete({ postalCode: directPostalCode, address: val })}
+          onSelect={({ address, postalCode }) => {
+            onAddressComplete({ postalCode, address });
           }}
+          placeholder="주소 또는 건물명 검색"
+          className={`h-8 text-sm ${!directAddress.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
         />
 
         {/* 상세주소: 주소 선택 후 표시 */}
@@ -566,7 +528,7 @@ function DirectCustomerForm({
       </div>
 
       {/* 미입력 경고 - 인라인 간결 표시 */}
-      {missingFields.length > 0 && !addressSearchOpen && (
+      {missingFields.length > 0 && (
         <div className="flex items-center gap-1.5 text-xs text-red-500 bg-red-50 rounded px-2.5 py-1.5">
           <svg className="h-3.5 w-3.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.168 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
           <span>{missingFields.join(', ')}를 입력해주세요</span>
