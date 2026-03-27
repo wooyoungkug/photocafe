@@ -185,12 +185,6 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
               />
             </div>
             <Input
-              value={form.postalCode}
-              readOnly
-              placeholder="우편번호"
-              className="h-8 text-[11px] bg-gray-50"
-            />
-            <Input
               value={form.address}
               readOnly
               placeholder="주소 검색 버튼을 눌러주세요"

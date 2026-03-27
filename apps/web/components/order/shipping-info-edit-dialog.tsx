@@ -233,15 +233,6 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
                   className="h-8 text-[11px]"
                 />
               </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">우편번호</Label>
-                <Input
-                  value={form.senderPostalCode}
-                  onChange={(e) => set('senderPostalCode', e.target.value)}
-                  placeholder="우편번호"
-                  className="h-8 text-[11px]"
-                />
-              </div>
             </div>
             <div className="space-y-1">
               <div className="flex items-center justify-between">
@@ -304,15 +295,6 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
                   onChange={(e) => set('phone', formatPhone(e.target.value))}
                   placeholder="010-0000-0000"
                   maxLength={13}
-                  className="h-8 text-[11px]"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[11px]">우편번호</Label>
-                <Input
-                  value={form.postalCode}
-                  onChange={(e) => set('postalCode', e.target.value)}
-                  placeholder="우편번호"
                   className="h-8 text-[11px]"
                 />
               </div>

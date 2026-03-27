@@ -318,20 +318,12 @@ export function ShippingEditWithFeeDialog({
                     }}
                   />
                 </div>
-                <div className="flex gap-1.5">
-                  <Input
-                    value={form.postalCode}
-                    readOnly
-                    placeholder="우편번호"
-                    className="h-8 text-[12px] w-24 shrink-0 bg-gray-50"
-                  />
-                  <Input
-                    value={form.address}
-                    readOnly
-                    placeholder="주소 검색 버튼을 눌러주세요"
-                    className="h-8 text-[12px] flex-1 bg-gray-50"
-                  />
-                </div>
+                <Input
+                  value={form.address}
+                  readOnly
+                  placeholder="주소 검색 버튼을 눌러주세요"
+                  className="h-8 text-[12px] bg-gray-50"
+                />
                 <div className="space-y-1">
                   <Input
                     value={form.addressDetail}
