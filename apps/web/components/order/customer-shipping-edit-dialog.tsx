@@ -157,7 +157,7 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[11px]">연락처</Label>
+              <Label className="text-[11px]">연락처 *</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => set('phone', e.target.value)}

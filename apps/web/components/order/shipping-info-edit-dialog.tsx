@@ -298,7 +298,7 @@ export function ShippingInfoEditDialog({ open, onOpenChange, orderId, orderNumbe
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-[11px]">수령인 전화번호</Label>
+                <Label className="text-[11px]">수령인 전화번호 *</Label>
                 <Input
                   value={form.phone}
                   onChange={(e) => set('phone', formatPhone(e.target.value))}
