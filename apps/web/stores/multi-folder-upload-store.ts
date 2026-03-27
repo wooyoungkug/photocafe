@@ -1250,7 +1250,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     if (filesWithAlbum.length > 0) {
       const f = filesWithAlbum[0];
       const raw = folder.files[0];
-      console.log('[규격감지] 첫 파일 원시:', { name: raw.name, widthPx: raw.widthPx, heightPx: raw.heightPx, dpi: raw.dpi, widthInch: raw.widthInch, heightInch: raw.heightInch });
+      console.log('[규격감지] 첫 파일 원시:', { name: raw.fileName, widthPx: raw.widthPx, heightPx: raw.heightPx, dpi: raw.dpi, widthInch: raw.widthInch, heightInch: raw.heightInch });
       console.log('[규격감지] 첫 파일 앨범크기:', { albumWidth: f.albumWidth, albumHeight: f.albumHeight, ratio: f.ratio, pageLayout: folder.pageLayout });
     }
 
