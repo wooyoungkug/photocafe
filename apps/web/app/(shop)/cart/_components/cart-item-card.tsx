@@ -906,13 +906,18 @@ export function CartItemCard({
           </div>
 
         {/* Thumbnail gallery */}
-        {item.thumbnailUrls && item.thumbnailUrls.length > 1 && (
-          <CartThumbnailGallery
-            thumbnailUrls={item.thumbnailUrls}
-            pageLayout={item.albumOrderInfo?.pageLayout}
-            bindingDirection={item.albumOrderInfo?.bindingDirection}
-          />
-        )}
+        {(() => {
+          const galleryUrls = item.thumbnailUrls?.length
+            ? item.thumbnailUrls
+            : (item.serverFiles?.map((f) => f.thumbnailUrl).filter(Boolean) as string[] | undefined) ?? [];
+          return galleryUrls.length > 1 ? (
+            <CartThumbnailGallery
+              thumbnailUrls={galleryUrls}
+              pageLayout={item.albumOrderInfo?.pageLayout}
+              bindingDirection={item.albumOrderInfo?.bindingDirection}
+            />
+          ) : null;
+        })()}
       </Card>
     </div>
   );
