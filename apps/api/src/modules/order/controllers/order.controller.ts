@@ -315,6 +315,12 @@ export class OrderController {
     return this.orderService.completeInspection(id, req.user.id, dto);
   }
 
+  @Post('repair-thumbnails')
+  @ApiOperation({ summary: '깨진 썸네일 복구 (temp URL 또는 누락된 썸네일 재생성)' })
+  async repairBrokenThumbnails() {
+    return this.orderService.repairBrokenThumbnails();
+  }
+
   @Post(':id/regenerate-pdf')
   @ApiOperation({ summary: 'PDF 재생성 (실패 시 재시도)' })
   async regeneratePdf(@Param('id') id: string) {

@@ -451,6 +451,26 @@ export const useCartStore = create<CartState>()(
           const invalidIds = new Set(invalidItems.map((i) => i.id));
           state.items = state.items.filter((i) => !invalidIds.has(i.id));
         }
+        // 새로고침 후 thumbnailUrls 복원: serverFiles에서 재구성
+        state.items = state.items.map((item) => {
+          let newItem = item;
+          let changed = false;
+
+          if ((!item.thumbnailUrls || item.thumbnailUrls.length === 0) && item.serverFiles && item.serverFiles.length > 0) {
+            const restored = item.serverFiles.map((f) => f.thumbnailUrl).filter(Boolean);
+            if (restored.length > 0) {
+              newItem = { ...newItem, thumbnailUrls: restored };
+              changed = true;
+            }
+          }
+
+          if (item.thumbnailUrl && item.thumbnailUrl.startsWith('blob:') && item.serverFiles?.[0]?.thumbnailUrl) {
+            newItem = { ...newItem, thumbnailUrl: item.serverFiles[0].thumbnailUrl };
+            changed = true;
+          }
+
+          return changed ? newItem : item;
+        });
       },
     }
   )

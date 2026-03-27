@@ -60,7 +60,7 @@ export function CartOrderSummary({
 
   return (
     <div className="space-y-4">
-      <Card className="sticky top-4 overflow-hidden">
+      <Card className="overflow-hidden">
         <div className="h-1 gradient-primary" />
 
         <CardHeader className="pb-3">

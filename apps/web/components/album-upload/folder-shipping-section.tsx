@@ -39,6 +39,8 @@ interface FolderShippingSectionProps {
   onChange: (shipping: FolderShippingInfo) => void;
   studioTotal?: number;
   isCombinedShipping?: boolean;
+  /** 카트 아이템 ID (입력 필드 포커스용 고유 id 생성) */
+  itemId?: string;
 }
 
 export function FolderShippingSection({

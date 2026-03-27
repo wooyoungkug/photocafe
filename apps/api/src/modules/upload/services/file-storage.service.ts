@@ -1,8 +1,9 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/common';
 import { join, extname } from 'path';
 import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync, rmSync, copyFileSync } from 'fs';
 import { rm } from 'fs/promises';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { ThumbnailService } from './thumbnail.service';
 
 // 모듈 레벨 base path (multer 콜백에서 접근용)
 let _sharedBasePath: string = '';
@@ -21,7 +22,11 @@ export class FileStorageService implements OnModuleInit {
   private readonly logger = new Logger(FileStorageService.name);
   private basePath: string;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(forwardRef(() => ThumbnailService))
+    private readonly thumbnailService: ThumbnailService,
+  ) {
     const envPath = process.env.UPLOAD_BASE_PATH;
     // Resolve relative paths against cwd to ensure consistent absolute paths
     this.basePath = envPath
@@ -114,11 +119,11 @@ export class FileStorageService implements OnModuleInit {
   }
 
   /** 임시 파일을 정식 경로로 이동 */
-  moveToOrderDir(
+  async moveToOrderDir(
     tempFolderId: string,
     orderNumber: string,
     companyName: string,
-  ): { orderDir: string; movedFiles: Array<{ original: string; thumbnail: string; fileName: string }> } {
+  ): Promise<{ orderDir: string; movedFiles: Array<{ original: string; thumbnail: string; fileName: string }> }> {
     const orderDir = this.getOrderDir(orderNumber, companyName);
     const tempOriginalsDir = join(this.basePath, 'temp', tempFolderId, 'originals');
     const tempThumbnailsDir = join(this.basePath, 'temp', tempFolderId, 'thumbnails');
@@ -130,6 +135,8 @@ export class FileStorageService implements OnModuleInit {
     }
 
     const files = readdirSync(tempOriginalsDir);
+    const thumbnailsToGenerate: Array<{ originalPath: string; destThumb: string; fileName: string; index: number }> = [];
+
     for (const fileName of files) {
       const srcOriginal = join(tempOriginalsDir, fileName);
       const destOriginal = join(orderDir, 'originals', fileName);
@@ -154,11 +161,35 @@ export class FileStorageService implements OnModuleInit {
         }
       }
 
+      const index = movedFiles.length;
       movedFiles.push({
         original: destOriginal,
         thumbnail: existsSync(destThumb) ? destThumb : '',
         fileName,
       });
+
+      // 썸네일이 이동되지 않은 경우 (비동기 생성이 아직 안 됐거나 이동 실패) → 재생성 대상
+      if (!existsSync(destThumb)) {
+        thumbnailsToGenerate.push({ originalPath: destOriginal, destThumb, fileName, index });
+      }
+    }
+
+    // 누락된 썸네일 원본에서 재생성
+    if (thumbnailsToGenerate.length > 0) {
+      this.logger.log(`${thumbnailsToGenerate.length}개 누락 썸네일 재생성 (주문: ${orderNumber})`);
+      const thumbDir = join(orderDir, 'thumbnails');
+      await Promise.all(
+        thumbnailsToGenerate.map(async ({ originalPath, destThumb, fileName, index }) => {
+          try {
+            await this.thumbnailService.generateThumbnail(originalPath, thumbDir, fileName);
+            if (existsSync(destThumb)) {
+              movedFiles[index].thumbnail = destThumb;
+            }
+          } catch (err) {
+            this.logger.warn(`썸네일 재생성 실패: ${fileName}`, err);
+          }
+        })
+      );
     }
 
     // 임시 폴더 정리

@@ -70,7 +70,24 @@ const getBindingDirectionLabel = (direction: string): string => {
 export const isShippingComplete = (info?: CartShippingInfo): boolean => {
   if (!info) return false;
   if (info.deliveryMethod === 'pickup') return true;
+  // 고객직배송일 때 상세주소도 필수
+  if (info.receiverType === 'direct_customer') {
+    return !!(info.recipientName && info.recipientPhone && info.recipientAddress && info.recipientAddressDetail);
+  }
   return !!(info.recipientName && info.recipientPhone && info.recipientAddress);
+};
+
+/** 미입력 필드 중 첫 번째 반환 (포커스 이동용) */
+export const getFirstMissingShippingField = (info?: CartShippingInfo): { field: string; label: string } | null => {
+  if (!info) return { field: 'recipientName', label: '수령인 이름' };
+  if (info.deliveryMethod === 'pickup') return null;
+  if (!info.recipientName?.trim()) return { field: 'recipientName', label: '수령인 이름' };
+  if (!info.recipientPhone?.trim()) return { field: 'recipientPhone', label: '연락처' };
+  if (!info.recipientAddress?.trim()) return { field: 'recipientAddress', label: '주소' };
+  if (info.receiverType === 'direct_customer' && !info.recipientAddressDetail?.trim()) {
+    return { field: 'recipientAddressDetail', label: '상세주소' };
+  }
+  return null;
 };
 
 export const getCartShippingSummary = (info: CartShippingInfo): string => {
@@ -204,6 +221,8 @@ export interface CartItemCardProps {
   clientInfo: OrdererShippingInfo | null;
   pricingMap: Record<string, DeliveryPricing>;
   studioTotal?: number;
+  thumbnailExpanded?: boolean;
+  onThumbnailExpandedChange?: (expanded: boolean) => void;
 }
 
 export function CartItemCard({
@@ -223,6 +242,8 @@ export function CartItemCard({
   clientInfo,
   pricingMap,
   studioTotal,
+  thumbnailExpanded,
+  onThumbnailExpandedChange,
 }: CartItemCardProps) {
   const t = useTranslations('cart');
   const { updateItemPrice } = useCartStore();
@@ -932,6 +953,8 @@ export function CartItemCard({
               thumbnailUrls={galleryUrls}
               pageLayout={item.albumOrderInfo?.pageLayout}
               bindingDirection={item.albumOrderInfo?.bindingDirection}
+              expanded={thumbnailExpanded}
+              onExpandedChange={onThumbnailExpandedChange}
             />
           ) : null;
         })()}

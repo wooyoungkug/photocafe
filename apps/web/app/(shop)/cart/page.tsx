@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCartStore, type CartShippingInfo } from '@/stores/cart-store';
@@ -58,6 +58,7 @@ export default function CartPage() {
   const { toast } = useToast();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [thumbnailExpandedMap, setThumbnailExpandedMap] = useState<Record<string, boolean>>({});
 
   // Stale upload 상태 복구: 페이지 로드 시 pending/uploading인데 실제 업로드 프로세스가 없는 아이템 처리
   const { updateUploadStatus } = useCartStore();
@@ -93,6 +94,29 @@ export default function CartPage() {
 
   // 당일 주문현황 (conditional: 조건부무료배송 진행바, prepaid/cod: 금일 총주문금액만 표시)
   const { data: sameDayInfo } = useSameDayShipping(clientInfo?.id ?? null);
+
+  // --- Thumbnail expand/collapse all ---
+  const itemsWithThumbnails = items.filter((item) => {
+    const urls = item.thumbnailUrls?.length
+      ? item.thumbnailUrls
+      : item.serverFiles?.map((f) => f.thumbnailUrl).filter(Boolean) ?? [];
+    return urls.length > 1;
+  });
+  const hasThumbnails = itemsWithThumbnails.length > 0;
+  const allThumbnailsExpanded = hasThumbnails && itemsWithThumbnails.every((item) => thumbnailExpandedMap[item.id]);
+
+  const handleToggleAllThumbnails = () => {
+    const newExpanded = !allThumbnailsExpanded;
+    const newMap: Record<string, boolean> = {};
+    itemsWithThumbnails.forEach((item) => {
+      newMap[item.id] = newExpanded;
+    });
+    setThumbnailExpandedMap(newMap);
+  };
+
+  const handleThumbnailExpandedChange = (itemId: string, expanded: boolean) => {
+    setThumbnailExpandedMap((prev) => ({ ...prev, [itemId]: expanded }));
+  };
 
   // --- Helpers ---
   const canSelectItem = (itemId: string) => {
@@ -438,6 +462,22 @@ export default function CartPage() {
               onClearCart={() => setClearCartOpen(true)}
             />
 
+            {/* Thumbnail Expand/Collapse All */}
+            {hasThumbnails && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleAllThumbnails}
+                  className="text-xs sm:text-sm h-8 sm:h-9 gap-1.5"
+                >
+                  <ImageIcon className="h-3.5 w-3.5" />
+                  {allThumbnailsExpanded ? '썸네일 전체 닫기' : '썸네일 전체 펼치기'}
+                  {allThumbnailsExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            )}
+
             {/* Global Shipping */}
             {items.length > 1 && (
               <CartGlobalShipping
@@ -495,6 +535,8 @@ export default function CartPage() {
                           clientInfo={clientInfo}
                           pricingMap={pricingMap}
                           studioTotal={studioItemsTotal}
+                          thumbnailExpanded={thumbnailExpandedMap[item.id]}
+                          onThumbnailExpandedChange={(expanded) => handleThumbnailExpandedChange(item.id, expanded)}
                         />
                       );
                     });
@@ -523,7 +565,7 @@ export default function CartPage() {
           </div>
 
           {/* Order Summary (Desktop) */}
-          <div className="hidden lg:block lg:col-span-1">
+          <div className="hidden lg:block lg:col-span-1 sticky top-4 self-start">
             <CartOrderSummary
               selectedCount={selectedItems.length}
               totalCount={items.length}

@@ -643,7 +643,8 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     return { compatible: true, message: '' };
   }, [allSpecs, folder.specFoundInDB, folder.printMethod, folder.specificationId, folder.albumLabel]);
 
-  const canSelect = hasValidStatus && folder.specFoundInDB !== false && specCompatibility.compatible;
+  const isUploadComplete = !folder.immediateUploadStatus || folder.immediateUploadStatus === 'completed';
+  const canSelect = hasValidStatus && folder.specFoundInDB !== false && specCompatibility.compatible && isUploadComplete;
 
   // 출력구분 결정: 사용자가 직접 선택한 값 우선, 없으면 상품 printType 또는 pageLayout 기반 추론
   const resolvedPrintSide = useMemo(() => {
@@ -1221,7 +1222,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       {/* 헤더 (체크박스 + 제목 + 가격) */}
       <div className="flex items-start gap-3 mt-3">
         {/* 체크박스 */}
-        <div className="pt-1" title={!canSelect ? (!folder.specFoundInDB ? 'DB에 등록된 규격이 없어 주문할 수 없습니다' : !specCompatibility.compatible ? specCompatibility.message : undefined) : undefined}>
+        <div className="pt-1" title={!canSelect ? (!isUploadComplete ? '업로드가 완료된 후 선택할 수 있습니다' : !folder.specFoundInDB ? 'DB에 등록된 규격이 없어 주문할 수 없습니다' : !specCompatibility.compatible ? specCompatibility.message : undefined) : undefined}>
           <Checkbox
             checked={folder.isSelected}
             disabled={!canSelect}

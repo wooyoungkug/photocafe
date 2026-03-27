@@ -3,7 +3,7 @@
 import { ImageIcon } from 'lucide-react';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { useTranslations } from 'next-intl';
-import { cn } from '@/lib/utils';
+import { cn, normalizeImageUrl } from '@/lib/utils';
 
 type BindingDirection =
   | 'LEFT_START_RIGHT_END'
@@ -15,6 +15,9 @@ interface CartThumbnailGalleryProps {
   thumbnailUrls: string[];
   pageLayout?: 'single' | 'spread';
   bindingDirection?: string;
+  /** Controlled open state from parent (undefined = uncontrolled) */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
 // 펼침면에서 각 파일의 좌/우 실제 페이지 번호 계산 (FolderCard 동일 로직)
@@ -49,7 +52,7 @@ function getSpreadPageNumbers(
   }
 }
 
-export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirection }: CartThumbnailGalleryProps) {
+export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirection, expanded, onExpandedChange }: CartThumbnailGalleryProps) {
   const t = useTranslations('cart');
 
   if (!thumbnailUrls || thumbnailUrls.length <= 1) return null;
@@ -64,7 +67,7 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
       className="relative rounded overflow-hidden border border-gray-200 bg-white"
     >
       <img
-        src={url}
+        src={normalizeImageUrl(url)}
         alt={`${idx + 1}`}
         className="w-full h-auto"
         loading="lazy"
@@ -143,9 +146,18 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
       }
     }
 
+    const accordionValue = expanded ? 'thumbnails' : '';
+
     return (
       <div className="border-t border-gray-100">
-        <Accordion type="single" collapsible>
+        <Accordion
+          type="single"
+          collapsible
+          {...(expanded !== undefined
+            ? { value: accordionValue, onValueChange: (v: string) => onExpandedChange?.(v === 'thumbnails') }
+            : {}
+          )}
+        >
           <AccordionItem value="thumbnails" className="border-0">
             <AccordionTrigger className="px-4 py-2 hover:bg-gray-50/50 hover:no-underline text-xs">
               <span className="flex items-center gap-1.5 text-gray-600">
@@ -198,9 +210,18 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
   }
 
   // 펼침면: 기본 그리드 레이아웃 (좌/우 페이지번호 + 빈페이지 표시)
+  const accordionValue = expanded ? 'thumbnails' : '';
+
   return (
     <div className="border-t border-gray-100">
-      <Accordion type="single" collapsible>
+      <Accordion
+        type="single"
+        collapsible
+        {...(expanded !== undefined
+          ? { value: accordionValue, onValueChange: (v: string) => onExpandedChange?.(v === 'thumbnails') }
+          : {}
+        )}
+      >
         <AccordionItem value="thumbnails" className="border-0">
           <AccordionTrigger className="px-4 py-2 hover:bg-gray-50/50 hover:no-underline text-xs">
             <span className="flex items-center gap-1.5 text-gray-600">

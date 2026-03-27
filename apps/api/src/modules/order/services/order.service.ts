@@ -3,8 +3,10 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
 import { FileStorageService } from '@/modules/upload/services/file-storage.service';
 import { PdfGeneratorService } from '@/modules/upload/services/pdf-generator.service';
+import { ThumbnailService } from '@/modules/upload/services/thumbnail.service';
 import { Prisma } from '@prisma/client';
-import { dirname } from 'path';
+import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 import {
   CreateOrderDto,
   UpdateOrderDto,
@@ -36,6 +38,7 @@ export class OrderService {
     private salesLedgerService: SalesLedgerService,
     private fileStorage: FileStorageService,
     private pdfGenerator: PdfGeneratorService,
+    private thumbnailService: ThumbnailService,
   ) { }
 
   // ==================== 주문번호 생성 (원자적) ====================
@@ -677,10 +680,12 @@ export class OrderService {
       )
     ).catch(() => { });
 
-    // 임시 파일 → 정식 경로 이동
-    this.moveTemporaryFiles(order).catch((err: Error) => {
-      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, err.message);
-    });
+    // 임시 파일 → 정식 경로 이동 (동기 처리하여 temp 경로가 DB에 남지 않도록 함)
+    try {
+      await this.moveTemporaryFiles(order);
+    } catch (err) {
+      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, (err as Error).message);
+    }
 
     // 매출원장 자동 등록 (await로 동기 처리하여 누락 방지)
     try {
@@ -2187,7 +2192,7 @@ export class OrderService {
         if (!companyName) {
           throw new Error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
         }
-        const { orderDir, movedFiles } = this.fileStorage.moveToOrderDir(
+        const { orderDir, movedFiles } = await this.fileStorage.moveToOrderDir(
           tempFolderId,
           order.orderNumber,
           companyName,
@@ -2340,6 +2345,52 @@ export class OrderService {
     });
 
     return { message: `${failedItems.length}건의 PDF 재생성을 시작합니다.` };
+  }
+
+  /**
+   * 깨진 썸네일 복구: temp URL을 가리키거나 파일이 존재하지 않는 썸네일을 원본에서 재생성
+   */
+  async repairBrokenThumbnails() {
+    // temp URL이 남아있는 파일들 조회
+    const brokenFiles = await this.prisma.orderFile.findMany({
+      where: {
+        OR: [
+          { thumbnailUrl: { contains: '/temp/' } },
+          { thumbnailUrl: null },
+          { thumbnailUrl: '' },
+        ],
+        originalPath: { not: null },
+      },
+      select: { id: true, originalPath: true, thumbnailUrl: true, fileName: true },
+    });
+
+    let repaired = 0;
+    let failed = 0;
+
+    for (const file of brokenFiles) {
+      if (!file.originalPath || !existsSync(file.originalPath)) continue;
+
+      const thumbDir = join(dirname(file.originalPath), '..', 'thumbnails');
+      try {
+        const thumbPath = await this.thumbnailService.generateThumbnail(
+          file.originalPath,
+          thumbDir,
+          file.fileName,
+        );
+        await this.prisma.orderFile.update({
+          where: { id: file.id },
+          data: {
+            thumbnailUrl: this.fileStorage.toRelativeUrl(thumbPath),
+            thumbnailPath: thumbPath,
+          },
+        });
+        repaired++;
+      } catch {
+        failed++;
+      }
+    }
+
+    return { total: brokenFiles.length, repaired, failed };
   }
 
   /**
