@@ -100,8 +100,7 @@ export default function CartPage() {
   const canSelectItem = (itemId: string) => {
     const item = items.find((i) => i.id === itemId);
     if (!item) return false;
-    if (item.albumOrderInfo?.shippingInfo) return true;
-    return isShippingComplete(item.shippingInfo);
+    return isShippingComplete(item.albumOrderInfo?.shippingInfo || item.shippingInfo);
   };
 
   const selectableCount = items.filter((item) => canSelectItem(item.id)).length;
@@ -177,6 +176,11 @@ export default function CartPage() {
       deliveryMemo: shipping.deliveryMemo,
     };
     updateItemShipping(itemId, cartShipping);
+    // 앨범 아이템이면 albumOrderInfo.shippingInfo도 동기화
+    const cartItem = items.find((i) => i.id === itemId);
+    if (cartItem?.albumOrderInfo) {
+      updateAlbumInfo(itemId, { shippingInfo: cartShipping });
+    }
     if (isShippingComplete(cartShipping) && !selectedItems.includes(itemId)) {
       setSelectedItems((prev) => [...prev, itemId]);
     }
@@ -437,7 +441,7 @@ export default function CartPage() {
             />
 
             {/* Global Shipping */}
-            {items.filter((i) => !i.albumOrderInfo?.shippingInfo).length > 1 && (
+            {items.length > 1 && (
               <CartGlobalShipping
                 companyInfo={companyInfo}
                 clientInfo={clientInfo}
@@ -470,10 +474,8 @@ export default function CartPage() {
                         foundPrevShipping = true;
                       }
                     }
-                    const noShippingCount = items.filter((i) => !i.albumOrderInfo?.shippingInfo).length;
-
                     return items.map((item, idx) => {
-                      const hasPrevShipping = !item.albumOrderInfo?.shippingInfo && (hasPrevShippingMap.get(idx) ?? false);
+                      const hasPrevShipping = hasPrevShippingMap.get(idx) ?? false;
                       return (
                         <CartItemCard
                           key={item.id}
@@ -490,7 +492,7 @@ export default function CartPage() {
                             hasPrevShipping ? () => handleCopyFromPrevious(item.id) : null
                           }
                           isCombinedShipping={combinedShippingIds.has(item.id)}
-                          itemsCount={noShippingCount}
+                          itemsCount={items.length}
                           companyInfo={companyInfo}
                           clientInfo={clientInfo}
                           pricingMap={pricingMap}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
@@ -183,8 +183,15 @@ export function FolderShippingSection({
     deliveryMemo, calculateDeliveryFee, onChange,
   ]);
 
+  // 초기 마운트 시 emit 방지 (사용자 조작 없이 배송정보가 자동 설정되는 문제)
+  const isFirstRender = useRef(true);
+
   // 상태 변경 시 자동 emit
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     emitChange();
   }, [senderType, receiverType, deliveryMethod, fareType, directRecipientName, directPhone, directPhone2, directPostalCode, directAddress, directAddressDetail, deliveryMemo, studioTotal]);
 

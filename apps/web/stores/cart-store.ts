@@ -418,6 +418,27 @@ export const useCartStore = create<CartState>()(
       storage: createCartStorage(),
       onRehydrateStorage: () => (state) => {
         if (!state) return;
+        const VALID_DELIVERY_METHODS = ['parcel', 'motorcycle', 'freight', 'pickup', 'damas'];
+        // deliveryMethod 정규화: 알 수 없는 값은 'parcel'로 교체
+        state.items = state.items.map((item) => {
+          let changed = false;
+          let newItem = item;
+          if (item.shippingInfo && !VALID_DELIVERY_METHODS.includes(item.shippingInfo.deliveryMethod)) {
+            newItem = { ...newItem, shippingInfo: { ...newItem.shippingInfo!, deliveryMethod: 'parcel' } };
+            changed = true;
+          }
+          if (item.albumOrderInfo?.shippingInfo && !VALID_DELIVERY_METHODS.includes(item.albumOrderInfo.shippingInfo.deliveryMethod)) {
+            newItem = {
+              ...newItem,
+              albumOrderInfo: {
+                ...newItem.albumOrderInfo!,
+                shippingInfo: { ...newItem.albumOrderInfo!.shippingInfo!, deliveryMethod: 'parcel' },
+              },
+            };
+            changed = true;
+          }
+          return changed ? newItem : item;
+        });
         // 업로드 미완료(pending/uploading/failed/cancelled) + 서버파일 없는 앨범 아이템 자동 제거
         const invalidItems = state.items.filter(
           (item) =>

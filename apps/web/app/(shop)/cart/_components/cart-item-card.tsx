@@ -47,6 +47,7 @@ const DELIVERY_METHODS = [
   { value: 'freight', label: '화물' },
   { value: 'motorcycle', label: '오토바이퀵' },
   { value: 'pickup', label: '방문수령' },
+  { value: 'damas', label: '다마스' },
 ] as const;
 
 const getDeliveryMethodLabel = (method: string) =>
@@ -270,9 +271,16 @@ export function CartItemCard({
     setIsSwiping(false);
   };
 
-  const hasAlbumShipping = !!item.albumOrderInfo?.shippingInfo;
-  const itemShipping = item.shippingInfo;
-  const shippingComplete = hasAlbumShipping || isShippingComplete(itemShipping);
+  const itemShipping = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
+  const shippingComplete = isShippingComplete(itemShipping);
+
+  // 문제 4: 아코디언 배송 완료 시 자동 닫힘
+  const [accordionOpen, setAccordionOpen] = useState<string>('');
+  useEffect(() => {
+    if (shippingComplete) {
+      setAccordionOpen('');
+    }
+  }, [shippingComplete]);
 
   return (
     <div ref={setNodeRef} style={style} className="relative overflow-hidden lg:overflow-visible">
@@ -293,7 +301,7 @@ export function CartItemCard({
           'max-sm:rounded-none max-sm:border-x-0 max-sm:-mx-4',
           isSelected && 'ring-2 ring-primary/25 border-primary/20 bg-primary/[0.015]',
           !isSelected && !isDragging && 'hover:shadow-md hover:border-gray-300',
-          !hasShipping && !hasAlbumShipping && 'border-orange-300 bg-orange-50/30',
+          !hasShipping && 'border-orange-300 bg-orange-50/30',
           isDragging && 'shadow-xl scale-[1.02] z-50'
         )}
         style={{
@@ -530,31 +538,7 @@ export function CartItemCard({
                   </div>
                 )}
 
-                {/* Album shipping info badge */}
-                {hasAlbumShipping && item.albumOrderInfo?.shippingInfo && (
-                  <div className="mt-1.5">
-                    <div className="text-[11px] text-blue-600 bg-blue-50 rounded-md px-2 py-1 inline-flex items-center gap-1">
-                      <Truck className="h-3 w-3" />
-                      <span>
-                        {getDeliveryMethodLabel(item.albumOrderInfo.shippingInfo.deliveryMethod)}
-                      </span>
-                      <span>·</span>
-                      <span>
-                        {item.albumOrderInfo.shippingInfo.receiverType === 'orderer'
-                          ? '스튜디오'
-                          : '고객직배송'}
-                      </span>
-                      <span>·</span>
-                      <span>
-                        {isCombinedShipping
-                          ? '무료(묶음배송)'
-                          : item.albumOrderInfo.shippingInfo.deliveryFee === 0
-                          ? '무료'
-                          : `${item.albumOrderInfo.shippingInfo.deliveryFee.toLocaleString()}원`}
-                      </span>
-                    </div>
-                  </div>
-                )}
+                {/* Album shipping info badge removed - unified into accordion below */}
               </div>
 
               {/* Delete button */}
@@ -737,12 +721,13 @@ export function CartItemCard({
           </div>
         )}
 
-        {/* Shipping section (non-album items) */}
-        {!hasAlbumShipping && (
-          <div className="border-t border-gray-100">
+        {/* Shipping section (all items) */}
+        <div className="border-t border-gray-100">
             <Accordion
               type="single"
               collapsible
+              value={accordionOpen}
+              onValueChange={setAccordionOpen}
             >
               <AccordionItem value={item.id} className="border-0">
                 <AccordionTrigger className="px-4 py-3 hover:bg-gray-50/50 hover:no-underline">
@@ -919,7 +904,6 @@ export function CartItemCard({
               </AccordionItem>
             </Accordion>
           </div>
-        )}
 
         {/* Thumbnail gallery */}
         {item.thumbnailUrls && item.thumbnailUrls.length > 1 && (

@@ -228,6 +228,19 @@ export class ProductService {
         }));
     }
 
+    // outputPriceSettings 기반으로 용지 필터링 (인디고 전용 상품에서 잉크젯 용지, 반대의 경우도 숨김)
+    if (outputSettings && Array.isArray(outputSettings) && outputSettings.length > 0) {
+      const hasIndigo = outputSettings.some((s: any) => s.outputMethod === 'INDIGO');
+      const hasInkjet = outputSettings.some((s: any) => s.outputMethod === 'INKJET');
+
+      (product as any).papers = product.papers.filter((pp: any) => {
+        const printMethod = pp.printMethod as string;
+        if (hasIndigo && !hasInkjet) return printMethod === 'indigo';
+        if (hasInkjet && !hasIndigo) return printMethod === 'inkjet';
+        return true;
+      });
+    }
+
     // outputPriceSettings 내 paperPriceGroupMap의 마스터 Paper ID → 이름 매핑 추가
     const outputSettingsForPaperMap = product.outputPriceSettings as any[];
     if (outputSettingsForPaperMap && Array.isArray(outputSettingsForPaperMap)) {

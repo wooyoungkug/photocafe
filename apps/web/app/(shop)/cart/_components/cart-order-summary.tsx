@@ -15,6 +15,7 @@ const DELIVERY_METHOD_LABELS: Record<string, string> = {
   motorcycle: '오토바이퀵',
   freight: '화물',
   pickup: '방문수령',
+  damas: '다마스',
 };
 
 interface CartOrderSummaryProps {
