@@ -287,9 +287,9 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
   // 펼침면에서 첫장은 왼쪽반만 검사, 막장은 오른쪽반만 검사
   // "." 한 글자라도 있으면 페이지로 인식
   const detectBlankPage = useCallback(
-    async (source: HTMLImageElement | File | string, region: 'full' | 'left' | 'right' = 'full'): Promise<boolean> => {
+    async (source: HTMLImageElement | HTMLCanvasElement | File | string, region: 'full' | 'left' | 'right' = 'full'): Promise<boolean> => {
       return new Promise((resolve) => {
-        const analyze = (img: HTMLImageElement) => {
+        const analyze = (img: HTMLImageElement | HTMLCanvasElement) => {
           const SAMPLE_SIZE = 200;
           const canvas = document.createElement('canvas');
           canvas.width = SAMPLE_SIZE;
@@ -297,8 +297,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
           const ctx = canvas.getContext('2d')!;
 
           // 영역에 따라 소스 이미지의 해당 부분만 캔버스에 그림
-          const srcW = img.naturalWidth;
-          const srcH = img.naturalHeight;
+          const srcW = img instanceof HTMLCanvasElement ? img.width : img.naturalWidth;
+          const srcH = img instanceof HTMLCanvasElement ? img.height : img.naturalHeight;
 
           if (region === 'left') {
             // 왼쪽 반만 추출하여 캔버스에 그림
@@ -342,7 +342,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
           resolve(darkRatio >= BLANK_RATIO || lightRatio >= BLANK_RATIO);
         };
 
-        if (source instanceof HTMLImageElement) {
+        if (source instanceof HTMLImageElement || source instanceof HTMLCanvasElement) {
           analyze(source);
         } else if (typeof source === 'string') {
           // Data URL 또는 URL 문자열
@@ -351,18 +351,24 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
           img.onerror = () => resolve(false);
           img.src = source;
         } else {
-          // File인 경우 Image로 로드
-          const img = new Image();
-          const url = URL.createObjectURL(source);
-          img.onload = () => {
-            URL.revokeObjectURL(url);
-            analyze(img);
-          };
-          img.onerror = () => {
-            URL.revokeObjectURL(url);
-            resolve(false); // 에러 시 콘텐츠가 있다고 간주
-          };
-          img.src = url;
+          // File인 경우: TIFF는 utif2로 디코딩, 그 외는 Image로 로드
+          if (isTiffFile(source)) {
+            decodeTiffToCanvas(source).then(({ canvas }) => {
+              analyze(canvas);
+            }).catch(() => resolve(false));
+          } else {
+            const img = new Image();
+            const url = URL.createObjectURL(source);
+            img.onload = () => {
+              URL.revokeObjectURL(url);
+              analyze(img);
+            };
+            img.onerror = () => {
+              URL.revokeObjectURL(url);
+              resolve(false);
+            };
+            img.src = url;
+          }
         }
       });
     },
@@ -463,6 +469,24 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     []
   );
 
+  // 이미지 소스 로드 (TIFF는 utif2 디코딩, 그 외는 브라우저 네이티브)
+  const loadImageSource = useCallback(
+    async (file: File): Promise<HTMLImageElement | HTMLCanvasElement> => {
+      if (isTiffFile(file)) {
+        const { canvas } = await decodeTiffToCanvas(file);
+        return canvas;
+      }
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        const url = URL.createObjectURL(file);
+        img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+        img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+        img.src = url;
+      });
+    },
+    []
+  );
+
   // 첫막장 합본 분리 함수 (Canvas 기반)
   const splitCombinedCover = useCallback(
     async (
@@ -472,12 +496,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       dpi: number,
       folderPath: string
     ): Promise<{ frontCover: UploadedFile; backCover: UploadedFile }> => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(file);
-
-        img.onload = () => {
-          URL.revokeObjectURL(url);
+      try {
+        const source = await loadImageSource(file);
 
           const halfWidth = Math.floor(widthPx / 2);
 
@@ -486,14 +506,14 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
           leftCanvas.width = halfWidth;
           leftCanvas.height = heightPx;
           const leftCtx = leftCanvas.getContext('2d')!;
-          leftCtx.drawImage(img, 0, 0, halfWidth, heightPx, 0, 0, halfWidth, heightPx);
+          leftCtx.drawImage(source, 0, 0, halfWidth, heightPx, 0, 0, halfWidth, heightPx);
 
           // 오른쪽 반 추출
           const rightCanvas = document.createElement('canvas');
           rightCanvas.width = widthPx - halfWidth;
           rightCanvas.height = heightPx;
           const rightCtx = rightCanvas.getContext('2d')!;
-          rightCtx.drawImage(img, halfWidth, 0, widthPx - halfWidth, heightPx, 0, 0, widthPx - halfWidth, heightPx);
+          rightCtx.drawImage(source, halfWidth, 0, widthPx - halfWidth, heightPx, 0, 0, widthPx - halfWidth, heightPx);
 
           // 빈 페이지 생성
           const blankCanvas = document.createElement('canvas');
@@ -530,7 +550,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
             fileName: `${file.name.replace(/\.[^.]+$/, '')}_첫장.jpg`,
             filePath: folderPath,
             fileSize: file.size / 2,
-            pageNumber: 1, // 맨 앞
+            pageNumber: 1,
             widthPx,
             heightPx,
             dpi,
@@ -551,7 +571,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
             fileName: `${file.name.replace(/\.[^.]+$/, '')}_막장.jpg`,
             filePath: folderPath,
             fileSize: file.size / 2,
-            pageNumber: 999, // 맨 뒤 (나중에 재정렬)
+            pageNumber: 999,
             widthPx,
             heightPx,
             dpi,
@@ -567,17 +587,14 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
             status: 'PENDING',
           };
 
-          resolve({ frontCover, backCover });
-        };
-
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
+          return { frontCover, backCover };
+      } catch {
           // 에러 시 기본 파일 반환
           const widthInch = Math.round((widthPx / dpi) * 10) / 10;
           const heightInch = Math.round((heightPx / dpi) * 10) / 10;
           const baseId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-          resolve({
+          return {
             frontCover: {
               id: `${baseId}-front`,
               file,
@@ -610,13 +627,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
               coverType: 'BACK_COVER',
               status: 'PENDING',
             },
-          });
-        };
-
-        img.src = url;
-      });
+          };
+      }
     },
-    []
+    [loadImageSource]
   );
 
   // 반폭 표지 확장 함수 (Canvas 기반)
@@ -642,78 +656,65 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         };
       }
 
-      return new Promise((resolve) => {
-        const img = new Image();
-        const url = URL.createObjectURL(uploadedFile.file!);
+      try {
+        const source = await loadImageSource(uploadedFile.file!);
 
-        img.onload = () => {
-          URL.revokeObjectURL(url);
+        const originalWidthPx = uploadedFile.widthPx;
+        const heightPx = uploadedFile.heightPx;
+        const blankWidthPx = targetWidthPx - originalWidthPx;
 
-          const originalWidthPx = uploadedFile.widthPx;
-          const heightPx = uploadedFile.heightPx;
-          const blankWidthPx = targetWidthPx - originalWidthPx;
+        // 빈 페이지 생성 (흰색)
+        const blankCanvas = document.createElement('canvas');
+        blankCanvas.width = blankWidthPx;
+        blankCanvas.height = heightPx;
+        const blankCtx = blankCanvas.getContext('2d')!;
+        blankCtx.fillStyle = '#FFFFFF';
+        blankCtx.fillRect(0, 0, blankWidthPx, heightPx);
 
-          // 빈 페이지 생성 (흰색)
-          const blankCanvas = document.createElement('canvas');
-          blankCanvas.width = blankWidthPx;
-          blankCanvas.height = heightPx;
-          const blankCtx = blankCanvas.getContext('2d')!;
-          blankCtx.fillStyle = '#FFFFFF';
-          blankCtx.fillRect(0, 0, blankWidthPx, heightPx);
+        // 확장된 이미지 생성
+        const extendedCanvas = document.createElement('canvas');
+        extendedCanvas.width = targetWidthPx;
+        extendedCanvas.height = heightPx;
+        const extendedCtx = extendedCanvas.getContext('2d')!;
 
-          // 확장된 이미지 생성
-          const extendedCanvas = document.createElement('canvas');
-          extendedCanvas.width = targetWidthPx;
-          extendedCanvas.height = heightPx;
-          const extendedCtx = extendedCanvas.getContext('2d')!;
+        if (uploadedFile.coverType === 'FRONT_COVER') {
+          extendedCtx.drawImage(blankCanvas, 0, 0);
+          extendedCtx.drawImage(source, blankWidthPx, 0);
+        } else {
+          extendedCtx.drawImage(source, 0, 0);
+          extendedCtx.drawImage(blankCanvas, originalWidthPx, 0);
+        }
 
-          if (uploadedFile.coverType === 'FRONT_COVER') {
-            // 첫장: [빈영역 | 원본이미지]
-            extendedCtx.drawImage(blankCanvas, 0, 0);
-            extendedCtx.drawImage(img, blankWidthPx, 0);
-          } else {
-            // 막장: [원본이미지 | 빈영역]
-            extendedCtx.drawImage(img, 0, 0);
-            extendedCtx.drawImage(blankCanvas, originalWidthPx, 0);
-          }
+        const ratio = calculateNormalizedRatio(targetWidthInch, uploadedFile.heightInch);
 
-          const ratio = calculateNormalizedRatio(targetWidthInch, uploadedFile.heightInch);
-
-          resolve({
-            ...uploadedFile,
-            widthPx: targetWidthPx,
-            widthInch: targetWidthInch,
-            ratio,
-            isExtended: true,
-            extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
-            originalWidthPx: uploadedFile.widthPx,
-            originalWidthInch: uploadedFile.widthInch,
-            canvasDataUrl: extendedCanvas.toDataURL('image/jpeg', 0.95),
-            thumbnailUrl: generateThumbnail(extendedCanvas, targetWidthPx, uploadedFile.heightPx),
-            status: 'EXACT',
-            message: uploadedFile.coverType === 'FRONT_COVER'
-              ? '첫장 확장 (왼쪽 빈영역 추가)'
-              : '막장 확장 (오른쪽 빈영역 추가)',
-          });
+        return {
+          ...uploadedFile,
+          widthPx: targetWidthPx,
+          widthInch: targetWidthInch,
+          ratio,
+          isExtended: true,
+          extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
+          originalWidthPx: uploadedFile.widthPx,
+          originalWidthInch: uploadedFile.widthInch,
+          canvasDataUrl: extendedCanvas.toDataURL('image/jpeg', 0.95),
+          thumbnailUrl: generateThumbnail(extendedCanvas, targetWidthPx, uploadedFile.heightPx),
+          status: 'EXACT' as const,
+          message: uploadedFile.coverType === 'FRONT_COVER'
+            ? '첫장 확장 (왼쪽 빈영역 추가)'
+            : '막장 확장 (오른쪽 빈영역 추가)',
         };
-
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          // 에러 시 메타데이터만 변경
-          resolve({
-            ...uploadedFile,
-            widthPx: targetWidthPx,
-            widthInch: targetWidthInch,
-            isExtended: true,
-            extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
-            originalWidthPx: uploadedFile.widthPx,
-            originalWidthInch: uploadedFile.widthInch,
-            status: 'EXACT',
-          });
+      } catch {
+        return {
+          ...uploadedFile,
+          widthPx: targetWidthPx,
+          widthInch: targetWidthInch,
+          isExtended: true,
+          extendPosition: uploadedFile.coverType === 'FRONT_COVER' ? 'left' : 'right',
+          originalWidthPx: uploadedFile.widthPx,
+          originalWidthInch: uploadedFile.widthInch,
+          status: 'EXACT' as const,
         };
-
-        img.src = url;
-      });
+      }
     },
     []
   );
