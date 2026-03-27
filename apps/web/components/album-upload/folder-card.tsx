@@ -560,6 +560,26 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     printType,
   } = useMultiFolderUploadStore();
 
+  // printMethod가 없으면 availablePapers 기반으로 자동 설정
+  useEffect(() => {
+    if (folder.printMethod || availablePapers.length === 0) return;
+    const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
+    const defaultMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
+    const defaultColorMode: '4c' | '6c' = '4c';
+    const filteredPapers = availablePapers.filter(p => {
+      if (p.printMethod !== defaultMethod) return false;
+      if (p.printMethod === 'indigo') return p.isActive4 !== false;
+      return p.isActive !== false;
+    });
+    const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
+    updateFolder(folder.id, {
+      printMethod: defaultMethod,
+      colorMode: defaultColorMode,
+      selectedPaperId: defaultPaper?.id || null,
+      selectedPaperName: defaultPaper?.name || null,
+    });
+  }, [folder.id, folder.printMethod, availablePapers, updateFolder]);
+
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
   const filteredPapersForFolder = useMemo(() => {
     if (!folder.printMethod || availablePapers.length === 0) return [];
@@ -1317,11 +1337,11 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             )}
           </div>
           {/* 출력방법 · 용지 */}
-          {folder.printMethod && (
+          {(folder.printMethod || availablePapers.length > 0) && (
             <div className="flex items-center gap-1 flex-wrap text-[10px] text-gray-500 mt-1 mb-1">
               <span className="text-xs text-black">출력</span>
               <select
-                value={folder.printMethod === 'inkjet' ? 'inkjet' : `${folder.printMethod}_${folder.colorMode || '4c'}`}
+                value={folder.printMethod === 'inkjet' ? 'inkjet' : `${folder.printMethod || 'indigo'}_${folder.colorMode || '4c'}`}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === 'inkjet') {
