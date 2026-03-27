@@ -334,7 +334,22 @@ export class ProductService {
   async update(id: string, dto: UpdateProductDto) {
     await this.findOne(id);
 
-    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, categoryId, ...productData } = dto;
+    const { specifications, bindings, papers, covers, foils, finishings, outputPriceSettings, fabricIds, categoryId, ...rest } = dto;
+
+    // Product 모델에 존재하는 스칼라 필드만 추출 (Prisma 유효성 검증 에러 방지)
+    const productData: Record<string, any> = {};
+    const allowedFields = [
+      'productCode', 'productName', 'isActive', 'isNew', 'isBest', 'memberType',
+      'basePrice', 'thumbnailUrl', 'detailImages', 'description', 'sortOrder',
+      'bindingDirection', 'printType', 'colorType', 'requiresUpload',
+      'useCopperPlate', 'hasCoverFabric', 'showOrderMemo', 'showBinding',
+      'showCover', 'showCustomOptions', 'showFinishing', 'productType',
+    ];
+    for (const key of allowedFields) {
+      if (rest[key] !== undefined) {
+        productData[key] = rest[key];
+      }
+    }
 
     // 기존 옵션들 삭제
     if (specifications !== undefined) {
@@ -417,10 +432,15 @@ export class ProductService {
         ...(categoryId && { category: { connect: { id: categoryId } } }),
         ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
         specifications: specifications !== undefined && specifications.length > 0
-          ? { create: specifications }
+          ? { create: specifications.map(({ specificationId, name, widthMm, heightMm, price, isDefault, sortOrder }) => ({
+              name, widthMm, heightMm, price, isDefault, sortOrder,
+              ...(specificationId ? { specificationId } : {}),
+            })) }
           : undefined,
         bindings: bindings !== undefined && bindings.length > 0
-          ? { create: bindings }
+          ? { create: bindings.map(({ name, price, isDefault, sortOrder, productionSettingId, pricingType }) => ({
+              name, price, isDefault, sortOrder, productionSettingId, pricingType,
+            })) }
           : undefined,
         papers: syncedPapers !== undefined && syncedPapers.length > 0
           ? {
@@ -431,13 +451,19 @@ export class ProductService {
             }
           : undefined,
         covers: covers !== undefined && covers.length > 0
-          ? { create: covers }
+          ? { create: covers.map(({ name, price, isDefault, sortOrder }) => ({
+              name, price, isDefault, sortOrder,
+            })) }
           : undefined,
         foils: foils !== undefined && foils.length > 0
-          ? { create: foils }
+          ? { create: foils.map(({ name, color, price, isDefault, sortOrder }) => ({
+              name, color, price, isDefault, sortOrder,
+            })) }
           : undefined,
         finishings: finishings !== undefined && finishings.length > 0
-          ? { create: finishings }
+          ? { create: finishings.map(({ name, productionGroupId, price, isDefault, sortOrder }) => ({
+              name, productionGroupId, price, isDefault, sortOrder,
+            })) }
           : undefined,
         fabrics: fabricIds !== undefined && fabricIds.length > 0
           ? { create: fabricIds.map((fabricId, idx) => ({ fabricId, sortOrder: idx })) }
