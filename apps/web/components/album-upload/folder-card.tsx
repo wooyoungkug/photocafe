@@ -991,12 +991,33 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       }}
                     >
                       {thumbUrl ? (
-                        <img src={thumbUrl} alt={file.fileName} className="absolute inset-0 w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <div className="absolute inset-0 w-full h-full bg-gray-100 flex items-center justify-center">
-                          <span className="text-6xl font-black text-gray-300">X</span>
-                        </div>
-                      )}
+                        <img
+                          src={thumbUrl}
+                          alt={file.fileName}
+                          className="absolute inset-0 w-full h-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            const img = e.currentTarget;
+                            // 서버 상대경로인 경우 API base URL 붙여서 재시도
+                            const apiBase = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/api\/v1\/?$/, '');
+                            if (apiBase && img.src && !img.dataset.retried && !thumbUrl.startsWith('data:')) {
+                              img.dataset.retried = 'true';
+                              img.src = thumbUrl.startsWith('http') ? thumbUrl : `${apiBase}${thumbUrl}`;
+                              return;
+                            }
+                            // 재시도도 실패하면 fallback UI 표시
+                            img.style.display = 'none';
+                            const fallback = img.parentElement?.querySelector('.thumb-fallback');
+                            if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div
+                        className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center"
+                        style={{ display: thumbUrl ? 'none' : 'flex' }}
+                      >
+                        <span className="text-[14px] text-gray-400">{file.fileName}</span>
+                      </div>
                       {folder.pageLayout === 'spread' ? (() => {
                         const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
                         return (

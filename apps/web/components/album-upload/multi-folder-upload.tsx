@@ -2223,7 +2223,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
           </div>
 
           <div className="space-y-3">
-            {folders.map((folder) => (
+            {[...folders].reverse().map((folder) => (
               <div
                 key={folder.id}
                 id={`folder-card-${folder.id}`}
