@@ -84,7 +84,7 @@ export function CartOrderSummary({
               <div className="flex justify-between text-[11px] text-gray-400 pt-0.5 border-t border-gray-100">
                 <span>배송</span>
                 <span className="font-medium">
-                  {sameDayInfo.shippingType === 'prepaid' ? '무료' : sameDayInfo.shippingType === 'cod' ? '착불배송' : sameDayInfo.shippingType ?? '-'}
+                  {sameDayInfo.shippingType === 'prepaid' ? '직배송' : sameDayInfo.shippingType === 'cod' ? '착불배송' : sameDayInfo.shippingType ?? '-'}
                 </span>
               </div>
             </div>
