@@ -153,6 +153,8 @@ export interface UploadedFile {
 
   // 썸네일 (리사이즈된 작은 이미지)
   thumbnailUrl?: string;
+  // 서버 썸네일 URL (복원 시 사용)
+  serverThumbnailUrl?: string;
 
   // 반폭 표지 확장 정보 (빈영역 추가)
   isExtended?: boolean; // 확장 여부

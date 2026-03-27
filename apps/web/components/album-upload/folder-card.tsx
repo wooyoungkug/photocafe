@@ -930,7 +930,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           {(() => {
             // 썸네일 1개 렌더링 함수
             const renderThumbnail = (file: typeof folder.files[0], index: number) => {
-              const thumbUrl = file.thumbnailUrl;
+              const thumbUrl = file.thumbnailUrl || file.serverThumbnailUrl;
               const aspectRatio = file.widthPx > 0 && file.heightPx > 0
                 ? (file.heightPx / file.widthPx) * 100
                 : 133;

@@ -192,16 +192,22 @@ export function useImmediateUpload(productId: string) {
         });
 
         // 업로드 완료 후 File 객체 메모리 해제
+        // 썸네일은 서버 생성이 비동기(fire-and-forget)이므로 기존 data URL 유지
         const { folders } = useMultiFolderUploadStore.getState();
         const folder = folders.find(f => f.id === item.folderId);
         if (folder) {
-          const clearedFiles = folder.files.map(f => ({
-            ...f,
-            file: undefined,
-            canvasDataUrl: undefined,
-            // 서버 썸네일 URL로 교체
-            thumbnailUrl: f.thumbnailUrl || serverFiles.find(sf => sf.sortOrder === f.pageNumber)?.thumbnailUrl,
-          }));
+          const clearedFiles = folder.files.map(f => {
+            const serverThumbUrl = serverFiles.find(sf => sf.sortOrder === f.pageNumber)?.thumbnailUrl;
+            return {
+              ...f,
+              file: undefined,
+              canvasDataUrl: undefined,
+              // 기존 data URL 썸네일을 우선 유지, 없을 때만 서버 URL 사용
+              thumbnailUrl: f.thumbnailUrl || serverThumbUrl,
+              // 서버 썸네일 URL 별도 보관 (복원 시 사용)
+              serverThumbnailUrl: serverThumbUrl,
+            };
+          });
           useMultiFolderUploadStore.getState().updateFolder(item.folderId, { files: clearedFiles });
         }
       }
