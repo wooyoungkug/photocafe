@@ -33,7 +33,8 @@ export async function decodeTiffToCanvas(file: File): Promise<{
     throw new Error('Canvas 2D 컨텍스트를 생성할 수 없습니다.');
   }
 
-  const imageData = new ImageData(new Uint8ClampedArray(rgba.buffer), width, height);
+  const clampedArray = new Uint8ClampedArray(rgba.buffer as ArrayBuffer);
+  const imageData = new ImageData(clampedArray, width, height);
   ctx.putImageData(imageData, 0, 0);
 
   return { canvas, width, height };
