@@ -654,14 +654,14 @@ export default function OrderDetailPage() {
                                     * 원본 파일 삭제됨 - 썸네일만 표시됩니다
                                   </p>
                                 )}
-                                <div className="flex flex-wrap gap-2">
+                                <div className={item.pageLayout === 'spread' ? 'grid grid-cols-4 gap-1' : 'flex flex-wrap gap-2'}>
                                   {(item.pageLayout === 'spread' ? thumbnailFiles.slice(0, 4) : thumbnailFiles).map((file, idx) => {
                                     const isSpread = file.width > 0 && file.height > 0 && file.width > file.height;
                                     return (
                                     <div
                                       key={file.id}
                                       className="relative rounded-md overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 hover:shadow-md transition-all group"
-                                      style={{ width: isSpread ? 'calc(25% - 6px)' : 'calc(12.5% - 7px)' }}
+                                      style={item.pageLayout !== 'spread' ? { width: isSpread ? 'calc(25% - 6px)' : 'calc(12.5% - 7px)' } : undefined}
                                       onClick={() => openPreview(thumbnailFiles, idx, item.productName)}
                                     >
                                       <img
