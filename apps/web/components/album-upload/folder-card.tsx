@@ -1550,7 +1550,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             if (!isSpecCompatible) {
               return (
                 <div className="text-[11px] text-orange-600 font-medium">
-                  ⚠ 해당 규격은 {folder.printMethod === 'indigo' ? '인디고' : '잉크젯'} 출력 단가가 없습니다
+                  ⚠ 해당규격은 {folder.printMethod === 'indigo' ? '인디고' : '잉크젯'}출력 범위에 없습니다.
                 </div>
               );
             }
