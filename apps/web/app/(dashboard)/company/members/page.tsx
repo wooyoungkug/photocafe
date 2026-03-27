@@ -1544,6 +1544,7 @@ function MembersPageContent() {
                   clientName={editingMember.clientName}
                   groupId={editingMember.groupId}
                   groupName={editingMember.group?.groupName}
+                  onSaveComplete={handleSubmit}
                 />
               )}
             </TabsContent>

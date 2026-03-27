@@ -1596,6 +1596,64 @@ export default function ProductionSettingPage() {
   };
 
   const handleSelectGroup = (group: ProductionGroup) => {
+    const depth = group.depth || 1;
+    const hasChildren = group.children && group.children.length > 0;
+
+    // 리프가 아닌 그룹 클릭 시: 펼치고 첫 번째 세팅이 있는 리프로 자동 이동
+    if (depth < 3 && hasChildren) {
+      // 해당 그룹과 하위 경로를 모두 펼침
+      const findFirstLeafWithSettings = (g: ProductionGroup, pathIds: string[]): { leaf: ProductionGroup; path: string[] } | null => {
+        const currentPath = [...pathIds, g.id];
+        // 세팅이 있는 노드면 바로 선택
+        if (g.settings && g.settings.length > 0) {
+          return { leaf: g, path: currentPath };
+        }
+        // 자식 탐색
+        if (g.children) {
+          for (const child of g.children) {
+            const result = findFirstLeafWithSettings(child, currentPath);
+            if (result) return result;
+          }
+        }
+        return null;
+      };
+
+      const result = findFirstLeafWithSettings(group, []);
+      if (result) {
+        // 경로상의 모든 그룹을 펼침
+        setExpandedIds((prev) => {
+          const next = new Set(prev);
+          // 아코디언: 같은 레벨의 다른 최상위 그룹 접기
+          const isTopLevel = groupTree?.some(g => g.id === group.id);
+          if (isTopLevel) {
+            groupTree?.forEach(g => {
+              if (g.id !== group.id && next.has(g.id)) {
+                next.delete(g.id);
+              }
+            });
+          }
+          result.path.forEach(id => next.add(id));
+          return next;
+        });
+        setSelectedGroup(result.leaf);
+        return;
+      }
+      // 세팅 있는 리프가 없으면 그냥 펼치기만
+      setExpandedIds((prev) => {
+        const next = new Set(prev);
+        const isTopLevel = groupTree?.some(g => g.id === group.id);
+        if (isTopLevel) {
+          groupTree?.forEach(g => {
+            if (g.id !== group.id && next.has(g.id)) {
+              next.delete(g.id);
+            }
+          });
+        }
+        next.add(group.id);
+        return next;
+      });
+    }
+
     setSelectedGroup(group);
   };
 

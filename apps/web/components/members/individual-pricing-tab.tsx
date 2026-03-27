@@ -70,6 +70,7 @@ interface IndividualPricingTabProps {
   clientName: string;
   groupId?: string;
   groupName?: string;
+  onSaveComplete?: () => void;
 }
 
 // 트리 노드 컴포넌트
@@ -200,7 +201,7 @@ function TreeNode({
   );
 }
 
-export function IndividualPricingTab({ clientId, clientName, groupId, groupName }: IndividualPricingTabProps) {
+export function IndividualPricingTab({ clientId, clientName, groupId, groupName, onSaveComplete }: IndividualPricingTabProps) {
   const searchParams = useSearchParams();
   const [selectedProductionGroupId, setSelectedProductionGroupId] = useState<string | null>(null);
   const [selectedSettingId, setSelectedSettingId] = useState<string | null>(null);
@@ -455,6 +456,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
         });
         return next;
       });
+      // 저장 완료 후 자동으로 회원정보 수정(다이얼로그 닫기) 실행
+      onSaveComplete?.();
     } catch {
       toast({ title: '저장 실패', description: '개별단가 저장에 실패했습니다.', variant: 'destructive' });
     } finally {
@@ -1398,6 +1401,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
                       }
                     });
                     toast({ title: '잉크젯 개별단가가 저장되었습니다.' });
+                    onSaveComplete?.();
                   }}>
                   {isSaving ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1.5" />}
                   저장
