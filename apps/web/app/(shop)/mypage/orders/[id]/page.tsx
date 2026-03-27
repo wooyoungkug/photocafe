@@ -142,6 +142,7 @@ interface OrderDetail {
     addressDetail?: string;
     creditEnabled?: boolean;
     paymentCondition?: string;
+    shippingType?: string;
   };
   shipping: {
     receiverType?: string;
@@ -915,8 +916,12 @@ export default function OrderDetailPage() {
                   </div>
                 )}
                 <div className="flex justify-between">
-                  <span className="text-gray-500">배송비{deliveryLabel ? ` (${deliveryLabel})` : ''}</span>
-                  {shippingFeeAmount > 0 ? (
+                  <span className="text-gray-500">
+                    {order.client.shippingType === 'prepaid' ? '배송형태' : `배송비${deliveryLabel ? ` (${deliveryLabel})` : ''}`}
+                  </span>
+                  {order.client.shippingType === 'prepaid' ? (
+                    <span className="font-medium">직배송</span>
+                  ) : shippingFeeAmount > 0 ? (
                     <span>{shippingFeeAmount.toLocaleString()}원</span>
                   ) : (
                     <span className="text-green-600 font-medium">무료배송</span>
