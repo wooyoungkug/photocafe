@@ -327,7 +327,7 @@ export class PricingService {
                   productionSettingId: { in: settingIds },
                   OR: finishingOR,
                 },
-                select: { pricePerPage: true, basePrice: true, productionSettingId: true },
+                select: { price: true, pricePerPage: true, basePrice: true, productionSettingId: true },
               });
             }
 
@@ -344,7 +344,7 @@ export class PricingService {
                     productionSettingId: { in: settingIds },
                     OR: finishingOR,
                   },
-                  select: { pricePerPage: true, basePrice: true, productionSettingId: true },
+                  select: { price: true, pricePerPage: true, basePrice: true, productionSettingId: true },
                 });
               }
             }
@@ -361,7 +361,9 @@ export class PricingService {
             }
 
             if (finishingPriceRecord) {
-              postProcessingPrice += Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
+              // 개별/그룹 단가에서는 price 필드가 실제 설정된 단가, pricePerPage는 표준 참조값
+              const unitPrice = Number(finishingPriceRecord.price) || Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
+              postProcessingPrice += unitPrice;
               if (!postProcessingSettingId) postProcessingSettingId = finishingPriceRecord.productionSettingId;
               if (f.name) postProcessingNames.push(f.name);
               continue;
@@ -837,7 +839,7 @@ export class PricingService {
                 productionSettingId: { in: settingIds },
                 OR: finishingOR,
               },
-              select: { pricePerPage: true, basePrice: true },
+              select: { price: true, pricePerPage: true, basePrice: true },
             });
           }
 
@@ -854,7 +856,7 @@ export class PricingService {
                   productionSettingId: { in: settingIds },
                   OR: finishingOR,
                 },
-                select: { pricePerPage: true, basePrice: true },
+                select: { price: true, pricePerPage: true, basePrice: true },
               });
             }
           }
@@ -871,7 +873,8 @@ export class PricingService {
           }
 
           if (finishingPriceRecord) {
-            const perPage = Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
+            // 개별/그룹 단가에서는 price 필드가 실제 설정된 단가, pricePerPage는 표준 참조값
+            const perPage = Number(finishingPriceRecord.price) || Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
             postProcessingPrice += perPage * billingPageCount;
             if (f.name) postProcessingNames.push(f.name);
             continue;
