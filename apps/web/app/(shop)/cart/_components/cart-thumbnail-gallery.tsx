@@ -143,7 +143,7 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
               </span>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-3 pt-0">
-              <div className="grid grid-cols-4 gap-2 p-2 bg-gray-50 rounded-lg border">
+              <div className="grid grid-cols-3 gap-2 p-2 bg-gray-50 rounded-lg border">
                 {spreads.map((spread, spreadIdx) => {
                   const leftIdx = spread.left.type === 'page' ? spread.left.fileIndex : null;
                   const rightIdx = spread.right.type === 'page' ? spread.right.fileIndex : null;
@@ -198,7 +198,7 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
             </span>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-3 pt-0">
-            <div className="grid gap-1.5 p-2 bg-gray-50 rounded-lg border grid-cols-4">
+            <div className="grid gap-1.5 p-2 bg-gray-50 rounded-lg border grid-cols-3">
               {thumbnailUrls.map((url, idx) => renderThumbnail(url, idx))}
             </div>
           </AccordionContent>
