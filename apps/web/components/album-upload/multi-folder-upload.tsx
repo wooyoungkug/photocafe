@@ -1252,12 +1252,39 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
 
       const items = e.dataTransfer.items;
       const folderEntries: FileSystemDirectoryEntry[] = [];
+      const looseFileEntries: FileSystemFileEntry[] = [];
 
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry?.();
         if (entry?.isDirectory) {
           folderEntries.push(entry as FileSystemDirectoryEntry);
+        } else if (entry?.isFile) {
+          // 이미지 파일만 수집
+          const file = e.dataTransfer.files[i];
+          if (file && /\.(jpe?g|png|tiff?)$/i.test(file.name)) {
+            looseFileEntries.push(entry as FileSystemFileEntry);
+          }
         }
+      }
+
+      // 폴더도 파일도 없으면 안내 표시
+      if (folderEntries.length === 0 && looseFileEntries.length === 0) {
+        setUploading(false);
+        toast({ title: '업로드 불가', description: '이미지 파일(JPG, PNG, TIFF) 또는 폴더를 드래그해주세요.', variant: 'destructive' });
+        return;
+      }
+
+      // 파일만 드롭한 경우 → 모바일과 동일하게 폴더명 입력 다이얼로그
+      if (folderEntries.length === 0 && looseFileEntries.length > 0) {
+        setUploading(false);
+        const droppedFiles: File[] = [];
+        for (const fileEntry of looseFileEntries) {
+          const file = await new Promise<File>((resolve) => fileEntry.file(resolve));
+          droppedFiles.push(file);
+        }
+        setPendingMobileFiles(droppedFiles);
+        setShowMobileFolderNameDialog(true);
+        return;
       }
 
       const allFolders: { entry: FileSystemDirectoryEntry; fullPath: string; depth: number }[] = [];
