@@ -644,9 +644,11 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   }, [folder.selectedPaperId, availablePapers]);
 
   // DB 기반 앨범 페이지 단가 조회 (용지 ID로 용지그룹별 단가 매칭, 로그인 거래처의 개별/그룹 단가 적용)
+  // 출력방식 비호환 규격이면 단가 조회 스킵 (예: 인디고에 잉크젯 전용 규격)
+  const isSpecCompatible = specCompatibility.compatible;
   const { data: albumPriceData, isFetching: isPriceFetching } = useAlbumPagePrice(
-    productionSettingId,
-    folder.specificationId,
+    isSpecCompatible ? productionSettingId : undefined,
+    isSpecCompatible ? folder.specificationId : undefined,
     folder.colorMode || '6c',
     resolvedPrintSide,
     bindingProductionSettingId,
@@ -1543,6 +1545,15 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             const postPrice = folderPrice.postProcessingPrice;
             const totalPrice = folderPrice.totalPrice;
             const unitPrice = folderPrice.unitPrice;
+
+            // 출력방식 비호환 규격이면 단가 표시 대신 에러
+            if (!isSpecCompatible) {
+              return (
+                <div className="text-[11px] text-orange-600 font-medium">
+                  ⚠ 해당 규격은 {folder.printMethod === 'indigo' ? '인디고' : '잉크젯'} 출력 단가가 없습니다
+                </div>
+              );
+            }
 
             if (!hasAllPrices) {
               // productionSettingId 또는 specificationId가 아직 로드되지 않았으면 로딩 표시
