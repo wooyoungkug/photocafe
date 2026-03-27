@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
-import { FileStorageService } from '@/modules/upload/services/file-storage.service';
+import { FileStorageService, getUploadBasePath } from '@/modules/upload/services/file-storage.service';
 import { PdfGeneratorService } from '@/modules/upload/services/pdf-generator.service';
 import { ThumbnailService } from '@/modules/upload/services/thumbnail.service';
 import { Prisma } from '@prisma/client';
@@ -2173,78 +2173,84 @@ export class OrderService {
   // ==================== 파일 관리 ====================
 
   /**
-   * 임시 파일을 정식 주문 경로로 이동
+   * 임시 파일을 정식 주문 경로로 이동 (아이템별 독립 처리)
    */
-  private async moveTemporaryFiles(order: any, retryCount = 0): Promise<void> {
-    const MAX_RETRIES = 2;
-    try {
-      for (const item of order.items) {
-        if (!item.files?.length) continue;
+  private async moveTemporaryFiles(order: any): Promise<void> {
+    const MAX_RETRIES = 3;
 
-        const firstFile = item.files[0];
-        if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
+    for (const item of order.items) {
+      if (!item.files?.length) continue;
 
-        const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
-        if (urlParts.length < 2) continue;
-        const tempFolderId = urlParts[1].split('/')[0];
+      const firstFile = item.files[0];
+      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
 
-        const companyName = order.client?.clientName;
-        if (!companyName) {
-          throw new Error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
-        }
-        const { orderDir, movedFiles } = await this.fileStorage.moveToOrderDir(
-          tempFolderId,
-          order.orderNumber,
-          companyName,
-        );
+      const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
+      if (urlParts.length < 2) continue;
+      const tempFolderId = urlParts[1].split('/')[0];
 
-        // 배치 업데이트: N+1 → 단일 트랜잭션
-        const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
-        for (const moved of movedFiles) {
-          const matchingFile = item.files.find(
-            (f: any) => {
-              const decodedUrl = decodeURIComponent(f.fileUrl);
-              return decodedUrl.includes(moved.fileName) || f.fileUrl.includes(moved.fileName);
-            },
+      const companyName = order.client?.clientName;
+      if (!companyName) {
+        this.logger.error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
+        continue;
+      }
+
+      // 아이템별 재시도
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const { movedFiles } = await this.fileStorage.moveToOrderDir(
+            tempFolderId,
+            order.orderNumber,
+            companyName,
           );
-          if (matchingFile) {
-            updates.push({
-              id: matchingFile.id,
-              fileUrl: this.fileStorage.toRelativeUrl(moved.original),
-              originalPath: moved.original,
-              thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
-              thumbnailPath: moved.thumbnail || null,
-            });
+
+          const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
+          for (const moved of movedFiles) {
+            const matchingFile = item.files.find(
+              (f: any) => {
+                const decodedUrl = decodeURIComponent(f.fileUrl);
+                return decodedUrl.includes(moved.fileName) || f.fileUrl.includes(moved.fileName);
+              },
+            );
+            if (matchingFile) {
+              updates.push({
+                id: matchingFile.id,
+                fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+                originalPath: moved.original,
+                thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
+                thumbnailPath: moved.thumbnail || null,
+              });
+            }
+          }
+
+          // 배치 업데이트
+          const BATCH_SIZE = 50;
+          for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+            const batch = updates.slice(i, i + BATCH_SIZE);
+            await this.prisma.$transaction(
+              batch.map(u =>
+                this.prisma.orderFile.update({
+                  where: { id: u.id },
+                  data: {
+                    fileUrl: u.fileUrl,
+                    originalPath: u.originalPath,
+                    thumbnailUrl: u.thumbnailUrl,
+                    thumbnailPath: u.thumbnailPath,
+                    storageStatus: 'uploaded',
+                  },
+                })
+              )
+            );
+          }
+          break; // 성공 시 재시도 루프 탈출
+        } catch (err) {
+          if (attempt < MAX_RETRIES - 1) {
+            this.logger.warn(`파일 이동 재시도 ${attempt + 1}/${MAX_RETRIES} (주문: ${order.orderNumber}): ${(err as Error).message}`);
+            await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          } else {
+            this.logger.error(`파일 이동 최종 실패 (주문: ${order.orderNumber}, 아이템: ${item.id}):`, (err as Error).message);
           }
         }
-
-        // 50개씩 배치 처리
-        const BATCH_SIZE = 50;
-        for (let i = 0; i < updates.length; i += BATCH_SIZE) {
-          const batch = updates.slice(i, i + BATCH_SIZE);
-          await this.prisma.$transaction(
-            batch.map(u =>
-              this.prisma.orderFile.update({
-                where: { id: u.id },
-                data: {
-                  fileUrl: u.fileUrl,
-                  originalPath: u.originalPath,
-                  thumbnailUrl: u.thumbnailUrl,
-                  thumbnailPath: u.thumbnailPath,
-                  storageStatus: 'uploaded',
-                },
-              })
-            )
-          );
-        }
       }
-    } catch (err) {
-      if (retryCount < MAX_RETRIES) {
-        this.logger.warn(`임시 파일 이동 재시도 (${retryCount + 1}/${MAX_RETRIES}): ${(err as Error).message}`);
-        await new Promise(r => setTimeout(r, 2000 * (retryCount + 1)));
-        return this.moveTemporaryFiles(order, retryCount + 1);
-      }
-      throw err;
     }
   }
 
@@ -2348,11 +2354,17 @@ export class OrderService {
   }
 
   /**
-   * 깨진 썸네일 복구: temp URL을 가리키거나 파일이 존재하지 않는 썸네일을 원본에서 재생성
+   * 깨진 파일/썸네일 복구:
+   * 1) originalPath 존재 + 썸네일 없음 → 썸네일 재생성
+   * 2) fileUrl이 /temp/ 경로 → temp 원본이 있으면 이동 재시도, 없으면 DB 정리(null)
    */
   async repairBrokenThumbnails() {
-    // temp URL이 남아있는 파일들 조회
-    const brokenFiles = await this.prisma.orderFile.findMany({
+    let repaired = 0;
+    let failed = 0;
+    let cleaned = 0;
+
+    // Case 1: 원본 파일 있고 썸네일만 깨진 경우 → 썸네일 재생성
+    const brokenThumbFiles = await this.prisma.orderFile.findMany({
       where: {
         OR: [
           { thumbnailUrl: { contains: '/temp/' } },
@@ -2364,33 +2376,91 @@ export class OrderService {
       select: { id: true, originalPath: true, thumbnailUrl: true, fileName: true },
     });
 
-    let repaired = 0;
-    let failed = 0;
-
-    for (const file of brokenFiles) {
+    for (const file of brokenThumbFiles) {
       if (!file.originalPath || !existsSync(file.originalPath)) continue;
-
       const thumbDir = join(dirname(file.originalPath), '..', 'thumbnails');
       try {
-        const thumbPath = await this.thumbnailService.generateThumbnail(
-          file.originalPath,
-          thumbDir,
-          file.fileName,
-        );
+        const thumbPath = await this.thumbnailService.generateThumbnail(file.originalPath, thumbDir, file.fileName);
         await this.prisma.orderFile.update({
           where: { id: file.id },
-          data: {
-            thumbnailUrl: this.fileStorage.toRelativeUrl(thumbPath),
-            thumbnailPath: thumbPath,
-          },
+          data: { thumbnailUrl: this.fileStorage.toRelativeUrl(thumbPath), thumbnailPath: thumbPath },
         });
         repaired++;
-      } catch {
-        failed++;
+      } catch { failed++; }
+    }
+
+    // Case 2: fileUrl이 /temp/ 경로인 파일 → 파일 이동 미완료
+    const tempUrlFiles = await this.prisma.orderFile.findMany({
+      where: { fileUrl: { contains: '/temp/' } },
+      select: { id: true, fileUrl: true, thumbnailUrl: true, fileName: true, orderItemId: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    if (tempUrlFiles.length > 0) {
+      // orderItemId별로 그룹핑하여 주문별 처리
+      const byItem = new Map<string, typeof tempUrlFiles>();
+      for (const f of tempUrlFiles) {
+        const list = byItem.get(f.orderItemId) || [];
+        list.push(f);
+        byItem.set(f.orderItemId, list);
+      }
+
+      for (const [orderItemId, files] of byItem) {
+        // temp 원본 경로 확인
+        const firstUrl = files[0].fileUrl;
+        const tempParts = firstUrl.replace(/\\/g, '/').split('/temp/');
+        if (tempParts.length < 2) continue;
+        const tempFolderId = tempParts[1].split('/')[0];
+        const tempOrigDir = join(getUploadBasePath(), 'temp', tempFolderId, 'originals');
+
+        if (!existsSync(tempOrigDir)) {
+          // temp 폴더 삭제됨 → DB의 fileUrl/thumbnailUrl을 빈 값으로 정리
+          for (const f of files) {
+            await this.prisma.orderFile.update({
+              where: { id: f.id },
+              data: { storageStatus: 'missing' },
+            });
+            cleaned++;
+          }
+          continue;
+        }
+
+        // temp 원본이 아직 존재 → 이동 재시도
+        const orderItem = await this.prisma.orderItem.findUnique({
+          where: { id: orderItemId },
+          select: {
+            order: { select: { orderNumber: true, client: { select: { clientName: true } } } },
+          },
+        });
+        if (!orderItem?.order?.client?.clientName) { failed += files.length; continue; }
+
+        try {
+          const { movedFiles } = await this.fileStorage.moveToOrderDir(
+            tempFolderId,
+            orderItem.order.orderNumber,
+            orderItem.order.client.clientName,
+          );
+          for (const moved of movedFiles) {
+            const matchingFile = files.find(f => decodeURIComponent(f.fileUrl).includes(moved.fileName) || f.fileUrl.includes(moved.fileName));
+            if (matchingFile) {
+              await this.prisma.orderFile.update({
+                where: { id: matchingFile.id },
+                data: {
+                  fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+                  originalPath: moved.original,
+                  thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : null,
+                  thumbnailPath: moved.thumbnail || null,
+                  storageStatus: 'uploaded',
+                },
+              });
+              repaired++;
+            }
+          }
+        } catch { failed += files.length; }
       }
     }
 
-    return { total: brokenFiles.length, repaired, failed };
+    return { total: brokenThumbFiles.length + tempUrlFiles.length, repaired, failed, cleaned };
   }
 
   /**

@@ -232,7 +232,7 @@ export class PricingService {
           OR: bindingPriceOR,
         },
       });
-      if (clientBindingPrice && (Number(clientBindingPrice.basePrice) || Number(clientBindingPrice.pricePerPage))) {
+      if (clientBindingPrice && (Number(clientBindingPrice.basePrice) || Number(clientBindingPrice.pricePerPage) || clientBindingPrice.rangePrices)) {
         bindingBasePrice = Number(clientBindingPrice.basePrice) || 0;
         bindingPricePerPage = Number(clientBindingPrice.pricePerPage) || 0;
         bindingRangePrices = clientBindingPrice.rangePrices as Record<string, number> | null;
@@ -255,7 +255,7 @@ export class PricingService {
             OR: bindingPriceOR,
           },
         });
-        if (groupBindingPrice && (Number(groupBindingPrice.basePrice) || Number(groupBindingPrice.pricePerPage))) {
+        if (groupBindingPrice && (Number(groupBindingPrice.basePrice) || Number(groupBindingPrice.pricePerPage) || groupBindingPrice.rangePrices)) {
           bindingBasePrice = Number(groupBindingPrice.basePrice) || 0;
           bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
           bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;

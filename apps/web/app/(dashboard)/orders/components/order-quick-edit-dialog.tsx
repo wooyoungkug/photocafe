@@ -20,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Order, useOrder, useAdjustOrder } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
 import { ImageIcon, Save, Loader2, FolderOpen, FileText, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, normalizeImageUrl } from '@/lib/utils';
 
 // ==================== 편집스타일 / 제본순서 라벨 ====================
 
@@ -126,7 +126,7 @@ function AdaptiveThumbnail({
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
   const [imgSrc, setImgSrc] = useState<string | null>(
-    file.thumbnailUrl || file.fileUrl || null
+    normalizeImageUrl(file.thumbnailUrl) || normalizeImageUrl(file.fileUrl) || null
   );
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -146,8 +146,10 @@ function AdaptiveThumbnail({
 
   const handleImageError = () => {
     // thumbnailUrl 실패 시 fileUrl로 폴백, fileUrl도 실패 시 포기
-    if (imgSrc === file.thumbnailUrl && file.fileUrl) {
-      setImgSrc(file.fileUrl);
+    const normalizedThumb = normalizeImageUrl(file.thumbnailUrl);
+    const normalizedFile = normalizeImageUrl(file.fileUrl);
+    if (imgSrc === normalizedThumb && normalizedFile) {
+      setImgSrc(normalizedFile);
     } else {
       setImgSrc(null);
     }
@@ -621,7 +623,7 @@ export function OrderQuickEditDialog({
                             <div className="flex gap-2">
                               <div className="w-16 h-16 rounded border bg-white overflow-hidden relative shrink-0">
                                 <Image
-                                  src={item.thumbnailUrl}
+                                  src={normalizeImageUrl(item.thumbnailUrl)}
                                   alt={item.folderName || item.productName}
                                   fill
                                   className="object-cover"
