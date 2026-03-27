@@ -71,6 +71,25 @@ export function CartOrderSummary({
         </CardHeader>
 
         <CardContent className="space-y-4">
+          {/* 금일 총주문금액 (prepaid/cod 등 비조건부 거래처) */}
+          {!sameDayInfo?.applicable && sameDayInfo && sameDayInfo.totalProductAmount > 0 && (
+            <div className="rounded-lg p-3 space-y-1.5 text-xs bg-gray-50 border border-gray-200">
+              <div className="flex items-center gap-1.5 font-medium text-gray-600">
+                <CalendarDays className="w-3.5 h-3.5 text-gray-500" />
+                <span>금일 총주문금액</span>
+                <span className="ml-auto font-semibold text-gray-800">
+                  {sameDayInfo.totalProductAmount.toLocaleString()}원
+                </span>
+              </div>
+              <div className="flex justify-between text-[11px] text-gray-400 pt-0.5 border-t border-gray-100">
+                <span>배송</span>
+                <span className="font-medium">
+                  {sameDayInfo.shippingType === 'prepaid' ? '무료' : sameDayInfo.shippingType === 'cod' ? '착불배송' : sameDayInfo.shippingType ?? '-'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* 스튜디오배송 주문합계 (조건부 무료배송 거래처) */}
           {sameDayInfo?.applicable && (() => {
             const prevTotal = sameDayInfo.totalProductAmount;

@@ -11,6 +11,8 @@ export interface SameDayOrderWithFee {
 
 export interface SameDayShippingInfo {
   applicable: boolean;
+  /** 거래처 배송 유형: 'conditional' | 'prepaid' | 'cod' | 기타 */
+  shippingType: string | null;
   totalProductAmount: number;
   totalShippingCharged: number;
   /** 원래 청구된 배송비 총액 (환불 전) */

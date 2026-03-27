@@ -91,10 +91,8 @@ export default function CartPage() {
   // Shipping data
   const { companyInfo, clientInfo, pricingMap } = useShippingData();
 
-  // 당일 합배송 현황 (스튜디오 배송 거래처에만 표시)
-  const { data: sameDayInfo } = useSameDayShipping(
-    clientInfo?.shippingType === 'conditional' ? clientInfo.id : null,
-  );
+  // 당일 주문현황 (conditional: 조건부무료배송 진행바, prepaid/cod: 금일 총주문금액만 표시)
+  const { data: sameDayInfo } = useSameDayShipping(clientInfo?.id ?? null);
 
   // --- Helpers ---
   const canSelectItem = (itemId: string) => {

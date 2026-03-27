@@ -2732,15 +2732,16 @@ export class OrderService {
       select: { shippingType: true, freeShippingThreshold: true, pendingAdjustmentAmount: true, pendingAdjustmentReason: true } as any,
     }) as { shippingType: string; freeShippingThreshold: number; pendingAdjustmentAmount: any; pendingAdjustmentReason: string | null } | null;
 
-    if (!client || client.shippingType !== 'conditional') {
+    if (!client) {
       return {
         applicable: false,
+        shippingType: null,
         totalProductAmount: 0,
         totalShippingCharged: 0,
         freeThreshold: 90000,
         ordersWithFee: [],
-        pendingAdjustmentAmount: Number((client as any)?.pendingAdjustmentAmount ?? 0),
-        pendingAdjustmentReason: (client as any)?.pendingAdjustmentReason ?? null,
+        pendingAdjustmentAmount: 0,
+        pendingAdjustmentReason: null,
       };
     }
 
@@ -2783,24 +2784,35 @@ export class OrderService {
           totalShippingCharged += fee;
           ordersWithFee.push({ orderId: order.id, orderNumber: order.orderNumber, shippingFee: fee });
         }
-        // 이미 적용된 조정금액 합산 (배송비 환급으로 이미 처리된 금액)
         totalAdjustmentApplied += Number(order.adjustmentAmount);
       }
     }
 
-    // 이미 적용된 조정금액을 차감하여 실제 미환급 배송비만 반환
-    // (중복 공제 방지: 이전 주문에서 adjustmentAmount로 이미 환급된 경우 0으로 처리)
-    const netShippingCharged = Math.max(0, totalShippingCharged - totalAdjustmentApplied);
+    // conditional 거래처: 조건부 무료배송 로직 전체 반환
+    if (client.shippingType === 'conditional') {
+      const netShippingCharged = Math.max(0, totalShippingCharged - totalAdjustmentApplied);
+      return {
+        applicable: true,
+        shippingType: client.shippingType,
+        totalProductAmount,
+        totalShippingCharged: netShippingCharged,
+        totalShippingOriginal: totalShippingCharged,
+        totalShippingRefunded: Math.min(totalAdjustmentApplied, totalShippingCharged),
+        ordersWithFee,
+        freeThreshold: (client as any).freeShippingThreshold ?? 90000,
+        pendingAdjustmentAmount: Number((client as any).pendingAdjustmentAmount ?? 0),
+        pendingAdjustmentReason: (client as any).pendingAdjustmentReason ?? null,
+      };
+    }
 
+    // 그 외 거래처(prepaid/cod 등): 금일 총주문금액만 반환 (배송비 무관)
     return {
-      applicable: true,
+      applicable: false,
+      shippingType: client.shippingType,
       totalProductAmount,
-      totalShippingCharged: netShippingCharged,
-      // 환불 상세: 원래 청구된 배송비 vs 이미 환불된 금액
-      totalShippingOriginal: totalShippingCharged,
-      totalShippingRefunded: Math.min(totalAdjustmentApplied, totalShippingCharged),
-      ordersWithFee,
-      freeThreshold: (client as any).freeShippingThreshold ?? 90000,
+      totalShippingCharged: 0,
+      freeThreshold: 0,
+      ordersWithFee: [],
       pendingAdjustmentAmount: Number((client as any).pendingAdjustmentAmount ?? 0),
       pendingAdjustmentReason: (client as any).pendingAdjustmentReason ?? null,
     };
