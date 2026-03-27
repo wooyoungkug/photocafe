@@ -36,7 +36,7 @@ export class PricingService {
   async getAlbumPagePrice(
     clientId: string | null,
     dto: GetAlbumPagePriceDto,
-  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; bindingPriceSource: string | null; bindingGroupName: string | null; postProcessingPrice: number; postProcessingSettingId: string | null; postProcessingNames: string[]; postProcessingPriceSource: string | null; postProcessingGroupName: string | null }> {
+  ): Promise<{ pricePerPage: number; bindingBasePrice: number; bindingPricePerPage: number; bindingRangePrices: Record<string, number> | null; coverPrice: number; missingReason: string | null; billingExtraPages: number; nup: string | null; priceSource: string | null; groupName: string | null; groupId: string | null; bindingPriceSource: string | null; bindingGroupName: string | null; bindingGroupId: string | null; postProcessingPrice: number; postProcessingSettingId: string | null; postProcessingNames: string[]; postProcessingPriceSource: string | null; postProcessingGroupName: string | null; postProcessingGroupId: string | null }> {
     const { productionSettingId, specificationId, colorMode, pageLayout } = dto;
     // 출력 단가는 productionSettingId, 제본 단가는 bindingProductionSettingId 사용
     const bindingPsId = dto.bindingProductionSettingId || productionSettingId;
