@@ -123,6 +123,7 @@ import { calculateNormalizedRatio, formatFileSize, readImageDpi } from '@/lib/al
 import { useShippingData } from '@/hooks/use-shipping-data';
 
 import { detectImageColorSpace } from '@/lib/image-color-detection';
+import { decodeTiffToCanvas, isTiffFile } from '@/lib/tiff-decoder';
 const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
 const MAX_DEPTH = 4;
 
@@ -844,6 +845,68 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       // 컬러 스페이스 감지
       const colorSpace = await detectImageColorSpace(file);
 
+      // TIFF 파일은 브라우저가 네이티브로 렌더링 불가 → utif2로 디코딩
+      if (isTiffFile(file)) {
+        try {
+          const { canvas, width, height } = await decodeTiffToCanvas(file);
+          const widthInch = Math.round((width / dpi) * 10) / 10;
+          const heightInch = Math.round((height / dpi) * 10) / 10;
+          const ratio = calculateNormalizedRatio(widthInch, heightInch);
+          const coverType = detectCoverType(file.name);
+
+          // 첫막장 합본인 경우 분리
+          if (coverType === 'COMBINED_COVER' && pageLayout === 'spread') {
+            const splitResult = await splitCombinedCover(
+              file, width, height, dpi, folderPath
+            );
+            return { split: true, ...splitResult } as { split: true; frontCover: UploadedFile; backCover: UploadedFile };
+          }
+
+          const { thumbnailUrl, colorInfo } = generateThumbnailAndColor(canvas, width, height, coverType);
+          const canvasDataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+          return {
+            id: `${Date.now()}-${pageNumber}-${Math.random().toString(36).substr(2, 9)}`,
+            file,
+            fileName: file.name,
+            filePath: folderPath,
+            fileSize: file.size,
+            pageNumber,
+            widthPx: width,
+            heightPx: height,
+            dpi,
+            widthInch,
+            heightInch,
+            ratio,
+            coverType,
+            thumbnailUrl,
+            canvasDataUrl,
+            colorInfo,
+            colorSpace,
+            status: 'PENDING',
+          } as UploadedFile;
+        } catch {
+          return {
+            id: `${Date.now()}-${pageNumber}-${Math.random().toString(36).substr(2, 9)}`,
+            file,
+            fileName: file.name,
+            filePath: folderPath,
+            fileSize: file.size,
+            pageNumber,
+            widthPx: 0,
+            heightPx: 0,
+            dpi,
+            widthInch: 0,
+            heightInch: 0,
+            ratio: 0,
+            coverType: 'INNER_PAGE' as CoverType,
+            colorSpace,
+            status: 'PENDING' as const,
+          } as UploadedFile;
+        }
+      }
+
+      // JPG/PNG: 브라우저 네이티브 Image 로딩
       return new Promise((resolve) => {
         const img = new Image();
         const url = URL.createObjectURL(file);

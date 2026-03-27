@@ -70,6 +70,7 @@
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
     "tinymce": "^8.3.2",
+    "utif2": "^4.1.0",
     "zod": "^4.3.6",
     "zustand": "^5.0.10"
   },

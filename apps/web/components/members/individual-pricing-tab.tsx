@@ -289,7 +289,13 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
           const upKey = cp.nupKey || cp.minQuantity || '';
           map.set(`${cp.productionSettingId}_${cp.priceGroupId}_${upKey}`, cp);
         } else {
-          map.set(`${cp.productionSettingId}_${cp.minQuantity || ''}_${cp.specificationId || ''}`, cp);
+          const mqKey = cp.minQuantity || '';
+          const specKey = cp.specificationId || '';
+          if (!mqKey && !specKey) {
+            map.set(`${cp.productionSettingId}__base`, cp);
+          } else {
+            map.set(`${cp.productionSettingId}_${mqKey}_${specKey}`, cp);
+          }
         }
       });
     }
@@ -307,8 +313,13 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName 
           const upKey = gp.nupKey || gp.minQuantity || '';
           map.set(`${gp.productionSettingId}_${gp.priceGroupId}_${upKey}`, gp);
         } else {
-          map.set(`${gp.productionSettingId}_${gp.minQuantity || ''}_${gp.specificationId || ''}`, gp);
-        }
+          const mqKey = gp.minQuantity || '';
+          const specKey = gp.specificationId || '';
+          if (!mqKey && !specKey) {
+            map.set(`${gp.productionSettingId}__base`, gp);
+          } else {
+            map.set(`${gp.productionSettingId}_${mqKey}_${specKey}`, gp);
+          }
       });
     }
     return map;
