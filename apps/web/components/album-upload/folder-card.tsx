@@ -1630,9 +1630,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 : '표준단가';
               const settingParam = targetSettingId ? `&settingId=${targetSettingId}` : '';
               const groupParam = gId ? `groupId=${gId}` : '';
+              const stdParam = targetSettingId ? `?settingId=${targetSettingId}` : '';
               const href = src === 'client' ? `/company/members?edit=${user?.clientId}&tab=pricing${settingParam}`
                 : src === 'group' ? `/pricing/group?${groupParam}${settingParam}`
-                : '/pricing/production';
+                : `/pricing/production${stdParam}`;
               return isAdminImpersonating() ? (
                 <Link href={href} target="_blank" className={cn(badgeCls, "cursor-pointer hover:underline")}>{lbl}</Link>
               ) : (

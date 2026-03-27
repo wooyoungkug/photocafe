@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus,
   ChevronDown,
@@ -484,6 +484,23 @@ function findGroupInTree(groups: ProductionGroup[], id: string): ProductionGroup
     }
   }
   return null;
+}
+
+// 트리에서 settingId로 해당 설정과 부모 그룹을 찾는 헬퍼 함수
+function findSettingAndGroupInTree(groups: ProductionGroup[], settingId: string): { group: ProductionGroup; ancestorIds: string[] } | null {
+  function search(groups: ProductionGroup[], ancestors: string[]): { group: ProductionGroup; ancestorIds: string[] } | null {
+    for (const group of groups) {
+      if (group.settings?.some((s: any) => s.id === settingId)) {
+        return { group, ancestorIds: ancestors };
+      }
+      if (group.children?.length) {
+        const found = search(group.children, [...ancestors, group.id]);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  return search(groups, []);
 }
 
 // 트리 노드 컴포넌트
@@ -1097,6 +1114,8 @@ export default function ProductionSettingPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [selectedGroup, setSelectedGroup] = useState<ProductionGroup | null>(null);
+  const [pendingAutoOpenSettingId, setPendingAutoOpenSettingId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
 
   // 클라이언트 마운트 체크 (hydration 오류 방지)
   useEffect(() => {
@@ -1318,6 +1337,22 @@ export default function ProductionSettingPage() {
       }
     }
   }, [groupTree]);
+
+  // URL settingId 파라미터로 해당 설정 다이얼로그 자동 열기 (Step 1: 그룹 선택 + 트리 확장)
+  useEffect(() => {
+    const settingId = searchParams.get('settingId');
+    if (!settingId || !groupTree) return;
+    const result = findSettingAndGroupInTree(groupTree, settingId);
+    if (result) {
+      setExpandedIds(prev => {
+        const next = new Set(prev);
+        result.ancestorIds.forEach(id => next.add(id));
+        return next;
+      });
+      setSelectedGroup(result.group);
+      setPendingAutoOpenSettingId(settingId);
+    }
+  }, [groupTree, searchParams]);
 
   // 그룹 다이얼로그 제목/설명용 부모 그룹 depth 캐싱
   const parentGroupDepth = useMemo(() => {
@@ -1967,6 +2002,17 @@ export default function ProductionSettingPage() {
     }
     setIsSettingDialogOpen(true);
   };
+
+  // URL settingId 자동 열기 (Step 2: handleOpenSettingDialog 정의 이후에 등록)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!pendingAutoOpenSettingId || !selectedGroup) return;
+    const setting = selectedGroup.settings?.find((s: any) => s.id === pendingAutoOpenSettingId);
+    if (setting) {
+      setPendingAutoOpenSettingId(null);
+      handleOpenSettingDialog(setting as any);
+    }
+  }, [selectedGroup, pendingAutoOpenSettingId]);
 
   const handleSaveSetting = async () => {
     try {
