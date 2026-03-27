@@ -750,7 +750,7 @@ export default function OrderDetailPage() {
                   <MapPin className="h-4 w-4 text-gray-400 mt-1" />
                   <div>
                     <p className="text-gray-500">배송 주소</p>
-                    <p className="font-normal">
+                    <p className="font-normal select-none">
                       [{order.shipping.postalCode}] {order.shipping.address}{' '}
                       {order.shipping.addressDetail}
                     </p>
