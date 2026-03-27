@@ -62,6 +62,30 @@ export class UploadController {
         return { basePath, cwd: process.cwd(), dirs };
     }
 
+    @Public()
+    @Get('debug/deep-ls')
+    @ApiOperation({ summary: '특정 경로 깊이 탐색 (임시)' })
+    debugDeepLs(@Param() _params: any, @Res() res: Response) {
+        const basePath = getUploadBasePath();
+        const result: Record<string, string[]> = {};
+        const walk = (dir: string, prefix: string, depth: number) => {
+            if (depth > 4) return;
+            try {
+                const entries = readdirSync(dir);
+                result[prefix] = entries.slice(0, 20);
+                for (const entry of entries.slice(0, 5)) {
+                    const sub = join(dir, entry);
+                    try {
+                        readdirSync(sub);
+                        walk(sub, `${prefix}/${entry}`, depth + 1);
+                    } catch { /* not a dir */ }
+                }
+            } catch { /* ignore */ }
+        };
+        walk(join(basePath, 'orders'), 'orders', 0);
+        return res.json({ basePath, tree: result });
+    }
+
     // ==================== 앨범 원본 파일 업로드 ====================
 
     @Public()
@@ -600,5 +624,25 @@ export class UploadController {
             fs.rmSync(dir, { recursive: true, force: true });
         }
         return { message: '수리 임시 파일이 삭제되었습니다.' };
+    }
+
+    // ==================== 주문/수리 파일 직접 서빙 (static middleware fallback) ====================
+
+    @Public()
+    @Get('serve/*')
+    @ApiOperation({ summary: '업로드 파일 직접 서빙 (orders/repairs/temp 등 한글 경로 지원)' })
+    serveUploadFile(@Param() params: any, @Res() res: Response) {
+        // Express wildcard: params[0] contains the full path after 'serve/'
+        const rawPath: string = params[0] || '';
+        // 경로 탐색 방지
+        const decoded = decodeURIComponent(rawPath);
+        if (decoded.includes('..') || decoded.includes('\0')) {
+            return res.status(400).json({ message: '잘못된 경로입니다.' });
+        }
+        const filePath = join(getUploadBasePath(), decoded);
+        if (!existsSync(filePath)) {
+            return res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
+        }
+        return res.sendFile(filePath);
     }
 }
