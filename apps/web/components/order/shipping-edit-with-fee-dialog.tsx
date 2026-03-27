@@ -141,6 +141,10 @@ export function ShippingEditWithFeeDialog({
       toast({ title: '수령인 이름을 입력해주세요.', variant: 'destructive' });
       return;
     }
+    if (!form.phone.trim()) {
+      toast({ title: '전화번호를 입력해주세요.', variant: 'destructive' });
+      return;
+    }
     if (!form.address.trim()) {
       toast({ title: '수령인 주소를 입력해주세요.', variant: 'destructive' });
       return;
@@ -287,7 +291,7 @@ export function ShippingEditWithFeeDialog({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[12px]">전화번호</Label>
+                  <Label className="text-[12px]">전화번호 *</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => set('phone', formatPhone(e.target.value))}

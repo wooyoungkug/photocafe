@@ -97,6 +97,10 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
       toast({ title: '수령인 이름을 입력해주세요.', variant: 'destructive' });
       return;
     }
+    if (!form.phone.trim()) {
+      toast({ title: '전화번호를 입력해주세요.', variant: 'destructive' });
+      return;
+    }
     if (!form.address.trim()) {
       toast({ title: '배송 주소를 입력해주세요.', variant: 'destructive' });
       return;
