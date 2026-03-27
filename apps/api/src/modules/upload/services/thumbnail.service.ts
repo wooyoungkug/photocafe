@@ -8,7 +8,7 @@ export class ThumbnailService {
   private readonly maxSize: number;
 
   constructor() {
-    this.maxSize = parseInt(process.env.THUMBNAIL_MAX_SIZE || '500', 10);
+    this.maxSize = parseInt(process.env.THUMBNAIL_MAX_SIZE || '1200', 10);
   }
 
   /** 원본 이미지에서 썸네일 생성 */
@@ -28,7 +28,7 @@ export class ThumbnailService {
           fit: 'inside',
           withoutEnlargement: true,
         })
-        .jpeg({ quality: 80 })
+        .jpeg({ quality: 90 })
         .toFile(thumbPath);
 
       return thumbPath;

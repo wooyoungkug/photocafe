@@ -30,7 +30,7 @@ ensureDir('copper-plates/albums');
 ensureDir('repairs');
 
 @ApiTags('Upload')
-@SkipThrottle()
+@SkipThrottle({ default: true })
 @Controller('upload')
 export class UploadController {
     constructor(
