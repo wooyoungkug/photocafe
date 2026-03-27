@@ -275,7 +275,7 @@ function AdditionalOrderPriceBlock({
         )}
         <div className="text-[11px] text-gray-500 font-medium mt-0.5">
           ■ 출력비
-          <span className="text-gray-400 font-normal"> ({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {(data as Record<string, unknown>)?.printSide === 'double' ? '양면' : '단면'})</span>
+          <span className="text-gray-400 font-normal"> ({colorLabel} {paperLabel}{paperGrammage ? ` ${paperGrammage}g` : ''} · {(data as unknown as Record<string, unknown>)?.printSide === 'double' ? '양면' : '단면'})</span>
         </div>
         {perPage > 0 && (
           <div className="text-[11px] text-gray-700 pl-2 font-medium">
