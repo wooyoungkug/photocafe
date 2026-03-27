@@ -60,17 +60,26 @@ export class PricingService {
     let priceSource: string | null = null;
     let groupName: string | null = null;
 
-    // 생산설정 이름 조회
+    // 생산설정 이름 + paperPriceGroupMap 조회
     const prodSetting = await this.prisma.productionSetting.findUnique({
       where: { id: productionSettingId },
-      select: { settingName: true },
+      select: { settingName: true, paperPriceGroupMap: true },
     });
+
+    // paperId → priceGroupId 매핑 (용지별 가격 그룹 결정)
+    let targetPriceGroupId: string | undefined;
+    if (dto.paperId && prodSetting?.paperPriceGroupMap) {
+      const groupMap = prodSetting.paperPriceGroupMap as Record<string, string>;
+      targetPriceGroupId = groupMap[dto.paperId];
+    }
 
     // 출력 단가 조회: specificationId 또는 minQuantity(nup) 매칭
     const outputPriceOR = [
       { specificationId },
       { minQuantity: nupNum, specificationId: null },
     ];
+    // priceGroupId 필터 (용지 그룹이 결정된 경우)
+    const priceGroupFilter = targetPriceGroupId ? { priceGroupId: targetPriceGroupId } : {};
 
     // 1. 거래처 개별 단가 조회
     if (clientId) {
@@ -79,6 +88,7 @@ export class PricingService {
           clientId,
           productionSettingId,
           OR: outputPriceOR,
+          ...priceGroupFilter,
         },
       });
 
@@ -105,6 +115,7 @@ export class PricingService {
               clientGroupId: client.groupId,
               productionSettingId,
               OR: outputPriceOR,
+              ...priceGroupFilter,
             },
           });
 
@@ -134,6 +145,7 @@ export class PricingService {
         where: {
           productionSettingId,
           OR: outputPriceOR,
+          ...priceGroupFilter,
         },
       });
       if (standardPrice) {
@@ -452,12 +464,27 @@ export class PricingService {
     let priceSource: 'client' | 'group' | 'standard' = 'standard';
     let groupName: string | null = null;
 
+    // paperId → priceGroupId 매핑 (용지별 가격 그룹 결정)
+    let calcPriceGroupFilter: Record<string, string> = {};
+    if (dto.paperId && productionSettingIds.length > 0) {
+      const psSetting = await this.prisma.productionSetting.findFirst({
+        where: { id: { in: productionSettingIds } },
+        select: { paperPriceGroupMap: true },
+      });
+      if (psSetting?.paperPriceGroupMap) {
+        const groupMap = psSetting.paperPriceGroupMap as Record<string, string>;
+        const pgId = groupMap[dto.paperId];
+        if (pgId) calcPriceGroupFilter = { priceGroupId: pgId };
+      }
+    }
+
     // 4-1. 거래처 개별 단가 조회 (specificationId 또는 minQuantity=nup으로 매칭)
     if (dto.clientId) {
       const clientPrice = await this.prisma.clientProductionSettingPrice.findFirst({
         where: {
           clientId: dto.clientId,
           productionSettingId: { in: productionSettingIds },
+          ...calcPriceGroupFilter,
           OR: [
             { specificationId: specification.id },
             { minQuantity: nupNum, specificationId: null },
@@ -484,6 +511,7 @@ export class PricingService {
             where: {
               clientGroupId: client.groupId,
               productionSettingId: { in: productionSettingIds },
+              ...calcPriceGroupFilter,
               OR: [
                 { specificationId: specification.id },
                 { minQuantity: nupNum, specificationId: null },
@@ -511,6 +539,7 @@ export class PricingService {
       const standardPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId: { in: productionSettingIds },
+          ...calcPriceGroupFilter,
           OR: [
             { specificationId: specification.id },
             { minQuantity: nupNum, specificationId: null },
