@@ -519,29 +519,20 @@ export class ProductService {
       };
     }
 
-    // DEBUG: 업데이트 데이터를 파일로 기록
-    const fs = require('fs');
-    fs.writeFileSync('c:/tmp/product-update-debug.json', JSON.stringify(updateData, null, 2), 'utf-8');
-
-    try {
-      return await this.prisma.product.update({
-        where: { id },
-        data: updateData,
-        include: {
-          category: true,
-          specifications: true,
-          bindings: true,
-          papers: true,
-          covers: true,
-          foils: true,
-          finishings: true,
-          fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
-        },
-      });
-    } catch (error) {
-      fs.writeFileSync('c:/tmp/product-update-error.txt', String(error) + '\n\n' + (error as any)?.stack, 'utf-8');
-      throw error;
-    }
+    return this.prisma.product.update({
+      where: { id },
+      data: updateData,
+      include: {
+        category: true,
+        specifications: true,
+        bindings: true,
+        papers: true,
+        covers: true,
+        foils: true,
+        finishings: true,
+        fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
+      },
+    });
   }
 
   async delete(id: string) {
