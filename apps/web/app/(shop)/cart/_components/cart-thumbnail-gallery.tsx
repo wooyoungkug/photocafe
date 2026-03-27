@@ -68,6 +68,17 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
         alt={`${idx + 1}`}
         className="w-full h-auto"
         loading="lazy"
+        onError={(e) => {
+          const target = e.currentTarget;
+          target.style.display = 'none';
+          const parent = target.parentElement;
+          if (parent && !parent.querySelector('.thumb-fallback')) {
+            const fallback = document.createElement('div');
+            fallback.className = 'thumb-fallback flex items-center justify-center aspect-[3/4] bg-gray-100 text-gray-400 text-[10px]';
+            fallback.textContent = `${idx + 1}`;
+            parent.appendChild(fallback);
+          }
+        }}
       />
       {pageLayout === 'spread' ? (() => {
         const pages = getSpreadPageNumbers(idx, totalFiles, direction);

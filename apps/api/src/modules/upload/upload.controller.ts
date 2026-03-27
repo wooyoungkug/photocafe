@@ -1,6 +1,7 @@
 import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res, Body, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
@@ -29,6 +30,7 @@ ensureDir('copper-plates/albums');
 ensureDir('repairs');
 
 @ApiTags('Upload')
+@SkipThrottle()
 @Controller('upload')
 export class UploadController {
     constructor(
