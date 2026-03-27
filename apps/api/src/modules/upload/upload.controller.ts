@@ -69,7 +69,7 @@ export class UploadController {
         const basePath = getUploadBasePath();
         const result: Record<string, string[]> = {};
         const walk = (dir: string, prefix: string, depth: number) => {
-            if (depth > 4) return;
+            if (depth > 5) return;
             try {
                 const entries = readdirSync(dir);
                 result[prefix] = entries.slice(0, 20);
@@ -82,7 +82,10 @@ export class UploadController {
                 }
             } catch { /* ignore */ }
         };
-        walk(join(basePath, 'orders'), 'orders', 0);
+        // 실제 주문 파일 확인을 위해 depth 5까지 탐색
+        walk(join(basePath, 'orders', '2026', '02', '23'), 'orders/2026/02/23', 0);
+        // 최근 주문도 확인
+        walk(join(basePath, 'orders', '2026', '03', '21'), 'orders/2026/03/21', 0);
         return res.json({ basePath, tree: result });
     }
 
@@ -629,11 +632,12 @@ export class UploadController {
     // ==================== 주문/수리 파일 직접 서빙 (static middleware fallback) ====================
 
     @Public()
-    @Get('serve/*')
+    @Get('serve/*path')
     @ApiOperation({ summary: '업로드 파일 직접 서빙 (orders/repairs/temp 등 한글 경로 지원)' })
-    serveUploadFile(@Param() params: any, @Res() res: Response) {
-        // Express wildcard: params[0] contains the full path after 'serve/'
-        const rawPath: string = params[0] || '';
+    serveUploadFile(@Param('path') rawPath: string, @Res() res: Response) {
+        if (!rawPath) {
+            return res.status(400).json({ message: '경로가 필요합니다.' });
+        }
         // 경로 탐색 방지
         const decoded = decodeURIComponent(rawPath);
         if (decoded.includes('..') || decoded.includes('\0')) {
@@ -641,7 +645,7 @@ export class UploadController {
         }
         const filePath = join(getUploadBasePath(), decoded);
         if (!existsSync(filePath)) {
-            return res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
+            return res.status(404).json({ message: '파일을 찾을 수 없습니다.', tried: filePath });
         }
         return res.sendFile(filePath);
     }
