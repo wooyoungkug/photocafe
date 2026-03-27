@@ -13,6 +13,9 @@ import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/li
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 
+// 출력 파일명 패턴 (자동저장 결과물은 목록에서 제외)
+const OUTPUT_FILE_PATTERN = /^(첫장|막장|.*_첫장|.*_막장)\.(jpe?g|png)$/i;
+
 export function AlbumSplitTool() {
   const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(null);
   const [fileName, setFileName] = useState('');
@@ -32,6 +35,11 @@ export function AlbumSplitTool() {
   const [savedRight, setSavedRight] = useState(false);
   const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
   const [originalDeleted, setOriginalDeleted] = useState(false);
+
+  // 연속 작업용: 폴더 내 파일 목록 및 현재 인덱스
+  const [folderFiles, setFolderFiles] = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+
   const uploadZoneRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const leftCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -68,7 +76,7 @@ export function AlbumSplitTool() {
     if (rightUrl) URL.revokeObjectURL(rightUrl);
   }, [leftUrl, rightUrl]);
 
-  const resetTool = useCallback(() => {
+  const resetTool = useCallback((keepFolder = true) => {
     cleanup();
     setOriginalImage(null);
     setFileName('');
@@ -82,12 +90,69 @@ export function AlbumSplitTool() {
     setShowResult(false);
     setSavedLeft(false);
     setSavedRight(false);
-    setDeleteOriginalOnSave(false);
     setOriginalDeleted(false);
     sourceFileHandleRef.current = null;
-    sourceDirectoryHandleRef.current = null;
+    if (!keepFolder) {
+      setDeleteOriginalOnSave(false);
+      setDirectoryHandle(null);
+      setFolderFiles([]);
+      setCurrentFileIndex(0);
+      sourceDirectoryHandleRef.current = null;
+    }
     // 업로드 영역으로 스크롤
     uploadZoneRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, [cleanup]);
+
+  /** 폴더 내 이미지 파일 목록 스캔 (출력 결과물 제외) */
+  const scanFolderFiles = useCallback(async (dirHandle: FileSystemDirectoryHandle) => {
+    const files: { name: string; handle: FileSystemFileHandle }[] = [];
+    for await (const [name, handle] of (dirHandle as any).entries()) {
+      if (handle.kind === 'file' && /\.(jpe?g|png)$/i.test(name) && !OUTPUT_FILE_PATTERN.test(name)) {
+        files.push({ name, handle: handle as FileSystemFileHandle });
+      }
+    }
+    files.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
+    return files;
+  }, []);
+
+  /** 폴더에서 특정 인덱스의 파일 로드 */
+  const loadFileAtIndex = useCallback(async (
+    files: { name: string; handle: FileSystemFileHandle }[],
+    index: number
+  ) => {
+    if (index < 0 || index >= files.length) return false;
+    const entry = files[index];
+    sourceFileHandleRef.current = entry.handle;
+    const file = await entry.handle.getFile();
+    setCurrentFileIndex(index);
+    // loadImage 로직 인라인 (순환 참조 방지)
+    cleanup();
+    setShowResult(false);
+    setLeftBlob(null);
+    setRightBlob(null);
+    setLeftUrl('');
+    setRightUrl('');
+    setSavedLeft(false);
+    setSavedRight(false);
+    setOriginalDeleted(false);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const arrayBuffer = e.target?.result as ArrayBuffer;
+      const dpi = extractDPIFromJPEG(arrayBuffer);
+      setOriginalDPI(dpi);
+
+      const img = new Image();
+      img.onload = () => {
+        setOriginalImage(img);
+        setFileName(file.name);
+        setShowInfo(true);
+        setShowPreview(true);
+      };
+      img.src = URL.createObjectURL(file);
+    };
+    reader.readAsArrayBuffer(file);
+    return true;
   }, [cleanup]);
 
   const loadImage = useCallback((file: File) => {
@@ -126,25 +191,38 @@ export function AlbumSplitTool() {
   const handleClickUpload = useCallback(async () => {
     if ('showDirectoryPicker' in window) {
       try {
+        // 이미 폴더가 선택되어 있고 파일 목록이 있으면 다음 파일 로드
+        if (directoryHandle && folderFiles.length > 0) {
+          const nextIndex = currentFileIndex + 1;
+          if (nextIndex < folderFiles.length) {
+            const loaded = await loadFileAtIndex(folderFiles, nextIndex);
+            if (loaded) {
+              toast.success(`${folderFiles[nextIndex].name} (${nextIndex + 1}/${folderFiles.length})`);
+              return;
+            }
+          } else {
+            toast.success('모든 파일 처리 완료!');
+            resetTool(false);
+            return;
+          }
+        }
+
         // 폴더 선택 → 해당 폴더에서 파일 선택 (자동 저장을 위해 폴더 권한 확보)
         const options: any = { mode: 'readwrite' };
         if (directoryHandle) options.startIn = directoryHandle;
         const dirHandle = await (window as any).showDirectoryPicker(options);
         setDirectoryHandle(dirHandle);
 
-        // 폴더 내 이미지 파일 목록
-        const files: { name: string; handle: FileSystemFileHandle }[] = [];
-        for await (const [name, handle] of dirHandle.entries()) {
-          if (handle.kind === 'file' && /\.(jpe?g|png)$/i.test(name)) {
-            files.push({ name, handle: handle as FileSystemFileHandle });
-          }
-        }
+        // 폴더 내 이미지 파일 목록 (출력 결과물 제외)
+        const files = await scanFolderFiles(dirHandle);
         if (files.length === 0) {
           toast.error('폴더에 JPEG/PNG 파일이 없습니다.');
           return;
         }
-        // 이름순 정렬 후 첫 번째 파일 로드
-        files.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+        setFolderFiles(files);
+        setCurrentFileIndex(0);
+
+        // 첫 번째 파일 로드
         const firstFile = files[0];
         sourceFileHandleRef.current = firstFile.handle;
         const file = await firstFile.handle.getFile();
@@ -164,7 +242,7 @@ export function AlbumSplitTool() {
     } else {
       fileInputRef.current?.click();
     }
-  }, [loadImage, directoryHandle]);
+  }, [loadImage, directoryHandle, folderFiles, currentFileIndex, loadFileAtIndex, scanFolderFiles, resetTool]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -182,10 +260,14 @@ export function AlbumSplitTool() {
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
       loadImage(file);
+      // 자동 저장을 위해 폴더 선택 안내
+      if (!directoryHandle) {
+        toast.info('자동 저장하려면 "저장 폴더 선택" 버튼을 클릭하세요. 또는 클릭하여 폴더를 선택하면 연속 작업이 가능합니다.', { duration: 5000 });
+      }
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
     }
-  }, [loadImage]);
+  }, [loadImage, directoryHandle]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -290,19 +372,49 @@ export function AlbumSplitTool() {
 
       // 자동 저장: directoryHandle이 있으면 즉시 저장
       if (directoryHandle) {
-        const ok1 = await saveToFolder(directoryHandle, leftResult.blob, '첫장.jpg');
-        const ok2 = await saveToFolder(directoryHandle, rightResult.blob, '막장.jpg');
+        // 파일명 기반 저장 (원본명_첫장.jpg, 원본명_막장.jpg)
+        const baseName = fileName.replace(/\.[^.]+$/, '');
+        const leftName = `${baseName}_첫장.jpg`;
+        const rightName = `${baseName}_막장.jpg`;
+
+        const ok1 = await saveToFolder(directoryHandle, leftResult.blob, leftName);
+        const ok2 = await saveToFolder(directoryHandle, rightResult.blob, rightName);
         if (ok1 && ok2) {
           let deleted = false;
           if (deleteOriginalOnSave) {
             deleted = await doDeleteOriginal();
           }
+
+          // 다음 파일 자동 로드
+          const nextIndex = currentFileIndex + 1;
+          const hasNext = folderFiles.length > 0 && nextIndex < folderFiles.length;
+
           toast.success(
             deleteOriginalOnSave
-              ? deleted ? '자동 저장 + 원본 삭제 완료!' : '자동 저장 완료! (원본 삭제 실패)'
-              : '첫장 + 막장 자동 저장 완료!',
+              ? deleted
+                ? `자동 저장 + 원본 삭제 완료!${hasNext ? ` (${nextIndex + 1}/${folderFiles.length} 로드 중...)` : ' 모든 파일 처리 완료!'}`
+                : '자동 저장 완료! (원본 삭제 실패)'
+              : `${leftName}, ${rightName} 자동 저장 완료!${hasNext ? ` (${nextIndex + 1}/${folderFiles.length} 로드 중...)` : ' 모든 파일 처리 완료!'}`,
           );
-          setTimeout(resetTool, 1500);
+
+          if (hasNext) {
+            // 폴더 파일 목록 재스캔 (삭제된 원본 제외)
+            const updatedFiles = await scanFolderFiles(directoryHandle);
+            setFolderFiles(updatedFiles);
+            // 다음 미처리 파일 찾기 (현재 파일 이후의 파일)
+            const currentName = fileName;
+            const nextFileIdx = updatedFiles.findIndex(f => f.name.localeCompare(currentName, 'ko', { numeric: true }) > 0);
+            if (nextFileIdx >= 0) {
+              setTimeout(async () => {
+                await loadFileAtIndex(updatedFiles, nextFileIdx);
+                scrollToBottom();
+              }, 800);
+            } else {
+              setTimeout(() => resetTool(true), 1500);
+            }
+          } else {
+            setTimeout(() => resetTool(false), 1500);
+          }
         } else {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
@@ -315,7 +427,7 @@ export function AlbumSplitTool() {
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom]);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
@@ -354,43 +466,48 @@ export function AlbumSplitTool() {
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
-    const filename = '첫장.jpg';
+    const baseName = fileName.replace(/\.[^.]+$/, '');
+    const saveName = `${baseName}_첫장.jpg`;
     if (directoryHandle) {
-      const ok = await saveToFolder(directoryHandle, leftBlob, filename);
-      if (ok) { toast.success(`${filename} 저장 완료`); setSavedLeft(true); }
+      const ok = await saveToFolder(directoryHandle, leftBlob, saveName);
+      if (ok) { toast.success(`${saveName} 저장 완료`); setSavedLeft(true); }
       else toast.error('저장 실패');
     } else {
-      const ok = await saveWithPicker(leftBlob, filename);
-      if (ok) { toast.success(`${filename} 저장 완료`); setSavedLeft(true); }
+      const ok = await saveWithPicker(leftBlob, saveName);
+      if (ok) { toast.success(`${saveName} 저장 완료`); setSavedLeft(true); }
     }
-  }, [leftBlob, directoryHandle, saveWithPicker]);
+  }, [leftBlob, directoryHandle, saveWithPicker, fileName]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
-    const filename = '막장.jpg';
+    const baseName = fileName.replace(/\.[^.]+$/, '');
+    const saveName = `${baseName}_막장.jpg`;
     if (directoryHandle) {
-      const ok = await saveToFolder(directoryHandle, rightBlob, filename);
-      if (ok) { toast.success(`${filename} 저장 완료`); setSavedRight(true); }
+      const ok = await saveToFolder(directoryHandle, rightBlob, saveName);
+      if (ok) { toast.success(`${saveName} 저장 완료`); setSavedRight(true); }
       else toast.error('저장 실패');
     } else {
-      const ok = await saveWithPicker(rightBlob, filename);
-      if (ok) { toast.success(`${filename} 저장 완료`); setSavedRight(true); }
+      const ok = await saveWithPicker(rightBlob, saveName);
+      if (ok) { toast.success(`${saveName} 저장 완료`); setSavedRight(true); }
     }
-  }, [rightBlob, directoryHandle, saveWithPicker]);
+  }, [rightBlob, directoryHandle, saveWithPicker, fileName]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
+    const baseName = fileName.replace(/\.[^.]+$/, '');
+    const leftName = `${baseName}_첫장.jpg`;
+    const rightName = `${baseName}_막장.jpg`;
 
     let saved = false;
     if (directoryHandle) {
-      const ok1 = await saveToFolder(directoryHandle, leftBlob, '첫장.jpg');
-      const ok2 = await saveToFolder(directoryHandle, rightBlob, '막장.jpg');
+      const ok1 = await saveToFolder(directoryHandle, leftBlob, leftName);
+      const ok2 = await saveToFolder(directoryHandle, rightBlob, rightName);
       if (ok1 && ok2) saved = true;
       else toast.error('일부 파일 저장 실패');
     } else {
-      const ok1 = await saveWithPicker(leftBlob, '첫장.jpg');
+      const ok1 = await saveWithPicker(leftBlob, leftName);
       if (!ok1) return; // 취소 시 중단
-      const ok2 = await saveWithPicker(rightBlob, '막장.jpg');
+      const ok2 = await saveWithPicker(rightBlob, rightName);
       if (ok2) saved = true;
     }
 
@@ -407,7 +524,7 @@ export function AlbumSplitTool() {
         : '첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.',
     );
     setTimeout(resetTool, 1500);
-  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker, deleteOriginalOnSave, doDeleteOriginal]);
+  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker, deleteOriginalOnSave, doDeleteOriginal, fileName]);
 
   // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
   useEffect(() => {
@@ -503,10 +620,14 @@ export function AlbumSplitTool() {
               </div>
               <div>
                 <p className="text-base font-semibold text-slate-700">
-                  앨범 이미지를 드래그하거나 클릭하여 선택하세요
+                  {directoryHandle && folderFiles.length > 0
+                    ? `클릭하여 다음 파일 로드 (${currentFileIndex + 1}/${folderFiles.length})`
+                    : '앨범 이미지를 드래그하거나 클릭하여 선택하세요'}
                 </p>
                 <p className="text-sm text-slate-500 mt-1">
-                  JPEG, PNG 형식 지원 (가로형 앨범 펼침 이미지)
+                  {directoryHandle
+                    ? `폴더: ${directoryHandle.name} (자동 저장 활성화)`
+                    : 'JPEG, PNG 형식 지원 (가로형 앨범 펼침 이미지)'}
                 </p>
               </div>
             </div>
