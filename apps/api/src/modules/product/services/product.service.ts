@@ -424,74 +424,121 @@ export class ProductService {
       }
     }
 
-    // 상품 업데이트
-    return this.prisma.product.update({
-      where: { id },
-      data: {
-        ...productData,
-        ...(categoryId && { category: { connect: { id: categoryId } } }),
-        ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
-        specifications: specifications !== undefined && specifications.length > 0
-          ? { create: specifications.map(({ specificationId, name, widthMm, heightMm, price, isDefault, sortOrder }) => ({
-              name, widthMm, heightMm, price, isDefault, sortOrder,
-              ...(specificationId ? { specificationId } : {}),
-            })) }
-          : undefined,
-        bindings: bindings !== undefined && bindings.length > 0
-          ? { create: bindings.map(({ name, price, isDefault, sortOrder, productionSettingId, pricingType }) => ({
-              name, price, isDefault, sortOrder, productionSettingId, pricingType,
-            })) }
-          : undefined,
-        papers: syncedPapers !== undefined && syncedPapers.length > 0
-          ? {
-              create: syncedPapers.map((p) => ({
-                name: p.name,
-                type: p.type,
-                price: p.price,
-                isDefault: p.isDefault,
-                sortOrder: p.sortOrder,
-                grammage: p.grammage,
-                printMethod: p.printMethod,
-                frontCoating: p.frontCoating,
-                grade: p.grade,
-                isActive: p.isActive,
-                isActive4: p.isActive4,
-                isActive6: p.isActive6,
-                defaultColorType: p.defaultColorType,
-                ...(p.paperId ? { paper: { connect: { id: p.paperId } } } : {}),
-              })),
-            }
-          : undefined,
-        covers: covers !== undefined && covers.length > 0
-          ? { create: covers.map(({ name, price, isDefault, sortOrder }) => ({
-              name, price, isDefault, sortOrder,
-            })) }
-          : undefined,
-        foils: foils !== undefined && foils.length > 0
-          ? { create: foils.map(({ name, color, price, isDefault, sortOrder }) => ({
-              name, color, price, isDefault, sortOrder,
-            })) }
-          : undefined,
-        finishings: finishings !== undefined && finishings.length > 0
-          ? { create: finishings.map(({ name, productionGroupId, price, isDefault, sortOrder }) => ({
-              name, productionGroupId, price, isDefault, sortOrder,
-            })) }
-          : undefined,
-        fabrics: fabricIds !== undefined && fabricIds.length > 0
-          ? { create: fabricIds.map((fabricId, idx) => ({ fabric: { connect: { id: fabricId } }, sortOrder: idx })) }
-          : undefined,
-      },
-      include: {
-        category: true,
-        specifications: true,
-        bindings: true,
-        papers: true,
-        covers: true,
-        foils: true,
-        finishings: true,
-        fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
-      },
-    });
+    // 상품 업데이트 데이터 구성
+    const updateData: any = {
+      ...productData,
+      ...(categoryId && { category: { connect: { id: categoryId } } }),
+      ...(outputPriceSettings !== undefined && { outputPriceSettings: JSON.parse(JSON.stringify(outputPriceSettings)) }),
+    };
+
+    // 규격
+    if (specifications !== undefined && specifications.length > 0) {
+      updateData.specifications = {
+        create: specifications.map((s) => ({
+          name: s.name,
+          widthMm: s.widthMm,
+          heightMm: s.heightMm,
+          price: s.price ?? 0,
+          isDefault: s.isDefault ?? false,
+          sortOrder: s.sortOrder ?? 0,
+          ...(s.specificationId ? { specification: { connect: { id: s.specificationId } } } : {}),
+        })),
+      };
+    }
+
+    // 제본
+    if (bindings !== undefined && bindings.length > 0) {
+      updateData.bindings = {
+        create: bindings.map((b) => ({
+          name: b.name,
+          price: b.price ?? 0,
+          isDefault: b.isDefault ?? false,
+          sortOrder: b.sortOrder ?? 0,
+          productionSettingId: b.productionSettingId,
+          pricingType: b.pricingType,
+        })),
+      };
+    }
+
+    // 용지
+    if (syncedPapers !== undefined && syncedPapers.length > 0) {
+      updateData.papers = {
+        create: syncedPapers.map((p) => ({
+          name: p.name,
+          type: p.type,
+          price: p.price ?? 0,
+          isDefault: p.isDefault ?? false,
+          sortOrder: p.sortOrder ?? 0,
+          grammage: p.grammage ?? null,
+          printMethod: p.printMethod ?? null,
+          frontCoating: p.frontCoating ?? null,
+          grade: p.grade ?? null,
+          isActive: p.isActive ?? true,
+          isActive4: p.isActive4 ?? true,
+          isActive6: p.isActive6 ?? true,
+          defaultColorType: p.defaultColorType ?? null,
+          ...(p.paperId ? { paper: { connect: { id: p.paperId } } } : {}),
+        })),
+      };
+    }
+
+    // 커버
+    if (covers !== undefined && covers.length > 0) {
+      updateData.covers = {
+        create: covers.map((c) => ({
+          name: c.name, price: c.price ?? 0, isDefault: c.isDefault ?? false, sortOrder: c.sortOrder ?? 0,
+        })),
+      };
+    }
+
+    // 박
+    if (foils !== undefined && foils.length > 0) {
+      updateData.foils = {
+        create: foils.map((f) => ({
+          name: f.name, color: f.color, price: f.price ?? 0, isDefault: f.isDefault ?? false, sortOrder: f.sortOrder ?? 0,
+        })),
+      };
+    }
+
+    // 후가공
+    if (finishings !== undefined && finishings.length > 0) {
+      updateData.finishings = {
+        create: finishings.map((f) => ({
+          name: f.name, productionGroupId: f.productionGroupId, price: f.price ?? 0, isDefault: f.isDefault ?? false, sortOrder: f.sortOrder ?? 0,
+        })),
+      };
+    }
+
+    // 원단
+    if (fabricIds !== undefined && fabricIds.length > 0) {
+      updateData.fabrics = {
+        create: fabricIds.map((fabricId, idx) => ({
+          fabric: { connect: { id: fabricId } },
+          sortOrder: idx,
+        })),
+      };
+    }
+
+    try {
+      return await this.prisma.product.update({
+        where: { id },
+        data: updateData,
+        include: {
+          category: true,
+          specifications: true,
+          bindings: true,
+          papers: true,
+          covers: true,
+          foils: true,
+          finishings: true,
+          fabrics: { include: { fabric: { select: { id: true, name: true, category: true, colorCode: true, thumbnailUrl: true, isActive: true } } } },
+        },
+      });
+    } catch (error) {
+      console.error('[Product Update Error]', JSON.stringify(updateData, null, 2));
+      console.error('[Product Update Error Detail]', error);
+      throw error;
+    }
   }
 
   async delete(id: string) {
