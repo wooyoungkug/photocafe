@@ -252,7 +252,7 @@ export function FolderShippingSection({
           </div>
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="orderer" id="sender-orderer" />
-            <Label htmlFor="sender-orderer" className="text-sm cursor-pointer">주문자(스튜디오정보)</Label>
+            <Label htmlFor="sender-orderer" className="text-sm cursor-pointer">주문자(스튜디오)</Label>
           </div>
         </RadioGroup>
         {/* 발송지 정보 표시 */}
