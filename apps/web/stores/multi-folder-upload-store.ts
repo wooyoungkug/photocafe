@@ -678,15 +678,14 @@ function checkRatioMatch(
   return 'RATIO_MISMATCH';
 }
 
-// 같은 비율의 앨범규격 찾기 (방향도 일치해야 함, 앨범용 규격만, 면적 크기순 정렬)
-function findAvailableSizes(sizes: StandardSize[], ratio: number, isLandscape: boolean) {
+// 추가주문 가능한 앨범규격 찾기 (방향 일치, 비율 무관 - 축소/확대 주문 가능)
+function findAvailableSizes(sizes: StandardSize[], _ratio: number, isLandscape: boolean) {
   return sizes.filter(size => {
-    const sizeRatio = calculateNormalizedRatio(size.width, size.height);
     const sizeIsLandscape = size.width >= size.height; // 가로형 여부
     // 앨범용 규격인지 확인 (forAlbum 또는 forIndigoAlbum이 true인 것만)
     const isAlbumSpec = size.forAlbum || size.forIndigoAlbum;
-    // 비율이 일치하고(등가 그룹 포함), 방향도 일치하고, 앨범 규격이어야 함
-    return isAlbumSpec && isRatioEquivalent(sizeRatio, ratio) && sizeIsLandscape === isLandscape;
+    // 방향 일치 + 앨범 규격이면 추가주문 가능 (비율 무관)
+    return isAlbumSpec && sizeIsLandscape === isLandscape;
   }).sort((a, b) => (a.width * a.height) - (b.width * b.height));
 }
 
