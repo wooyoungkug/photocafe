@@ -137,13 +137,13 @@ export class UploadController {
 
         const fileUrl = this.fileStorage.toRelativeUrl(file.path);
 
-        // 썸네일은 완전 비동기(fire-and-forget) — 응답을 전혀 블로킹하지 않음
+        // 썸네일 생성을 await하여 응답 전에 파일이 준비되도록 함
         const thumbDir = this.fileStorage.getTempThumbnailDir(body.tempFolderId);
-        this.thumbnailService.generateThumbnail(
-            file.path,
-            thumbDir,
-            file.filename,
-        ).catch(() => { /* 썸네일 실패해도 원본은 정상 */ });
+        try {
+            await this.thumbnailService.generateThumbnail(file.path, thumbDir, file.filename);
+        } catch {
+            // 썸네일 실패해도 원본은 정상
+        }
 
         // 썸네일 URL을 예측 가능한 경로로 즉시 반환 (파일명 규칙: {base}_thumb.jpg)
         const ext = extname(file.filename);

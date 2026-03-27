@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { useTranslations } from 'next-intl';
@@ -52,37 +53,39 @@ function getSpreadPageNumbers(
   }
 }
 
-export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirection, expanded, onExpandedChange }: CartThumbnailGalleryProps) {
-  const t = useTranslations('cart');
+/** 개별 썸네일 - 이미지 에러 시 React state로 fallback 처리 */
+function ThumbnailItem({
+  url,
+  idx,
+  pageLayout,
+  totalFiles,
+  direction,
+  blankLabel,
+}: {
+  url: string;
+  idx: number;
+  pageLayout?: 'single' | 'spread';
+  totalFiles: number;
+  direction: BindingDirection;
+  blankLabel: string;
+}) {
+  const [hasError, setHasError] = useState(false);
 
-  if (!thumbnailUrls || thumbnailUrls.length <= 1) return null;
-
-  const direction = (bindingDirection as BindingDirection) || 'LEFT_START_RIGHT_END';
-  const totalFiles = thumbnailUrls.length;
-
-  // 개별 썸네일 렌더링
-  const renderThumbnail = (url: string, idx: number) => (
-    <div
-      key={idx}
-      className="relative rounded overflow-hidden border border-gray-200 bg-white"
-    >
-      <img
-        src={normalizeImageUrl(url)}
-        alt={`${idx + 1}`}
-        className="w-full h-auto"
-        loading="lazy"
-        onError={(e) => {
-          const target = e.currentTarget;
-          target.style.display = 'none';
-          const parent = target.parentElement;
-          if (parent && !parent.querySelector('.thumb-fallback')) {
-            const fallback = document.createElement('div');
-            fallback.className = 'thumb-fallback flex items-center justify-center aspect-[3/4] bg-gray-100 text-gray-400 text-[10px]';
-            fallback.textContent = `${idx + 1}`;
-            parent.appendChild(fallback);
-          }
-        }}
-      />
+  return (
+    <div className="relative rounded overflow-hidden border border-gray-200 bg-white">
+      {hasError ? (
+        <div className="flex items-center justify-center aspect-[3/4] bg-gray-100 text-gray-400 text-[10px]">
+          {idx + 1}
+        </div>
+      ) : (
+        <img
+          src={normalizeImageUrl(url)}
+          alt={`${idx + 1}`}
+          className="w-full h-auto"
+          loading="lazy"
+          onError={() => setHasError(true)}
+        />
+      )}
       {pageLayout === 'spread' ? (() => {
         const pages = getSpreadPageNumbers(idx, totalFiles, direction);
         return (
@@ -91,13 +94,13 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
               'absolute top-0.5 left-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
               pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
             )}>
-              {pages.left !== null ? pages.left : t('blank') ?? 'Blank page'}
+              {pages.left !== null ? pages.left : blankLabel}
             </div>
             <div className={cn(
               'absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
               pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
             )}>
-              {pages.right !== null ? pages.right : t('blank') ?? 'Blank page'}
+              {pages.right !== null ? pages.right : blankLabel}
             </div>
           </>
         );
@@ -107,6 +110,29 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
         </div>
       )}
     </div>
+  );
+}
+
+export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirection, expanded, onExpandedChange }: CartThumbnailGalleryProps) {
+  const t = useTranslations('cart');
+
+  if (!thumbnailUrls || thumbnailUrls.length <= 1) return null;
+
+  const direction = (bindingDirection as BindingDirection) || 'LEFT_START_RIGHT_END';
+  const totalFiles = thumbnailUrls.length;
+  const blankLabel = t('blank') ?? 'Blank page';
+
+  // 개별 썸네일 렌더링
+  const renderThumbnail = (url: string, idx: number) => (
+    <ThumbnailItem
+      key={idx}
+      url={url}
+      idx={idx}
+      pageLayout={pageLayout}
+      totalFiles={totalFiles}
+      direction={direction}
+      blankLabel={blankLabel}
+    />
   );
 
   // 빈페이지 슬롯 렌더링
