@@ -284,7 +284,7 @@ export class PricingService {
     // 추가 청구 페이지 없음 (1+up 표지 비용은 coverPrice로 별도 청구)
     const billingExtraPages = 0;
 
-    // 후가공비: 상품의 ProductFinishing → ProductionSetting(이름매칭) → 규격별 pricePerPage 조회
+    // 후가공비: 거래처 개별 → 그룹 → 표준 단가 순서로 조회
     let postProcessingPrice = 0;
     let postProcessingSettingId: string | null = null;
     const postProcessingNames: string[] = [];
@@ -302,37 +302,67 @@ export class PricingService {
             select: { id: true, pricingType: true },
           });
           let settingIds: string[];
-          let isNupPricing = false;
           if (matchedSetting) {
             settingIds = [matchedSetting.id];
-            isNupPricing = matchedSetting.pricingType === 'finishing_spec_nup';
           } else {
             const allSettings = await this.prisma.productionSetting.findMany({
               where: { groupId: f.productionGroupId },
               select: { id: true, pricingType: true },
             });
             settingIds = allSettings.map(s => s.id);
-            isNupPricing = allSettings.some(s => s.pricingType === 'finishing_spec_nup');
           }
           if (settingIds.length > 0) {
-            const finishingPriceWhere = {
-              OR: [
-                { specificationId },
-                { minQuantity: nupNum, specificationId: null as string | null },
-              ],
-            };
-            console.log(`[후가공] name=${f.name}, isNupPricing=${isNupPricing}, nupNum=${nupNum}, settingIds=${settingIds.join(',')}`);
-            const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
-              where: {
-                productionSettingId: { in: settingIds },
-                ...finishingPriceWhere,
-              },
-              select: { pricePerPage: true, basePrice: true, productionSettingId: true },
-            });
-            console.log(`[후가공] result=`, finishingPrice);
-            if (finishingPrice) {
-              postProcessingPrice += Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
-              if (!postProcessingSettingId) postProcessingSettingId = finishingPrice.productionSettingId;
+            const finishingOR = [
+              { specificationId },
+              { minQuantity: nupNum, specificationId: null as string | null },
+            ];
+
+            let finishingPriceRecord: any = null;
+
+            // 8-1. 거래처 개별 후가공 단가
+            if (clientId) {
+              finishingPriceRecord = await this.prisma.clientProductionSettingPrice.findFirst({
+                where: {
+                  clientId,
+                  productionSettingId: { in: settingIds },
+                  OR: finishingOR,
+                },
+                select: { pricePerPage: true, basePrice: true, productionSettingId: true },
+              });
+            }
+
+            // 8-2. 거래처 그룹 후가공 단가
+            if (!finishingPriceRecord && clientId) {
+              const clientForFinishing = await this.prisma.client.findUnique({
+                where: { id: clientId },
+                select: { groupId: true },
+              });
+              if (clientForFinishing?.groupId) {
+                finishingPriceRecord = await this.prisma.groupProductionSettingPrice.findFirst({
+                  where: {
+                    clientGroupId: clientForFinishing.groupId,
+                    productionSettingId: { in: settingIds },
+                    OR: finishingOR,
+                  },
+                  select: { pricePerPage: true, basePrice: true, productionSettingId: true },
+                });
+              }
+            }
+
+            // 8-3. 표준 후가공 단가
+            if (!finishingPriceRecord) {
+              finishingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
+                where: {
+                  productionSettingId: { in: settingIds },
+                  OR: finishingOR,
+                },
+                select: { pricePerPage: true, basePrice: true, productionSettingId: true },
+              });
+            }
+
+            if (finishingPriceRecord) {
+              postProcessingPrice += Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
+              if (!postProcessingSettingId) postProcessingSettingId = finishingPriceRecord.productionSettingId;
               if (f.name) postProcessingNames.push(f.name);
               continue;
             }
@@ -768,7 +798,7 @@ export class PricingService {
     // 제본비 = 순수 제본비 + 표지비 (표지비는 제본비에 포함)
     const bindingPrice = rawBindingPrice + coverPrice;
 
-    // 8. 후가공비: 상품의 ProductFinishing → ProductionSetting(이름매칭) → 규격별 pricePerPage × 페이지수
+    // 8. 후가공비: 거래처 개별 → 그룹 → 표준 단가 순서로 조회
     let postProcessingPrice = 0;
     const postProcessingNames: string[] = [];
     const finishings = await this.prisma.productFinishing.findMany({
@@ -792,18 +822,56 @@ export class PricingService {
           const nupNumForFinishing = specification.nup
             ? parseInt(specification.nup.replace(/[^0-9]/g, '')) || 1
             : 1;
-          const finishingPrice = await this.prisma.productionSettingPrice.findFirst({
-            where: {
-              productionSettingId: { in: settingIds },
-              OR: [
-                { specificationId: specification.id },
-                { minQuantity: nupNumForFinishing, specificationId: null },
-              ],
-            },
-            select: { pricePerPage: true, basePrice: true },
-          });
-          if (finishingPrice) {
-            const perPage = Number(finishingPrice.pricePerPage) || Number(finishingPrice.basePrice) || 0;
+          const finishingOR = [
+            { specificationId: specification.id },
+            { minQuantity: nupNumForFinishing, specificationId: null },
+          ];
+
+          let finishingPriceRecord: any = null;
+
+          // 8-1. 거래처 개별 후가공 단가
+          if (dto.clientId) {
+            finishingPriceRecord = await this.prisma.clientProductionSettingPrice.findFirst({
+              where: {
+                clientId: dto.clientId,
+                productionSettingId: { in: settingIds },
+                OR: finishingOR,
+              },
+              select: { pricePerPage: true, basePrice: true },
+            });
+          }
+
+          // 8-2. 거래처 그룹 후가공 단가
+          if (!finishingPriceRecord && dto.clientId) {
+            const clientForFinishing = await this.prisma.client.findUnique({
+              where: { id: dto.clientId },
+              select: { groupId: true },
+            });
+            if (clientForFinishing?.groupId) {
+              finishingPriceRecord = await this.prisma.groupProductionSettingPrice.findFirst({
+                where: {
+                  clientGroupId: clientForFinishing.groupId,
+                  productionSettingId: { in: settingIds },
+                  OR: finishingOR,
+                },
+                select: { pricePerPage: true, basePrice: true },
+              });
+            }
+          }
+
+          // 8-3. 표준 후가공 단가
+          if (!finishingPriceRecord) {
+            finishingPriceRecord = await this.prisma.productionSettingPrice.findFirst({
+              where: {
+                productionSettingId: { in: settingIds },
+                OR: finishingOR,
+              },
+              select: { pricePerPage: true, basePrice: true },
+            });
+          }
+
+          if (finishingPriceRecord) {
+            const perPage = Number(finishingPriceRecord.pricePerPage) || Number(finishingPriceRecord.basePrice) || 0;
             postProcessingPrice += perPage * billingPageCount;
             if (f.name) postProcessingNames.push(f.name);
             continue;
