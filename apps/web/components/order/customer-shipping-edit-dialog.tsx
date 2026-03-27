@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Truck, Loader2 } from 'lucide-react';
+import { Truck, Loader2, AlertCircle } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -71,12 +71,22 @@ function toForm(s?: CustomerShipping): CustomerShippingForm {
   };
 }
 
+function detectApartmentFromAddress(address: string): boolean {
+  if (!address) return false;
+  return /아파트|APT|apt|\(.*동.*\)/.test(address);
+}
+
 export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderNumber, shipping }: Props) {
   const [form, setForm] = useState<CustomerShippingForm>(toForm(shipping));
+  const [isApartment, setIsApartment] = useState(false);
   const updateShipping = useUpdateShipping();
 
   useEffect(() => {
-    if (open) setForm(toForm(shipping));
+    if (open) {
+      const initial = toForm(shipping);
+      setForm(initial);
+      setIsApartment(detectApartmentFromAddress(initial.address));
+    }
   }, [open, shipping]);
 
   const set = (key: keyof CustomerShippingForm, value: string) =>
@@ -89,6 +99,10 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
     }
     if (!form.address.trim()) {
       toast({ title: '배송 주소를 입력해주세요.', variant: 'destructive' });
+      return;
+    }
+    if (isApartment && !form.addressDetail.trim()) {
+      toast({ title: '아파트/연립 동호수를 입력해주세요.', description: '배송 오류 방지를 위해 동호수는 필수입력입니다.', variant: 'destructive' });
       return;
     }
 
@@ -151,13 +165,18 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
 
           <div className="space-y-1">
             <div className="flex items-center justify-between">
-              <Label className="text-[11px]">배송 주소 *</Label>
+              <div className="space-y-0.5">
+                <Label className="text-[11px]">배송 주소 *</Label>
+                <p className="text-[10px] text-gray-400">건물명·아파트명으로도 검색 가능</p>
+              </div>
               <AddressSearch
                 size="sm"
                 inline
-                onComplete={({ postalCode, address }) => {
+                onComplete={({ postalCode, address, isApartment: apt }) => {
                   set('postalCode', postalCode);
                   set('address', address);
+                  set('addressDetail', '');
+                  setIsApartment(!!apt);
                 }}
               />
             </div>
@@ -169,16 +188,24 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
             />
             <Input
               value={form.address}
-              onChange={(e) => set('address', e.target.value)}
-              placeholder="주소"
-              className="h-8 text-[11px]"
+              readOnly
+              placeholder="주소 검색 버튼을 눌러주세요"
+              className="h-8 text-[11px] bg-gray-50"
             />
-            <Input
-              value={form.addressDetail}
-              onChange={(e) => set('addressDetail', e.target.value)}
-              placeholder="상세주소"
-              className="h-8 text-[11px]"
-            />
+            <div className="space-y-1">
+              <Input
+                value={form.addressDetail}
+                onChange={(e) => set('addressDetail', e.target.value)}
+                placeholder={isApartment ? '동호수 입력 (필수)' : '상세주소 (건물명, 층수 등)'}
+                className={`h-8 text-[11px] ${isApartment && !form.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
+              />
+              {isApartment && !form.addressDetail.trim() && (
+                <p className="flex items-center gap-1 text-[10px] text-red-500">
+                  <AlertCircle className="h-3 w-3" />
+                  아파트/연립은 동호수 입력이 필수입니다
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1">

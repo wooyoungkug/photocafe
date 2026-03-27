@@ -70,6 +70,11 @@ function toFormState(s?: OrderShipping): FormState {
   };
 }
 
+function detectApartmentFromAddress(address: string): boolean {
+  if (!address) return false;
+  return /아파트|APT|apt|\(.*동.*\)/.test(address);
+}
+
 export function ShippingEditWithFeeDialog({
   open,
   onOpenChange,
@@ -107,7 +112,7 @@ export function ShippingEditWithFeeDialog({
       setForm(initial);
       setPaymentMethod(isCashClient ? 'bank_transfer' : 'credit');
       setResult(null);
-      setIsApartment(false);
+      setIsApartment(detectApartmentFromAddress(initial.address));
       setSavedDirectCustomerForm(
         shipping?.receiverType === 'direct_customer'
           ? { recipientName: shipping.recipientName, phone: shipping.phone, postalCode: shipping.postalCode, address: shipping.address, addressDetail: shipping.addressDetail ?? '', deliveryMemo: shipping.deliveryMemo ?? '' }
@@ -294,7 +299,10 @@ export function ShippingEditWithFeeDialog({
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[12px]">주소 *</Label>
+                  <div className="space-y-0.5">
+                    <Label className="text-[12px]">주소 *</Label>
+                    <p className="text-[11px] text-gray-400">건물명·아파트명으로도 검색 가능</p>
+                  </div>
                   <AddressSearch
                     size="sm"
                     inline
