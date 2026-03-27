@@ -410,7 +410,7 @@
     "company": "회사",
     "companyName": "포토미(회사)",
     "orderer": "주문자",
-    "ordererInfo": "주문자 정보",
+    "ordererInfo": "주문자(스튜디오정보)",
     "ordererStudio": "주문자(스튜디오)",
     "directCustomer": "고객직배송",
     "parcel": "택배",

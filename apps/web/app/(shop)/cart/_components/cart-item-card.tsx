@@ -289,10 +289,12 @@ export function CartItemCard({
   const itemShipping = item.albumOrderInfo?.shippingInfo || item.shippingInfo;
   const shippingComplete = isShippingComplete(itemShipping);
 
-  // 문제 4: 아코디언 배송 완료 시 자동 닫힘
-  const [accordionOpen, setAccordionOpen] = useState<string>('');
+  // 배송정보 아코디언: 미완료 시 자동 열림, 사용자가 수동 조작한 뒤에는 자동 닫힘 방지
+  const [accordionOpen, setAccordionOpen] = useState<string>(shippingComplete ? '' : 'shipping');
+  const userToggled = useRef(false);
   useEffect(() => {
-    if (shippingComplete) {
+    // 사용자가 직접 토글한 적이 없을 때만 자동 닫힘
+    if (shippingComplete && !userToggled.current) {
       setAccordionOpen('');
     }
   }, [shippingComplete]);
