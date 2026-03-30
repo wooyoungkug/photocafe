@@ -372,10 +372,9 @@ export function AlbumSplitTool() {
 
       // 자동 저장: directoryHandle이 있으면 즉시 저장
       if (directoryHandle) {
-        // 파일명 기반 저장 (원본명_첫장.jpg, 원본명_막장.jpg)
-        const baseName = fileName.replace(/\.[^.]+$/, '');
-        const leftName = `${baseName}_첫장.jpg`;
-        const rightName = `${baseName}_막장.jpg`;
+        // 파일명 기반 저장 (첫장.jpg, 막장.jpg)
+        const leftName = `첫장.jpg`;
+        const rightName = `막장.jpg`;
 
         const ok1 = await saveToFolder(directoryHandle, leftResult.blob, leftName);
         const ok2 = await saveToFolder(directoryHandle, rightResult.blob, rightName);
@@ -466,8 +465,7 @@ export function AlbumSplitTool() {
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
-    const baseName = fileName.replace(/\.[^.]+$/, '');
-    const saveName = `${baseName}_첫장.jpg`;
+    const saveName = `첫장.jpg`;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, leftBlob, saveName);
       if (ok) { toast.success(`${saveName} 저장 완료`); setSavedLeft(true); }
@@ -476,12 +474,11 @@ export function AlbumSplitTool() {
       const ok = await saveWithPicker(leftBlob, saveName);
       if (ok) { toast.success(`${saveName} 저장 완료`); setSavedLeft(true); }
     }
-  }, [leftBlob, directoryHandle, saveWithPicker, fileName]);
+  }, [leftBlob, directoryHandle, saveWithPicker]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
-    const baseName = fileName.replace(/\.[^.]+$/, '');
-    const saveName = `${baseName}_막장.jpg`;
+    const saveName = `막장.jpg`;
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, rightBlob, saveName);
       if (ok) { toast.success(`${saveName} 저장 완료`); setSavedRight(true); }
@@ -490,13 +487,12 @@ export function AlbumSplitTool() {
       const ok = await saveWithPicker(rightBlob, saveName);
       if (ok) { toast.success(`${saveName} 저장 완료`); setSavedRight(true); }
     }
-  }, [rightBlob, directoryHandle, saveWithPicker, fileName]);
+  }, [rightBlob, directoryHandle, saveWithPicker]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
-    const baseName = fileName.replace(/\.[^.]+$/, '');
-    const leftName = `${baseName}_첫장.jpg`;
-    const rightName = `${baseName}_막장.jpg`;
+    const leftName = `첫장.jpg`;
+    const rightName = `막장.jpg`;
 
     let saved = false;
     if (directoryHandle) {
