@@ -321,6 +321,12 @@ export class OrderController {
     return this.orderService.repairBrokenThumbnails();
   }
 
+  @Post('repair-pending-files')
+  @ApiOperation({ summary: 'pending 파일 복구 (temp 경로 → 정식 경로 이동)' })
+  async repairPendingFiles() {
+    return this.orderService.repairPendingFiles();
+  }
+
   @Post(':id/regenerate-pdf')
   @ApiOperation({ summary: 'PDF 재생성 (실패 시 재시도)' })
   async regeneratePdf(@Param('id') id: string) {

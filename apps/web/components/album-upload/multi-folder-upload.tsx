@@ -2216,7 +2216,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
                 <ChevronsUpDown className="h-3.5 w-3.5" />
                 {allThumbnailsCollapsed ? '썸네일 펼치기' : '썸네일 접기'}
               </Button>
-              <Button variant="ghost" size="sm" onClick={clearFolders}>
+              <Button variant="ghost" size="sm" onClick={() => clearFolders()}>
                 {tc('deleteAll')}
               </Button>
             </div>

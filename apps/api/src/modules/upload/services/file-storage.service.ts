@@ -192,8 +192,12 @@ export class FileStorageService implements OnModuleInit {
       );
     }
 
-    // 임시 폴더 정리
-    this.cleanupTempFolder(tempFolderId);
+    // 임시 폴더 정리 (파일이 하나라도 이동된 경우에만)
+    if (movedFiles.length > 0) {
+      this.cleanupTempFolder(tempFolderId);
+    } else {
+      this.logger.warn(`파일 이동 0건 → temp 폴더 보존: ${tempFolderId}`);
+    }
 
     return { orderDir, movedFiles };
   }

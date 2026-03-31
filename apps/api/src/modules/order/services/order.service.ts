@@ -2198,6 +2198,11 @@ export class OrderService {
           companyName,
         );
 
+        if (movedFiles.length === 0) {
+          this.logger.warn(`파일 이동 0건 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
+          continue;
+        }
+
         // 배치 업데이트: N+1 → 단일 트랜잭션
         const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
         for (const moved of movedFiles) {
@@ -2215,6 +2220,8 @@ export class OrderService {
               thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
               thumbnailPath: moved.thumbnail || null,
             });
+          } else {
+            this.logger.warn(`파일 매칭 실패 (주문: ${order.orderNumber}): ${moved.fileName}`);
           }
         }
 
@@ -2391,6 +2398,100 @@ export class OrderService {
     }
 
     return { total: brokenFiles.length, repaired, failed };
+  }
+
+  /**
+   * pending 상태 파일 복구: temp 경로에 남아있는 파일을 정식 경로로 이동
+   */
+  async repairPendingFiles() {
+    // storageStatus가 pending이고 fileUrl에 /temp/가 포함된 파일들
+    const pendingFiles = await this.prisma.orderFile.findMany({
+      where: {
+        storageStatus: 'pending',
+        fileUrl: { contains: '/temp/' },
+      },
+      include: {
+        orderItem: {
+          include: {
+            order: {
+              include: { client: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (pendingFiles.length === 0) {
+      return { total: 0, repaired: 0, failed: 0, skipped: 0 };
+    }
+
+    // 주문별로 그룹핑
+    const orderMap = new Map<string, { orderNumber: string; companyName: string; files: typeof pendingFiles }>();
+    for (const file of pendingFiles) {
+      const order = file.orderItem.order;
+      if (!orderMap.has(order.id)) {
+        orderMap.set(order.id, {
+          orderNumber: order.orderNumber,
+          companyName: order.client?.clientName || 'unknown',
+          files: [],
+        });
+      }
+      orderMap.get(order.id)!.files.push(file);
+    }
+
+    let repaired = 0;
+    let failed = 0;
+    let skipped = 0;
+
+    for (const [, orderInfo] of orderMap) {
+      // 각 파일의 tempFolderId 추출
+      const tempFolderIds = new Set<string>();
+      for (const file of orderInfo.files) {
+        const match = file.fileUrl.match(/\/temp\/([^/]+)\//);
+        if (match) tempFolderIds.add(match[1]);
+      }
+
+      for (const tempFolderId of tempFolderIds) {
+        try {
+          const { movedFiles } = await this.fileStorage.moveToOrderDir(
+            tempFolderId,
+            orderInfo.orderNumber,
+            orderInfo.companyName,
+          );
+
+          if (movedFiles.length === 0) {
+            skipped += orderInfo.files.filter(f => f.fileUrl.includes(tempFolderId)).length;
+            continue;
+          }
+
+          // DB 업데이트
+          for (const moved of movedFiles) {
+            const matchingFile = orderInfo.files.find(f => {
+              const decoded = decodeURIComponent(f.fileUrl);
+              return decoded.includes(moved.fileName) || f.fileUrl.includes(moved.fileName);
+            });
+            if (matchingFile) {
+              await this.prisma.orderFile.update({
+                where: { id: matchingFile.id },
+                data: {
+                  fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+                  originalPath: moved.original,
+                  thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
+                  thumbnailPath: moved.thumbnail || null,
+                  storageStatus: 'uploaded',
+                },
+              });
+              repaired++;
+            }
+          }
+        } catch (err) {
+          this.logger.error(`pending 파일 복구 실패 (주문: ${orderInfo.orderNumber}, temp: ${tempFolderId}):`, (err as Error).message);
+          failed += orderInfo.files.filter(f => f.fileUrl.includes(tempFolderId)).length;
+        }
+      }
+    }
+
+    return { total: pendingFiles.length, repaired, failed, skipped };
   }
 
   /**

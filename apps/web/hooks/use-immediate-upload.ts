@@ -171,13 +171,25 @@ export function useImmediateUpload(productId: string) {
       // 폴더 업로드 완료 체크
       const progress = folderProgressRef.current.get(item.folderId);
       if (progress && progress.uploaded === progress.total) {
-        const serverFiles = progress.serverFiles.map(r => ({
-          tempFileId: r.tempFileId,
-          fileUrl: r.fileUrl,
-          thumbnailUrl: r.thumbnailUrl,
-          sortOrder: r.sortOrder,
-          fileName: r.fileName,
-        }));
+        // folder의 파일 메타데이터를 매칭하여 포함
+        const { folders } = useMultiFolderUploadStore.getState();
+        const currentFolder = folders.find(f => f.id === item.folderId);
+        const serverFiles = progress.serverFiles.map(r => {
+          const origFile = currentFolder?.files.find(f => (f.newFileName || f.fileName) === r.fileName);
+          return {
+            tempFileId: r.tempFileId,
+            fileUrl: r.fileUrl,
+            thumbnailUrl: r.thumbnailUrl,
+            sortOrder: r.sortOrder,
+            fileName: r.fileName,
+            widthPx: origFile?.widthPx || 0,
+            heightPx: origFile?.heightPx || 0,
+            widthInch: origFile?.widthInch || 0,
+            heightInch: origFile?.heightInch || 0,
+            dpi: origFile?.dpi || 0,
+            fileSize: origFile?.fileSize || r.size || 0,
+          };
+        });
 
         updateFolderUploadStatus(item.folderId, {
           immediateUploadStatus: 'completed',
@@ -193,8 +205,7 @@ export function useImmediateUpload(productId: string) {
 
         // 업로드 완료 후 File 객체 메모리 해제
         // 썸네일은 서버 생성이 비동기(fire-and-forget)이므로 기존 data URL 유지
-        const { folders } = useMultiFolderUploadStore.getState();
-        const folder = folders.find(f => f.id === item.folderId);
+        const folder = useMultiFolderUploadStore.getState().folders.find(f => f.id === item.folderId);
         if (folder) {
           const clearedFiles = folder.files.map(f => {
             const serverThumbUrl = serverFiles.find(sf => sf.sortOrder === f.pageNumber)?.thumbnailUrl;

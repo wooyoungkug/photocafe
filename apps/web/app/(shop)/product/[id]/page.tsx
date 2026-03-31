@@ -404,19 +404,19 @@ export default function ProductPage() {
             if (originalFolder?.immediateUploadStatus === 'completed' && originalFolder.tempFolderId && originalFolder.immediateServerFiles) {
               // 이미 서버에 있으므로 바로 completed 설정
               const serverFiles = originalFolder.immediateServerFiles.map(sf => {
-                const origFile = originalFolder.files.find(f => f.fileName === sf.fileName);
+                const origFile = originalFolder.files.find(f => (f.newFileName || f.fileName) === sf.fileName);
                 return {
                   tempFileId: sf.tempFileId,
                   fileUrl: sf.fileUrl,
                   thumbnailUrl: sf.thumbnailUrl,
                   sortOrder: sf.sortOrder,
                   fileName: sf.fileName,
-                  widthPx: origFile?.widthPx || 0,
-                  heightPx: origFile?.heightPx || 0,
-                  widthInch: origFile?.widthInch || 0,
-                  heightInch: origFile?.heightInch || 0,
-                  dpi: origFile?.dpi || 0,
-                  fileSize: origFile?.fileSize || 0,
+                  widthPx: sf.widthPx || origFile?.widthPx || 0,
+                  heightPx: sf.heightPx || origFile?.heightPx || 0,
+                  widthInch: sf.widthInch || origFile?.widthInch || 0,
+                  heightInch: sf.heightInch || origFile?.heightInch || 0,
+                  dpi: sf.dpi || origFile?.dpi || 0,
+                  fileSize: sf.fileSize || origFile?.fileSize || 0,
                 };
               });
               ids.forEach(id => {
@@ -441,7 +441,12 @@ export default function ProductPage() {
           clearUploadSession(product.id);
         }
 
-        clearFolders();
+        // 장바구니에서 사용 중인 temp 폴더는 삭제하지 않음 (주문 생성 시 정식 경로로 이동됨)
+        const activeTempIds = new Set<string>();
+        newItems.forEach(item => {
+          if (item.tempFolderId) activeTempIds.add(item.tempFolderId);
+        });
+        clearFolders(activeTempIds);
         setUploadModalState({ isOpen: true, newCartItemIds: newItems.map((i) => i.id), primaryIds });
       } catch (error) {
         toast({ title: '오류 발생', description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.', variant: 'destructive' });
