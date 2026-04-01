@@ -63,10 +63,33 @@ import {
   PROCESS_STEP_OPTIONS,
   DEPARTMENTS,
   type ProductType,
-  type ProcessStepCode,
   type ProcessStep,
 } from "@/hooks/use-process-templates";
 import { cn } from "@/lib/utils";
+
+// 한글 이름에서 영문 코드 자동 생성 헬퍼
+function autoCode(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[가-힣]+/g, (match) => {
+      // 간단한 한글→영문 매핑 (공정 이름용)
+      const map: Record<string, string> = {
+        "접수": "receipt", "완료": "complete", "대기": "waiting", "보류": "hold",
+        "검수": "inspection", "파일": "file", "출력": "print", "인디고": "indigo",
+        "잉크젯": "inkjet", "후가공": "finishing", "진행": "progress", "배송": "shipping",
+        "택배": "parcel", "직배송": "direct", "공장": "factory", "출고": "release",
+        "거래": "transaction", "코팅": "coating", "재단": "cutting", "제본": "binding",
+        "압축": "compressed", "양장": "hardcover", "무선": "softcover", "커버": "cover",
+        "제작": "making", "조립": "assembly", "포장": "packaging", "외주": "outsource",
+        "특수": "special", "가공": "processing",
+      };
+      return map[match] || match;
+    })
+    .replace(/[^a-z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+}
 
 // ---------------------------------------------------------------------------
 // Sortable Step Card
@@ -74,13 +97,14 @@ import { cn } from "@/lib/utils";
 
 interface SortableStepProps {
   step: ProcessStep;
+  allStepOptions: Record<string, { name: string; department: string }>;
   onUpdate: (step: ProcessStep) => void;
   onRemove: () => void;
   isFirst: boolean;
   isLast: boolean;
 }
 
-function SortableStepCard({ step, onUpdate, onRemove, isFirst, isLast }: SortableStepProps) {
+function SortableStepCard({ step, allStepOptions, onUpdate, onRemove, isFirst, isLast }: SortableStepProps) {
   const {
     attributes,
     listeners,
@@ -125,11 +149,11 @@ function SortableStepCard({ step, onUpdate, onRemove, isFirst, isLast }: Sortabl
         <Select
           value={step.stepCode}
           onValueChange={(code: string) => {
-            const opt = PROCESS_STEP_OPTIONS[code as ProcessStepCode];
+            const opt = allStepOptions[code];
             if (opt) {
               onUpdate({
                 ...step,
-                stepCode: code as ProcessStepCode,
+                stepCode: code,
                 stepName: opt.name,
                 department: opt.department,
               });
@@ -145,7 +169,7 @@ function SortableStepCard({ step, onUpdate, onRemove, isFirst, isLast }: Sortabl
             </div>
           </SelectTrigger>
           <SelectContent>
-            {(Object.entries(PROCESS_STEP_OPTIONS) as [ProcessStepCode, { name: string; department: string }][]).map(
+            {Object.entries(allStepOptions).map(
               ([code, opt]) => (
                 <SelectItem key={code} value={code}>
                   <div className="flex items-center gap-2">
@@ -269,17 +293,24 @@ function ProcessFlowPreview({ steps }: { steps: ProcessStep[] }) {
 export default function ProcessTemplateEditor() {
   const {
     templates,
+    allStepOptions,
     isLoading,
     isSaving,
     hasChanges,
     updateTemplate,
+    addCustomStep,
     saveTemplates,
     resetTemplate,
   } = useProcessTemplates();
 
   const [selectedType, setSelectedType] = useState<ProductType>("compressed_album");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [addStepCode, setAddStepCode] = useState<ProcessStepCode | "">("");
+  const [addStepCode, setAddStepCode] = useState<string>("");
+  // 새 공정 직접 입력 상태
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
+  const [newStepCode, setNewStepCode] = useState("");
+  const [newStepName, setNewStepName] = useState("");
+  const [newStepDept, setNewStepDept] = useState("PROD");
 
   const currentSteps = templates[selectedType] || [];
 
@@ -328,10 +359,11 @@ export default function ProcessTemplateEditor() {
     [currentSteps, selectedType, updateTemplate]
   );
 
-  // 공정 단계 추가
+  // 기존 공정 추가
   const handleAddStep = useCallback(() => {
     if (!addStepCode) return;
-    const option = PROCESS_STEP_OPTIONS[addStepCode];
+    const option = allStepOptions[addStepCode];
+    if (!option) return;
     const newStep: ProcessStep = {
       stepOrder: currentSteps.length + 1,
       stepCode: addStepCode,
@@ -339,7 +371,6 @@ export default function ProcessTemplateEditor() {
       department: option.department,
       isCheckpoint: false,
     };
-    // 거래완료 앞에 삽입
     const completeIndex = currentSteps.findIndex((s) => s.stepCode === "transaction_complete");
     const insertIndex = completeIndex !== -1 ? completeIndex : currentSteps.length - 1;
     const newSteps = [...currentSteps];
@@ -348,15 +379,48 @@ export default function ProcessTemplateEditor() {
     setAddDialogOpen(false);
     setAddStepCode("");
     toast.success(`"${option.name}" 공정이 추가되었습니다.`);
-  }, [addStepCode, currentSteps, selectedType, updateTemplate]);
+  }, [addStepCode, allStepOptions, currentSteps, selectedType, updateTemplate]);
+
+  // 새 공정 직접 생성 후 추가
+  const handleCreateAndAddStep = useCallback(() => {
+    const code = newStepCode.trim();
+    const name = newStepName.trim();
+    if (!code || !name) return;
+    if (allStepOptions[code]) {
+      toast.error("이미 존재하는 코드입니다.");
+      return;
+    }
+    // 커스텀 공정 등록
+    addCustomStep(code, name, newStepDept);
+    // 바로 현재 상품 템플릿에 추가
+    const newStep: ProcessStep = {
+      stepOrder: currentSteps.length + 1,
+      stepCode: code,
+      stepName: name,
+      department: newStepDept,
+      isCheckpoint: false,
+    };
+    const completeIndex = currentSteps.findIndex((s) => s.stepCode === "transaction_complete");
+    const insertIndex = completeIndex !== -1 ? completeIndex : currentSteps.length - 1;
+    const newSteps = [...currentSteps];
+    newSteps.splice(insertIndex, 0, newStep);
+    updateTemplate(selectedType, newSteps);
+    // 초기화
+    setAddDialogOpen(false);
+    setIsCreatingNew(false);
+    setNewStepCode("");
+    setNewStepName("");
+    setNewStepDept("PROD");
+    toast.success(`"${name}" 공정이 새로 생성되어 추가되었습니다.`);
+  }, [newStepCode, newStepName, newStepDept, allStepOptions, addCustomStep, currentSteps, selectedType, updateTemplate]);
 
   // 이미 사용 중인 공정 코드
   const usedCodes = new Set(currentSteps.map((s) => s.stepCode));
 
-  // 추가 가능한 공정 목록
-  const availableSteps = (
-    Object.entries(PROCESS_STEP_OPTIONS) as [ProcessStepCode, { name: string; department: string }][]
-  ).filter(([code]) => !usedCodes.has(code));
+  // 추가 가능한 공정 목록 (기본 + 커스텀 중 미사용)
+  const availableSteps = Object.entries(allStepOptions).filter(
+    ([code]) => !usedCodes.has(code)
+  );
 
   // 저장
   const handleSave = async () => {
@@ -445,8 +509,7 @@ export default function ProcessTemplateEditor() {
                 variant="outline"
                 size="sm"
                 className="h-8 text-[13px]"
-                onClick={() => setAddDialogOpen(true)}
-                disabled={availableSteps.length === 0}
+                onClick={() => { setAddDialogOpen(true); setIsCreatingNew(false); setAddStepCode(""); }}
               >
                 <Plus className="h-3.5 w-3.5 mr-1" />
                 공정 추가
@@ -467,6 +530,7 @@ export default function ProcessTemplateEditor() {
                     <SortableStepCard
                       key={step.stepCode + "-" + step.stepOrder}
                       step={step}
+                      allStepOptions={allStepOptions}
                       onUpdate={(updated) => handleUpdateStep(index, updated)}
                       onRemove={() => handleRemoveStep(index)}
                       isFirst={index === 0}
@@ -512,74 +576,142 @@ export default function ProcessTemplateEditor() {
       </div>
 
       {/* 공정 추가 다이얼로그 */}
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setIsCreatingNew(false); setAddStepCode(""); } }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="text-[18px] text-black font-bold">공정 단계 추가</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label className="text-[14px]">추가할 공정 선택</Label>
-              <Select
-                value={addStepCode}
-                onValueChange={(v) => setAddStepCode(v as ProcessStepCode)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="공정을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSteps.map(([code, opt]) => {
-                    const dept = DEPARTMENTS[opt.department as keyof typeof DEPARTMENTS];
-                    return (
-                      <SelectItem key={code} value={code}>
-                        <div className="flex items-center gap-2">
-                          <span>{opt.name}</span>
-                          {dept && (
-                            <Badge variant="secondary" className={cn("text-[10px]", dept.color)}>
-                              {dept.name}
-                            </Badge>
-                          )}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {availableSteps.length === 0 && (
-                <p className="text-[13px] text-gray-500">
-                  모든 공정이 이미 추가되어 있습니다.
-                </p>
-              )}
-            </div>
-            {addStepCode && (
-              <div className="p-3 bg-gray-50 rounded-lg text-[13px]">
-                <p>
-                  <span className="text-gray-500">공정:</span>{" "}
-                  <span className="font-bold">
-                    {PROCESS_STEP_OPTIONS[addStepCode as ProcessStepCode]?.name}
-                  </span>
-                </p>
-                <p>
-                  <span className="text-gray-500">부서:</span>{" "}
-                  {DEPARTMENTS[
-                    PROCESS_STEP_OPTIONS[addStepCode as ProcessStepCode]
-                      ?.department as keyof typeof DEPARTMENTS
-                  ]?.name}
-                </p>
-                <p className="text-gray-400 mt-1">
-                  거래완료 앞에 자동 삽입됩니다.
-                </p>
+
+          {!isCreatingNew ? (
+            /* 기존 공정 선택 모드 */
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-[14px]">추가할 공정 선택</Label>
+                <Select
+                  value={addStepCode}
+                  onValueChange={(v) => setAddStepCode(v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="공정을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableSteps.map(([code, opt]) => {
+                      const d = DEPARTMENTS[opt.department as keyof typeof DEPARTMENTS];
+                      return (
+                        <SelectItem key={code} value={code}>
+                          <div className="flex items-center gap-2">
+                            <span>{opt.name}</span>
+                            {d && (
+                              <Badge variant="secondary" className={cn("text-[10px]", d.color)}>
+                                {d.name}
+                              </Badge>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
+
+              {/* 구분선 + 새 공정 만들기 버튼 */}
+              <div className="relative">
+                <Separator />
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-[12px] text-gray-400">
+                  또는
+                </span>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full text-[13px]"
+                onClick={() => setIsCreatingNew(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                새 공정 용어 직접 추가
+              </Button>
+            </div>
+          ) : (
+            /* 새 공정 직접 입력 모드 */
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-[14px]">공정 이름 <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="예: 코팅검수, 외주가공, 특수재단..."
+                  value={newStepName}
+                  onChange={(e) => {
+                    setNewStepName(e.target.value);
+                    // 코드 자동 생성 (한글 → 영문 코드)
+                    if (!newStepCode || newStepCode === autoCode(newStepName)) {
+                      setNewStepCode(autoCode(e.target.value));
+                    }
+                  }}
+                  autoFocus
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[14px]">코드 (영문) <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="예: coating_inspection"
+                  value={newStepCode}
+                  onChange={(e) => setNewStepCode(e.target.value.replace(/[^a-z0-9_]/g, ""))}
+                  className="font-mono"
+                />
+                <p className="text-[11px] text-gray-400">영문 소문자, 숫자, 언더스코어(_)만 사용</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[14px]">담당 부서</Label>
+                <Select value={newStepDept} onValueChange={setNewStepDept}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(DEPARTMENTS) as [string, { name: string; color: string }][]).map(
+                      ([code, d]) => (
+                        <SelectItem key={code} value={code}>
+                          <Badge variant="secondary" className={cn("text-[11px]", d.color)}>
+                            {d.name}
+                          </Badge>
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {allStepOptions[newStepCode] && (
+                <p className="text-[12px] text-red-500">이미 존재하는 코드입니다. 다른 코드를 입력하세요.</p>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-[12px] text-gray-500"
+                onClick={() => setIsCreatingNew(false)}
+              >
+                ← 기존 공정에서 선택하기
+              </Button>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
               취소
             </Button>
-            <Button onClick={handleAddStep} disabled={!addStepCode}>
-              <Plus className="h-4 w-4 mr-1" />
-              추가
-            </Button>
+            {!isCreatingNew ? (
+              <Button onClick={handleAddStep} disabled={!addStepCode}>
+                <Plus className="h-4 w-4 mr-1" />
+                추가
+              </Button>
+            ) : (
+              <Button
+                onClick={handleCreateAndAddStep}
+                disabled={!newStepCode.trim() || !newStepName.trim() || !!allStepOptions[newStepCode]}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                생성 및 추가
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

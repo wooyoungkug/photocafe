@@ -38,7 +38,13 @@ export const PROCESS_STEP_OPTIONS = {
   transaction_complete: { name: "배송(거래)완료", department: "CS" },
 } as const;
 
-export type ProcessStepCode = keyof typeof PROCESS_STEP_OPTIONS;
+export type ProcessStepCode = keyof typeof PROCESS_STEP_OPTIONS | string;
+
+// 커스텀 공정 단계 타입
+export interface CustomStepOption {
+  name: string;
+  department: string;
+}
 
 // 부서 정보
 export const DEPARTMENTS = {
@@ -50,7 +56,7 @@ export const DEPARTMENTS = {
 // 공정 단계 타입
 export interface ProcessStep {
   stepOrder: number;
-  stepCode: ProcessStepCode;
+  stepCode: string;
   stepName: string;
   department: string;
   estimatedHours?: number;
@@ -153,6 +159,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
 
 // SystemSetting에 저장/로드할 키 prefix
 const SETTING_KEY_PREFIX = "process_template_";
+const CUSTOM_STEPS_KEY = "process_custom_steps";
 
 /**
  * 상품별 공정 템플릿 관리 훅
@@ -164,13 +171,29 @@ export function useProcessTemplates() {
   const [templates, setTemplates] = useState<Record<ProductType, ProcessStep[]>>(
     { ...DEFAULT_PROCESS_TEMPLATES }
   );
+  const [customSteps, setCustomSteps] = useState<Record<string, CustomStepOption>>({});
   const [hasChanges, setHasChanges] = useState(false);
+
+  // 모든 사용 가능한 공정 옵션 (기본 + 커스텀)
+  const allStepOptions: Record<string, { name: string; department: string }> = {
+    ...PROCESS_STEP_OPTIONS,
+    ...customSteps,
+  };
 
   // 설정에서 로드
   useEffect(() => {
     if (settings) {
       const map = settingsToMap(settings);
       const loaded = { ...DEFAULT_PROCESS_TEMPLATES };
+
+      // 커스텀 공정 로드
+      if (map[CUSTOM_STEPS_KEY]) {
+        try {
+          setCustomSteps(JSON.parse(map[CUSTOM_STEPS_KEY]));
+        } catch {
+          // 파싱 실패 시 기본값 유지
+        }
+      }
 
       (Object.keys(PRODUCT_TYPES) as ProductType[]).forEach((pt) => {
         const key = `${SETTING_KEY_PREFIX}${pt}`;
@@ -198,24 +221,55 @@ export function useProcessTemplates() {
     []
   );
 
-  // 저장
+  // 커스텀 공정 추가
+  const addCustomStep = useCallback(
+    (code: string, name: string, department: string) => {
+      setCustomSteps((prev) => ({ ...prev, [code]: { name, department } }));
+      setHasChanges(true);
+    },
+    []
+  );
+
+  // 커스텀 공정 삭제
+  const removeCustomStep = useCallback(
+    (code: string) => {
+      setCustomSteps((prev) => {
+        const next = { ...prev };
+        delete next[code];
+        return next;
+      });
+      setHasChanges(true);
+    },
+    []
+  );
+
+  // 저장 (템플릿 + 커스텀 공정 함께)
   const saveTemplates = useCallback(
     async (productType?: ProductType) => {
       const typesToSave = productType
         ? [productType]
         : (Object.keys(PRODUCT_TYPES) as ProductType[]);
 
-      const settingsToSave = typesToSave.map((pt) => ({
-        key: `${SETTING_KEY_PREFIX}${pt}`,
-        value: JSON.stringify(templates[pt]),
-        category: "process_template",
-        label: `${PRODUCT_TYPES[pt]} 공정 템플릿`,
-      }));
+      const settingsToSave = [
+        ...typesToSave.map((pt) => ({
+          key: `${SETTING_KEY_PREFIX}${pt}`,
+          value: JSON.stringify(templates[pt]),
+          category: "process_template",
+          label: `${PRODUCT_TYPES[pt]} 공정 템플릿`,
+        })),
+        // 커스텀 공정도 함께 저장
+        {
+          key: CUSTOM_STEPS_KEY,
+          value: JSON.stringify(customSteps),
+          category: "process_template",
+          label: "사용자 정의 공정 단계",
+        },
+      ];
 
       await bulkUpdate.mutateAsync(settingsToSave);
       setHasChanges(false);
     },
-    [templates, bulkUpdate]
+    [templates, customSteps, bulkUpdate]
   );
 
   // 기본값 복원
@@ -238,10 +292,14 @@ export function useProcessTemplates() {
 
   return {
     templates,
+    customSteps,
+    allStepOptions,
     isLoading,
     isSaving: bulkUpdate.isPending,
     hasChanges,
     updateTemplate,
+    addCustomStep,
+    removeCustomStep,
     saveTemplates,
     resetTemplate,
     resetAllTemplates,
