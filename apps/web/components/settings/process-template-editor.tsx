@@ -56,11 +56,14 @@ import {
   Shield,
   ArrowRight,
   Copy,
+  Pencil,
+  Settings2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   useProcessTemplates,
   PRODUCT_TYPES,
+  DEFAULT_PRODUCT_TYPES,
   PROCESS_STEP_OPTIONS,
   DEPARTMENTS,
   type ProductType,
@@ -294,12 +297,16 @@ function ProcessFlowPreview({ steps }: { steps: ProcessStep[] }) {
 export default function ProcessTemplateEditor() {
   const {
     templates,
+    allProductTypes,
     allStepOptions,
     isLoading,
     isSaving,
     hasChanges,
     updateTemplate,
     addCustomStep,
+    addProductType,
+    renameProductType,
+    removeProductType,
     saveTemplates,
     resetTemplate,
   } = useProcessTemplates();
@@ -315,6 +322,11 @@ export default function ProcessTemplateEditor() {
   // 기존공정 가져오기 상태
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [importSource, setImportSource] = useState<ProductType | "">("");
+  // 상품유형 관리 상태
+  const [productMgmtOpen, setProductMgmtOpen] = useState(false);
+  const [newProductCode, setNewProductCode] = useState("");
+  const [newProductName, setNewProductName] = useState("");
+  const [editingProduct, setEditingProduct] = useState<{ code: string; name: string } | null>(null);
 
   const currentSteps = templates[selectedType] || [];
 
@@ -426,7 +438,7 @@ export default function ProcessTemplateEditor() {
     updateTemplate(selectedType, sourceSteps.map((s) => ({ ...s })));
     setImportDialogOpen(false);
     setImportSource("");
-    toast.success(`${PRODUCT_TYPES[importSource]}의 공정을 가져왔습니다.`);
+    toast.success(`${allProductTypes[importSource]}의 공정을 가져왔습니다.`);
   }, [importSource, selectedType, templates, updateTemplate]);
 
   // 이미 사용 중인 공정 코드
@@ -441,7 +453,7 @@ export default function ProcessTemplateEditor() {
   const handleSave = async () => {
     try {
       await saveTemplates(selectedType);
-      toast.success(`${PRODUCT_TYPES[selectedType]} 공정이 저장되었습니다.`);
+      toast.success(`${allProductTypes[selectedType]} 공정이 저장되었습니다.`);
     } catch {
       toast.error("저장에 실패했습니다.");
     }
@@ -450,7 +462,7 @@ export default function ProcessTemplateEditor() {
   // 기본 복원
   const handleReset = () => {
     resetTemplate(selectedType);
-    toast.info(`${PRODUCT_TYPES[selectedType]} 공정이 기본값으로 복원되었습니다.`);
+    toast.info(`${allProductTypes[selectedType]} 공정이 기본값으로 복원되었습니다.`);
   };
 
   if (isLoading) {
@@ -474,34 +486,48 @@ export default function ProcessTemplateEditor() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* 상품 유형 선택 */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {(Object.entries(PRODUCT_TYPES) as [ProductType, string][]).map(
-              ([code, label]) => (
-                <Button
-                  key={code}
-                  variant={selectedType === code ? "default" : "outline"}
-                  size="sm"
-                  className={cn(
-                    "text-[13px] h-9 justify-start",
-                    selectedType === code && "font-bold"
-                  )}
-                  onClick={() => setSelectedType(code)}
-                >
-                  {label}
-                  <Badge
-                    variant="secondary"
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-[13px] text-gray-500">상품 유형</Label>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-[12px] text-gray-500"
+                onClick={() => setProductMgmtOpen(true)}
+              >
+                <Settings2 className="h-3.5 w-3.5 mr-1" />
+                상품유형 관리
+              </Button>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.entries(allProductTypes).map(
+                ([code, label]) => (
+                  <Button
+                    key={code}
+                    variant={selectedType === code ? "default" : "outline"}
+                    size="sm"
                     className={cn(
-                      "ml-auto text-[10px] h-5",
-                      selectedType === code
-                        ? "bg-white/20 text-white"
-                        : "bg-gray-100"
+                      "text-[13px] h-9 justify-start",
+                      selectedType === code && "font-bold"
                     )}
+                    onClick={() => setSelectedType(code)}
                   >
-                    {templates[code]?.length ?? 0}
-                  </Badge>
-                </Button>
-              )
-            )}
+                    {label}
+                    <Badge
+                      variant="secondary"
+                      className={cn(
+                        "ml-auto text-[10px] h-5",
+                        selectedType === code
+                          ? "bg-white/20 text-white"
+                          : "bg-gray-100"
+                      )}
+                    >
+                      {templates[code]?.length ?? 0}
+                    </Badge>
+                  </Button>
+                )
+              )}
+            </div>
           </div>
 
           <Separator />
@@ -609,13 +635,13 @@ export default function ProcessTemplateEditor() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-[14px] text-gray-500">
-              다른 상품의 공정 흐름을 <span className="font-bold text-black">{PRODUCT_TYPES[selectedType]}</span>에 복사합니다.
+              다른 상품의 공정 흐름을 <span className="font-bold text-black">{allProductTypes[selectedType]}</span>에 복사합니다.
               현재 설정된 공정은 덮어쓰기됩니다.
             </p>
             <div className="space-y-2">
               <Label className="text-[14px]">가져올 상품 선택</Label>
               <div className="grid grid-cols-2 gap-2">
-                {(Object.entries(PRODUCT_TYPES) as [ProductType, string][])
+                {Object.entries(allProductTypes)
                   .filter(([code]) => code !== selectedType)
                   .map(([code, label]) => (
                     <Button
@@ -790,6 +816,147 @@ export default function ProcessTemplateEditor() {
                 생성 및 추가
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 상품유형 관리 다이얼로그 */}
+      <Dialog open={productMgmtOpen} onOpenChange={(open) => { setProductMgmtOpen(open); if (!open) { setEditingProduct(null); setNewProductCode(""); setNewProductName(""); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">상품유형 관리</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* 기존 상품 목록 */}
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+              {Object.entries(allProductTypes).map(([code, label]) => {
+                const isDefault = !!DEFAULT_PRODUCT_TYPES[code];
+                const isEditing = editingProduct?.code === code;
+                return (
+                  <div key={code} className="flex items-center gap-2 p-2 rounded-lg border bg-white">
+                    {isEditing ? (
+                      <>
+                        <Input
+                          value={editingProduct.name}
+                          onChange={(e) => setEditingProduct({ code, name: e.target.value })}
+                          className="h-8 text-[13px] flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              renameProductType(code, editingProduct.name);
+                              setEditingProduct(null);
+                              toast.success("상품명이 수정되었습니다.");
+                            }
+                            if (e.key === "Escape") setEditingProduct(null);
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          className="h-8 text-[12px]"
+                          onClick={() => {
+                            renameProductType(code, editingProduct.name);
+                            setEditingProduct(null);
+                            toast.success("상품명이 수정되었습니다.");
+                          }}
+                        >
+                          확인
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 text-[12px]"
+                          onClick={() => setEditingProduct(null)}
+                        >
+                          취소
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[14px] text-black flex-1">{label}</span>
+                        <span className="text-[11px] text-gray-400 font-mono">{code}</span>
+                        {isDefault && (
+                          <Badge variant="secondary" className="text-[10px] bg-gray-100 text-gray-500">기본</Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[10px]">
+                          {templates[code]?.length ?? 0}공정
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-gray-400 hover:text-blue-500"
+                          onClick={() => setEditingProduct({ code, name: label })}
+                          title="이름 수정"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {!isDefault && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                            onClick={() => {
+                              removeProductType(code);
+                              if (selectedType === code) setSelectedType("compressed_album");
+                              toast.success(`"${label}" 상품유형이 삭제되었습니다.`);
+                            }}
+                            title="삭제"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 새 상품유형 추가 */}
+            <Separator />
+            <div className="space-y-3">
+              <Label className="text-[14px] font-bold">새 상품유형 추가</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="상품명 (예: 캔버스액자)"
+                  value={newProductName}
+                  onChange={(e) => {
+                    setNewProductName(e.target.value);
+                    if (!newProductCode || newProductCode === autoCode(newProductName)) {
+                      setNewProductCode(autoCode(e.target.value));
+                    }
+                  }}
+                  className="flex-1 h-9 text-[13px]"
+                />
+                <Input
+                  placeholder="코드 (영문)"
+                  value={newProductCode}
+                  onChange={(e) => setNewProductCode(e.target.value.replace(/[^a-z0-9_]/g, ""))}
+                  className="w-40 h-9 text-[13px] font-mono"
+                />
+                <Button
+                  size="sm"
+                  className="h-9"
+                  disabled={!newProductName.trim() || !newProductCode.trim() || !!allProductTypes[newProductCode]}
+                  onClick={() => {
+                    addProductType(newProductCode, newProductName.trim());
+                    toast.success(`"${newProductName.trim()}" 상품유형이 추가되었습니다.`);
+                    setNewProductCode("");
+                    setNewProductName("");
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  추가
+                </Button>
+              </div>
+              {allProductTypes[newProductCode] && (
+                <p className="text-[12px] text-red-500">이미 존재하는 코드입니다.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setProductMgmtOpen(false)}>
+              닫기
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
