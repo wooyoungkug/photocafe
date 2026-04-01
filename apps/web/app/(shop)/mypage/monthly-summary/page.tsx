@@ -819,7 +819,7 @@ export default function MonthlySummaryPage() {
                 <br />
                 <span className="text-[8pt] font-normal">(납부금액)</span>
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[140px]">
                 잔&nbsp;&nbsp;액
               </th>
             </tr>
@@ -886,7 +886,7 @@ export default function MonthlySummaryPage() {
                 {formatAmount(summary?.totalDepositAmount || 0)}원
               </td>
               <td
-                className={`border border-gray-500 p-1.5 text-right tabular-nums font-bold ${
+                className={`border border-gray-500 p-1.5 text-right tabular-nums font-bold whitespace-nowrap ${
                   closingBalance > 0
                     ? 'text-red-700'
                     : closingBalance < 0
