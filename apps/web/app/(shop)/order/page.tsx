@@ -356,9 +356,17 @@ export default function OrderPage() {
     try {
       // 주문번호 충돌 방지를 위해 순차 처리
       let firstOrderNumber: string | undefined;
-      for (const orderData of orderDataList) {
-        const res = await api.post<{ orderNumber: string }>('/orders', orderData);
-        if (!firstOrderNumber) firstOrderNumber = res.orderNumber;
+      for (let i = 0; i < orderDataList.length; i++) {
+        const orderData = orderDataList[i];
+        try {
+          console.log(`[주문] ${i + 1}/${orderDataList.length}번 항목 전송:`, JSON.stringify(orderData, null, 2));
+          const res = await api.post<{ orderNumber: string }>('/orders', orderData);
+          if (!firstOrderNumber) firstOrderNumber = res.orderNumber;
+        } catch (itemError) {
+          const itemName = orderData.items?.[0]?.productName || orderData.items?.[0]?.folderName || `${i + 1}번째 항목`;
+          const detail = itemError instanceof Error ? itemError.message : String(itemError);
+          throw new Error(`[${itemName}] 주문 실패: ${detail}`);
+        }
       }
 
       if (cpChanges.length > 0) {
@@ -590,7 +598,7 @@ export default function OrderPage() {
             ? (albumInfo.colorMode === '6c' ? '인디고6도' : '인디고4도')
             : '잉크젯',
           paper: albumInfo.paperName || item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-          bindingType: albumInfo.bindingName || item.options.find(o => o.name === '제본')?.value || undefined,
+          bindingType: albumInfo.bindingName || item.options.find(o => o.name === '제본')?.value || '',
           coverMaterial: albumInfo.coverMaterial || undefined,
           quantity: item.quantity,
           unitPrice: item.basePrice,
@@ -1108,12 +1116,17 @@ export default function OrderPage() {
                   </div>
 
                   {orderError && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-[13px]">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-[13px]">
                       <div className="flex items-start gap-2">
-                        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="font-medium text-red-700">주문 실패</p>
-                          <p className="text-red-600 mt-0.5">{orderError}</p>
+                        <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-red-700 text-[14px]">주문 실패</p>
+                          <div className="text-red-600 mt-1 space-y-1">
+                            {orderError.split(', ').map((msg, idx) => (
+                              <p key={idx} className="break-words">• {msg}</p>
+                            ))}
+                          </div>
+                          <p className="text-red-400 mt-2 text-[11px]">상세 내용은 브라우저 콘솔(F12)에서 확인할 수 있습니다.</p>
                         </div>
                       </div>
                     </div>
