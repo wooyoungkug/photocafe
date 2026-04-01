@@ -15,6 +15,8 @@ export default function ScheduleNewPage() {
   const { toast } = useToast();
   const { user } = useAuthStore();
 
+  const createMutation = useCreateShooting();
+
   const isAdmin = user?.role === 'admin' || user?.role === 'staff';
   if (isAdmin) {
     return (
@@ -26,7 +28,6 @@ export default function ScheduleNewPage() {
       </div>
     );
   }
-  const createMutation = useCreateShooting();
 
   // URL ?date=YYYY-MM-DD 파라미터로 초기 날짜 설정, 기본값은 오늘 + 현재 시간
   const dateParam = searchParams.get('date');
