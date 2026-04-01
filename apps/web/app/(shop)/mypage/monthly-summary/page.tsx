@@ -775,18 +775,6 @@ export default function MonthlySummaryPage() {
   // ===== 공통 서명/푸터 컴포넌트 =====
   const PrintFooter = () => (
     <>
-      <div className="flex justify-end mt-6 gap-8 text-[10pt]">
-        <div className="text-center">
-          <div className="mb-6 text-gray-600">확&nbsp;&nbsp;&nbsp;&nbsp;인</div>
-          <div className="border-b border-black w-32" />
-          <div className="text-gray-500 text-[8pt] mt-1">(인)</div>
-        </div>
-        <div className="text-center">
-          <div className="mb-6 text-gray-600">발&nbsp;&nbsp;&nbsp;&nbsp;행</div>
-          <div className="border-b border-black w-32" />
-          <div className="text-gray-500 text-[8pt] mt-1">(주)프린팅솔루션즈 (인)</div>
-        </div>
-      </div>
       <div className="mt-4 pt-3 border-t border-gray-300 text-[8pt] text-gray-500 text-center">
         {printToday}기준 거래내역 입니다.&nbsp;&nbsp;|&nbsp;&nbsp;문의: (주)프린팅솔루션즈 고객지원부(1800-7682)
       </div>
