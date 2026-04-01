@@ -582,9 +582,11 @@ export default function OrderPage() {
           productName: item.name,
           size: albumInfo.specificationName || item.options.find(o => o.name === '규격')?.value || 'A4',
           pages: albumInfo.pageCount || parseInt(item.options.find(o => o.name === '페이지수')?.value || '20'),
-          printMethod: albumInfo.printMethod === 'indigo' ? '인디고앨범' : '잉크젯',
+          printMethod: albumInfo.printMethod === 'indigo'
+            ? (albumInfo.colorMode === '6c' ? '인디고6도' : '인디고4도')
+            : '잉크젯',
           paper: albumInfo.paperName || item.options.find(o => o.name === '용지')?.value || '스노우화이트',
-          bindingType: albumInfo.bindingName || item.options.find(o => o.name === '제본')?.value || '',
+          bindingType: albumInfo.bindingName || item.options.find(o => o.name === '제본')?.value || undefined,
           coverMaterial: albumInfo.coverMaterial || undefined,
           quantity: item.quantity,
           unitPrice: item.basePrice,

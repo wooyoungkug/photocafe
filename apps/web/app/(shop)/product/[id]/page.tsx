@@ -59,6 +59,12 @@ interface SelectedOptions {
   foilPosition?: string;
 }
 
+const getPaperFullName = (paper?: ProductPaper | null) => {
+  if (!paper) return undefined;
+  const g = paper.grammage ? `${paper.grammage}g` : '';
+  return g && !paper.name.includes(g) ? `${paper.name}${g}` : paper.name;
+};
+
 const getDefaultPrintSideByBinding = (bindingName: string): 'single' | 'double' => {
   const lowerName = bindingName.toLowerCase();
   if (lowerName.includes('압축') || lowerName.includes('맞장') || lowerName.includes('레이플릿')) {
@@ -295,7 +301,7 @@ export default function ProductPage() {
               bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
               specificationId: folderPrice.specificationId || '', specificationName: folder.specLabel,
               bindingName: selectedOptions.binding?.name,
-              paperName: folder.selectedPaperName || selectedOptions.paper?.name,
+              paperName: folder.selectedPaperName || getPaperFullName(selectedOptions.paper),
               coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
               foilName: folder.foilName || undefined, foilColor: folder.foilColor || undefined,
               foilPosition: folder.foilPosition || undefined, shippingInfo: shippingInfoData,
@@ -365,7 +371,7 @@ export default function ProductPage() {
                 bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
                 specificationId: additionalPrice.specificationId || '', specificationName: additional.albumLabel,
                 bindingName: selectedOptions.binding?.name,
-                paperName: folder.selectedPaperName || selectedOptions.paper?.name,
+                paperName: folder.selectedPaperName || getPaperFullName(selectedOptions.paper),
                 coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
                 foilName: (additional.foilName ?? folder.foilName) || undefined,
                 foilColor: (additional.foilColor ?? folder.foilColor) || undefined,
@@ -561,7 +567,7 @@ export default function ProductPage() {
         printMethod: selectedOptions.printMethod,
         colorMode: selectedOptions.colorMode || '4c',
         selectedPaperId: selectedOptions.paper?.id || null,
-        selectedPaperName: selectedOptions.paper?.name || null,
+        selectedPaperName: getPaperFullName(selectedOptions.paper) || null,
       });
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -795,7 +801,7 @@ export default function ProductPage() {
       specificationName: selectedOptions.specification?.name,
       bindingId: selectedOptions.binding?.id,
       bindingName: selectedOptions.binding?.name,
-      paperId: selectedOptions.paper?.id, paperName: selectedOptions.paper?.name,
+      paperId: selectedOptions.paper?.id, paperName: getPaperFullName(selectedOptions.paper),
       coverId: selectedOptions.cover?.id, coverName: selectedOptions.cover?.name,
       printMethod: selectedOptions.printMethod,
       colorMode: selectedOptions.colorMode,
@@ -1242,7 +1248,7 @@ export default function ProductPage() {
       </div>
 
       {/* H. Sticky Bottom Bar */}
-      <ProductSummaryBar isAlbum={isAlbum} bindingName={selectedOptions.binding?.name} paperName={selectedOptions.paper?.name}
+      <ProductSummaryBar isAlbum={isAlbum} bindingName={selectedOptions.binding?.name} paperName={getPaperFullName(selectedOptions.paper)}
         fabricName={effectiveFabricInfo?.name || undefined} copperPlateType={selectedOptions.copperPlateType}
         onAddToCart={handleAddToCart} onScrollToUpload={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         hasUploadedFolders={uploadFolders.length > 0} />
