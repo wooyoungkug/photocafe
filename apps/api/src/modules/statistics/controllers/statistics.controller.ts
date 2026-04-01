@@ -61,4 +61,10 @@ export class StatisticsController {
   async getCategoryTreeStatistics(@Query() query: CategoryStatisticsQueryDto) {
     return this.statisticsService.getCategoryTreeStatistics(query);
   }
+
+  @Get('process-dashboard')
+  @ApiOperation({ summary: '공정 현황 대시보드' })
+  async getProcessDashboard() {
+    return this.statisticsService.getProcessDashboard();
+  }
 }

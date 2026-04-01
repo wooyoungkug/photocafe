@@ -137,3 +137,31 @@ export function useCategoryTreeStatistics(params?: {
     queryFn: () => api.get<CategoryStatistics>('/statistics/categories/tree', params as Record<string, string | number | boolean | undefined>),
   });
 }
+
+// ==================== 공정 현황 대시보드 ====================
+
+export interface ProcessDashboardData {
+  statusCounts: Record<string, number>;
+  processCounts: Record<string, number>;
+  urgentOrders: Array<{
+    id: string;
+    orderNumber: string;
+    clientName: string;
+    currentProcess: string | null;
+    requestedDeliveryDate: string | null;
+    orderedAt: string;
+  }>;
+  todayActivity: {
+    total: number;
+    byStatus: Record<string, number>;
+  };
+}
+
+export function useProcessDashboard() {
+  return useQuery({
+    queryKey: [STATISTICS_KEY, 'process-dashboard'],
+    queryFn: () => api.get<ProcessDashboardData>('/statistics/process-dashboard'),
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+}
