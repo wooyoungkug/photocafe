@@ -120,25 +120,68 @@ function SortableStepCard({ step, onUpdate, onRemove, isFirst, isLast }: Sortabl
         {step.stepOrder}
       </div>
 
-      {/* 공정명 */}
+      {/* 공정 선택 (드롭다운) */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <span className="text-[14px] text-black font-normal truncate">
-            {step.stepName}
-          </span>
-          {step.isCheckpoint && (
-            <Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          )}
-        </div>
-        <span className="text-[12px] text-gray-400">{step.stepCode}</span>
+        <Select
+          value={step.stepCode}
+          onValueChange={(code: string) => {
+            const opt = PROCESS_STEP_OPTIONS[code as ProcessStepCode];
+            if (opt) {
+              onUpdate({
+                ...step,
+                stepCode: code as ProcessStepCode,
+                stepName: opt.name,
+                department: opt.department,
+              });
+            }
+          }}
+        >
+          <SelectTrigger className="h-9 text-[14px] text-black font-normal border-gray-200 hover:border-gray-400">
+            <div className="flex items-center gap-2">
+              <SelectValue />
+              {step.isCheckpoint && (
+                <Shield className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+              )}
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.entries(PROCESS_STEP_OPTIONS) as [ProcessStepCode, { name: string; department: string }][]).map(
+              ([code, opt]) => (
+                <SelectItem key={code} value={code}>
+                  <div className="flex items-center gap-2">
+                    <span>{opt.name}</span>
+                    <span className="text-[11px] text-gray-400">{code}</span>
+                  </div>
+                </SelectItem>
+              )
+            )}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* 부서 배지 */}
-      {dept && (
-        <Badge variant="secondary" className={cn("text-[11px] shrink-0", dept.color)}>
-          {dept.name}
-        </Badge>
-      )}
+      {/* 부서 선택 (드롭다운) */}
+      <Select
+        value={step.department}
+        onValueChange={(dept: string) => onUpdate({ ...step, department: dept })}
+      >
+        <SelectTrigger className={cn(
+          "w-[90px] h-8 text-[12px] font-medium border-0 shrink-0",
+          dept ? dept.color : "bg-gray-100 text-gray-600"
+        )}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {(Object.entries(DEPARTMENTS) as [string, { name: string; color: string }][]).map(
+            ([code, d]) => (
+              <SelectItem key={code} value={code}>
+                <Badge variant="secondary" className={cn("text-[11px]", d.color)}>
+                  {d.name}
+                </Badge>
+              </SelectItem>
+            )
+          )}
+        </SelectContent>
+      </Select>
 
       {/* 예상 시간 */}
       <div className="flex items-center gap-1 shrink-0">
