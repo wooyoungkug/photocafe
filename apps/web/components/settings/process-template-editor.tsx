@@ -304,6 +304,8 @@ export default function ProcessTemplateEditor() {
     hasChanges,
     updateTemplate,
     addCustomStep,
+    updateStepOption,
+    removeCustomStep,
     addProductType,
     renameProductType,
     removeProductType,
@@ -327,6 +329,12 @@ export default function ProcessTemplateEditor() {
   const [newProductCode, setNewProductCode] = useState("");
   const [newProductName, setNewProductName] = useState("");
   const [editingProduct, setEditingProduct] = useState<{ code: string; name: string } | null>(null);
+  // 공정용어 관리 상태
+  const [stepMgmtOpen, setStepMgmtOpen] = useState(false);
+  const [editingStep, setEditingStep] = useState<{ code: string; name: string; department: string } | null>(null);
+  const [mgmtNewCode, setMgmtNewCode] = useState("");
+  const [mgmtNewName, setMgmtNewName] = useState("");
+  const [mgmtNewDept, setMgmtNewDept] = useState("PROD");
 
   const currentSteps = templates[selectedType] || [];
 
@@ -547,6 +555,15 @@ export default function ProcessTemplateEditor() {
                 공정 단계 ({currentSteps.length}개)
               </Label>
               <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-[13px]"
+                  onClick={() => { setStepMgmtOpen(true); setEditingStep(null); setMgmtNewCode(""); setMgmtNewName(""); setMgmtNewDept("PROD"); }}
+                >
+                  <Settings2 className="h-3.5 w-3.5 mr-1" />
+                  공정용어 관리
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -816,6 +833,129 @@ export default function ProcessTemplateEditor() {
                 생성 및 추가
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 공정용어 관리 다이얼로그 */}
+      <Dialog open={stepMgmtOpen} onOpenChange={(open) => { setStepMgmtOpen(open); if (!open) { setEditingStep(null); } }}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">공정용어 관리</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2 overflow-y-auto flex-1">
+            {/* 기존 공정 용어 목록 */}
+            <div className="space-y-1 max-h-[350px] overflow-y-auto">
+              {Object.entries(allStepOptions).map(([code, opt]) => {
+                const isEditing = editingStep?.code === code;
+                const dept = DEPARTMENTS[opt.department as keyof typeof DEPARTMENTS];
+                const isDefault = !!(PROCESS_STEP_OPTIONS as Record<string, unknown>)[code];
+                return (
+                  <div key={code} className="flex items-center gap-2 p-2 rounded-lg border bg-white">
+                    {isEditing ? (
+                      <>
+                        <Input
+                          value={editingStep.name}
+                          onChange={(e) => setEditingStep({ ...editingStep, name: e.target.value })}
+                          className="h-8 text-[13px] flex-1"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              updateStepOption(code, editingStep.name, editingStep.department);
+                              setEditingStep(null);
+                              toast.success("공정 용어가 수정되었습니다.");
+                            }
+                            if (e.key === "Escape") setEditingStep(null);
+                          }}
+                        />
+                        <Select value={editingStep.department} onValueChange={(v) => setEditingStep({ ...editingStep, department: v })}>
+                          <SelectTrigger className="w-[80px] h-8 text-[11px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(Object.entries(DEPARTMENTS) as [string, { name: string; color: string }][]).map(([c, d]) => (
+                              <SelectItem key={c} value={c}><Badge variant="secondary" className={cn("text-[10px]", d.color)}>{d.name}</Badge></SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" className="h-8 text-[12px]" onClick={() => {
+                          updateStepOption(code, editingStep.name, editingStep.department);
+                          setEditingStep(null);
+                          toast.success("공정 용어가 수정되었습니다.");
+                        }}>확인</Button>
+                        <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={() => setEditingStep(null)}>취소</Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[14px] text-black flex-1 truncate">{opt.name}</span>
+                        <span className="text-[11px] text-gray-400 font-mono shrink-0">{code}</span>
+                        {dept && <Badge variant="secondary" className={cn("text-[10px] shrink-0", dept.color)}>{dept.name}</Badge>}
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-blue-500 shrink-0"
+                          onClick={() => setEditingStep({ code, name: opt.name, department: opt.department })} title="수정">
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        {!isDefault && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500 shrink-0"
+                            onClick={() => { removeCustomStep(code); toast.success(`"${opt.name}" 공정이 삭제되었습니다.`); }} title="삭제">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 새 공정용어 추가 */}
+            <Separator />
+            <div className="space-y-2">
+              <Label className="text-[14px] font-bold">새 공정용어 추가</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="공정명 (예: 코팅검수)"
+                  value={mgmtNewName}
+                  onChange={(e) => {
+                    setMgmtNewName(e.target.value);
+                    if (!mgmtNewCode || mgmtNewCode === autoCode(mgmtNewName)) {
+                      setMgmtNewCode(autoCode(e.target.value));
+                    }
+                  }}
+                  className="flex-1 h-9 text-[13px]"
+                />
+                <Input
+                  placeholder="코드"
+                  value={mgmtNewCode}
+                  onChange={(e) => setMgmtNewCode(e.target.value.replace(/[^a-z0-9_]/g, ""))}
+                  className="w-32 h-9 text-[13px] font-mono"
+                />
+                <Select value={mgmtNewDept} onValueChange={setMgmtNewDept}>
+                  <SelectTrigger className="w-[80px] h-9 text-[11px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Object.entries(DEPARTMENTS) as [string, { name: string; color: string }][]).map(([c, d]) => (
+                      <SelectItem key={c} value={c}><Badge variant="secondary" className={cn("text-[10px]", d.color)}>{d.name}</Badge></SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button size="sm" className="h-9"
+                  disabled={!mgmtNewName.trim() || !mgmtNewCode.trim() || !!allStepOptions[mgmtNewCode]}
+                  onClick={() => {
+                    addCustomStep(mgmtNewCode, mgmtNewName.trim(), mgmtNewDept);
+                    toast.success(`"${mgmtNewName.trim()}" 공정이 추가되었습니다.`);
+                    setMgmtNewCode(""); setMgmtNewName(""); setMgmtNewDept("PROD");
+                  }}>
+                  <Plus className="h-4 w-4 mr-1" />추가
+                </Button>
+              </div>
+              {mgmtNewCode && allStepOptions[mgmtNewCode] && (
+                <p className="text-[12px] text-red-500">이미 존재하는 코드입니다.</p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setStepMgmtOpen(false)}>닫기</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -250,6 +250,25 @@ export function useProcessTemplates() {
     []
   );
 
+  // 공정 용어 수정 (기본/커스텀 모두 - 오버라이드 방식)
+  const updateStepOption = useCallback(
+    (code: string, name: string, department: string) => {
+      setCustomSteps((prev) => ({ ...prev, [code]: { name, department } }));
+      // 이미 사용 중인 템플릿의 stepName/department도 갱신
+      setTemplates((prev) => {
+        const next = { ...prev };
+        Object.keys(next).forEach((pt) => {
+          next[pt] = next[pt].map((s) =>
+            s.stepCode === code ? { ...s, stepName: name, department } : s
+          );
+        });
+        return next;
+      });
+      setHasChanges(true);
+    },
+    []
+  );
+
   // 커스텀 공정 삭제
   const removeCustomStep = useCallback(
     (code: string) => {
@@ -381,6 +400,7 @@ export function useProcessTemplates() {
     hasChanges,
     updateTemplate,
     addCustomStep,
+    updateStepOption,
     removeCustomStep,
     addProductType,
     renameProductType,
