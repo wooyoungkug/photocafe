@@ -164,6 +164,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
 const SETTING_KEY_PREFIX = "process_template_";
 const CUSTOM_STEPS_KEY = "process_custom_steps";
 const CUSTOM_PRODUCT_TYPES_KEY = "process_custom_product_types";
+const STEP_ORDER_KEY = "process_step_order";
 
 /**
  * 상품별 공정 템플릿 관리 훅
@@ -177,6 +178,7 @@ export function useProcessTemplates() {
   );
   const [customSteps, setCustomSteps] = useState<Record<string, CustomStepOption>>({});
   const [customProductTypes, setCustomProductTypes] = useState<Record<string, string>>({});
+  const [stepOrder, setStepOrder] = useState<string[]>(Object.keys(PROCESS_STEP_OPTIONS));
   const [hasChanges, setHasChanges] = useState(false);
 
   // 모든 상품 유형 (기본 + 커스텀)
@@ -186,10 +188,20 @@ export function useProcessTemplates() {
   };
 
   // 모든 사용 가능한 공정 옵션 (기본 + 커스텀)
-  const allStepOptions: Record<string, { name: string; department: string }> = {
+  const allStepOptionsMap: Record<string, { name: string; department: string }> = {
     ...PROCESS_STEP_OPTIONS,
     ...customSteps,
   };
+
+  // 순서가 적용된 공정 옵션 배열
+  const orderedStepKeys = [
+    ...stepOrder.filter((k) => allStepOptionsMap[k]),
+    ...Object.keys(allStepOptionsMap).filter((k) => !stepOrder.includes(k)),
+  ];
+
+  // 순서가 적용된 공정 옵션 (Record 형태 유지 - 호환성)
+  const allStepOptions: Record<string, { name: string; department: string }> = {};
+  orderedStepKeys.forEach((k) => { if (allStepOptionsMap[k]) allStepOptions[k] = allStepOptionsMap[k]; });
 
   // 설정에서 로드
   useEffect(() => {
@@ -202,6 +214,11 @@ export function useProcessTemplates() {
         try {
           setCustomSteps(JSON.parse(map[CUSTOM_STEPS_KEY]));
         } catch { /* 기본값 유지 */ }
+      }
+
+      // 공정 순서 로드
+      if (map[STEP_ORDER_KEY]) {
+        try { setStepOrder(JSON.parse(map[STEP_ORDER_KEY])); } catch { /* 기본값 유지 */ }
       }
 
       // 커스텀 상품 유형 로드
@@ -248,6 +265,28 @@ export function useProcessTemplates() {
       setHasChanges(true);
     },
     []
+  );
+
+  // 공정 용어 순서 이동
+  const moveStepOption = useCallback(
+    (code: string, direction: "up" | "down") => {
+      setStepOrder((prev) => {
+        // 현재 전체 키 목록 기준
+        const keys = [
+          ...prev.filter((k) => allStepOptionsMap[k]),
+          ...Object.keys(allStepOptionsMap).filter((k) => !prev.includes(k)),
+        ];
+        const idx = keys.indexOf(code);
+        if (idx === -1) return prev;
+        const newIdx = direction === "up" ? idx - 1 : idx + 1;
+        if (newIdx < 0 || newIdx >= keys.length) return prev;
+        const newKeys = [...keys];
+        [newKeys[idx], newKeys[newIdx]] = [newKeys[newIdx], newKeys[idx]];
+        return newKeys;
+      });
+      setHasChanges(true);
+    },
+    [allStepOptionsMap]
   );
 
   // 공정 용어 수정 (기본/커스텀 모두 - 오버라이드 방식)
@@ -360,6 +399,12 @@ export function useProcessTemplates() {
           category: "process_template",
           label: "사용자 정의 상품 유형",
         },
+        {
+          key: STEP_ORDER_KEY,
+          value: JSON.stringify(stepOrder),
+          category: "process_template",
+          label: "공정 단계 표시 순서",
+        },
       ];
 
       await bulkUpdate.mutateAsync(settingsToSave);
@@ -401,7 +446,9 @@ export function useProcessTemplates() {
     updateTemplate,
     addCustomStep,
     updateStepOption,
+    moveStepOption,
     removeCustomStep,
+    orderedStepKeys,
     addProductType,
     renameProductType,
     removeProductType,

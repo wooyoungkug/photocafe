@@ -58,6 +58,8 @@ import {
   Copy,
   Pencil,
   Settings2,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -305,7 +307,9 @@ export default function ProcessTemplateEditor() {
     updateTemplate,
     addCustomStep,
     updateStepOption,
+    moveStepOption,
     removeCustomStep,
+    orderedStepKeys,
     addProductType,
     renameProductType,
     removeProductType,
@@ -846,12 +850,16 @@ export default function ProcessTemplateEditor() {
           <div className="space-y-4 py-2 overflow-y-auto flex-1">
             {/* 기존 공정 용어 목록 */}
             <div className="space-y-1 max-h-[350px] overflow-y-auto">
-              {Object.entries(allStepOptions).map(([code, opt]) => {
+              {orderedStepKeys.map((code, idx) => {
+                const opt = allStepOptions[code];
+                if (!opt) return null;
                 const isEditing = editingStep?.code === code;
                 const dept = DEPARTMENTS[opt.department as keyof typeof DEPARTMENTS];
                 const isDefault = !!(PROCESS_STEP_OPTIONS as Record<string, unknown>)[code];
+                const isFirst = idx === 0;
+                const isLast = idx === orderedStepKeys.length - 1;
                 return (
-                  <div key={code} className="flex items-center gap-2 p-2 rounded-lg border bg-white">
+                  <div key={code} className="flex items-center gap-1.5 p-2 rounded-lg border bg-white">
                     {isEditing ? (
                       <>
                         <Input
@@ -887,6 +895,17 @@ export default function ProcessTemplateEditor() {
                       </>
                     ) : (
                       <>
+                        {/* 상하 이동 버튼 */}
+                        <div className="flex flex-col shrink-0">
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-gray-300 hover:text-gray-600"
+                            disabled={isFirst} onClick={() => moveStepOption(code, "up")} title="위로">
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-gray-300 hover:text-gray-600"
+                            disabled={isLast} onClick={() => moveStepOption(code, "down")} title="아래로">
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                         <span className="text-[14px] text-black flex-1 truncate">{opt.name}</span>
                         <span className="text-[11px] text-gray-400 font-mono shrink-0">{code}</span>
                         {dept && <Badge variant="secondary" className={cn("text-[10px] shrink-0", dept.color)}>{dept.name}</Badge>}
