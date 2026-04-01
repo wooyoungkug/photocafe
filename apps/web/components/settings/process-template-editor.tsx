@@ -1046,21 +1046,22 @@ export default function ProcessTemplateEditor() {
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        {!isDefault && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
-                            onClick={() => {
-                              removeProductType(code);
-                              if (selectedType === code) setSelectedType("compressed_album");
-                              toast.success(`"${label}" 상품유형이 삭제되었습니다.`);
-                            }}
-                            title="삭제"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-gray-400 hover:text-red-500"
+                          onClick={() => {
+                            removeProductType(code);
+                            if (selectedType === code) {
+                              const remaining = Object.keys(allProductTypes).filter((k) => k !== code);
+                              setSelectedType(remaining[0] || "compressed_album");
+                            }
+                            toast.success(`"${label}" 상품유형이 삭제되었습니다.`);
+                          }}
+                          title="삭제"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </>
                     )}
                   </div>

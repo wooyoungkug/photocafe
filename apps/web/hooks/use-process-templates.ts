@@ -166,6 +166,7 @@ const CUSTOM_STEPS_KEY = "process_custom_steps";
 const CUSTOM_PRODUCT_TYPES_KEY = "process_custom_product_types";
 const STEP_ORDER_KEY = "process_step_order";
 const DELETED_STEPS_KEY = "process_deleted_steps";
+const DELETED_PRODUCT_TYPES_KEY = "process_deleted_product_types";
 
 /**
  * 상품별 공정 템플릿 관리 훅
@@ -181,13 +182,17 @@ export function useProcessTemplates() {
   const [customProductTypes, setCustomProductTypes] = useState<Record<string, string>>({});
   const [stepOrder, setStepOrder] = useState<string[]>(Object.keys(PROCESS_STEP_OPTIONS));
   const [deletedSteps, setDeletedSteps] = useState<string[]>([]);
+  const [deletedProductTypes, setDeletedProductTypes] = useState<string[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
-  // 모든 상품 유형 (기본 + 커스텀)
-  const allProductTypes: Record<string, string> = {
-    ...DEFAULT_PRODUCT_TYPES,
-    ...customProductTypes,
-  };
+  // 모든 상품 유형 (기본 + 커스텀 - 삭제된 항목 제외)
+  const allProductTypes: Record<string, string> = {};
+  Object.entries(DEFAULT_PRODUCT_TYPES).forEach(([k, v]) => {
+    if (!deletedProductTypes.includes(k)) allProductTypes[k] = v;
+  });
+  Object.entries(customProductTypes).forEach(([k, v]) => {
+    if (!deletedProductTypes.includes(k)) allProductTypes[k] = v;
+  });
 
   // 모든 사용 가능한 공정 옵션 (기본 + 커스텀 - 삭제된 항목 제외)
   const allStepOptionsMap: Record<string, { name: string; department: string }> = {};
@@ -228,6 +233,10 @@ export function useProcessTemplates() {
       // 삭제된 공정 로드
       if (map[DELETED_STEPS_KEY]) {
         try { setDeletedSteps(JSON.parse(map[DELETED_STEPS_KEY])); } catch { /* 기본값 유지 */ }
+      }
+      // 삭제된 상품유형 로드
+      if (map[DELETED_PRODUCT_TYPES_KEY]) {
+        try { setDeletedProductTypes(JSON.parse(map[DELETED_PRODUCT_TYPES_KEY])); } catch { /* 기본값 유지 */ }
       }
 
       // 커스텀 상품 유형 로드
@@ -366,7 +375,7 @@ export function useProcessTemplates() {
     []
   );
 
-  // 상품 유형 삭제 (커스텀만 삭제 가능)
+  // 상품 유형 삭제 (기본/커스텀 모두)
   const removeProductType = useCallback(
     (code: string) => {
       setCustomProductTypes((prev) => {
@@ -379,6 +388,7 @@ export function useProcessTemplates() {
         delete next[code];
         return next;
       });
+      setDeletedProductTypes((prev) => prev.includes(code) ? prev : [...prev, code]);
       setHasChanges(true);
     },
     []
@@ -425,12 +435,18 @@ export function useProcessTemplates() {
           category: "process_template",
           label: "삭제된 공정 단계",
         },
+        {
+          key: DELETED_PRODUCT_TYPES_KEY,
+          value: JSON.stringify(deletedProductTypes),
+          category: "process_template",
+          label: "삭제된 상품 유형",
+        },
       ];
 
       await bulkUpdate.mutateAsync(settingsToSave);
       setHasChanges(false);
     },
-    [templates, customSteps, customProductTypes, stepOrder, deletedSteps, bulkUpdate]
+    [templates, customSteps, customProductTypes, stepOrder, deletedSteps, deletedProductTypes, bulkUpdate]
   );
 
   // 기본값 복원
