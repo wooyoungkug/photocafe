@@ -594,10 +594,11 @@ export default function MonthlySummaryPage() {
     printType === 'detail' ? 'monthly-print-area' : 'monthly-print-detail-area';
   const printCss = [
     '@media print {',
-    '  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; }',
+    '  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }',
     '  body * { visibility: hidden !important; max-height: 0 !important; overflow: visible !important; min-height: 0 !important; }',
     `  #${printAreaId} { visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; max-height: none !important; height: auto !important; overflow: visible !important; z-index: 99999 !important; background: white !important; }`,
     `  #${printAreaId} * { visibility: visible !important; max-height: none !important; height: auto !important; overflow: visible !important; min-height: auto !important; }`,
+    `  #${printAreaId} img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }`,
     `  #${otherPrintAreaId} { display: none !important; }`,
     '  @page { size: A4 portrait; margin: 15mm; }',
     '}',
