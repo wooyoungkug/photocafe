@@ -35,7 +35,7 @@ export const PROCESS_STEP_OPTIONS = {
   shipping_parcel: { name: "배송대기(택배)", department: "CS" },
   shipping_direct: { name: "배송대기(직배송)", department: "CS" },
   shipping_factory: { name: "배송대기(공장출고)", department: "CS" },
-  transaction_complete: { name: "거래완료", department: "CS" },
+  transaction_complete: { name: "배송(거래)완료", department: "CS" },
 } as const;
 
 export type ProcessStepCode = keyof typeof PROCESS_STEP_OPTIONS;
@@ -69,7 +69,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 6, stepCode: "finishing_in_progress", stepName: "후가공진행중", department: "PROD" },
     { stepOrder: 7, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 8, stepCode: "shipping_parcel", stepName: "배송대기(택배)", department: "CS" },
-    { stepOrder: 9, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 9, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 화보앨범: 압축앨범과 동일 흐름
   pictorial_album: [
@@ -81,7 +81,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 6, stepCode: "finishing_in_progress", stepName: "후가공진행중", department: "PROD" },
     { stepOrder: 7, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 8, stepCode: "shipping_parcel", stepName: "배송대기(택배)", department: "CS" },
-    { stepOrder: 9, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 9, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 원판압축: 압축앨범과 동일 흐름
   original_compressed: [
@@ -93,7 +93,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 6, stepCode: "finishing_in_progress", stepName: "후가공진행중", department: "PROD" },
     { stepOrder: 7, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 8, stepCode: "shipping_parcel", stepName: "배송대기(택배)", department: "CS" },
-    { stepOrder: 9, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 9, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 포토북
   photobook: [
@@ -105,7 +105,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 6, stepCode: "finishing_in_progress", stepName: "후가공진행중", department: "PROD" },
     { stepOrder: 7, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 8, stepCode: "shipping_parcel", stepName: "배송대기(택배)", department: "CS" },
-    { stepOrder: 9, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 9, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 아크릴액자
   acrylic_frame: [
@@ -117,7 +117,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 6, stepCode: "finishing_in_progress", stepName: "후가공진행중", department: "PROD" },
     { stepOrder: 7, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 8, stepCode: "shipping_direct", stepName: "배송대기(직배송)", department: "CS" },
-    { stepOrder: 9, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 9, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 더블마트액자
   double_mat_frame: [
@@ -129,7 +129,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 6, stepCode: "finishing_in_progress", stepName: "후가공진행중", department: "PROD" },
     { stepOrder: 7, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 8, stepCode: "shipping_direct", stepName: "배송대기(직배송)", department: "CS" },
-    { stepOrder: 9, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 9, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 동판
   copper_plate: [
@@ -138,7 +138,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 3, stepCode: "print_complete", stepName: "출력완료", department: "PROD" },
     { stepOrder: 4, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
     { stepOrder: 5, stepCode: "shipping_factory", stepName: "배송대기(공장출고)", department: "CS" },
-    { stepOrder: 6, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 6, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
   // 단품출력
   single_print: [
@@ -147,7 +147,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 3, stepCode: "print_waiting", stepName: "출력대기(인디고출력후)", department: "PROD" },
     { stepOrder: 4, stepCode: "print_complete", stepName: "출력완료", department: "PROD" },
     { stepOrder: 5, stepCode: "shipping_parcel", stepName: "배송대기(택배)", department: "CS" },
-    { stepOrder: 6, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
+    { stepOrder: 6, stepCode: "transaction_complete", stepName: "배송(거래)완료", department: "CS" },
   ],
 };
 
