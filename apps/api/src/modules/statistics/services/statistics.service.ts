@@ -588,4 +588,69 @@ export class StatisticsService {
       count: Number(r.count),
     }));
   }
+
+  // ==================== 공정 현황 대시보드 ====================
+  async getProcessDashboard() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [statusCounts, processCounts, urgentOrders, todayHistory] = await Promise.all([
+      // ORDER_STATUS별 건수
+      this.prisma.order.groupBy({
+        by: ['status'],
+        _count: { id: true },
+      }),
+      // currentProcess별 건수 (생산진행 상태만)
+      this.prisma.order.groupBy({
+        by: ['currentProcess'],
+        where: { status: 'in_production' },
+        _count: { id: true },
+      }),
+      // 긴급 주문 (미완료)
+      this.prisma.order.findMany({
+        where: { isUrgent: true, status: { notIn: ['shipped', 'cancelled'] } },
+        select: {
+          id: true,
+          orderNumber: true,
+          currentProcess: true,
+          requestedDeliveryDate: true,
+          orderedAt: true,
+          client: { select: { clientName: true } },
+        },
+        orderBy: { requestedDeliveryDate: 'asc' },
+      }),
+      // 오늘 ProcessHistory toStatus별 건수
+      this.prisma.processHistory.groupBy({
+        by: ['toStatus'],
+        where: { processedAt: { gte: today } },
+        _count: { id: true },
+      }),
+    ]);
+
+    return {
+      statusCounts: statusCounts.reduce<Record<string, number>>(
+        (acc, c) => ({ ...acc, [c.status]: c._count.id }),
+        {},
+      ),
+      processCounts: processCounts.reduce<Record<string, number>>(
+        (acc, c) => ({ ...acc, [c.currentProcess ?? 'unknown']: c._count.id }),
+        {},
+      ),
+      urgentOrders: urgentOrders.map(o => ({
+        id: o.id,
+        orderNumber: o.orderNumber,
+        clientName: o.client.clientName,
+        currentProcess: o.currentProcess,
+        requestedDeliveryDate: o.requestedDeliveryDate,
+        orderedAt: o.orderedAt,
+      })),
+      todayActivity: {
+        total: todayHistory.reduce((sum, h) => sum + h._count.id, 0),
+        byStatus: todayHistory.reduce<Record<string, number>>(
+          (acc, h) => ({ ...acc, [h.toStatus]: h._count.id }),
+          {},
+        ),
+      },
+    };
+  }
 }
