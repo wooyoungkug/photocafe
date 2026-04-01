@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, Fragment, useMemo, useEffect, useRef } from 'react';
+import { useState, Fragment, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
@@ -510,10 +510,12 @@ export default function MonthlySummaryPage() {
     return () => window.removeEventListener('afterprint', handler);
   }, []);
 
-  // printType 변경 후 인쇄 실행
+  // printType 변경 후 인쇄 실행 (CSS 적용 대기 후)
   useEffect(() => {
     if (printType) {
-      window.print();
+      requestAnimationFrame(() => {
+        window.print();
+      });
     }
   }, [printType]);
 
@@ -610,32 +612,21 @@ export default function MonthlySummaryPage() {
   ].join('\n');
 
   // Portal 컨테이너 (body 직접 자식)
-  const portalRef = useRef<HTMLDivElement | null>(null);
+  const [portalEl, setPortalEl] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     let el = document.getElementById('print-portal-root') as HTMLDivElement | null;
     if (!el) {
       el = document.createElement('div');
       el.id = 'print-portal-root';
-      el.style.display = 'none';
       document.body.appendChild(el);
     }
-    portalRef.current = el;
+    setPortalEl(el);
     return () => {
-      // 컴포넌트 언마운트 시 제거
       if (el && el.parentNode) {
         el.parentNode.removeChild(el);
       }
     };
   }, []);
-
-  // 인쇄 시 portal 표시/숨김
-  useEffect(() => {
-    const el = portalRef.current;
-    if (!el) return;
-    if (printType) {
-      el.style.display = 'none'; // 화면에서는 숨김 (인쇄 CSS가 보여줌)
-    }
-  }, [printType]);
 
   // ===== 공통 헤더 컴포넌트 (약식/상세 공용) =====
   const PrintHeader = ({ title }: { title: string }) => (
@@ -806,15 +797,18 @@ export default function MonthlySummaryPage() {
     <>
       <style>{printCss}</style>
 
-      {/* 인쇄용 이미지 프리로더 (hidden 컨테이너 밖에서 미리 로드) */}
+      {/* 인쇄용 이미지 프리로더 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/images/company-seal.png" alt="" className="w-0 h-0 absolute opacity-0 pointer-events-none" aria-hidden="true" />
 
-      {/* ===== 약식 인쇄 영역 ===== */}
-      <div
-        id="monthly-print-area"
-        className="hidden print:block font-sans text-[11pt] text-black bg-white"
-      >
+      {/* ===== 인쇄 영역: body 직접 자식 Portal로 렌더링 ===== */}
+      {portalEl && createPortal(
+        <>
+          {/* 약식 인쇄 영역 */}
+          <div
+            id="monthly-print-area"
+            className="hidden print:block font-sans text-[11pt] text-black bg-white"
+          >
         <PrintHeader title="월 별 거 래 내 역" />
 
         {/* 거래원장 테이블 */}
@@ -1097,7 +1091,10 @@ export default function MonthlySummaryPage() {
         </table>
 
         <PrintFooter />
-      </div>
+          </div>
+        </>,
+        portalEl,
+      )}
 
       {/* ===== 화면 UI ===== */}
       <div className="space-y-6">
