@@ -165,6 +165,7 @@ const SETTING_KEY_PREFIX = "process_template_";
 const CUSTOM_STEPS_KEY = "process_custom_steps";
 const CUSTOM_PRODUCT_TYPES_KEY = "process_custom_product_types";
 const STEP_ORDER_KEY = "process_step_order";
+const DELETED_STEPS_KEY = "process_deleted_steps";
 
 /**
  * 상품별 공정 템플릿 관리 훅
@@ -179,6 +180,7 @@ export function useProcessTemplates() {
   const [customSteps, setCustomSteps] = useState<Record<string, CustomStepOption>>({});
   const [customProductTypes, setCustomProductTypes] = useState<Record<string, string>>({});
   const [stepOrder, setStepOrder] = useState<string[]>(Object.keys(PROCESS_STEP_OPTIONS));
+  const [deletedSteps, setDeletedSteps] = useState<string[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
   // 모든 상품 유형 (기본 + 커스텀)
@@ -187,11 +189,14 @@ export function useProcessTemplates() {
     ...customProductTypes,
   };
 
-  // 모든 사용 가능한 공정 옵션 (기본 + 커스텀)
-  const allStepOptionsMap: Record<string, { name: string; department: string }> = {
-    ...PROCESS_STEP_OPTIONS,
-    ...customSteps,
-  };
+  // 모든 사용 가능한 공정 옵션 (기본 + 커스텀 - 삭제된 항목 제외)
+  const allStepOptionsMap: Record<string, { name: string; department: string }> = {};
+  Object.entries(PROCESS_STEP_OPTIONS).forEach(([k, v]) => {
+    if (!deletedSteps.includes(k)) allStepOptionsMap[k] = v;
+  });
+  Object.entries(customSteps).forEach(([k, v]) => {
+    if (!deletedSteps.includes(k)) allStepOptionsMap[k] = v;
+  });
 
   // 순서가 적용된 공정 옵션 배열
   const orderedStepKeys = [
@@ -219,6 +224,10 @@ export function useProcessTemplates() {
       // 공정 순서 로드
       if (map[STEP_ORDER_KEY]) {
         try { setStepOrder(JSON.parse(map[STEP_ORDER_KEY])); } catch { /* 기본값 유지 */ }
+      }
+      // 삭제된 공정 로드
+      if (map[DELETED_STEPS_KEY]) {
+        try { setDeletedSteps(JSON.parse(map[DELETED_STEPS_KEY])); } catch { /* 기본값 유지 */ }
       }
 
       // 커스텀 상품 유형 로드
@@ -308,14 +317,19 @@ export function useProcessTemplates() {
     []
   );
 
-  // 커스텀 공정 삭제
+  // 공정 삭제 (기본/커스텀 모두)
   const removeCustomStep = useCallback(
     (code: string) => {
+      // 커스텀에서 제거
       setCustomSteps((prev) => {
         const next = { ...prev };
         delete next[code];
         return next;
       });
+      // 순서 목록에서 제거
+      setStepOrder((prev) => prev.filter((k) => k !== code));
+      // 삭제 목록에 추가
+      setDeletedSteps((prev) => prev.includes(code) ? prev : [...prev, code]);
       setHasChanges(true);
     },
     []
@@ -405,12 +419,18 @@ export function useProcessTemplates() {
           category: "process_template",
           label: "공정 단계 표시 순서",
         },
+        {
+          key: DELETED_STEPS_KEY,
+          value: JSON.stringify(deletedSteps),
+          category: "process_template",
+          label: "삭제된 공정 단계",
+        },
       ];
 
       await bulkUpdate.mutateAsync(settingsToSave);
       setHasChanges(false);
     },
-    [templates, customSteps, customProductTypes, bulkUpdate]
+    [templates, customSteps, customProductTypes, stepOrder, deletedSteps, bulkUpdate]
   );
 
   // 기본값 복원

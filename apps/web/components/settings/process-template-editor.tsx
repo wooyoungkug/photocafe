@@ -913,12 +913,10 @@ export default function ProcessTemplateEditor() {
                           onClick={() => setEditingStep({ code, name: opt.name, department: opt.department })} title="수정">
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
-                        {!isDefault && (
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500 shrink-0"
-                            onClick={() => { removeCustomStep(code); toast.success(`"${opt.name}" 공정이 삭제되었습니다.`); }} title="삭제">
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-gray-400 hover:text-red-500 shrink-0"
+                          onClick={() => { removeCustomStep(code); toast.success(`"${opt.name}" 공정이 삭제되었습니다.`); }} title="삭제">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </>
                     )}
                   </div>
