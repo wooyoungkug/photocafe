@@ -557,18 +557,26 @@ export default function ProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.printType]);
 
-  // 새 폴더가 추가될 때 현재 선택된 출력방법/용지를 자동 적용
+  // 새 폴더가 추가되거나 출력방법/도수/용지가 변경될 때 모든 폴더에 자동 적용
   useEffect(() => {
     if (!selectedOptions.printMethod || !selectedOptions.paper) return;
-    const foldersWithoutPrint = uploadFolders.filter(f => !f.printMethod);
-    if (foldersWithoutPrint.length === 0) return;
-    foldersWithoutPrint.forEach(f => {
-      updateUploadFolder(f.id, {
-        printMethod: selectedOptions.printMethod,
-        colorMode: selectedOptions.colorMode || '4c',
-        selectedPaperId: selectedOptions.paper?.id || null,
-        selectedPaperName: getPaperFullName(selectedOptions.paper) || null,
-      });
+    if (uploadFolders.length === 0) return;
+    // 새 폴더(printMethod 미세팅)는 전체 옵션 적용, 기존 폴더는 변경된 옵션만 동기화
+    uploadFolders.forEach(f => {
+      const updates: Record<string, unknown> = {};
+      if (!f.printMethod || f.printMethod !== selectedOptions.printMethod) {
+        updates.printMethod = selectedOptions.printMethod;
+      }
+      if (!f.colorMode || f.colorMode !== selectedOptions.colorMode) {
+        updates.colorMode = selectedOptions.colorMode || '4c';
+      }
+      if (!f.selectedPaperId || f.selectedPaperId !== selectedOptions.paper?.id) {
+        updates.selectedPaperId = selectedOptions.paper?.id || null;
+        updates.selectedPaperName = getPaperFullName(selectedOptions.paper) || null;
+      }
+      if (Object.keys(updates).length > 0) {
+        updateUploadFolder(f.id, updates);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.colorMode, selectedOptions.paper?.id]);
