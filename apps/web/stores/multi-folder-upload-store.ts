@@ -369,6 +369,12 @@ export interface UploadedFolder {
     thumbnailUrl: string;
     sortOrder: number;
     fileName: string;
+    widthPx?: number;
+    heightPx?: number;
+    widthInch?: number;
+    heightInch?: number;
+    dpi?: number;
+    fileSize?: number;
   }>;
 
   // 업로드 시 계산된 가격 정보 (FolderCard에서 설정, 장바구니 담을 때 그대로 사용)
@@ -451,7 +457,7 @@ interface MultiFolderUploadState {
   addFolder: (folder: UploadedFolder) => { added: boolean; reason?: string };
   updateFolder: (folderId: string, updates: Partial<UploadedFolder>) => void;
   removeFolder: (folderId: string) => void;
-  clearFolders: () => void;
+  clearFolders: (preserveTempFolderIds?: Set<string>) => void;
 
   setFolderTitle: (folderId: string, title: string) => void;
   setFolderQuantity: (folderId: string, quantity: number) => void;
@@ -903,12 +909,12 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     }));
   },
 
-  clearFolders: () => {
+  clearFolders: (preserveTempFolderIds?: Set<string>) => {
     const { folders, productId } = get();
-    // 서버 임시 파일 삭제 (fire-and-forget)
+    // 서버 임시 파일 삭제 (장바구니에서 사용 중인 temp 폴더는 보존)
     const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '/api/v1').replace(/\/api\/v1\/?$/, '');
     folders.forEach(folder => {
-      if (folder.tempFolderId) {
+      if (folder.tempFolderId && !preserveTempFolderIds?.has(folder.tempFolderId)) {
         fetch(`${API_BASE}/api/v1/upload/temp/${folder.tempFolderId}`, { method: 'DELETE' }).catch(() => {});
       }
     });

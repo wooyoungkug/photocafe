@@ -35,6 +35,7 @@ export interface ProductPaper {
   isActive: boolean;
   isActive4: boolean;
   isActive6: boolean;
+  defaultColorType?: string;
   sortOrder: number;
 }
 

@@ -45,15 +45,29 @@ export class RecruitmentSchedulerService {
   private async autoTransitionToPublic() {
     const now = new Date();
 
+    // 1) privateDeadline이 설정된 경우: 마감 시간 경과 시 전환
+    // 2) privateDeadline이 null인 경우: createdAt + privateDeadlineHours로 판단
     const expiredPrivate = await this.prisma.recruitment.findMany({
       where: {
         status: RECRUITMENT_STATUS.PRIVATE_RECRUITING,
-        privateDeadline: { lte: now },
+        OR: [
+          { privateDeadline: { lte: now } },
+          { privateDeadline: null },
+        ],
       },
       include: { client: { select: { clientName: true } } },
     });
 
-    for (const recruitment of expiredPrivate) {
+    // privateDeadline이 null인 경우 createdAt + privateDeadlineHours로 필터링
+    const filteredExpired = expiredPrivate.filter((r) => {
+      if (r.privateDeadline) return true; // 이미 deadline 경과 확인됨
+      // null인 경우: createdAt + privateDeadlineHours 기준으로 판단
+      const hours = (r as any).privateDeadlineHours ?? 24;
+      const fallbackDeadline = new Date(r.createdAt.getTime() + hours * 60 * 60 * 1000);
+      return now >= fallbackDeadline;
+    });
+
+    for (const recruitment of filteredExpired) {
       try {
         await this.prisma.recruitment.update({
           where: { id: recruitment.id },
@@ -91,8 +105,8 @@ export class RecruitmentSchedulerService {
       }
     }
 
-    if (expiredPrivate.length > 0) {
-      this.logger.log(`전속 → 공개 자동 전환: ${expiredPrivate.length}건`);
+    if (filteredExpired.length > 0) {
+      this.logger.log(`전속 → 공개 자동 전환: ${filteredExpired.length}건`);
     }
   }
 

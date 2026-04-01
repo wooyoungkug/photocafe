@@ -192,8 +192,12 @@ export class FileStorageService implements OnModuleInit {
       );
     }
 
-    // 임시 폴더 정리
-    this.cleanupTempFolder(tempFolderId);
+    // 임시 폴더 정리 (파일이 하나라도 이동된 경우에만)
+    if (movedFiles.length > 0) {
+      this.cleanupTempFolder(tempFolderId);
+    } else {
+      this.logger.warn(`파일 이동 0건 → temp 폴더 보존: ${tempFolderId}`);
+    }
 
     return { orderDir, movedFiles };
   }
@@ -210,12 +214,12 @@ export class FileStorageService implements OnModuleInit {
     }
   }
 
-  /** 24시간 이상 된 임시 파일 정리 (서버 시작 시 호출) */
+  /** 7일 이상 된 임시 파일 정리 (서버 시작 시 호출) */
   cleanupStaleTempFiles() {
     const tempDir = join(this.basePath, 'temp');
     if (!existsSync(tempDir)) return;
 
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
     let cleaned = 0;
 
     try {

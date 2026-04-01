@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, Fragment, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   Calendar,
@@ -509,10 +510,12 @@ export default function MonthlySummaryPage() {
     return () => window.removeEventListener('afterprint', handler);
   }, []);
 
-  // printType 변경 후 인쇄 실행
+  // printType 변경 후 인쇄 실행 (CSS 적용 대기 후)
   useEffect(() => {
     if (printType) {
-      window.print();
+      requestAnimationFrame(() => {
+        window.print();
+      });
     }
   }, [printType]);
 
@@ -592,16 +595,38 @@ export default function MonthlySummaryPage() {
     printType === 'detail' ? 'monthly-print-detail-area' : 'monthly-print-area';
   const otherPrintAreaId =
     printType === 'detail' ? 'monthly-print-area' : 'monthly-print-detail-area';
+  // Portal 기반 인쇄: body 직접 자식이므로 간단한 CSS로 처리 가능
   const printCss = [
     '@media print {',
-    '  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; }',
-    '  body * { visibility: hidden !important; max-height: 0 !important; overflow: visible !important; min-height: 0 !important; }',
-    `  #${printAreaId} { visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; max-height: none !important; height: auto !important; overflow: visible !important; z-index: 99999 !important; background: white !important; }`,
-    `  #${printAreaId} * { visibility: visible !important; max-height: none !important; height: auto !important; overflow: visible !important; min-height: auto !important; }`,
-    `  #${otherPrintAreaId} { display: none !important; }`,
     '  @page { size: A4 portrait; margin: 15mm; }',
+    '  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }',
+    '  body > *:not(#print-portal-root) { display: none !important; }',
+    '  #print-portal-root { display: block !important; }',
+    `  #${printAreaId} { display: block !important; width: 100% !important; height: auto !important; overflow: visible !important; background: white !important; }`,
+    `  #${printAreaId} img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }`,
+    `  #${otherPrintAreaId} { display: none !important; }`,
+    '  table { page-break-inside: auto; }',
+    '  tr { page-break-inside: avoid; page-break-after: auto; }',
+    '  thead { display: table-header-group; }',
     '}',
   ].join('\n');
+
+  // Portal 컨테이너 (body 직접 자식)
+  const [portalEl, setPortalEl] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    let el = document.getElementById('print-portal-root') as HTMLDivElement | null;
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'print-portal-root';
+      document.body.appendChild(el);
+    }
+    setPortalEl(el);
+    return () => {
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    };
+  }, []);
 
   // ===== 공통 헤더 컴포넌트 (약식/상세 공용) =====
   const PrintHeader = ({ title }: { title: string }) => (
@@ -703,7 +728,7 @@ export default function MonthlySummaryPage() {
         <thead>
           <tr style={{ backgroundColor: '#e5e7eb' }}>
             <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
-              이 월 잔 액
+              전 월 잔 액
             </th>
             <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
               당월 주문금액
@@ -736,10 +761,10 @@ export default function MonthlySummaryPage() {
                   : ''
               }`}
             >
+              {closingBalance > 0 && <span className="text-[8pt] mr-1">(미납)</span>}
+              {closingBalance < 0 && <span className="text-[8pt] mr-1">(선납)</span>}
               {closingBalance < 0 && '-'}
               {formatAmount(Math.abs(closingBalance))}원
-              {closingBalance > 0 && <span className="text-[8pt] ml-1">(미납)</span>}
-              {closingBalance < 0 && <span className="text-[8pt] ml-1">(선납)</span>}
             </td>
           </tr>
         </tbody>
@@ -750,18 +775,6 @@ export default function MonthlySummaryPage() {
   // ===== 공통 서명/푸터 컴포넌트 =====
   const PrintFooter = () => (
     <>
-      <div className="flex justify-end mt-6 gap-8 text-[10pt]">
-        <div className="text-center">
-          <div className="mb-6 text-gray-600">확&nbsp;&nbsp;&nbsp;&nbsp;인</div>
-          <div className="border-b border-black w-32" />
-          <div className="text-gray-500 text-[8pt] mt-1">(인)</div>
-        </div>
-        <div className="text-center">
-          <div className="mb-6 text-gray-600">발&nbsp;&nbsp;&nbsp;&nbsp;행</div>
-          <div className="border-b border-black w-32" />
-          <div className="text-gray-500 text-[8pt] mt-1">(주)프린팅솔루션즈 (인)</div>
-        </div>
-      </div>
       <div className="mt-4 pt-3 border-t border-gray-300 text-[8pt] text-gray-500 text-center">
         {printToday}기준 거래내역 입니다.&nbsp;&nbsp;|&nbsp;&nbsp;문의: (주)프린팅솔루션즈 고객지원부(1800-7682)
       </div>
@@ -772,15 +785,18 @@ export default function MonthlySummaryPage() {
     <>
       <style>{printCss}</style>
 
-      {/* 인쇄용 이미지 프리로더 (hidden 컨테이너 밖에서 미리 로드) */}
+      {/* 인쇄용 이미지 프리로더 */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/images/company-seal.png" alt="" className="w-0 h-0 absolute opacity-0 pointer-events-none" aria-hidden="true" />
 
-      {/* ===== 약식 인쇄 영역 ===== */}
-      <div
-        id="monthly-print-area"
-        className="hidden print:block font-sans text-[11pt] text-black bg-white"
-      >
+      {/* ===== 인쇄 영역: body 직접 자식 Portal로 렌더링 ===== */}
+      {portalEl && createPortal(
+        <>
+          {/* 약식 인쇄 영역 */}
+          <div
+            id="monthly-print-area"
+            className="hidden print:block font-sans text-[11pt] text-black bg-white"
+          >
         <PrintHeader title="월 별 거 래 내 역" />
 
         {/* 거래원장 테이블 */}
@@ -803,7 +819,7 @@ export default function MonthlySummaryPage() {
                 <br />
                 <span className="text-[8pt] font-normal">(납부금액)</span>
               </th>
-              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">
+              <th className="border border-gray-500 p-1.5 text-center font-semibold w-[140px]">
                 잔&nbsp;&nbsp;액
               </th>
             </tr>
@@ -811,7 +827,6 @@ export default function MonthlySummaryPage() {
           <tbody>
             <tr className="bg-blue-50">
               <td className="border border-gray-400 p-1.5 text-center text-gray-500">
-                {printYear}.{printMonth}.01
               </td>
               <td className="border border-gray-400 p-1.5 text-center font-semibold text-blue-700">
                 전월 이월
@@ -870,18 +885,8 @@ export default function MonthlySummaryPage() {
               <td className="border border-gray-500 p-1.5 text-right tabular-nums">
                 {formatAmount(summary?.totalDepositAmount || 0)}원
               </td>
-              <td className="border border-gray-500 p-1.5" />
-            </tr>
-
-            <tr className="bg-gray-200 font-bold">
-              <td className="border border-gray-500 p-1.5" />
-              <td className="border border-gray-500 p-1.5 text-center text-primary">
-                차 월 이 월
-              </td>
-              <td className="border border-gray-500 p-1.5" />
-              <td className="border border-gray-500 p-1.5" />
               <td
-                className={`border border-gray-500 p-1.5 text-right tabular-nums ${
+                className={`border border-gray-500 p-1.5 text-right tabular-nums font-bold whitespace-nowrap ${
                   closingBalance > 0
                     ? 'text-red-700'
                     : closingBalance < 0
@@ -889,6 +894,8 @@ export default function MonthlySummaryPage() {
                     : ''
                 }`}
               >
+                {closingBalance > 0 && <span className="text-[8pt] mr-1">(미납)</span>}
+                {closingBalance < 0 && <span className="text-[8pt] mr-1">(선납)</span>}
                 {closingBalance < 0 && '-'}
                 {formatAmount(Math.abs(closingBalance))}원
               </td>
@@ -1038,32 +1045,14 @@ export default function MonthlySummaryPage() {
                 {formatAmount(summary?.totalDepositAmount || 0)}원
               </td>
             </tr>
-
-            {/* 차월이월 */}
-            <tr className="bg-gray-300 font-bold">
-              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
-                차 월 이 월
-                {closingBalance > 0 && <span className="text-[8pt]">(미납금액)</span>}
-              </td>
-              <td
-                className={`border border-gray-500 p-1.5 text-right tabular-nums ${
-                  closingBalance > 0
-                    ? 'text-red-700'
-                    : closingBalance < 0
-                    ? 'text-blue-700'
-                    : ''
-                }`}
-              >
-                {closingBalance < 0 && '-'}
-                {formatAmount(Math.abs(closingBalance))}원
-                {closingBalance < 0 && <span className="text-[8pt] ml-1">(선납)</span>}
-              </td>
-            </tr>
           </tbody>
         </table>
 
         <PrintFooter />
-      </div>
+          </div>
+        </>,
+        portalEl,
+      )}
 
       {/* ===== 화면 UI ===== */}
       <div className="space-y-6">
@@ -1129,7 +1118,7 @@ export default function MonthlySummaryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground mb-1">이월잔액</p>
+                <p className="text-xs text-muted-foreground mb-1">전월잔액</p>
                 <p className="text-lg sm:text-2xl tabular-nums">
                   {formatAmount(carryForward)}
                   <span className="text-sm">원</span>
@@ -1400,7 +1389,7 @@ export default function MonthlySummaryPage() {
                       <td className="p-2 sm:p-3 whitespace-nowrap text-[13px] text-black font-normal">
                         {format(startDate, 'MM/01', { locale: ko })}
                       </td>
-                      <td className="p-2 sm:p-3 font-medium text-blue-700">이월잔액</td>
+                      <td className="p-2 sm:p-3 font-medium text-blue-700">전월잔액</td>
                       <td className="p-2 sm:p-3 text-right text-muted-foreground">-</td>
                       <td className="p-2 sm:p-3 text-right text-muted-foreground">-</td>
                       <td
@@ -1429,22 +1418,8 @@ export default function MonthlySummaryPage() {
                       <td className="p-2 sm:p-3 text-right tabular-nums text-green-600">
                         {formatAmount(summary?.totalDepositAmount || 0)}원
                       </td>
-                      <td className="p-2 sm:p-3 text-right tabular-nums" />
-                      <td className="p-2 sm:p-3" />
-                    </tr>
-
-                    {/* 기말잔액 행 */}
-                    <tr className="bg-gray-50 text-[13px] text-black border-t font-bold">
-                      <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3 text-primary">
-                        차월이월
-                        {closingBalance > 0 && <span className="text-[13px] text-red-600">(미납금액)</span>}
-                      </td>
-                      <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3" />
                       <td
-                        className={`p-2 sm:p-3 text-right tabular-nums ${
+                        className={`p-2 sm:p-3 text-right tabular-nums font-bold ${
                           closingBalance > 0
                             ? 'text-red-600'
                             : closingBalance < 0
@@ -1452,6 +1427,8 @@ export default function MonthlySummaryPage() {
                             : ''
                         }`}
                       >
+                        {closingBalance > 0 && <span className="text-[11px] mr-1">(미납)</span>}
+                        {closingBalance < 0 && <span className="text-[11px] mr-1">(선납)</span>}
                         {closingBalance < 0 && '-'}
                         {formatAmount(Math.abs(closingBalance))}원
                       </td>

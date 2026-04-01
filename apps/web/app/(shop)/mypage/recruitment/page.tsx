@@ -242,9 +242,9 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
         </div>
 
         {/* 보수 */}
-        <div className="shrink-0 w-[90px] hidden lg:flex items-center gap-1.5">
+        <div className="shrink-0 w-[120px] hidden lg:flex items-center gap-1.5">
           <Wallet className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] text-gray-600">
+          <span className="text-[13px] text-gray-600 whitespace-nowrap">
             {recruitment.budget
               ? `${Number(recruitment.budget).toLocaleString()}원`
               : '-'}
@@ -355,9 +355,9 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
         </div>
 
         {/* 보수 */}
-        <div className="shrink-0 w-[90px] hidden lg:flex items-center gap-1.5">
+        <div className="shrink-0 w-[120px] hidden lg:flex items-center gap-1.5">
           <Wallet className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[13px] text-black font-bold">
+          <span className="text-[13px] text-black font-bold whitespace-nowrap">
             {recruitment.budget
               ? `${Number(recruitment.budget).toLocaleString()}원`
               : '-'}
@@ -564,7 +564,7 @@ export default function RecruitmentListPage() {
                   <div className="flex-1">제목</div>
                   <div className="w-[120px] hidden sm:block">촬영일</div>
                   <div className="w-[140px] hidden md:block">장소</div>
-                  <div className="w-[90px] hidden lg:block">보수</div>
+                  <div className="w-[120px] hidden lg:block">보수</div>
                   <div className="w-[60px]">응찰</div>
                   <div className="w-[70px] hidden sm:block">등록일</div>
                   <div className="w-[14px]"></div>
@@ -605,7 +605,7 @@ export default function RecruitmentListPage() {
                 <div className="flex-1">제목</div>
                 <div className="w-[130px] hidden sm:block">촬영일</div>
                 <div className="w-[140px] hidden md:block">장소</div>
-                <div className="w-[90px] hidden lg:block">보수</div>
+                <div className="w-[120px] hidden lg:block">보수</div>
                 <div className="w-[50px]">응찰</div>
                 <div className="w-[14px]"></div>
               </div>

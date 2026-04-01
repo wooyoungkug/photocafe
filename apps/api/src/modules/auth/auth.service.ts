@@ -203,13 +203,19 @@ export class AuthService {
       const lookupId = type === 'employee' && companyClientId ? companyClientId : userId;
       const client = await this.prisma.client.findUnique({
         where: { id: lookupId },
-        select: { id: true, email: true, clientName: true, enableSchedule: true, enableRecruitment: true },
+        select: { id: true, email: true, clientName: true, businessNumber: true, representative: true, address: true, addressDetail: true, contactPerson: true, mobile: true, enableSchedule: true, enableRecruitment: true },
       });
       if (!client) throw new UnauthorizedException('User not found');
       return {
         id: client.id,
         email: client.email,
         name: client.clientName,
+        businessNumber: client.businessNumber,
+        representative: client.representative,
+        address: client.address,
+        addressDetail: client.addressDetail,
+        contactPerson: client.contactPerson,
+        mobile: client.mobile,
         enableSchedule: client.enableSchedule ?? true,
         enableRecruitment: client.enableRecruitment ?? true,
       };

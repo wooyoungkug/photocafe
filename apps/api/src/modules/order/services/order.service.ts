@@ -2184,6 +2184,7 @@ export class OrderService {
       const firstFile = item.files[0];
       if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
 
+<<<<<<< HEAD
       const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
       if (urlParts.length < 2) continue;
       const tempFolderId = urlParts[1].split('/')[0];
@@ -2250,6 +2251,103 @@ export class OrderService {
             this.logger.error(`파일 이동 최종 실패 (주문: ${order.orderNumber}, 아이템: ${item.id}):`, (err as Error).message);
           }
         }
+=======
+        const companyName = order.client?.clientName;
+        if (!companyName) {
+          throw new Error(`거래처 정보 누락 (주문: ${order.orderNumber}, clientId: ${order.clientId})`);
+        }
+
+        this.logger.log(`파일 이동 시작 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
+
+        const { orderDir, movedFiles } = await this.fileStorage.moveToOrderDir(
+          tempFolderId,
+          order.orderNumber,
+          companyName,
+        );
+
+        if (movedFiles.length === 0) {
+          this.logger.warn(`파일 이동 0건 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
+          continue;
+        }
+
+        this.logger.log(`파일 이동 완료 (주문: ${order.orderNumber}): ${movedFiles.length}개 (썸네일: ${movedFiles.filter(m => m.thumbnail).length}개)`);
+
+        // 배치 업데이트: N+1 → 단일 트랜잭션
+        const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
+        let matchFailed = 0;
+        for (const moved of movedFiles) {
+          const matchingFile = item.files.find(
+            (f: any) => {
+              const decodedUrl = decodeURIComponent(f.fileUrl);
+              const decodedFileName = decodeURIComponent(moved.fileName);
+              return decodedUrl.includes(moved.fileName)
+                || f.fileUrl.includes(moved.fileName)
+                || decodedUrl.includes(decodedFileName)
+                || f.fileName === moved.fileName
+                || f.fileName === decodedFileName;
+            },
+          );
+          if (matchingFile) {
+            updates.push({
+              id: matchingFile.id,
+              fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+              originalPath: moved.original,
+              thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
+              thumbnailPath: moved.thumbnail || null,
+            });
+          } else {
+            matchFailed++;
+            this.logger.warn(`파일 매칭 실패 (주문: ${order.orderNumber}): moved="${moved.fileName}", DB파일들=[${item.files.slice(0, 3).map((f: any) => f.fileName).join(', ')}...]`);
+          }
+        }
+
+        if (matchFailed > 0) {
+          this.logger.warn(`파일 매칭 실패 총 ${matchFailed}건 (주문: ${order.orderNumber})`);
+        }
+
+        // 50개씩 배치 처리
+        const BATCH_SIZE = 50;
+        for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+          const batch = updates.slice(i, i + BATCH_SIZE);
+          try {
+            await this.prisma.$transaction(
+              batch.map(u =>
+                this.prisma.orderFile.update({
+                  where: { id: u.id },
+                  data: {
+                    fileUrl: u.fileUrl,
+                    originalPath: u.originalPath,
+                    thumbnailUrl: u.thumbnailUrl,
+                    thumbnailPath: u.thumbnailPath,
+                    storageStatus: 'uploaded',
+                  },
+                })
+              )
+            );
+          } catch (dbErr) {
+            this.logger.error(`DB 배치 업데이트 실패 (주문: ${order.orderNumber}, batch ${i}-${i + batch.length}):`, (dbErr as Error).message);
+            // 개별 업데이트로 폴백
+            for (const u of batch) {
+              try {
+                await this.prisma.orderFile.update({
+                  where: { id: u.id },
+                  data: {
+                    fileUrl: u.fileUrl,
+                    originalPath: u.originalPath,
+                    thumbnailUrl: u.thumbnailUrl,
+                    thumbnailPath: u.thumbnailPath,
+                    storageStatus: 'uploaded',
+                  },
+                });
+              } catch (singleErr) {
+                this.logger.error(`개별 DB 업데이트 실패 (파일: ${u.id}):`, (singleErr as Error).message);
+              }
+            }
+          }
+        }
+
+        this.logger.log(`DB 업데이트 완료 (주문: ${order.orderNumber}): ${updates.length}건`);
+>>>>>>> 3b60ca45cd090074733dc4857675d1980fbf8aa2
       }
     }
   }
@@ -2461,6 +2559,208 @@ export class OrderService {
     }
 
     return { total: brokenThumbFiles.length + tempUrlFiles.length, repaired, failed, cleaned };
+  }
+
+  /**
+   * pending 상태 파일 복구:
+   * 1단계: temp 폴더가 있으면 정식 경로로 이동
+   * 2단계: temp 폴더가 없으면 order 디렉토리에서 이미 이동된 파일 탐색
+   * 3단계: 썸네일 누락 시 원본에서 재생성
+   */
+  async repairPendingFiles() {
+    // storageStatus가 pending이고 fileUrl에 /temp/가 포함된 파일들
+    const pendingFiles = await this.prisma.orderFile.findMany({
+      where: {
+        storageStatus: 'pending',
+        fileUrl: { contains: '/temp/' },
+      },
+      include: {
+        orderItem: {
+          include: {
+            order: {
+              include: { client: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (pendingFiles.length === 0) {
+      return { total: 0, repaired: 0, failed: 0, skipped: 0, details: [] };
+    }
+
+    // 주문별로 그룹핑
+    const orderMap = new Map<string, { orderNumber: string; companyName: string; files: typeof pendingFiles }>();
+    for (const file of pendingFiles) {
+      const order = file.orderItem.order;
+      if (!orderMap.has(order.id)) {
+        orderMap.set(order.id, {
+          orderNumber: order.orderNumber,
+          companyName: order.client?.clientName || 'unknown',
+          files: [],
+        });
+      }
+      orderMap.get(order.id)!.files.push(file);
+    }
+
+    let repaired = 0;
+    let failed = 0;
+    let skipped = 0;
+    const details: string[] = [];
+
+    for (const [, orderInfo] of orderMap) {
+      // 각 파일의 tempFolderId 추출
+      const tempFolderIds = new Set<string>();
+      for (const file of orderInfo.files) {
+        const match = file.fileUrl.match(/\/temp\/([^/]+)\//);
+        if (match) tempFolderIds.add(match[1]);
+      }
+
+      for (const tempFolderId of tempFolderIds) {
+        const relatedFiles = orderInfo.files.filter(f => f.fileUrl.includes(tempFolderId));
+
+        try {
+          // 1단계: temp 폴더가 존재하면 정식 경로로 이동
+          const { orderDir, movedFiles } = await this.fileStorage.moveToOrderDir(
+            tempFolderId,
+            orderInfo.orderNumber,
+            orderInfo.companyName,
+          );
+
+          if (movedFiles.length > 0) {
+            // temp에서 이동 성공한 파일 DB 업데이트
+            for (const moved of movedFiles) {
+              const matchingFile = relatedFiles.find(f => {
+                const decoded = decodeURIComponent(f.fileUrl);
+                return decoded.includes(moved.fileName) || f.fileUrl.includes(moved.fileName);
+              });
+              if (matchingFile) {
+                await this.prisma.orderFile.update({
+                  where: { id: matchingFile.id },
+                  data: {
+                    fileUrl: this.fileStorage.toRelativeUrl(moved.original),
+                    originalPath: moved.original,
+                    thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
+                    thumbnailPath: moved.thumbnail || null,
+                    storageStatus: 'uploaded',
+                  },
+                });
+                repaired++;
+              }
+            }
+            details.push(`${orderInfo.orderNumber}: temp에서 ${movedFiles.length}개 이동 성공`);
+          }
+
+          // 2단계: 아직 pending인 파일들 → order 디렉토리에서 탐색
+          const stillPending = relatedFiles.filter(f => {
+            // 이미 위에서 처리된 파일은 제외
+            return !movedFiles.some(m => {
+              const decoded = decodeURIComponent(f.fileUrl);
+              return decoded.includes(m.fileName) || f.fileUrl.includes(m.fileName);
+            });
+          });
+
+          if (stillPending.length > 0) {
+            const repairResult = await this.repairFromOrderDir(stillPending, orderDir, orderInfo.orderNumber);
+            repaired += repairResult.repaired;
+            skipped += repairResult.skipped;
+            if (repairResult.repaired > 0) {
+              details.push(`${orderInfo.orderNumber}: order dir에서 ${repairResult.repaired}개 복구`);
+            }
+            if (repairResult.skipped > 0) {
+              details.push(`${orderInfo.orderNumber}: ${repairResult.skipped}개 파일 찾기 실패 (원본 유실)`);
+            }
+          }
+        } catch (err) {
+          this.logger.error(`pending 파일 복구 실패 (주문: ${orderInfo.orderNumber}, temp: ${tempFolderId}):`, (err as Error).message);
+          failed += relatedFiles.length;
+          details.push(`${orderInfo.orderNumber}: 오류 - ${(err as Error).message}`);
+        }
+      }
+    }
+
+    return { total: pendingFiles.length, repaired, failed, skipped, details };
+  }
+
+  /**
+   * order 디렉토리에서 이미 이동된 파일을 찾아 DB 업데이트 + 썸네일 재생성
+   */
+  private async repairFromOrderDir(
+    files: Array<{ id: string; fileName: string; fileUrl: string; thumbnailUrl: string | null }>,
+    orderDir: string,
+    orderNumber: string,
+  ) {
+    const { join, extname } = await import('path');
+    const { existsSync } = await import('fs');
+
+    const originalsDir = join(orderDir, 'originals');
+    const thumbnailsDir = join(orderDir, 'thumbnails');
+    let repaired = 0;
+    let skipped = 0;
+
+    for (const file of files) {
+      const originalPath = join(originalsDir, file.fileName);
+
+      if (!existsSync(originalPath)) {
+        // 파일명이 다를 수 있으므로 디코딩된 이름으로도 시도
+        const decodedName = decodeURIComponent(file.fileName);
+        const altPath = join(originalsDir, decodedName);
+        if (!existsSync(altPath)) {
+          this.logger.warn(`원본 파일 찾기 실패 (주문: ${orderNumber}): ${file.fileName}`);
+          skipped++;
+          continue;
+        }
+      }
+
+      const actualOriginalPath = existsSync(join(originalsDir, file.fileName))
+        ? join(originalsDir, file.fileName)
+        : join(originalsDir, decodeURIComponent(file.fileName));
+
+      // 썸네일 확인/재생성
+      const ext = extname(file.fileName);
+      const base = file.fileName.slice(0, -ext.length);
+      const thumbName = `${base}_thumb.jpg`;
+      let thumbPath = join(thumbnailsDir, thumbName);
+
+      if (!existsSync(thumbPath)) {
+        // 썸네일 재생성
+        try {
+          if (!existsSync(thumbnailsDir)) {
+            const { mkdirSync } = await import('fs');
+            mkdirSync(thumbnailsDir, { recursive: true });
+          }
+          thumbPath = await this.thumbnailService.generateThumbnail(
+            actualOriginalPath,
+            thumbnailsDir,
+            file.fileName,
+          );
+          this.logger.log(`썸네일 재생성 성공 (주문: ${orderNumber}): ${file.fileName}`);
+        } catch (err) {
+          this.logger.warn(`썸네일 재생성 실패 (주문: ${orderNumber}): ${file.fileName} - ${(err as Error).message}`);
+          thumbPath = '';
+        }
+      }
+
+      // DB 업데이트
+      try {
+        await this.prisma.orderFile.update({
+          where: { id: file.id },
+          data: {
+            fileUrl: this.fileStorage.toRelativeUrl(actualOriginalPath),
+            originalPath: actualOriginalPath,
+            thumbnailUrl: thumbPath ? this.fileStorage.toRelativeUrl(thumbPath) : null,
+            thumbnailPath: thumbPath || null,
+            storageStatus: 'uploaded',
+          },
+        });
+        repaired++;
+      } catch (err) {
+        this.logger.error(`DB 업데이트 실패 (주문: ${orderNumber}, 파일: ${file.id}):`, (err as Error).message);
+        skipped++;
+      }
+    }
+
+    return { repaired, skipped };
   }
 
   /**

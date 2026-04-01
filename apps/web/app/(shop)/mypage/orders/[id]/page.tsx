@@ -175,6 +175,10 @@ interface OrderDetail {
     pageLayout?: string;
     bindingDirection?: string;
     finishingOptions?: string[];
+    jdfCoatingFront?: string;
+    jdfCoatingBack?: string;
+    jdfNumColorsFront?: number;
+    jdfNumColorsBack?: number;
     thumbnailUrl?: string;
     originalsDeleted?: boolean;
     files?: OrderFile[];
@@ -672,9 +676,17 @@ export default function OrderDetailPage() {
                                         loading="lazy"
                                         onError={(e) => {
                                           const img = e.currentTarget;
-                                          img.style.opacity = '0';
-                                          img.parentElement!.style.aspectRatio = '3/4';
-                                          img.parentElement!.style.backgroundColor = '#f3f4f6';
+                                          img.style.display = 'none';
+                                          const parent = img.parentElement!;
+                                          parent.style.aspectRatio = '3/4';
+                                          parent.style.backgroundColor = '#f3f4f6';
+                                          // 아이콘 추가
+                                          if (!parent.querySelector('.thumb-error')) {
+                                            const icon = document.createElement('div');
+                                            icon.className = 'thumb-error absolute inset-0 flex items-center justify-center';
+                                            icon.innerHTML = '<svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"></path></svg>';
+                                            parent.appendChild(icon);
+                                          }
                                         }}
                                       />
                                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
@@ -969,6 +981,98 @@ export default function OrderDetailPage() {
                 )}
               </CardContent>
             </Card>
+
+            {/* 출력정보 (인쇄 사양) */}
+            {order.items.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>출력 정보</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-[13px]">
+                  {order.items.map((item, idx) => (
+                    <div key={item.id} className={order.items.length > 1 ? 'pb-3 border-b last:border-b-0 last:pb-0' : ''}>
+                      {order.items.length > 1 && (
+                        <p className="font-medium text-black mb-2 truncate">{item.productName.split(' - ')[0]}</p>
+                      )}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">인쇄방식</span>
+                          <span>{item.printMethod || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">용지</span>
+                          <span>{item.paper || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">규격</span>
+                          <span>{item.size || '-'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">페이지</span>
+                          <span>{item.pages}p</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">제본</span>
+                          <span>{item.bindingType || '-'}</span>
+                        </div>
+                        {item.coverMaterial && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">커버소재</span>
+                            <span>{item.coverMaterial}</span>
+                          </div>
+                        )}
+                        {item.fabricName && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">원단</span>
+                            <span>{item.fabricName}</span>
+                          </div>
+                        )}
+                        {item.pageLayout && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">편집</span>
+                            <span>{item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : item.pageLayout}</span>
+                          </div>
+                        )}
+                        {(item.foilColor || item.foilName) && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">박</span>
+                            <span>{[item.foilColor, item.foilName, item.foilPosition].filter(Boolean).join(' / ')}</span>
+                          </div>
+                        )}
+                        {(item.finishingOptions?.length ?? 0) > 0 && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">후가공</span>
+                            <span>{item.finishingOptions!.join(', ')}</span>
+                          </div>
+                        )}
+                        {item.jdfCoatingFront && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">코팅(앞)</span>
+                            <span>{item.jdfCoatingFront}</span>
+                          </div>
+                        )}
+                        {item.jdfCoatingBack && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">코팅(뒤)</span>
+                            <span>{item.jdfCoatingBack}</span>
+                          </div>
+                        )}
+                        {(item.jdfNumColorsFront || item.jdfNumColorsBack) && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">색수</span>
+                            <span>앞 {item.jdfNumColorsFront ?? '-'} / 뒤 {item.jdfNumColorsBack ?? '-'}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">부수</span>
+                          <span>{item.quantity}부</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Customer Info */}
             <Card>

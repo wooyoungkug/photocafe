@@ -59,6 +59,12 @@ interface SelectedOptions {
   foilPosition?: string;
 }
 
+const getPaperFullName = (paper?: ProductPaper | null) => {
+  if (!paper) return undefined;
+  const g = paper.grammage ? `${paper.grammage}g` : '';
+  return g && !paper.name.includes(g) ? `${paper.name}${g}` : paper.name;
+};
+
 const getDefaultPrintSideByBinding = (bindingName: string): 'single' | 'double' => {
   const lowerName = bindingName.toLowerCase();
   if (lowerName.includes('압축') || lowerName.includes('맞장') || lowerName.includes('레이플릿')) {
@@ -295,7 +301,7 @@ export default function ProductPage() {
               bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
               specificationId: folderPrice.specificationId || '', specificationName: folder.specLabel,
               bindingName: selectedOptions.binding?.name,
-              paperName: folder.selectedPaperName || selectedOptions.paper?.name,
+              paperName: folder.selectedPaperName || getPaperFullName(selectedOptions.paper),
               coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
               foilName: folder.foilName || undefined, foilColor: folder.foilColor || undefined,
               foilPosition: folder.foilPosition || undefined, shippingInfo: shippingInfoData,
@@ -365,7 +371,7 @@ export default function ProductPage() {
                 bindingDirection: folder.bindingDirection || 'LEFT_START_RIGHT_END',
                 specificationId: additionalPrice.specificationId || '', specificationName: additional.albumLabel,
                 bindingName: selectedOptions.binding?.name,
-                paperName: folder.selectedPaperName || selectedOptions.paper?.name,
+                paperName: folder.selectedPaperName || getPaperFullName(selectedOptions.paper),
                 coverMaterial: selectedOptions.cover?.name, totalSize: folder.totalFileSize || 0,
                 foilName: (additional.foilName ?? folder.foilName) || undefined,
                 foilColor: (additional.foilColor ?? folder.foilColor) || undefined,
@@ -404,19 +410,19 @@ export default function ProductPage() {
             if (originalFolder?.immediateUploadStatus === 'completed' && originalFolder.tempFolderId && originalFolder.immediateServerFiles) {
               // 이미 서버에 있으므로 바로 completed 설정
               const serverFiles = originalFolder.immediateServerFiles.map(sf => {
-                const origFile = originalFolder.files.find(f => f.fileName === sf.fileName);
+                const origFile = originalFolder.files.find(f => (f.newFileName || f.fileName) === sf.fileName);
                 return {
                   tempFileId: sf.tempFileId,
                   fileUrl: sf.fileUrl,
                   thumbnailUrl: sf.thumbnailUrl,
                   sortOrder: sf.sortOrder,
                   fileName: sf.fileName,
-                  widthPx: origFile?.widthPx || 0,
-                  heightPx: origFile?.heightPx || 0,
-                  widthInch: origFile?.widthInch || 0,
-                  heightInch: origFile?.heightInch || 0,
-                  dpi: origFile?.dpi || 0,
-                  fileSize: origFile?.fileSize || 0,
+                  widthPx: sf.widthPx || origFile?.widthPx || 0,
+                  heightPx: sf.heightPx || origFile?.heightPx || 0,
+                  widthInch: sf.widthInch || origFile?.widthInch || 0,
+                  heightInch: sf.heightInch || origFile?.heightInch || 0,
+                  dpi: sf.dpi || origFile?.dpi || 0,
+                  fileSize: sf.fileSize || origFile?.fileSize || 0,
                 };
               });
               ids.forEach(id => {
@@ -441,7 +447,12 @@ export default function ProductPage() {
           clearUploadSession(product.id);
         }
 
-        clearFolders();
+        // 장바구니에서 사용 중인 temp 폴더는 삭제하지 않음 (주문 생성 시 정식 경로로 이동됨)
+        const activeTempIds = new Set<string>();
+        newItems.forEach(item => {
+          if (item.tempFolderId) activeTempIds.add(item.tempFolderId);
+        });
+        clearFolders(activeTempIds);
         setUploadModalState({ isOpen: true, newCartItemIds: newItems.map((i) => i.id), primaryIds });
       } catch (error) {
         toast({ title: '오류 발생', description: '장바구니에 담는 중 문제가 발생했습니다. 다시 시도해주세요.', variant: 'destructive' });
@@ -487,7 +498,7 @@ export default function ProductPage() {
         && (prodColorType === '6c' || prodColorType === 'both' || prodColorType === 'customer');
       // 색상구분에 따른 기본 colorMode 결정 (isDefault 용지의 defaultColorType 우선 적용)
       const defaultPaperInfo = allPapers.find(p => p.isDefault && p.printMethod === 'indigo');
-      const defaultPaperColorType = (defaultPaperInfo as any)?.defaultColorType;
+      const defaultPaperColorType = defaultPaperInfo?.defaultColorType;
       const defaultColorMode: '4c' | '6c' =
         defaultPaperColorType === '6도' && has6doPapers ? '6c'
         : has4doPapers ? '4c'
@@ -546,18 +557,26 @@ export default function ProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.printType]);
 
-  // 새 폴더가 추가될 때 현재 선택된 출력방법/용지를 자동 적용
+  // 새 폴더가 추가되거나 출력방법/도수/용지가 변경될 때 모든 폴더에 자동 적용
   useEffect(() => {
     if (!selectedOptions.printMethod || !selectedOptions.paper) return;
-    const foldersWithoutPrint = uploadFolders.filter(f => !f.printMethod);
-    if (foldersWithoutPrint.length === 0) return;
-    foldersWithoutPrint.forEach(f => {
-      updateUploadFolder(f.id, {
-        printMethod: selectedOptions.printMethod,
-        colorMode: selectedOptions.colorMode || '4c',
-        selectedPaperId: selectedOptions.paper?.id || null,
-        selectedPaperName: selectedOptions.paper?.name || null,
-      });
+    if (uploadFolders.length === 0) return;
+    // 새 폴더(printMethod 미세팅)는 전체 옵션 적용, 기존 폴더는 변경된 옵션만 동기화
+    uploadFolders.forEach(f => {
+      const updates: Record<string, unknown> = {};
+      if (!f.printMethod || f.printMethod !== selectedOptions.printMethod) {
+        updates.printMethod = selectedOptions.printMethod;
+      }
+      if (!f.colorMode || f.colorMode !== selectedOptions.colorMode) {
+        updates.colorMode = selectedOptions.colorMode || '4c';
+      }
+      if (!f.selectedPaperId || f.selectedPaperId !== selectedOptions.paper?.id) {
+        updates.selectedPaperId = selectedOptions.paper?.id || null;
+        updates.selectedPaperName = getPaperFullName(selectedOptions.paper) || null;
+      }
+      if (Object.keys(updates).length > 0) {
+        updateUploadFolder(f.id, updates);
+      }
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.colorMode, selectedOptions.paper?.id]);
@@ -790,7 +809,7 @@ export default function ProductPage() {
       specificationName: selectedOptions.specification?.name,
       bindingId: selectedOptions.binding?.id,
       bindingName: selectedOptions.binding?.name,
-      paperId: selectedOptions.paper?.id, paperName: selectedOptions.paper?.name,
+      paperId: selectedOptions.paper?.id, paperName: getPaperFullName(selectedOptions.paper),
       coverId: selectedOptions.cover?.id, coverName: selectedOptions.cover?.name,
       printMethod: selectedOptions.printMethod,
       colorMode: selectedOptions.colorMode,
@@ -1237,7 +1256,7 @@ export default function ProductPage() {
       </div>
 
       {/* H. Sticky Bottom Bar */}
-      <ProductSummaryBar isAlbum={isAlbum} bindingName={selectedOptions.binding?.name} paperName={selectedOptions.paper?.name}
+      <ProductSummaryBar isAlbum={isAlbum} bindingName={selectedOptions.binding?.name} paperName={getPaperFullName(selectedOptions.paper)}
         fabricName={effectiveFabricInfo?.name || undefined} copperPlateType={selectedOptions.copperPlateType}
         onAddToCart={handleAddToCart} onScrollToUpload={() => uploadSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
         hasUploadedFolders={uploadFolders.length > 0} />

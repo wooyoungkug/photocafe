@@ -164,6 +164,13 @@ export class ScheduleRecruitmentSyncService {
         ? RECRUITMENT_PHASE.PUBLIC
         : RECRUITMENT_PHASE.PRIVATE;
 
+      // 전속모집인 경우 마감 시간 계산 (스케줄러 자동 공개 전환에 필요)
+      let privateDeadline: Date | null = null;
+      if (!isImmediate) {
+        privateDeadline = new Date();
+        privateDeadline.setHours(privateDeadline.getHours() + deadlineHours);
+      }
+
       const recruitment = await this.prisma.recruitment.create({
         data: {
           clientId: options.clientId,
@@ -183,6 +190,7 @@ export class ScheduleRecruitmentSyncService {
           requirements: options.requirements,
           customerName: shooting.clientName,
           privateDeadlineHours: deadlineHours,
+          privateDeadline,
           status: initStatus,
           recruitmentPhase: initPhase,
           maxBidders: shooting.maxBidders,
@@ -373,9 +381,26 @@ export class ScheduleRecruitmentSyncService {
         const mappedStatus =
           this.mapShootingToRecruitmentStatus(newStatus);
         if (mappedStatus) {
+          const updateData: Record<string, any> = { status: mappedStatus };
+
+          // recruiting → private_recruiting 전환 시 privateDeadline 설정
+          if (mappedStatus === RECRUITMENT_STATUS.PRIVATE_RECRUITING) {
+            const recruitment = await this.prisma.recruitment.findUnique({
+              where: { id: shooting.linkedRecruitmentId },
+              select: { privateDeadline: true, privateDeadlineHours: true },
+            });
+            if (recruitment && !recruitment.privateDeadline) {
+              const hours = recruitment.privateDeadlineHours ?? 24;
+              const deadline = new Date();
+              deadline.setHours(deadline.getHours() + hours);
+              updateData.privateDeadline = deadline;
+              updateData.recruitmentPhase = RECRUITMENT_PHASE.PRIVATE;
+            }
+          }
+
           await this.prisma.recruitment.update({
             where: { id: shooting.linkedRecruitmentId },
-            data: { status: mappedStatus },
+            data: updateData,
           });
         }
       }

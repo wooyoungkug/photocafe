@@ -561,24 +561,38 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   } = useMultiFolderUploadStore();
 
   // printMethod가 없으면 availablePapers 기반으로 자동 설정
+  // 상품 페이지에서 이미 설정한 colorMode가 있으면 그 값을 유지
   useEffect(() => {
     if (folder.printMethod || availablePapers.length === 0) return;
     const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
     const defaultMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
-    const defaultColorMode: '4c' | '6c' = '4c';
+    // 이미 폴더에 colorMode가 설정되어 있으면 (상품 페이지에서 설정) 그 값 유지
+    let resolvedColorMode: '4c' | '6c';
+    if (folder.colorMode) {
+      resolvedColorMode = folder.colorMode as '4c' | '6c';
+    } else {
+      // 상품의 기본 용지(isDefault)에 설정된 defaultColorType을 반영
+      const defaultPaperInfo = availablePapers.find(p => p.isDefault && p.printMethod === 'indigo');
+      const has4do = availablePapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false);
+      const has6do = availablePapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false);
+      resolvedColorMode =
+        defaultPaperInfo?.defaultColorType === '6도' && has6do ? '6c'
+        : has4do ? '4c'
+        : has6do ? '6c' : '4c';
+    }
     const filteredPapers = availablePapers.filter(p => {
       if (p.printMethod !== defaultMethod) return false;
-      if (p.printMethod === 'indigo') return p.isActive4 !== false;
+      if (p.printMethod === 'indigo') return resolvedColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
       return p.isActive !== false;
     });
     const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
     updateFolder(folder.id, {
       printMethod: defaultMethod,
-      colorMode: defaultColorMode,
+      colorMode: resolvedColorMode,
       selectedPaperId: defaultPaper?.id || null,
       selectedPaperName: defaultPaper?.name || null,
     });
-  }, [folder.id, folder.printMethod, availablePapers, updateFolder]);
+  }, [folder.id, folder.printMethod, folder.colorMode, availablePapers, updateFolder]);
 
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
   const filteredPapersForFolder = useMemo(() => {

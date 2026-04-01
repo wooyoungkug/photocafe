@@ -91,8 +91,17 @@ export default function MyPageLayout({
     fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
-        if (data && (data.enableSchedule !== undefined || data.enableRecruitment !== undefined)) {
-          updateUser({ enableSchedule: data.enableSchedule, enableRecruitment: data.enableRecruitment });
+        if (data) {
+          updateUser({
+            ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
+            ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
+            ...(data.businessNumber && { businessNumber: data.businessNumber }),
+            ...(data.representative && { representative: data.representative }),
+            ...(data.address && { address: data.address }),
+            ...(data.addressDetail && { addressDetail: data.addressDetail }),
+            ...(data.contactPerson && { contactPerson: data.contactPerson }),
+            ...(data.mobile && { mobile: data.mobile }),
+          });
         }
       })
       .catch(() => {});
