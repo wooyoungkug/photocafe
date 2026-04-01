@@ -9,9 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell, Users } from "lucide-react";
+import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell, Users, Factory } from "lucide-react";
 import DeliverySettingsContent from "@/components/settings/delivery-settings-content";
 import NotificationSettingsContent from "@/components/settings/notification-settings-content";
+import ProcessTemplateEditor from "@/components/settings/process-template-editor";
 import {
   useSystemSettings,
   useBulkUpdateSettings,
@@ -237,7 +238,7 @@ export default function BasicSettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-7 lg:w-[1050px]">
+        <TabsList className="grid w-full grid-cols-8 lg:w-[1200px]">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">회사정보</span>
@@ -253,6 +254,10 @@ export default function BasicSettingsPage() {
           <TabsTrigger value="process" className="flex items-center gap-2">
             <ListChecks className="h-4 w-4" />
             <span className="hidden sm:inline">공정단계</span>
+          </TabsTrigger>
+          <TabsTrigger value="process-mgmt" className="flex items-center gap-2">
+            <Factory className="h-4 w-4" />
+            <span className="hidden sm:inline">공정관리</span>
           </TabsTrigger>
           <TabsTrigger value="notification" className="flex items-center gap-2">
             <Bell className="h-4 w-4" />
@@ -647,6 +652,11 @@ export default function BasicSettingsPage() {
               저장
             </Button>
           </div>
+        </TabsContent>
+
+        {/* 공정관리 탭 */}
+        <TabsContent value="process-mgmt" className="space-y-4">
+          <ProcessTemplateEditor />
         </TabsContent>
 
         {/* 알림설정 탭 */}

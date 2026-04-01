@@ -27,6 +27,7 @@ import {
   BarChart2,
   TreePalm,
   Users,
+  ScanBarcode,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -121,6 +122,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "주문목록", href: "/orders" },
       { name: "접수대기", href: "/orders/pending" },
       { name: "공정 현황", href: "/orders/production" },
+      { name: "공정 스캔", href: "/orders/process-scan" },
       { name: "배송관리", href: "/orders/shipping" },
       { name: "마감관리", href: "/orders/reception" },
     ],
