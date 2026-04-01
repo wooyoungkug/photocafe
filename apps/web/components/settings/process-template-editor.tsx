@@ -55,6 +55,7 @@ import {
   Clock,
   Shield,
   ArrowRight,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -311,6 +312,9 @@ export default function ProcessTemplateEditor() {
   const [newStepCode, setNewStepCode] = useState("");
   const [newStepName, setNewStepName] = useState("");
   const [newStepDept, setNewStepDept] = useState("PROD");
+  // 기존공정 가져오기 상태
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importSource, setImportSource] = useState<ProductType | "">("");
 
   const currentSteps = templates[selectedType] || [];
 
@@ -414,6 +418,17 @@ export default function ProcessTemplateEditor() {
     toast.success(`"${name}" 공정이 새로 생성되어 추가되었습니다.`);
   }, [newStepCode, newStepName, newStepDept, allStepOptions, addCustomStep, currentSteps, selectedType, updateTemplate]);
 
+  // 기존공정 가져오기
+  const handleImport = useCallback(() => {
+    if (!importSource || importSource === selectedType) return;
+    const sourceSteps = templates[importSource];
+    if (!sourceSteps?.length) return;
+    updateTemplate(selectedType, sourceSteps.map((s) => ({ ...s })));
+    setImportDialogOpen(false);
+    setImportSource("");
+    toast.success(`${PRODUCT_TYPES[importSource]}의 공정을 가져왔습니다.`);
+  }, [importSource, selectedType, templates, updateTemplate]);
+
   // 이미 사용 중인 공정 코드
   const usedCodes = new Set(currentSteps.map((s) => s.stepCode));
 
@@ -505,15 +520,26 @@ export default function ProcessTemplateEditor() {
               <Label className="text-[14px] text-black font-bold">
                 공정 단계 ({currentSteps.length}개)
               </Label>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-[13px]"
-                onClick={() => { setAddDialogOpen(true); setIsCreatingNew(false); setAddStepCode(""); }}
-              >
-                <Plus className="h-3.5 w-3.5 mr-1" />
-                공정 추가
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-[13px]"
+                  onClick={() => { setImportDialogOpen(true); setImportSource(""); }}
+                >
+                  <Copy className="h-3.5 w-3.5 mr-1" />
+                  기존공정 가져오기
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-[13px]"
+                  onClick={() => { setAddDialogOpen(true); setIsCreatingNew(false); setAddStepCode(""); }}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  공정 추가
+                </Button>
+              </div>
             </div>
 
             <DndContext
@@ -574,6 +600,58 @@ export default function ProcessTemplateEditor() {
           {isSaving ? "저장 중..." : "저장"}
         </Button>
       </div>
+
+      {/* 기존공정 가져오기 다이얼로그 */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">기존공정 가져오기</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-[14px] text-gray-500">
+              다른 상품의 공정 흐름을 <span className="font-bold text-black">{PRODUCT_TYPES[selectedType]}</span>에 복사합니다.
+              현재 설정된 공정은 덮어쓰기됩니다.
+            </p>
+            <div className="space-y-2">
+              <Label className="text-[14px]">가져올 상품 선택</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.entries(PRODUCT_TYPES) as [ProductType, string][])
+                  .filter(([code]) => code !== selectedType)
+                  .map(([code, label]) => (
+                    <Button
+                      key={code}
+                      variant={importSource === code ? "default" : "outline"}
+                      size="sm"
+                      className="h-10 text-[13px] justify-between"
+                      onClick={() => setImportSource(code)}
+                    >
+                      {label}
+                      <Badge variant="secondary" className={cn("text-[10px] ml-1", importSource === code ? "bg-white/20 text-white" : "bg-gray-100")}>
+                        {templates[code]?.length ?? 0}
+                      </Badge>
+                    </Button>
+                  ))}
+              </div>
+            </div>
+            {/* 미리보기 */}
+            {importSource && (
+              <div className="p-3 bg-gray-50 rounded-lg space-y-2">
+                <Label className="text-[12px] text-gray-500">공정 흐름 미리보기</Label>
+                <ProcessFlowPreview steps={templates[importSource] || []} />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleImport} disabled={!importSource}>
+              <Copy className="h-4 w-4 mr-1" />
+              가져오기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 공정 추가 다이얼로그 */}
       <Dialog open={addDialogOpen} onOpenChange={(open) => { setAddDialogOpen(open); if (!open) { setIsCreatingNew(false); setAddStepCode(""); } }}>
