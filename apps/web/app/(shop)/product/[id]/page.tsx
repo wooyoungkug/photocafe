@@ -492,7 +492,7 @@ export default function ProductPage() {
         && (prodColorType === '6c' || prodColorType === 'both' || prodColorType === 'customer');
       // 색상구분에 따른 기본 colorMode 결정 (isDefault 용지의 defaultColorType 우선 적용)
       const defaultPaperInfo = allPapers.find(p => p.isDefault && p.printMethod === 'indigo');
-      const defaultPaperColorType = (defaultPaperInfo as any)?.defaultColorType;
+      const defaultPaperColorType = defaultPaperInfo?.defaultColorType;
       const defaultColorMode: '4c' | '6c' =
         defaultPaperColorType === '6도' && has6doPapers ? '6c'
         : has4doPapers ? '4c'

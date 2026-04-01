@@ -565,10 +565,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     if (folder.printMethod || availablePapers.length === 0) return;
     const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
     const defaultMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
-    const defaultColorMode: '4c' | '6c' = '4c';
+    // 상품의 기본 용지(isDefault)에 설정된 defaultColorType을 반영
+    const defaultPaperInfo = availablePapers.find(p => p.isDefault && p.printMethod === 'indigo');
+    const has4do = availablePapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false);
+    const has6do = availablePapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false);
+    const defaultColorMode: '4c' | '6c' =
+      defaultPaperInfo?.defaultColorType === '6도' && has6do ? '6c'
+      : has4do ? '4c'
+      : has6do ? '6c' : '4c';
     const filteredPapers = availablePapers.filter(p => {
       if (p.printMethod !== defaultMethod) return false;
-      if (p.printMethod === 'indigo') return p.isActive4 !== false;
+      if (p.printMethod === 'indigo') return defaultColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
       return p.isActive !== false;
     });
     const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
