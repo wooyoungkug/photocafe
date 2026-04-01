@@ -672,9 +672,17 @@ export default function OrderDetailPage() {
                                         loading="lazy"
                                         onError={(e) => {
                                           const img = e.currentTarget;
-                                          img.style.opacity = '0';
-                                          img.parentElement!.style.aspectRatio = '3/4';
-                                          img.parentElement!.style.backgroundColor = '#f3f4f6';
+                                          img.style.display = 'none';
+                                          const parent = img.parentElement!;
+                                          parent.style.aspectRatio = '3/4';
+                                          parent.style.backgroundColor = '#f3f4f6';
+                                          // 아이콘 추가
+                                          if (!parent.querySelector('.thumb-error')) {
+                                            const icon = document.createElement('div');
+                                            icon.className = 'thumb-error absolute inset-0 flex items-center justify-center';
+                                            icon.innerHTML = '<svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"></path></svg>';
+                                            parent.appendChild(icon);
+                                          }
                                         }}
                                       />
                                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
