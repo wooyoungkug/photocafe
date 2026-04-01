@@ -728,7 +728,7 @@ export default function MonthlySummaryPage() {
         <thead>
           <tr style={{ backgroundColor: '#e5e7eb' }}>
             <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
-              이 월 잔 액
+              전 월 잔 액
             </th>
             <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
               당월 주문금액
@@ -761,10 +761,10 @@ export default function MonthlySummaryPage() {
                   : ''
               }`}
             >
+              {closingBalance > 0 && <span className="text-[8pt] mr-1">(미납)</span>}
+              {closingBalance < 0 && <span className="text-[8pt] mr-1">(선납)</span>}
               {closingBalance < 0 && '-'}
               {formatAmount(Math.abs(closingBalance))}원
-              {closingBalance > 0 && <span className="text-[8pt] ml-1">(미납)</span>}
-              {closingBalance < 0 && <span className="text-[8pt] ml-1">(선납)</span>}
             </td>
           </tr>
         </tbody>
@@ -827,7 +827,6 @@ export default function MonthlySummaryPage() {
           <tbody>
             <tr className="bg-blue-50">
               <td className="border border-gray-400 p-1.5 text-center text-gray-500">
-                {printYear}.{printMonth}.01
               </td>
               <td className="border border-gray-400 p-1.5 text-center font-semibold text-blue-700">
                 전월 이월
@@ -886,18 +885,8 @@ export default function MonthlySummaryPage() {
               <td className="border border-gray-500 p-1.5 text-right tabular-nums">
                 {formatAmount(summary?.totalDepositAmount || 0)}원
               </td>
-              <td className="border border-gray-500 p-1.5" />
-            </tr>
-
-            <tr className="bg-gray-200 font-bold">
-              <td className="border border-gray-500 p-1.5" />
-              <td className="border border-gray-500 p-1.5 text-center text-primary">
-                차 월 이 월
-              </td>
-              <td className="border border-gray-500 p-1.5" />
-              <td className="border border-gray-500 p-1.5" />
               <td
-                className={`border border-gray-500 p-1.5 text-right tabular-nums ${
+                className={`border border-gray-500 p-1.5 text-right tabular-nums font-bold ${
                   closingBalance > 0
                     ? 'text-red-700'
                     : closingBalance < 0
@@ -905,6 +894,8 @@ export default function MonthlySummaryPage() {
                     : ''
                 }`}
               >
+                {closingBalance > 0 && <span className="text-[8pt] mr-1">(미납)</span>}
+                {closingBalance < 0 && <span className="text-[8pt] mr-1">(선납)</span>}
                 {closingBalance < 0 && '-'}
                 {formatAmount(Math.abs(closingBalance))}원
               </td>
@@ -1054,27 +1045,6 @@ export default function MonthlySummaryPage() {
                 {formatAmount(summary?.totalDepositAmount || 0)}원
               </td>
             </tr>
-
-            {/* 차월이월 */}
-            <tr className="bg-gray-300 font-bold">
-              <td colSpan={4} className="border border-gray-500 p-1.5 text-right pr-3 text-primary">
-                차 월 이 월
-                {closingBalance > 0 && <span className="text-[8pt]">(미납금액)</span>}
-              </td>
-              <td
-                className={`border border-gray-500 p-1.5 text-right tabular-nums ${
-                  closingBalance > 0
-                    ? 'text-red-700'
-                    : closingBalance < 0
-                    ? 'text-blue-700'
-                    : ''
-                }`}
-              >
-                {closingBalance < 0 && '-'}
-                {formatAmount(Math.abs(closingBalance))}원
-                {closingBalance < 0 && <span className="text-[8pt] ml-1">(선납)</span>}
-              </td>
-            </tr>
           </tbody>
         </table>
 
@@ -1148,7 +1118,7 @@ export default function MonthlySummaryPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground mb-1">이월잔액</p>
+                <p className="text-xs text-muted-foreground mb-1">전월잔액</p>
                 <p className="text-lg sm:text-2xl tabular-nums">
                   {formatAmount(carryForward)}
                   <span className="text-sm">원</span>
@@ -1419,7 +1389,7 @@ export default function MonthlySummaryPage() {
                       <td className="p-2 sm:p-3 whitespace-nowrap text-[13px] text-black font-normal">
                         {format(startDate, 'MM/01', { locale: ko })}
                       </td>
-                      <td className="p-2 sm:p-3 font-medium text-blue-700">이월잔액</td>
+                      <td className="p-2 sm:p-3 font-medium text-blue-700">전월잔액</td>
                       <td className="p-2 sm:p-3 text-right text-muted-foreground">-</td>
                       <td className="p-2 sm:p-3 text-right text-muted-foreground">-</td>
                       <td
@@ -1448,22 +1418,8 @@ export default function MonthlySummaryPage() {
                       <td className="p-2 sm:p-3 text-right tabular-nums text-green-600">
                         {formatAmount(summary?.totalDepositAmount || 0)}원
                       </td>
-                      <td className="p-2 sm:p-3 text-right tabular-nums" />
-                      <td className="p-2 sm:p-3" />
-                    </tr>
-
-                    {/* 기말잔액 행 */}
-                    <tr className="bg-gray-50 text-[13px] text-black border-t font-bold">
-                      <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3 text-primary">
-                        차월이월
-                        {closingBalance > 0 && <span className="text-[13px] text-red-600">(미납금액)</span>}
-                      </td>
-                      <td className="p-2 sm:p-3" />
-                      <td className="p-2 sm:p-3" />
                       <td
-                        className={`p-2 sm:p-3 text-right tabular-nums ${
+                        className={`p-2 sm:p-3 text-right tabular-nums font-bold ${
                           closingBalance > 0
                             ? 'text-red-600'
                             : closingBalance < 0
@@ -1471,6 +1427,8 @@ export default function MonthlySummaryPage() {
                             : ''
                         }`}
                       >
+                        {closingBalance > 0 && <span className="text-[11px] mr-1">(미납)</span>}
+                        {closingBalance < 0 && <span className="text-[11px] mr-1">(선납)</span>}
                         {closingBalance < 0 && '-'}
                         {formatAmount(Math.abs(closingBalance))}원
                       </td>
