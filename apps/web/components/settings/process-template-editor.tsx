@@ -339,9 +339,9 @@ export default function ProcessTemplateEditor() {
       department: option.department,
       isCheckpoint: false,
     };
-    // QC 앞에 삽입 (마지막 QC 전)
-    const qcIndex = currentSteps.findIndex((s) => s.stepCode === "qc");
-    const insertIndex = qcIndex !== -1 ? qcIndex : currentSteps.length - 1;
+    // 거래완료 앞에 삽입
+    const completeIndex = currentSteps.findIndex((s) => s.stepCode === "transaction_complete");
+    const insertIndex = completeIndex !== -1 ? completeIndex : currentSteps.length - 1;
     const newSteps = [...currentSteps];
     newSteps.splice(insertIndex, 0, newStep);
     updateTemplate(selectedType, newSteps);
@@ -567,7 +567,7 @@ export default function ProcessTemplateEditor() {
                   ]?.name}
                 </p>
                 <p className="text-gray-400 mt-1">
-                  QC 공정 앞에 자동 삽입됩니다.
+                  거래완료 앞에 자동 삽입됩니다.
                 </p>
               </div>
             )}
