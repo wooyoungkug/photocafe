@@ -460,7 +460,7 @@ export function CartItemCard({
                   <div className="mt-1.5">
                     <div className="inline-flex items-center gap-1 text-[11px] text-black/80 bg-purple-50 rounded-md px-2 py-1 flex-wrap">
                       <span>
-                        {item.albumOrderInfo.printMethod === 'indigo' ? '인디고앨범' : '잉크젯'}
+                        {item.albumOrderInfo.printMethod === 'indigo' ? '인디고출력' : '잉크젯'}
                       </span>
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
                       <select
@@ -473,6 +473,26 @@ export function CartItemCard({
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
+                      {availablePapers.length > 0 && (
+                        <>
+                          <Separator orientation="vertical" className="h-3 bg-purple-200" />
+                          <select
+                            title="용지"
+                            value={item.albumOrderInfo.paperId || ''}
+                            onChange={(e) => handlePaperChange(e.target.value)}
+                            className="bg-transparent text-black/80 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
+                          >
+                            {!item.albumOrderInfo.paperId && (
+                              <option value="" disabled>{item.albumOrderInfo.paperName || '용지'}</option>
+                            )}
+                            {availablePapers.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}{p.grammage && !p.name.includes(`${p.grammage}g`) ? ` ${p.grammage}g` : ''}{p.price > 0 ? ` (+${p.price.toLocaleString()}원)` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      )}
                       {item.albumOrderInfo.printSide && (
                         <>
                           <Separator orientation="vertical" className="h-3 bg-purple-200" />
@@ -503,26 +523,6 @@ export function CartItemCard({
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
-                      {availablePapers.length > 0 && (
-                        <>
-                          <Separator orientation="vertical" className="h-3 bg-purple-200" />
-                          <select
-                            title="용지"
-                            value={item.albumOrderInfo.paperId || ''}
-                            onChange={(e) => handlePaperChange(e.target.value)}
-                            className="bg-transparent text-black/80 text-[11px] font-medium border border-purple-300 rounded px-1 py-0 cursor-pointer hover:bg-purple-100 focus:outline-none focus:ring-1 focus:ring-purple-400"
-                          >
-                            {!item.albumOrderInfo.paperId && (
-                              <option value="" disabled>{item.albumOrderInfo.paperName || '용지'}</option>
-                            )}
-                            {availablePapers.map((p) => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}{p.grammage && !p.name.includes(`${p.grammage}g`) ? ` ${p.grammage}g` : ''}{p.price > 0 ? ` (+${p.price.toLocaleString()}원)` : ''}
-                              </option>
-                            ))}
-                          </select>
-                        </>
-                      )}
                     </div>
                   </div>
                 )}
