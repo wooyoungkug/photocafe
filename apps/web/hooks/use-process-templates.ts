@@ -34,7 +34,7 @@ export const PROCESS_STEP_OPTIONS = {
   finishing_complete: { name: "후가공완료", department: "PROD" },
   shipping_parcel: { name: "배송대기(택배)", department: "CS" },
   shipping_direct: { name: "배송대기(직배송)", department: "CS" },
-  shipping_factory: { name: "배송대기(공장출고)", department: "PROD" },
+  shipping_factory: { name: "배송대기(공장출고)", department: "CS" },
   transaction_complete: { name: "거래완료", department: "CS" },
 } as const;
 
@@ -137,7 +137,7 @@ export const DEFAULT_PROCESS_TEMPLATES: Record<ProductType, ProcessStep[]> = {
     { stepOrder: 2, stepCode: "file_inspection", stepName: "파일검수", department: "DESIGN" },
     { stepOrder: 3, stepCode: "print_complete", stepName: "출력완료", department: "PROD" },
     { stepOrder: 4, stepCode: "finishing_complete", stepName: "후가공완료", department: "PROD", isCheckpoint: true },
-    { stepOrder: 5, stepCode: "shipping_factory", stepName: "배송대기(공장출고)", department: "PROD" },
+    { stepOrder: 5, stepCode: "shipping_factory", stepName: "배송대기(공장출고)", department: "CS" },
     { stepOrder: 6, stepCode: "transaction_complete", stepName: "거래완료", department: "CS" },
   ],
   // 단품출력
