@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, Fragment, useMemo, useEffect } from 'react';
+import { useState, Fragment, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import {
   Calendar,
@@ -592,17 +593,49 @@ export default function MonthlySummaryPage() {
     printType === 'detail' ? 'monthly-print-detail-area' : 'monthly-print-area';
   const otherPrintAreaId =
     printType === 'detail' ? 'monthly-print-area' : 'monthly-print-detail-area';
+  // Portal 기반 인쇄: body 직접 자식이므로 간단한 CSS로 처리 가능
   const printCss = [
     '@media print {',
+    '  @page { size: A4 portrait; margin: 15mm; }',
     '  html, body { margin: 0 !important; padding: 0 !important; height: auto !important; overflow: visible !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }',
-    '  body * { visibility: hidden !important; max-height: 0 !important; overflow: visible !important; min-height: 0 !important; }',
-    `  #${printAreaId} { visibility: visible !important; position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; max-height: none !important; height: auto !important; overflow: visible !important; z-index: 99999 !important; background: white !important; }`,
-    `  #${printAreaId} * { visibility: visible !important; max-height: none !important; height: auto !important; overflow: visible !important; min-height: auto !important; }`,
+    '  body > *:not(#print-portal-root) { display: none !important; }',
+    '  #print-portal-root { display: block !important; }',
+    `  #${printAreaId} { display: block !important; width: 100% !important; height: auto !important; overflow: visible !important; background: white !important; }`,
     `  #${printAreaId} img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }`,
     `  #${otherPrintAreaId} { display: none !important; }`,
-    '  @page { size: A4 portrait; margin: 15mm; }',
+    '  table { page-break-inside: auto; }',
+    '  tr { page-break-inside: avoid; page-break-after: auto; }',
+    '  thead { display: table-header-group; }',
     '}',
   ].join('\n');
+
+  // Portal 컨테이너 (body 직접 자식)
+  const portalRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    let el = document.getElementById('print-portal-root') as HTMLDivElement | null;
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'print-portal-root';
+      el.style.display = 'none';
+      document.body.appendChild(el);
+    }
+    portalRef.current = el;
+    return () => {
+      // 컴포넌트 언마운트 시 제거
+      if (el && el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    };
+  }, []);
+
+  // 인쇄 시 portal 표시/숨김
+  useEffect(() => {
+    const el = portalRef.current;
+    if (!el) return;
+    if (printType) {
+      el.style.display = 'none'; // 화면에서는 숨김 (인쇄 CSS가 보여줌)
+    }
+  }, [printType]);
 
   // ===== 공통 헤더 컴포넌트 (약식/상세 공용) =====
   const PrintHeader = ({ title }: { title: string }) => (

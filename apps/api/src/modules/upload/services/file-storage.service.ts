@@ -214,12 +214,12 @@ export class FileStorageService implements OnModuleInit {
     }
   }
 
-  /** 24시간 이상 된 임시 파일 정리 (서버 시작 시 호출) */
+  /** 7일 이상 된 임시 파일 정리 (서버 시작 시 호출) */
   cleanupStaleTempFiles() {
     const tempDir = join(this.basePath, 'temp');
     if (!existsSync(tempDir)) return;
 
-    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
     let cleaned = 0;
 
     try {
