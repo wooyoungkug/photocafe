@@ -268,7 +268,9 @@ export function CartItemCard({
     if (!paper || !item.albumOrderInfo) return;
     const oldPaperPrice = item.albumOrderInfo.paperPrice ?? 0;
     const newBasePrice = item.basePrice - oldPaperPrice + paper.price;
-    onAlbumInfoChange?.(item.id, { paperId: paper.id, paperName: paper.name, paperPrice: paper.price });
+    const g = paper.grammage ? `${paper.grammage}g` : '';
+    const fullName = g && !paper.name.includes(g) ? `${paper.name}${g}` : paper.name;
+    onAlbumInfoChange?.(item.id, { paperId: paper.id, paperName: fullName, paperPrice: paper.price });
     updateItemPrice(item.id, newBasePrice);
   };
 

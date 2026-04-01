@@ -1013,7 +1013,7 @@ export default function OrderDetailPage() {
                         </div>
                         <div className="flex justify-between">
                           <span className="text-gray-500">제본</span>
-                          <span>{item.bindingType?.split('_')[0].replace(/\s*\(.*?\)$/, '').trim() || '-'}</span>
+                          <span>{item.bindingType || '-'}</span>
                         </div>
                         {item.coverMaterial && (
                           <div className="flex justify-between">
