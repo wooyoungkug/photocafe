@@ -116,6 +116,7 @@ export default function OrderPage() {
   const [memo, setMemo] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orderError, setOrderError] = useState<string | null>(null);
 
   // 건별 배송 상태 (cart에서 가져온 기존값으로 초기화)
   const [itemShippingMap, setItemShippingMap] = useState<Record<string, CartShippingInfo>>(() => {
@@ -351,6 +352,7 @@ export default function OrderPage() {
     shouldUpdateCopperPlate: boolean,
     cpChanges: CopperPlateChanges[]
   ) => {
+    setOrderError(null);
     try {
       // 주문번호 충돌 방지를 위해 순차 처리
       let firstOrderNumber: string | undefined;
@@ -397,7 +399,9 @@ export default function OrderPage() {
       clearCart();
       router.push(`/order/complete${firstOrderNumber ? `?orderNumber=${firstOrderNumber}` : ''}`);
     } catch (error) {
-      toast.error('주문 실패', { description: error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.' });
+      const errorMsg = error instanceof Error ? error.message : '주문 처리 중 오류가 발생했습니다.';
+      setOrderError(errorMsg);
+      toast.error('주문 실패', { description: errorMsg });
     }
   };
 
@@ -1102,6 +1106,18 @@ export default function OrderPage() {
                       </span>
                     </label>
                   </div>
+
+                  {orderError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-[13px]">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="font-medium text-red-700">주문 실패</p>
+                          <p className="text-red-600 mt-0.5">{orderError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <Button
                     type="submit"
