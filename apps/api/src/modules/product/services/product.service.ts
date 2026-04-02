@@ -345,9 +345,10 @@ export class ProductService {
       'useCopperPlate', 'hasCoverFabric', 'showOrderMemo', 'showBinding',
       'showCover', 'showCustomOptions', 'showFinishing', 'productType',
     ];
+    const restAny = rest as Record<string, any>;
     for (const key of allowedFields) {
-      if (rest[key] !== undefined) {
-        productData[key] = rest[key];
+      if (restAny[key] !== undefined) {
+        productData[key] = restAny[key];
       }
     }
 
