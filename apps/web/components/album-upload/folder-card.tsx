@@ -553,6 +553,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderFabric,
     availablePapers,
     productColorType,
+    defaultColorMode: storeDefaultColorMode,
     productId,
     productionSettingId,
     bindingProductionSettingId,
@@ -568,22 +569,12 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
     const defaultMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
     // 이미 폴더에 colorMode가 설정되어 있으면 (상품 페이지에서 설정) 그 값 유지
+    // 스토어의 defaultColorMode를 우선 사용 (상품 페이지와 동일한 값 보장)
     let resolvedColorMode: '4c' | '6c';
     if (folder.colorMode) {
       resolvedColorMode = folder.colorMode as '4c' | '6c';
     } else {
-      // 상품의 기본 용지(isDefault)에 설정된 defaultColorType을 반영
-      // 상품의 colorType(색상구분)도 함께 고려 (상품 페이지와 동일 로직)
-      const defaultPaperInfo = availablePapers.find(p => p.isDefault && p.printMethod === 'indigo');
-      const pct = productColorType || 'both';
-      const has4do = availablePapers.some(p => p.printMethod === 'indigo' && p.isActive4 !== false)
-        && (pct === '4c' || pct === 'both' || pct === 'customer');
-      const has6do = availablePapers.some(p => p.printMethod === 'indigo' && p.isActive6 !== false)
-        && (pct === '6c' || pct === 'both' || pct === 'customer');
-      resolvedColorMode =
-        defaultPaperInfo?.defaultColorType === '6도' && has6do ? '6c'
-        : has4do ? '4c'
-        : has6do ? '6c' : '4c';
+      resolvedColorMode = storeDefaultColorMode;
     }
     const filteredPapers = availablePapers.filter(p => {
       if (p.printMethod !== defaultMethod) return false;

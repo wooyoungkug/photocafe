@@ -132,7 +132,7 @@ export default function ProductPage() {
     defaultPageLayout, defaultBindingDirection,
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
-    setAvailablePapers, setProductColorType, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
+    setAvailablePapers, setProductColorType, setDefaultColorMode, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -512,6 +512,7 @@ export default function ProductPage() {
       });
       const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
 
+      setDefaultColorMode(defaultColorMode);
       setSelectedOptions({
         specification: product.specifications?.find(s => s.isDefault) || product.specifications?.[0],
         binding: defaultBinding,
@@ -1037,7 +1038,7 @@ export default function ProductPage() {
                     colorMode={selectedOptions.colorMode || '4c'}
                     productColorType={(product as any).colorType || 'both'}
                     onSelectPaper={(paper) => setSelectedOptions(prev => ({ ...prev, paper }))}
-                    onChangePrintMethod={(method, colorMode, defaultPaper) => setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper }))} />
+                    onChangePrintMethod={(method, colorMode, defaultPaper) => { setDefaultColorMode(colorMode); setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper })); }} />
                   <OptionPrintSide
                     printSide={selectedOptions.printSide}
                     bindingName={selectedOptions.binding?.name}

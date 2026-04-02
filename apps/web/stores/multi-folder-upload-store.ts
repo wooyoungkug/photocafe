@@ -454,6 +454,10 @@ interface MultiFolderUploadState {
   productColorType: string;
   setProductColorType: (type: string) => void;
 
+  // 상품 페이지에서 결정한 기본 colorMode (폴더 초기화 시 사용)
+  defaultColorMode: '4c' | '6c';
+  setDefaultColorMode: (mode: '4c' | '6c') => void;
+
   // 용지 목록 설정
   setAvailablePapers: (papers: ProductPaper[]) => void;
 
@@ -559,6 +563,7 @@ const initialState = {
   defaultBindingPrice: undefined as number | undefined,
   availablePapers: [] as ProductPaper[],
   productColorType: 'both' as string,
+  defaultColorMode: '4c' as '4c' | '6c',
 };
 
 // 페이지 수 계산 (파일 수 + 편집스타일 + 제본방향 기반)
@@ -847,6 +852,7 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   setBindingName: (name) => set({ bindingName: name }),
   setDefaultBindingPrice: (price) => set({ defaultBindingPrice: price }),
   setProductColorType: (type) => set({ productColorType: type }),
+  setDefaultColorMode: (mode) => set({ defaultColorMode: mode }),
   setAvailablePapers: (papers) => set({ availablePapers: papers }),
 
   addFolder: (folder) => {
