@@ -63,7 +63,7 @@ export default function ProcessFunnelChart({ data, isLoading }: ProcessFunnelCha
                 tick={{ fontSize: 12 }}
               />
               <Tooltip
-                formatter={(value: number) => [`${value}건`, '주문 수']}
+                formatter={(value) => [`${value}건`, '주문 수']}
               />
               <Bar dataKey="건수" radius={[0, 4, 4, 0]}>
                 {chartData.map(entry => (
