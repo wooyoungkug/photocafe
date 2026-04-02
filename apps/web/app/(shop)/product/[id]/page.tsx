@@ -133,6 +133,7 @@ export default function ProductPage() {
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
     setAvailablePapers, setProductColorType, setDefaultColorMode, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
+    changeFolderSpec, indigoSpecs,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -584,6 +585,26 @@ export default function ProductPage() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.colorMode, selectedOptions.paper?.id]);
+
+  // 상단 규격 선택 변경 시 모든 폴더에 규격 동기화
+  useEffect(() => {
+    const spec = selectedOptions.specification;
+    if (!spec?.specificationId || uploadFolders.length === 0 || indigoSpecs.length === 0) return;
+    // indigoSpecs(인치 단위)에서 선택된 규격 찾기
+    const matchedStdSize = indigoSpecs.find(s => s.id === spec.specificationId);
+    if (!matchedStdSize) return;
+    uploadFolders.forEach(f => {
+      if (f.specificationId !== matchedStdSize.id) {
+        changeFolderSpec(f.id, {
+          id: matchedStdSize.id,
+          width: matchedStdSize.width,
+          height: matchedStdSize.height,
+          label: matchedStdSize.label,
+        });
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOptions.specification?.specificationId, uploadFolders.length]);
 
   // ===== 최근 주문 옵션 자동 적용 =====
   const [lastOptionsApplied, setLastOptionsApplied] = useState(false);
