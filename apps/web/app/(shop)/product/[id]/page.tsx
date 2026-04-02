@@ -1059,7 +1059,26 @@ export default function ProductPage() {
                     colorMode={selectedOptions.colorMode || '4c'}
                     productColorType={(product as any).colorType || 'both'}
                     onSelectPaper={(paper) => setSelectedOptions(prev => ({ ...prev, paper }))}
-                    onChangePrintMethod={(method, colorMode, defaultPaper) => { setDefaultColorMode(colorMode); setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper })); }} />
+                    onChangePrintMethod={(method, colorMode, defaultPaper) => {
+                      setDefaultColorMode(colorMode);
+                      setSelectedOptions(prev => ({ ...prev, printMethod: method, colorMode, paper: defaultPaper }));
+                      // 기존 업로드된 폴더들에 출력방식/도수 일괄 전파
+                      const papers = product.papers || [];
+                      uploadFolders.forEach(f => {
+                        const filteredPapers = papers.filter(p => {
+                          if (p.printMethod !== method) return false;
+                          if (p.printMethod === 'indigo') return colorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
+                          return p.isActive !== false;
+                        });
+                        const folderDefaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
+                        updateUploadFolder(f.id, {
+                          printMethod: method,
+                          colorMode,
+                          selectedPaperId: folderDefaultPaper?.id || null,
+                          selectedPaperName: folderDefaultPaper?.name || null,
+                        });
+                      });
+                    }} />
                   <OptionPrintSide
                     printSide={selectedOptions.printSide}
                     bindingName={selectedOptions.binding?.name}

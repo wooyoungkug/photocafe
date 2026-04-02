@@ -563,19 +563,12 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   } = useMultiFolderUploadStore();
 
   // printMethod가 없으면 availablePapers 기반으로 자동 설정
-  // 상품 페이지에서 이미 설정한 colorMode가 있으면 그 값을 유지
+  // storeDefaultColorMode를 dependency에 포함하여 stale closure 방지
   useEffect(() => {
     if (folder.printMethod || availablePapers.length === 0) return;
     const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
     const defaultMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
-    // 이미 폴더에 colorMode가 설정되어 있으면 (상품 페이지에서 설정) 그 값 유지
-    // 스토어의 defaultColorMode를 우선 사용 (상품 페이지와 동일한 값 보장)
-    let resolvedColorMode: '4c' | '6c';
-    if (folder.colorMode) {
-      resolvedColorMode = folder.colorMode as '4c' | '6c';
-    } else {
-      resolvedColorMode = storeDefaultColorMode;
-    }
+    const resolvedColorMode: '4c' | '6c' = storeDefaultColorMode;
     const filteredPapers = availablePapers.filter(p => {
       if (p.printMethod !== defaultMethod) return false;
       if (p.printMethod === 'indigo') return resolvedColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
@@ -588,7 +581,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       selectedPaperId: defaultPaper?.id || null,
       selectedPaperName: defaultPaper?.name || null,
     });
-  }, [folder.id, folder.printMethod, folder.colorMode, availablePapers, updateFolder]);
+  }, [folder.id, folder.printMethod, storeDefaultColorMode, availablePapers, updateFolder]);
 
   // 현재 폴더의 출력방법/도수에 맞는 용지 필터링
   const filteredPapersForFolder = useMemo(() => {
