@@ -84,6 +84,11 @@ export class FileStorageService implements OnModuleInit {
     return dir;
   }
 
+  /** 임시 원본 경로 */
+  getTempOriginalsDir(tempFolderId: string): string {
+    return join(this.basePath, 'temp', tempFolderId, 'originals');
+  }
+
   /** 임시 썸네일 경로 생성 */
   getTempThumbnailDir(tempFolderId: string): string {
     const dir = join(this.basePath, 'temp', tempFolderId, 'thumbnails');
@@ -192,12 +197,8 @@ export class FileStorageService implements OnModuleInit {
       );
     }
 
-    // 임시 폴더 정리 (파일이 하나라도 이동된 경우에만)
-    if (movedFiles.length > 0) {
-      this.cleanupTempFolder(tempFolderId);
-    } else {
-      this.logger.warn(`파일 이동 0건 → temp 폴더 보존: ${tempFolderId}`);
-    }
+    // temp 폴더 정리는 호출측에서 DB 업데이트 완료 후 수행 (여기서 삭제하면 DB 업데이트 실패 시 복구 불가)
+    // this.cleanupTempFolder(tempFolderId); -- 제거: 호출측에서 처리
 
     return { orderDir, movedFiles };
   }

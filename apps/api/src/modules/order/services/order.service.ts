@@ -2203,6 +2203,23 @@ export class OrderService {
 
       this.logger.log(`파일 이동 시작 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
 
+      // 즉시 업로드가 완료될 때까지 대기 (최대 15초)
+      const tempOriginalsDir = this.fileStorage.getTempOriginalsDir(tempFolderId);
+      const expectedFileCount = item.files.length;
+      for (let attempt = 0; attempt < 15; attempt++) {
+        try {
+          const { readdirSync, existsSync } = require('fs');
+          if (existsSync(tempOriginalsDir)) {
+            const currentCount = readdirSync(tempOriginalsDir).length;
+            if (currentCount >= expectedFileCount) break;
+            this.logger.log(`업로드 대기 중 (주문: ${order.orderNumber}): ${currentCount}/${expectedFileCount}개, ${attempt + 1}초 경과`);
+          } else {
+            this.logger.log(`temp 폴더 없음, 대기 중 (주문: ${order.orderNumber}): attempt ${attempt + 1}`);
+          }
+        } catch { /* ignore */ }
+        await new Promise(r => setTimeout(r, 1000));
+      }
+
       const { movedFiles } = await this.fileStorage.moveToOrderDir(
         tempFolderId,
         order.orderNumber,
@@ -2291,6 +2308,12 @@ export class OrderService {
       }
 
       this.logger.log(`DB 업데이트 완료 (주문: ${order.orderNumber}): ${updates.length}건`);
+
+      // DB 업데이트 성공 후에만 temp 폴더 삭제
+      if (updates.length > 0) {
+        this.fileStorage.cleanupTempFolder(tempFolderId);
+        this.logger.log(`temp 폴더 삭제 (주문: ${order.orderNumber}, temp: ${tempFolderId})`);
+      }
     }
   }
 
