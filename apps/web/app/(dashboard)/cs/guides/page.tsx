@@ -201,10 +201,6 @@ export default function GuidesPage() {
             자주 사용하는 상담 템플릿을 관리합니다
           </p>
         </div>
-        <Button onClick={handleOpenNew} className="gap-2">
-          <Plus className="h-4 w-4" />
-          새 가이드 등록
-        </Button>
       </div>
 
       {/* 필터 */}
@@ -245,9 +241,15 @@ export default function GuidesPage() {
 
       {/* 가이드 목록 */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">가이드 목록</CardTitle>
-          <CardDescription>총 {filteredGuides.length}개의 가이드</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-lg">가이드 목록</CardTitle>
+            <CardDescription>총 {filteredGuides.length}개의 가이드</CardDescription>
+          </div>
+          <Button onClick={handleOpenNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            새 가이드 등록
+          </Button>
         </CardHeader>
         <CardContent>
           {isLoading ? (
