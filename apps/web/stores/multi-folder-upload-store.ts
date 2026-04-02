@@ -890,6 +890,23 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     }
 
     const validated = get().validateFolder({ ...folder, uploadedAt: Date.now() });
+
+    // 폴더 추가 시점에 printMethod/colorMode를 즉시 설정 (useEffect 타이밍 이슈 방지)
+    const { defaultColorMode, availablePapers } = get();
+    if (!validated.printMethod && availablePapers.length > 0) {
+      const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
+      validated.printMethod = hasIndigo ? 'indigo' : 'inkjet';
+      validated.colorMode = defaultColorMode;
+      const filteredPapers = availablePapers.filter(p => {
+        if (p.printMethod !== validated.printMethod) return false;
+        if (p.printMethod === 'indigo') return defaultColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
+        return p.isActive !== false;
+      });
+      const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
+      validated.selectedPaperId = defaultPaper?.id || null;
+      validated.selectedPaperName = defaultPaper?.name || null;
+    }
+
     set(state => ({
       folders: [validated, ...state.folders],
     }));
