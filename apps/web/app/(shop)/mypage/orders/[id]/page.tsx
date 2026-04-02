@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useParams } from 'next/navigation';
-import Image from 'next/image';
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft,
@@ -213,6 +213,7 @@ function formatFileSize(bytes?: number): string {
 }
 
 import { getSpreadPageLabel } from '@/lib/page-utils';
+import { normalizeImageUrl } from '@/lib/utils';
 
 export default function OrderDetailPage() {
   const router = useRouter();
@@ -382,8 +383,8 @@ export default function OrderDetailPage() {
               <p className="text-gray-500">주문번호: {order.orderNumber}</p>
             </div>
             <div className="flex items-center gap-3">
-              {/* TODO: 운영 시 shipped 상태 제한 복원 */}
-              {order.status !== ORDER_STATUS.CANCELLED && (
+              {/* 앨범수리(재발송)는 배송완료 후에만 가능 (접수대기/접수완료/생산진행/배송준비 단계에서는 아직 앨범이 제작되지 않음) */}
+              {order.status === ORDER_STATUS.SHIPPED && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -539,7 +540,7 @@ export default function OrderDetailPage() {
                                 }
                               }}
                             >
-                              <Image src={item.thumbnailUrl} alt={item.productName} width={40} height={40} className="object-cover w-full h-full" />
+                              <img src={normalizeImageUrl(item.thumbnailUrl)} alt={item.productName} className="object-cover w-full h-full" />
                             </div>
                           )}
                         </div>
@@ -670,7 +671,7 @@ export default function OrderDetailPage() {
                                       onClick={() => openPreview(thumbnailFiles, idx, item.productName)}
                                     >
                                       <img
-                                        src={file.thumbnailUrl!}
+                                        src={normalizeImageUrl(file.thumbnailUrl)}
                                         alt={`p${idx + 1}`}
                                         className="w-full h-auto block"
                                         loading="lazy"
@@ -1257,7 +1258,7 @@ export default function OrderDetailPage() {
                     style={{ cursor: zoomLevel > 1 ? 'grab' : 'default' }}
                   >
                     <img
-                      src={currentFile.thumbnailUrl || currentFile.fileUrl}
+                      src={normalizeImageUrl(currentFile.thumbnailUrl || currentFile.fileUrl)}
                       alt={`p${currentIndex + 1}`}
                       className="transition-transform duration-200"
                       style={{
