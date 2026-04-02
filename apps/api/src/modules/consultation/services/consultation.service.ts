@@ -1,5 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { SmsService } from '../../../common/sms/sms.service';
+import { KakaoAlimtalkService } from '../../../common/kakao-alimtalk/kakao-alimtalk.service';
 import {
   CreateConsultationDto,
   UpdateConsultationDto,
@@ -8,11 +10,18 @@ import {
   CreateFollowUpDto,
   ConsultationQueryDto,
   ConsultationStatus,
+  SendStaffNotificationDto,
 } from '../dto';
 
 @Injectable()
 export class ConsultationService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(ConsultationService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private smsService: SmsService,
+    private kakaoAlimtalkService: KakaoAlimtalkService,
+  ) {}
 
   private async generateConsultNumber(): Promise<string> {
     const today = new Date();
@@ -339,6 +348,91 @@ export class ConsultationService {
         priority: item.priority,
         count: item._count,
       })),
+    };
+  }
+
+  /**
+   * 직원에게 카카오톡(알림톡) / SMS 알림 전송
+   * 1차: 카카오 알림톡 시도
+   * 2차: SMS fallback
+   * 3차: 이메일 fallback
+   */
+  async sendStaffNotification(dto: SendStaffNotificationDto) {
+    const staffMembers = await this.prisma.staff.findMany({
+      where: { id: { in: dto.staffIds }, isActive: true },
+      select: { id: true, name: true, mobile: true, phone: true, email: true },
+    });
+
+    if (!staffMembers.length) {
+      return { success: false, message: '수신할 직원이 없습니다.', results: [] };
+    }
+
+    const results: { staffId: string; name: string; method: string; success: boolean; error?: string }[] = [];
+
+    // 카카오 알림톡이 설정되어 있으면 일괄 발송 시도
+    if (this.kakaoAlimtalkService.isConfigured()) {
+      const recipients = staffMembers
+        .filter(s => s.mobile || s.phone)
+        .map(s => ({
+          phone: (s.mobile || s.phone)!,
+          email: s.email || undefined,
+          name: s.name,
+        }));
+
+      if (recipients.length > 0) {
+        const alimtalkResult = await this.kakaoAlimtalkService.send({
+          templateCode: 'CS_STAFF_NOTIFY',
+          recipients,
+          variables: { '#{내용}': dto.message },
+          emailFallback: {
+            subject: '[Printing114] CS 상담 알림',
+            html: `<p>${dto.message.replace(/\n/g, '<br>')}</p>`,
+          },
+        });
+
+        if (alimtalkResult.success) {
+          staffMembers.forEach(s => {
+            results.push({
+              staffId: s.id,
+              name: s.name,
+              method: alimtalkResult.method,
+              success: true,
+            });
+          });
+          return { success: true, message: `${results.length}명에게 알림톡 전송 완료`, results };
+        }
+      }
+    }
+
+    // SMS fallback: 개별 발송
+    if (this.smsService.isConfigured()) {
+      for (const staff of staffMembers) {
+        const phoneNumber = staff.mobile || staff.phone;
+        if (!phoneNumber) {
+          results.push({ staffId: staff.id, name: staff.name, method: 'none', success: false, error: '연락처 없음' });
+          continue;
+        }
+
+        const smsResult = await this.smsService.sendSms(phoneNumber, dto.message);
+        results.push({
+          staffId: staff.id,
+          name: staff.name,
+          method: 'sms',
+          success: smsResult.success,
+          error: smsResult.error,
+        });
+      }
+
+      const successCount = results.filter(r => r.success).length;
+      return { success: successCount > 0, message: `${successCount}/${results.length}명 SMS 전송 완료`, results };
+    }
+
+    // 모두 미설정 시
+    this.logger.warn('카카오 알림톡/SMS 모두 미설정 상태입니다.');
+    return {
+      success: false,
+      message: '알림 서비스가 설정되지 않았습니다. .env에 카카오 알림톡 또는 NHN SMS 설정을 추가하세요.',
+      results: [],
     };
   }
 }

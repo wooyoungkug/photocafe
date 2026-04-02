@@ -18,6 +18,7 @@ import {
   ResolveConsultationDto,
   CreateFollowUpDto,
   ConsultationQueryDto,
+  SendStaffNotificationDto,
 } from '../dto';
 
 @ApiTags('Consultations')
@@ -111,5 +112,12 @@ export class ConsultationController {
     @Body() data: CreateFollowUpDto,
   ) {
     return this.consultationService.addFollowUp(id, data);
+  }
+
+  @Post('notify/staff')
+  @ApiOperation({ summary: '직원에게 카카오톡/SMS 알림 전송' })
+  @ApiResponse({ status: 201, description: '알림 전송 결과' })
+  async sendStaffNotification(@Body() data: SendStaffNotificationDto) {
+    return this.consultationService.sendStaffNotification(data);
   }
 }

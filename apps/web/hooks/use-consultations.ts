@@ -237,3 +237,16 @@ export function useDeleteMessage() {
     },
   });
 }
+
+// ==================== 직원 카카오톡/SMS 알림 전송 ====================
+
+export function useSendStaffNotification() {
+  return useMutation({
+    mutationFn: (data: { staffIds: string[]; message: string }) =>
+      api.post<{
+        success: boolean;
+        message: string;
+        results: { staffId: string; name: string; method: string; success: boolean; error?: string }[];
+      }>('/consultations/notify/staff', data),
+  });
+}

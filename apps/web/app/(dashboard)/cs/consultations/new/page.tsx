@@ -58,6 +58,7 @@ import {
   useUpdateCategory,
   useDeleteCategory,
 } from '@/hooks/use-cs';
+import { useSendStaffNotification } from '@/hooks/use-consultations';
 import { ConsultationCategory, CreateConsultationCategoryDto } from '@/lib/types/cs';
 import {
   DropdownMenu,
@@ -77,6 +78,7 @@ export default function NewConsultationPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { user } = useAuthStore();
+  const sendNotification = useSendStaffNotification();
 
   const [formData, setFormData] = useState<Partial<CreateConsultationDto>>({
     title: '',
@@ -985,11 +987,17 @@ export default function NewConsultationPage() {
                     }
                     setIsKakaoSending(true);
                     try {
-                      // TODO: 실제 카카오톡 API 연동
-                      await new Promise(resolve => setTimeout(resolve, 1000));
-                      toast({ title: `${selectedStaff.length}명에게 카카오톡 알림을 전송했습니다.` });
+                      const result = await sendNotification.mutateAsync({
+                        staffIds: selectedStaff,
+                        message: kakaoMessage,
+                      });
+                      if (result.success) {
+                        toast({ title: result.message });
+                      } else {
+                        toast({ title: result.message, variant: 'destructive' });
+                      }
                     } catch (error) {
-                      toast({ title: '카카오톡 전송에 실패했습니다.', variant: 'destructive' });
+                      toast({ title: '알림 전송에 실패했습니다.', variant: 'destructive' });
                     } finally {
                       setIsKakaoSending(false);
                     }

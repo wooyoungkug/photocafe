@@ -258,6 +258,17 @@ export class CreateFollowUpDto {
   staffName: string;
 }
 
+export class SendStaffNotificationDto {
+  @ApiProperty({ description: '수신 직원 ID 배열' })
+  @IsArray()
+  @IsString({ each: true })
+  staffIds: string[];
+
+  @ApiProperty({ description: '알림 메시지' })
+  @IsString()
+  message: string;
+}
+
 export class ConsultationQueryDto {
   @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
   @IsInt()
