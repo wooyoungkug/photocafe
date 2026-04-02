@@ -601,8 +601,21 @@ export default function NewConsultationPage() {
                   id="content"
                   placeholder="고객의 문의 또는 클레임 내용을 상세히 기록하세요"
                   rows={8}
+                  className="min-h-[200px] resize-y"
                   value={formData.content || ''}
-                  onChange={(e) => setFormData(prev => ({ ...prev, content: e.target.value }))}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, content: e.target.value }));
+                    // 내용에 맞게 높이 자동 조절
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${Math.max(200, e.target.scrollHeight)}px`;
+                  }}
+                  ref={(el) => {
+                    // 초기 로드 시 (템플릿 등으로 내용이 채워진 경우) 높이 자동 조절
+                    if (el && el.scrollHeight > el.clientHeight) {
+                      el.style.height = 'auto';
+                      el.style.height = `${Math.max(200, el.scrollHeight)}px`;
+                    }
+                  }}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
