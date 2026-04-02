@@ -682,9 +682,11 @@ export class OrderService {
 
     // 임시 파일 → 정식 경로 이동 (동기 처리하여 temp 경로가 DB에 남지 않도록 함)
     try {
+      this.logger.log(`[주문생성] moveTemporaryFiles 호출 시작 (주문: ${order.orderNumber})`);
       await this.moveTemporaryFiles(order);
+      this.logger.log(`[주문생성] moveTemporaryFiles 완료 (주문: ${order.orderNumber})`);
     } catch (err) {
-      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, (err as Error).message);
+      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, (err as Error).message, (err as Error).stack);
     }
 
     // 매출원장 자동 등록 (await로 동기 처리하여 누락 방지)
@@ -2176,11 +2178,19 @@ export class OrderService {
    * 임시 파일을 정식 주문 경로로 이동 (아이템별 독립 처리)
    */
   private async moveTemporaryFiles(order: any): Promise<void> {
+    this.logger.log(`[moveTemporaryFiles] 시작 (주문: ${order.orderNumber}, items: ${order.items?.length}, client: ${order.client?.clientName})`);
     for (const item of order.items) {
-      if (!item.files?.length) continue;
+      if (!item.files?.length) {
+        this.logger.log(`[moveTemporaryFiles] item ${item.id}: 파일 없음, 건너뜀`);
+        continue;
+      }
 
       const firstFile = item.files[0];
-      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) continue;
+      this.logger.log(`[moveTemporaryFiles] item ${item.id}: 첫번째 파일 URL = ${firstFile.fileUrl}`);
+      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) {
+        this.logger.log(`[moveTemporaryFiles] item ${item.id}: temp 경로 아님, 건너뜀`);
+        continue;
+      }
 
       const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
       if (urlParts.length < 2) continue;

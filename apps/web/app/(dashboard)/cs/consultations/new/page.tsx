@@ -70,6 +70,7 @@ import {
 import { CreateConsultationDto, ConsultationPriority } from '@/lib/types/cs';
 import { Client } from '@/lib/types/client';
 import { useAuthStore } from '@/stores/auth-store';
+import { useStaffList } from '@/hooks/use-staff';
 import Link from 'next/link';
 
 export default function NewConsultationPage() {
@@ -128,17 +129,13 @@ export default function NewConsultationPage() {
   const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
   const [isKakaoSending, setIsKakaoSending] = useState(false);
 
-  // 내부 직원 목록 (TODO: 실제 API에서 가져오기)
-  const staffList = [
-    { id: 'staff-1', name: '김영업', department: '영업팀' },
-    { id: 'staff-2', name: '박영업', department: '영업팀' },
-    { id: 'staff-3', name: '이생산', department: '생산팀' },
-    { id: 'staff-4', name: '최생산', department: '생산팀' },
-    { id: 'staff-5', name: '정생산', department: '생산팀' },
-    { id: 'staff-6', name: '박관리', department: '관리팀' },
-    { id: 'staff-7', name: '최배송', department: '배송팀' },
-    { id: 'staff-8', name: '김배송', department: '배송팀' },
-  ];
+  // 실제 등록된 직원 목록 조회 (활성 직원만)
+  const { data: staffData } = useStaffList({ isActive: true, limit: 100 });
+  const staffList = (staffData?.data || []).map(s => ({
+    id: s.id,
+    name: s.name,
+    department: s.department?.name || '미배정',
+  }));
 
   // 부서별로 직원 그룹화
   const departmentGroups = staffList.reduce((acc, staff) => {
@@ -889,7 +886,7 @@ export default function NewConsultationPage() {
                       </Badge>
                     )}
                   </div>
-                  <div className="space-y-3 max-h-48 overflow-y-auto p-3 border rounded-md bg-slate-50">
+                  <div className="space-y-3 p-3 border rounded-md bg-slate-50">
                     {Object.entries(departmentGroups).map(([department, staffs]) => (
                       <div key={department} className="space-y-1.5">
                         {/* 부서 헤더 */}
