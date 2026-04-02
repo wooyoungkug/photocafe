@@ -132,7 +132,7 @@ export default function ProductPage() {
     defaultPageLayout, defaultBindingDirection,
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
-    setAvailablePapers, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
+    setAvailablePapers, setProductColorType, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -533,10 +533,13 @@ export default function ProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.id]);
 
-  // 상품 용지 목록을 업로드 스토어에 전달 (폴더별 용지 변경용)
+  // 상품 용지 목록 및 색상구분을 업로드 스토어에 전달 (폴더별 용지 변경용)
   useEffect(() => {
     if (product?.papers) {
       setAvailablePapers(product.papers);
+    }
+    if (product) {
+      setProductColorType((product as any).colorType || 'both');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product?.papers]);
