@@ -22,12 +22,14 @@ export interface SendAlimtalkOptions {
 export class KakaoAlimtalkService {
   private readonly logger = new Logger(KakaoAlimtalkService.name);
   private readonly enabled: boolean;
-  private readonly apiKey: string;
+  private readonly appKey: string;
+  private readonly secretKey: string;
   private readonly senderKey: string;
 
   constructor(private readonly emailService: EmailService) {
     this.enabled = process.env.KAKAO_ALIMTALK_ENABLED === 'true';
-    this.apiKey = process.env.KAKAO_ALIMTALK_API_KEY || '';
+    this.appKey = process.env.KAKAO_ALIMTALK_APP_KEY || process.env.KAKAO_ALIMTALK_API_KEY || '';
+    this.secretKey = process.env.KAKAO_ALIMTALK_SECRET_KEY || '';
     this.senderKey = process.env.KAKAO_ALIMTALK_SENDER_KEY || '';
 
     if (!this.enabled) {
@@ -38,12 +40,12 @@ export class KakaoAlimtalkService {
   }
 
   isConfigured(): boolean {
-    return this.enabled && !!this.apiKey && !!this.senderKey;
+    return this.enabled && !!this.appKey && !!this.secretKey && !!this.senderKey;
   }
 
   /**
    * 알림톡 발송
-   * - 카카오 API 호출 시도 → 실패 시 이메일 fallback
+   * - NHN Cloud KakaoTalk Bizmessage API 호출 시도 → 실패 시 이메일 fallback
    * - 미설정 시 즉시 이메일 fallback
    */
   async send(options: SendAlimtalkOptions): Promise<{
@@ -79,8 +81,8 @@ export class KakaoAlimtalkService {
   }
 
   /**
-   * 카카오 알림톡 API 호출
-   * TODO: 카카오 비즈니스 채널 등록 후 실제 API 연동
+   * NHN Cloud KakaoTalk Bizmessage API 호출
+   * @see https://docs.nhncloud.com/ko/Notification/KakaoTalk%20Bizmessage/ko/alimtalk-api-guide/
    */
   private async sendViaKakao(options: SendAlimtalkOptions): Promise<{
     success: boolean;
@@ -94,10 +96,15 @@ export class KakaoAlimtalkService {
       return { success: false, sentCount: 0, failedCount: 0, method: 'alimtalk' };
     }
 
-    // 카카오 알림톡 API 호출 구조
-    // POST https://api-alimtalk.kakao.com/v2/sender/send
-    // 실제 연동 시 아래 주석을 해제하고 구현
-    /*
+    // 템플릿 변수를 메시지 본문에 치환
+    let templateContent = options.variables['#{내용}'] || '';
+    for (const [key, value] of Object.entries(options.variables)) {
+      templateContent = templateContent.replace(new RegExp(key.replace(/[{}#]/g, '\\$&'), 'g'), value);
+    }
+
+    // NHN Cloud 알림톡 API
+    const url = `https://api-alimtalk.cloud.toast.com/alimtalk/v2.3/appkeys/${this.appKey}/messages`;
+
     const payload = {
       senderKey: this.senderKey,
       templateCode: options.templateCode,
@@ -107,24 +114,39 @@ export class KakaoAlimtalkService {
       })),
     };
 
-    const response = await fetch('https://api-alimtalk.kakao.com/v2/sender/send', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Secret-Key': this.apiKey,
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json;charset=UTF-8',
+          'X-Secret-Key': this.secretKey,
+        },
+        body: JSON.stringify(payload),
+      });
 
-    const data = await response.json();
-    */
+      const data = await response.json();
 
-    this.logger.log(
-      `[카카오 알림톡] 템플릿: ${options.templateCode}, 수신: ${phoneRecipients.length}명 (API 미연동 - 이메일 fallback)`,
-    );
+      if (data.header?.isSuccessful) {
+        const requestId = data.message?.requestId;
+        this.logger.log(
+          `[NHN 알림톡] 발송 성공 - 템플릿: ${options.templateCode}, 수신: ${phoneRecipients.length}명, requestId: ${requestId}`,
+        );
+        return {
+          success: true,
+          sentCount: phoneRecipients.length,
+          failedCount: 0,
+          method: 'alimtalk',
+        };
+      }
 
-    // 현재는 API 미연동이므로 실패 반환 → 이메일 fallback
-    return { success: false, sentCount: 0, failedCount: phoneRecipients.length, method: 'alimtalk' };
+      this.logger.error(
+        `[NHN 알림톡] 발송 실패 - code: ${data.header?.resultCode}, message: ${data.header?.resultMessage}`,
+      );
+      return { success: false, sentCount: 0, failedCount: phoneRecipients.length, method: 'alimtalk' };
+    } catch (err) {
+      this.logger.error(`[NHN 알림톡] API 호출 오류: ${(err as Error).message}`);
+      return { success: false, sentCount: 0, failedCount: phoneRecipients.length, method: 'alimtalk' };
+    }
   }
 
   /**
