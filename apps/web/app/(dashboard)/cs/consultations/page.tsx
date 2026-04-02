@@ -185,26 +185,18 @@ export default function ConsultationsPage() {
   return (
     <div className="p-6 space-y-6">
       {/* 헤더 */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <MessageSquare className="h-6 w-6 text-blue-600" />
-            상담 관리
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            고객 상담 내역을 조회하고 관리합니다
-          </p>
-        </div>
-        <Link href="/cs/consultations/new">
-          <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
-            <Plus className="h-4 w-4 mr-2" />
-            상담 등록
-          </Button>
-        </Link>
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <MessageSquare className="h-6 w-6 text-blue-600" />
+          상담 관리
+        </h1>
+        <p className="text-muted-foreground text-sm mt-1">
+          고객 상담 내역을 조회하고 관리합니다
+        </p>
       </div>
 
       {/* 필터 */}
-      <div className="flex flex-wrap gap-4 p-4 bg-slate-50/50 rounded-xl border">
+      <div className="flex flex-wrap gap-4 p-4 bg-slate-50/50 rounded-xl border items-center">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -251,6 +243,14 @@ export default function ConsultationsPage() {
             ))}
           </SelectContent>
         </Select>
+        <div className="ml-auto">
+          <Link href="/cs/consultations/new">
+            <Button className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800">
+              <Plus className="h-4 w-4 mr-2" />
+              상담 등록
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* 테이블 */}
