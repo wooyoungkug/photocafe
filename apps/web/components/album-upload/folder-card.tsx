@@ -565,10 +565,19 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   // printMethod가 없으면 availablePapers 기반으로 자동 설정
   // storeDefaultColorMode를 dependency에 포함하여 stale closure 방지
   useEffect(() => {
+    console.log('[FolderCard] colorMode init effect', {
+      folderId: folder.id,
+      folderName: folder.folderName,
+      printMethod: folder.printMethod,
+      colorMode: folder.colorMode,
+      storeDefaultColorMode,
+      availablePapersLen: availablePapers.length,
+    });
     if (folder.printMethod || availablePapers.length === 0) return;
     const hasIndigo = availablePapers.some(p => p.printMethod === 'indigo' && (p.isActive4 !== false || p.isActive6 !== false));
     const defaultMethod: 'indigo' | 'inkjet' = hasIndigo ? 'indigo' : 'inkjet';
     const resolvedColorMode: '4c' | '6c' = storeDefaultColorMode;
+    console.log('[FolderCard] SETTING colorMode:', { folderId: folder.id, folderName: folder.folderName, resolvedColorMode, defaultMethod });
     const filteredPapers = availablePapers.filter(p => {
       if (p.printMethod !== defaultMethod) return false;
       if (p.printMethod === 'indigo') return resolvedColorMode === '6c' ? p.isActive6 !== false : p.isActive4 !== false;
