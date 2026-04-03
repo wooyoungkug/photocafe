@@ -354,18 +354,19 @@ export default function OrderPage() {
   ) => {
     setOrderError(null);
     try {
-      // 배치 API로 한번에 주문 생성 (N번 → 1번 호출)
+      // 주문번호 충돌 방지를 위해 순차 처리
       let firstOrderNumber: string | undefined;
-      if (orderDataList.length === 1) {
-        // 단건 주문은 기존 API 사용
-        console.log(`[주문] 단건 전송:`, JSON.stringify(orderDataList[0], null, 2));
-        const res = await api.post<{ orderNumber: string }>('/orders', orderDataList[0]);
-        firstOrderNumber = res.orderNumber;
-      } else {
-        // 다건 주문은 배치 API 사용
-        console.log(`[주문] 배치 전송 (${orderDataList.length}건):`, JSON.stringify(orderDataList, null, 2));
-        const res = await api.post<{ id: string; orderNumber: string }[]>('/orders/batch', { orders: orderDataList });
-        firstOrderNumber = res[0]?.orderNumber;
+      for (let i = 0; i < orderDataList.length; i++) {
+        const orderData = orderDataList[i];
+        try {
+          console.log(`[주문] ${i + 1}/${orderDataList.length}번 항목 전송:`, JSON.stringify(orderData, null, 2));
+          const res = await api.post<{ orderNumber: string }>('/orders', orderData);
+          if (!firstOrderNumber) firstOrderNumber = res.orderNumber;
+        } catch (itemError) {
+          const itemName = orderData.items?.[0]?.productName || orderData.items?.[0]?.folderName || `${i + 1}번째 항목`;
+          const detail = itemError instanceof Error ? itemError.message : String(itemError);
+          throw new Error(`[${itemName}] 주문 실패: ${detail}`);
+        }
       }
 
       if (cpChanges.length > 0) {

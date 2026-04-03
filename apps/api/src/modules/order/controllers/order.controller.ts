@@ -99,17 +99,6 @@ export class OrderController {
     );
   }
 
-  @Post('batch')
-  @ApiOperation({ summary: '배치 주문 생성 (여러 주문을 한번에)' })
-  async createBatch(@Body() body: { orders: CreateOrderDto[] }, @Request() req: any) {
-    const orders = body.orders;
-    if (req.user?.type === 'employee') {
-      orders.forEach(order => order.clientId = req.user.clientId);
-      return this.orderService.createBatch(orders, req.user.id, req.user.sub);
-    }
-    return this.orderService.createBatch(orders, req.user.id);
-  }
-
   // ==================== 벌크 작업 (반드시 :id 라우트 위에 배치) ====================
   @Post('bulk/update-status')
   @ApiOperation({ summary: '주문 일괄 상태 변경' })
