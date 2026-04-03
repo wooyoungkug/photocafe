@@ -123,6 +123,7 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({ finishings: [] });
   const [isSpecExpanded, setIsSpecExpanded] = useState(false);
+  const specManuallyChangedRef = useRef(false);
   const [showSaveMyProductModal, setShowSaveMyProductModal] = useState(false);
   const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
   const [myProductName, setMyProductName] = useState('');
@@ -586,8 +587,10 @@ export default function ProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.colorMode, selectedOptions.paper?.id]);
 
-  // 상단 규격 선택 변경 시 모든 폴더에 규격 동기화
+  // 상단 규격 선택 변경 시 모든 폴더에 규격 동기화 (사용자가 직접 변경한 경우에만)
   useEffect(() => {
+    if (!specManuallyChangedRef.current) return; // 초기 로딩/자동 설정은 무시, 자동감지 결과 존중
+    specManuallyChangedRef.current = false;
     const spec = selectedOptions.specification;
     if (!spec?.specificationId || uploadFolders.length === 0 || indigoSpecs.length === 0) return;
     // indigoSpecs(인치 단위)에서 선택된 규격 찾기
