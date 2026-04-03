@@ -2,10 +2,10 @@ import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, G
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
@@ -64,45 +64,7 @@ export class UploadController {
     })
     @UseInterceptors(
         FileInterceptor('file', {
-            storage: diskStorage({
-                destination: (req: any, _file, cb) => {
-                    const tempFolderId = req.body?.tempFolderId;
-                    if (!tempFolderId) {
-                        return cb(new BadRequestException('tempFolderId가 필요합니다.'), '');
-                    }
-                    // 경로 탐색 공격 방지: ../ 및 경로 구분자 제거
-                    const safeTempFolderId = tempFolderId
-                        .replace(/\.\./g, '')
-                        .replace(/[/\\]/g, '')
-                        .trim();
-                    if (!safeTempFolderId) {
-                        return cb(new BadRequestException('유효하지 않은 tempFolderId입니다.'), '');
-                    }
-                    const dir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
-                    if (!existsSync(dir)) {
-                        try {
-                            mkdirSync(dir, { recursive: true });
-                        } catch (mkdirErr: any) {
-                            return cb(new Error(`업로드 폴더 생성 실패 (${mkdirErr.code}): ${dir} - ${mkdirErr.message}`), '');
-                        }
-                    }
-                    cb(null, dir);
-                },
-                filename: (req: any, file, cb) => {
-                    // multer는 latin1로 파일명을 디코딩하므로 UTF-8로 재변환
-                    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
-                    file.originalname = originalName;
-                    const sortOrder = parseInt(req.body?.sortOrder || '0', 10);
-                    const ext = extname(originalName).toLowerCase();
-                    const safeName = originalName
-                        .replace(/[<>:"/\\|?*]/g, '_')
-                        .replace(/\.\./g, '_')
-                        .trim();
-                    const base = safeName.slice(0, -ext.length).slice(0, 80);
-                    const prefix = sortOrder.toString().padStart(2, '0');
-                    cb(null, `${prefix}_${base}${ext}`);
-                },
-            }),
+            storage: memoryStorage(),
             fileFilter: (_req, file, cb) => {
                 // image/tif (단수)도 허용 (일부 시스템이 tif로 전송)
                 if (!file.mimetype.match(/^image\/(jpg|jpeg|png|tif|tiff|webp)$/)) {
@@ -134,6 +96,42 @@ export class UploadController {
         if (!file) {
             throw new BadRequestException('파일이 업로드되지 않았습니다.');
         }
+
+        // 경로 탐색 공격 방지
+        const safeTempFolderId = (body.tempFolderId || '')
+            .replace(/\.\./g, '')
+            .replace(/[/\\]/g, '')
+            .trim();
+        if (!safeTempFolderId) {
+            throw new BadRequestException('유효하지 않은 tempFolderId입니다.');
+        }
+
+        // 디렉토리 생성
+        const dir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+        if (!existsSync(dir)) {
+            mkdirSync(dir, { recursive: true });
+        }
+
+        // 파일명 생성 (multer latin1→UTF-8 변환)
+        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        file.originalname = originalName;
+        const sortOrder = parseInt(body.sortOrder || '0', 10);
+        const ext = extname(originalName).toLowerCase();
+        const safeName = originalName
+            .replace(/[<>:"/\\|?*]/g, '_')
+            .replace(/\.\./g, '_')
+            .trim();
+        const base = safeName.slice(0, -ext.length).slice(0, 80);
+        const prefix = sortOrder.toString().padStart(2, '0');
+        const filename = `${prefix}_${base}${ext}`;
+
+        // 메모리 버퍼를 디스크에 직접 쓰기 (Windows 호환성 개선)
+        const filePath = join(dir, filename);
+        writeFileSync(filePath, file.buffer);
+
+        // multer 호환 속성 설정
+        file.path = filePath;
+        file.filename = filename;
 
         const fileUrl = this.fileStorage.toRelativeUrl(file.path);
 
