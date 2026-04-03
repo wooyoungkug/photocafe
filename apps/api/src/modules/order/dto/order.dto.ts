@@ -461,7 +461,7 @@ export class CreateOrderDto {
 
 // ==================== 배치 주문 생성 DTO ====================
 export class CreateBatchOrderDto {
-  @ApiProperty({ description: '주문 목록', type: [CreateOrderDto] })
+  @ApiProperty({ description: '주문 목록' })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
