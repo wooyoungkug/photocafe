@@ -144,9 +144,9 @@ export class UploadController {
         }
 
         // 썸네일 URL을 예측 가능한 경로로 즉시 반환 (파일명 규칙: {base}_thumb.jpg)
-        const ext = extname(file.filename);
-        const base = file.filename.slice(0, -ext.length);
-        const thumbName = `${base}_thumb.jpg`;
+        const thumbExt = extname(file.filename);
+        const thumbBase = file.filename.slice(0, -thumbExt.length);
+        const thumbName = `${thumbBase}_thumb.jpg`;
         const encodedThumbName = /[^\x00-\x7F]/.test(thumbName) || thumbName.includes(' ')
             ? encodeURIComponent(thumbName)
             : thumbName;
