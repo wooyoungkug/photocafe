@@ -29,7 +29,6 @@ import {
   BulkCancelDto,
   BulkUpdateReceiptDateDto,
   BulkDataCleanupDto,
-  CreateBatchOrderDto,
   CheckDuplicateOrderDto,
   MonthlySummaryQueryDto,
   DailySummaryQueryDto,
@@ -102,12 +101,13 @@ export class OrderController {
 
   @Post('batch')
   @ApiOperation({ summary: '배치 주문 생성 (여러 주문을 한번에)' })
-  async createBatch(@Body() dto: CreateBatchOrderDto, @Request() req: any) {
+  async createBatch(@Body() body: { orders: CreateOrderDto[] }, @Request() req: any) {
+    const orders = body.orders;
     if (req.user?.type === 'employee') {
-      dto.orders.forEach(order => order.clientId = req.user.clientId);
-      return this.orderService.createBatch(dto.orders, req.user.id, req.user.sub);
+      orders.forEach(order => order.clientId = req.user.clientId);
+      return this.orderService.createBatch(orders, req.user.id, req.user.sub);
     }
-    return this.orderService.createBatch(dto.orders, req.user.id);
+    return this.orderService.createBatch(orders, req.user.id);
   }
 
   // ==================== 벌크 작업 (반드시 :id 라우트 위에 배치) ====================
