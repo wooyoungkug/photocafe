@@ -714,6 +714,7 @@ export default function ProductPage() {
         setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null);
       });
     }
+    if (opts.specificationId) specManuallyChangedRef.current = true; // 마이상품 규격 → 폴더 동기화
     if (myProductFromParam.defaultQuantity) setQuantity(myProductFromParam.defaultQuantity);
     setMyProductApplied(true);
     recordMyProductUsage.mutate(myProductFromParam.id);
@@ -914,6 +915,7 @@ export default function ProductPage() {
       uploadFolders.forEach(f => setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null));
       setSelectedFabricCategory(null);
     }
+    if (opts.specificationId) specManuallyChangedRef.current = true; // 마이상품 규격 → 폴더 동기화
     setQuantity(myProduct.defaultQuantity);
     setShowLoadMyProductModal(false);
     toast({ title: t('myProductLoaded'), description: t('myProductLoadedDesc', { name: myProduct.name }) });
@@ -1222,7 +1224,10 @@ export default function ProductPage() {
                 const hasBothGroups = indigoSpecs.length > 0 && inkjetSpecs.length > 0;
                 const renderSpecGroup = (specs: typeof sortedSpecs) => (
                   <RadioGroup value={selectedOptions.specification?.id}
-                    onValueChange={(value) => setSelectedOptions(prev => ({ ...prev, specification: product.specifications?.find(s => s.id === value) }))}
+                    onValueChange={(value) => {
+                      specManuallyChangedRef.current = true;
+                      setSelectedOptions(prev => ({ ...prev, specification: product.specifications?.find(s => s.id === value) }));
+                    }}
                     className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                     {specs.map((spec) => (
                       <Label key={spec.id} className={cn('flex items-center gap-1.5 px-2.5 py-2 border rounded-md cursor-pointer transition-colors text-sm bg-white min-h-[44px]',
