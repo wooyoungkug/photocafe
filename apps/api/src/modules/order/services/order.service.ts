@@ -680,42 +680,47 @@ export class OrderService {
       )
     ).catch(() => { });
 
-    // 임시 파일 → 정식 경로 이동 (동기 처리하여 temp 경로가 DB에 남지 않도록 함)
-    try {
-      this.logger.log(`[주문생성] moveTemporaryFiles 호출 시작 (주문: ${order.orderNumber})`);
-      await this.moveTemporaryFiles(order);
-      this.logger.log(`[주문생성] moveTemporaryFiles 완료 (주문: ${order.orderNumber})`);
-    } catch (err) {
-      this.logger.error(`임시 파일 이동 최종 실패 (주문: ${order.orderNumber}):`, (err as Error).message, (err as Error).stack);
-    }
+    // 임시 파일 → 정식 경로 이동 (비동기 처리 - 응답 지연 방지)
+    // 실패 시 storageStatus='pending' 상태로 남아 repairPendingFiles()로 복구 가능
+    this.moveTemporaryFiles(order)
+      .then(() => this.logger.log(`[주문생성] moveTemporaryFiles 비동기 완료 (주문: ${order.orderNumber})`))
+      .catch(err => this.logger.error(`임시 파일 이동 비동기 실패 (주문: ${order.orderNumber}):`, (err as Error).message, (err as Error).stack));
 
-    // 매출원장 자동 등록 (await로 동기 처리하여 누락 방지)
-    try {
-      await this.salesLedgerService.createFromOrder({
-        id: order.id,
-        orderNumber: order.orderNumber,
-        clientId: order.clientId,
-        productPrice: Number(order.productPrice),
-        shippingFee: Number(order.shippingFee),
-        tax: Number(order.tax),
-        totalAmount: Number(order.totalAmount),
-        finalAmount: Number(order.finalAmount),
-        paymentMethod: order.paymentMethod,
-        items: (order as any).items.map((item: any) => ({
-          id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          size: item.size,
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-          totalPrice: Number(item.totalPrice),
-        })),
-      }, userId);
-    } catch (err) {
-      this.logger.error(`매출원장 자동등록 실패 (주문번호: ${order.orderNumber}):`, (err as Error).message);
-    }
+    // 매출원장 자동 등록 (비동기 처리 - 응답 지연 방지)
+    this.salesLedgerService.createFromOrder({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      clientId: order.clientId,
+      productPrice: Number(order.productPrice),
+      shippingFee: Number(order.shippingFee),
+      tax: Number(order.tax),
+      totalAmount: Number(order.totalAmount),
+      finalAmount: Number(order.finalAmount),
+      paymentMethod: order.paymentMethod,
+      items: (order as any).items.map((item: any) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        size: item.size,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        totalPrice: Number(item.totalPrice),
+      })),
+    }, userId)
+      .then(() => this.logger.log(`[주문생성] 매출원장 자동등록 완료 (주문: ${order.orderNumber})`))
+      .catch(err => this.logger.error(`매출원장 자동등록 실패 (주문번호: ${order.orderNumber}):`, (err as Error).message));
 
     return order;
+  }
+
+  // ==================== 배치 주문 생성 ====================
+  async createBatch(orders: CreateOrderDto[], userId: string, createdByUserId?: string): Promise<any[]> {
+    const results: any[] = [];
+    for (const dto of orders) {
+      const order = await this.create(dto, userId, createdByUserId);
+      results.push({ id: order.id, orderNumber: order.orderNumber });
+    }
+    return results;
   }
 
   // ==================== 주문 수정 ====================

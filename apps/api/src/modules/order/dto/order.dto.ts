@@ -459,6 +459,16 @@ export class CreateOrderDto {
   shipping: OrderShippingDto;
 }
 
+// ==================== 배치 주문 생성 DTO ====================
+export class CreateBatchOrderDto {
+  @ApiProperty({ description: '주문 목록', type: [CreateOrderDto] })
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderDto)
+  orders: CreateOrderDto[];
+}
+
 export class UpdateOrderDto extends PartialType(CreateOrderDto) {
   @ApiPropertyOptional({ description: '관리자 메모' })
   @IsOptional()
