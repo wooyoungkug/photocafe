@@ -177,6 +177,7 @@ export default function ConsultationDetailPage() {
         data: {
           content: followUpContent,
           actionType: followUpActionType,
+          statusChange: newStatus,
           staffId: user?.id || '',
           staffName: user?.name || '알 수 없음',
         },
@@ -398,6 +399,11 @@ export default function ConsultationDetailPage() {
                             {actionTypeLabels[followUp.actionType]}
                           </Badge>
                           <span className="text-sm font-medium">{followUp.staffName}</span>
+                          {followUp.statusChange && (
+                            <Badge className={statusColors[followUp.statusChange] || ''}>
+                              {statusLabels[followUp.statusChange] || followUp.statusChange}
+                            </Badge>
+                          )}
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(followUp.createdAt), 'yyyy.MM.dd HH:mm', { locale: ko })}

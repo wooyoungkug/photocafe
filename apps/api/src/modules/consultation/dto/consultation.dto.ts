@@ -250,6 +250,11 @@ export class CreateFollowUpDto {
   @IsEnum(FollowUpActionType)
   actionType: FollowUpActionType;
 
+  @ApiPropertyOptional({ description: '상태 변경 (in_progress, resolved, closed)' })
+  @IsString()
+  @IsOptional()
+  statusChange?: string;
+
   @ApiProperty({ description: '담당자 ID' })
   @IsString()
   staffId: string;

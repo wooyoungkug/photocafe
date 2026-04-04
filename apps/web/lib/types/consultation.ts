@@ -34,6 +34,7 @@ export interface ConsultationFollowUp {
   consultationId: string;
   content: string;
   actionType: FollowUpActionType;
+  statusChange?: string;
   staffId: string;
   staffName: string;
   createdAt: string;
@@ -133,6 +134,7 @@ export interface UpdateConsultationCategoryDto {
 export interface CreateFollowUpDto {
   content: string;
   actionType: FollowUpActionType;
+  statusChange?: string;
   staffId: string;
   staffName: string;
 }

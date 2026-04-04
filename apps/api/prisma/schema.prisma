@@ -1673,6 +1673,7 @@ model ConsultationFollowUp {
   consultationId String
   content        String
   actionType     String
+  statusChange   String?
   staffId        String
   staffName      String
   createdAt      DateTime     @default(now())

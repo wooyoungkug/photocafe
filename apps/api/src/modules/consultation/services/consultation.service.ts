@@ -291,6 +291,7 @@ export class ConsultationService {
         consultationId,
         content: data.content,
         actionType: data.actionType,
+        statusChange: data.statusChange || null,
         staffId: data.staffId,
         staffName: data.staffName,
       },
