@@ -165,7 +165,7 @@ export default function ConsultationDetailPage() {
     }
   };
 
-  const handleAddFollowUp = async () => {
+  const handleAddFollowUp = async (newStatus: ConsultationStatus) => {
     if (!followUpContent.trim()) {
       toast({ title: '후속 조치 내용을 입력해주세요.', variant: 'destructive' });
       return;
@@ -181,7 +181,8 @@ export default function ConsultationDetailPage() {
           staffName: user?.name || '알 수 없음',
         },
       });
-      toast({ title: '후속 조치가 등록되었습니다.' });
+      await updateStatus.mutateAsync({ id: consultationId, status: newStatus });
+      toast({ title: `후속 조치가 등록되고 상태가 "${statusLabels[newStatus]}"(으)로 변경되었습니다.` });
       setIsFollowUpDialogOpen(false);
       setFollowUpContent('');
     } catch (error) {
@@ -688,19 +689,39 @@ export default function ConsultationDetailPage() {
               />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setIsFollowUpDialogOpen(false)}>
               취소
             </Button>
-            <Button
-              onClick={handleAddFollowUp}
-              disabled={addFollowUp.isPending}
-            >
-              {addFollowUp.isPending && (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              )}
-              추가
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="border-yellow-300 bg-yellow-50 text-yellow-700 hover:bg-yellow-100"
+                onClick={() => handleAddFollowUp('in_progress')}
+                disabled={addFollowUp.isPending || updateStatus.isPending}
+              >
+                {(addFollowUp.isPending || updateStatus.isPending) && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
+                처리중
+              </Button>
+              <Button
+                variant="outline"
+                className="border-green-300 bg-green-50 text-green-700 hover:bg-green-100"
+                onClick={() => handleAddFollowUp('resolved')}
+                disabled={addFollowUp.isPending || updateStatus.isPending}
+              >
+                해결
+              </Button>
+              <Button
+                variant="outline"
+                className="border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                onClick={() => handleAddFollowUp('closed')}
+                disabled={addFollowUp.isPending || updateStatus.isPending}
+              >
+                종료
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
