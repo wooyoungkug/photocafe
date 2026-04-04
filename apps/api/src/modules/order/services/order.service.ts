@@ -2203,31 +2203,58 @@ export class OrderService {
 
       this.logger.log(`파일 이동 시작 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
 
-      // 즉시 업로드가 완료될 때까지 대기 (최대 15초)
+      // 즉시 업로드가 완료될 때까지 대기 (최대 30초)
       const tempOriginalsDir = this.fileStorage.getTempOriginalsDir(tempFolderId);
+      this.logger.log(`[DEBUG] tempOriginalsDir = ${tempOriginalsDir}`);
       const expectedFileCount = item.files.length;
-      for (let attempt = 0; attempt < 15; attempt++) {
+      for (let attempt = 0; attempt < 30; attempt++) {
         try {
           const { readdirSync, existsSync } = require('fs');
           if (existsSync(tempOriginalsDir)) {
             const currentCount = readdirSync(tempOriginalsDir).length;
-            if (currentCount >= expectedFileCount) break;
+            if (currentCount >= expectedFileCount) {
+              this.logger.log(`[DEBUG] temp 파일 준비 완료: ${currentCount}/${expectedFileCount}개`);
+              break;
+            }
             this.logger.log(`업로드 대기 중 (주문: ${order.orderNumber}): ${currentCount}/${expectedFileCount}개, ${attempt + 1}초 경과`);
           } else {
             this.logger.log(`temp 폴더 없음, 대기 중 (주문: ${order.orderNumber}): attempt ${attempt + 1}`);
           }
-        } catch { /* ignore */ }
+        } catch (waitErr) {
+          this.logger.error(`[DEBUG] 대기 중 에러: ${(waitErr as Error).message}`);
+        }
         await new Promise(r => setTimeout(r, 1000));
       }
+      // 대기 후 최종 상태 로깅
+      try {
+        const { readdirSync, existsSync } = require('fs');
+        const exists = existsSync(tempOriginalsDir);
+        const files = exists ? readdirSync(tempOriginalsDir) : [];
+        this.logger.log(`[DEBUG] 대기 완료 후 temp 상태: exists=${exists}, fileCount=${files.length}, expected=${expectedFileCount}`);
+      } catch { /* ignore */ }
 
-      const { movedFiles } = await this.fileStorage.moveToOrderDir(
-        tempFolderId,
-        order.orderNumber,
-        companyName,
-      );
+      let movedFiles: Array<{ original: string; thumbnail: string; fileName: string }>;
+      try {
+        const result = await this.fileStorage.moveToOrderDir(
+          tempFolderId,
+          order.orderNumber,
+          companyName,
+        );
+        movedFiles = result.movedFiles;
+        this.logger.log(`[DEBUG] moveToOrderDir 결과: orderDir=${result.orderDir}, movedFiles=${movedFiles.length}`);
+      } catch (moveErr) {
+        this.logger.error(`[DEBUG] moveToOrderDir 에러 (주문: ${order.orderNumber}):`, (moveErr as Error).message, (moveErr as Error).stack);
+        continue;
+      }
 
       if (movedFiles.length === 0) {
         this.logger.warn(`파일 이동 0건 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
+        // 2단계 복구: 이미 이동된 파일이 있는지 orders 디렉토리에서 확인
+        try {
+          await this.recoverFromOrderDir(order, item, companyName);
+        } catch (recoverErr) {
+          this.logger.error(`[DEBUG] 복구 실패 (주문: ${order.orderNumber}):`, (recoverErr as Error).message);
+        }
         continue;
       }
 
