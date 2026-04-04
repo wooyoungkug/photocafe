@@ -235,8 +235,25 @@ export default function NewConsultationPage() {
   ];
 
   const handleSelectClient = (client: Client) => {
+    const isChanged = selectedClient && selectedClient.id !== client.id;
     setSelectedClient(client);
-    setFormData(prev => ({ ...prev, clientId: client.id }));
+    if (isChanged) {
+      // 고객 변경 시 상담 내용 초기화
+      setFormData({
+        clientId: client.id,
+        categoryId: '',
+        title: '',
+        content: '',
+        priority: 'normal',
+        orderNumber: '',
+        followUpDate: '',
+        followUpNote: '',
+        internalMemo: '',
+      });
+      setSelectedTags([]);
+    } else {
+      setFormData(prev => ({ ...prev, clientId: client.id }));
+    }
     setIsClientDialogOpen(false);
     setClientSearch('');
   };
