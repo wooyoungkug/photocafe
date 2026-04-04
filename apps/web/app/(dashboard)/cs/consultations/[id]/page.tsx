@@ -68,6 +68,7 @@ import {
   useAddTagsToConsultation,
 } from '@/hooks/use-cs';
 import { ConsultationStatus, FollowUpActionType } from '@/lib/types/cs';
+import { useAuthStore } from '@/stores/auth-store';
 import Link from 'next/link';
 
 export default function ConsultationDetailPage() {
@@ -82,6 +83,8 @@ export default function ConsultationDetailPage() {
   const [resolution, setResolution] = useState('');
   const [followUpContent, setFollowUpContent] = useState('');
   const [followUpActionType, setFollowUpActionType] = useState<FollowUpActionType>('phone');
+
+  const user = useAuthStore((state) => state.user);
 
   const { data: consultation, isLoading, error } = useConsultation(consultationId);
   const { data: recommendedGuides } = useRecommendedGuides(consultationId);
@@ -152,7 +155,7 @@ export default function ConsultationDetailPage() {
       await resolveConsultation.mutateAsync({
         id: consultationId,
         resolution,
-        resolvedBy: 'staff-1', // TODO: 실제 로그인한 직원
+        resolvedBy: user?.name || '알 수 없음',
       });
       toast({ title: '상담이 해결 처리되었습니다.' });
       setIsResolveDialogOpen(false);
@@ -174,8 +177,8 @@ export default function ConsultationDetailPage() {
         data: {
           content: followUpContent,
           actionType: followUpActionType,
-          staffId: 'staff-1', // TODO: 실제 로그인한 직원
-          staffName: '상담원', // TODO: 실제 로그인한 직원명
+          staffId: user?.id || '',
+          staffName: user?.name || '알 수 없음',
         },
       });
       toast({ title: '후속 조치가 등록되었습니다.' });
@@ -345,6 +348,7 @@ export default function ConsultationDetailPage() {
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       해결: {consultation.resolvedAt && format(new Date(consultation.resolvedAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                      {consultation.resolvedBy && ` · ${consultation.resolvedBy}`}
                     </p>
                   </div>
                 </>
