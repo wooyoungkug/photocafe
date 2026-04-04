@@ -655,7 +655,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   // 메뉴 접근권한 필터링 (최고관리자만 전체 표시)
   const isSuperAdmin = user?.isSuperAdmin === true;
   const menuPerms = user?.menuPermissions ?? {};
-  console.log('[Sidebar Debug]', { isSuperAdmin, menuPerms, userKeys: Object.keys(user || {}), navCount: navigation.length });
   const filteredNavigation = isSuperAdmin
     ? navigation
     : navigation

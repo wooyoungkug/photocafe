@@ -249,7 +249,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                       ? user?.isOwner
                         ? `${user?.name || '사용자'}(최고관리자)`
                         : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                      : `${user?.name || '사용자'}(최고관리자)`}
+                      : `${user?.name || '사용자'}(${user?.isSuperAdmin ? '최고관리자' : '관리자'})`}
                   </span>
                   <span className="text-[11px] text-slate-400 leading-tight">
                     {user?.type === 'employee' ? user?.clientName : (user?.role === "ADMIN" ? "관리자" : "사용자")}
@@ -266,7 +266,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                     ? user?.isOwner
                       ? `${user?.name || '사용자'}(최고관리자)`
                       : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                    : `${user?.name || '사용자'}(최고관리자)`}
+                    : `${user?.name || '사용자'}(${user?.isSuperAdmin ? '최고관리자' : '관리자'})`}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {user?.type === 'employee' && !user?.isOwner ? user?.clientName : (user?.email || "")}
@@ -281,7 +281,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
                     ? user?.isOwner
                       ? `${user?.name || '사용자'}(최고관리자)`
                       : `${user?.name || '사용자'} (${user?.employeeRole === 'MANAGER' ? 'Manager' : user?.employeeRole === 'EDITOR' ? 'Editor' : 'Staff'})`
-                    : `${user?.name || '사용자'}(최고관리자)`}
+                    : `${user?.name || '사용자'}(${user?.isSuperAdmin ? '최고관리자' : '관리자'})`}
                 </p>
                 <p className="text-xs text-slate-400 mt-0.5 truncate">
                   {user?.type === 'employee' && !user?.isOwner ? `${user?.clientName} · ${user?.email}` : (user?.email || "")}
