@@ -175,11 +175,13 @@ export class OrderService {
           break;
         case 'orderNumber':
         default:
-          // 주문번호 (기본)
+          // 주문번호 (기본) + 상품명/폴더명 통합 검색
           searchCondition = {
             OR: [
               { orderNumber: { contains: search, mode: 'insensitive' } },
               { client: { clientName: { contains: search, mode: 'insensitive' } } },
+              { items: { some: { productName: { contains: search, mode: 'insensitive' } } } },
+              { items: { some: { folderName: { contains: search, mode: 'insensitive' } } } },
             ],
           };
           break;
