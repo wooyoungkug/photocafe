@@ -658,12 +658,13 @@ export default function NewConsultationPage() {
                         <div className="py-4 text-center text-sm text-muted-foreground">
                           상담 분류를 먼저 선택해주세요
                         </div>
-                      ) : guides && guides.length > 0 ? (
-                        guides
-                          .filter(g => g.isActive)
+                      ) : (() => {
+                        const filtered = (guides || [])
+                          .filter(g => g.isActive && g.categoryId === formData.categoryId)
                           .sort((a, b) => b.usageCount - a.usageCount)
-                          .slice(0, 10)
-                          .map((guide) => (
+                          .slice(0, 10);
+                        return filtered.length > 0 ? (
+                          filtered.map((guide) => (
                             <DropdownMenuItem
                               key={guide.id}
                               onClick={() => handleSelectGuide(guide)}
@@ -680,14 +681,15 @@ export default function NewConsultationPage() {
                               )}
                             </DropdownMenuItem>
                           ))
-                      ) : (
-                        <div className="py-4 text-center text-sm text-muted-foreground">
-                          해당 분류에 등록된 템플릿이 없습니다
-                          <Link href="/cs/guides" className="block mt-2 text-blue-600 hover:underline">
-                            상담 가이드 등록하기
-                          </Link>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="py-4 text-center text-sm text-muted-foreground">
+                            해당 분류에 등록된 템플릿이 없습니다
+                            <Link href="/cs/guides" className="block mt-2 text-blue-600 hover:underline">
+                              상담 가이드 등록하기
+                            </Link>
+                          </div>
+                        );
+                      })()}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

@@ -427,6 +427,7 @@ export function useConsultationGuides(categoryId?: string, tagCodes?: string[]) 
       categoryId,
       tagCodes: tagCodes?.join(','),
     }),
+    enabled: !!categoryId,
   });
 }
 
