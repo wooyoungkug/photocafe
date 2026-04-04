@@ -87,6 +87,13 @@ export class AuthService {
         return {
           accessToken: this.jwtService.sign(newPayload),
           refreshToken: this.jwtService.sign(newPayload, { expiresIn: '30d' }),
+          user: {
+            id: staff.id, staffId: staff.staffId, name: staff.name, role: 'admin',
+            email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
+            canEditMemberInfo: staff.canEditMemberInfo ?? false,
+            profileImage: staff.profileImage,
+            menuPermissions: (staff.menuPermissions as Record<string, boolean>) ?? {},
+          },
         };
       }
 
@@ -479,6 +486,8 @@ export class AuthService {
         role: 'admin', email: targetStaff.email, branch: targetStaff.branch, department: targetStaff.department,
         isSuperAdmin: targetStaff.isSuperAdmin ?? false,
         canEditMemberInfo: targetStaff.canEditMemberInfo ?? false,
+        profileImage: targetStaff.profileImage,
+        menuPermissions: (targetStaff.menuPermissions as Record<string, boolean>) ?? {},
       },
       impersonated: true,
     };
