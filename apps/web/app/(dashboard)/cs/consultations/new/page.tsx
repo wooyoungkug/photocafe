@@ -178,7 +178,7 @@ export default function NewConsultationPage() {
   const { data: categories } = useConsultationCategories();
   const { data: tags } = useConsultationTags();
   const { data: clientsData } = useClients({ search: clientSearch, limit: 10 });
-  const { data: guides } = useConsultationGuides();
+  const { data: guides } = useConsultationGuides(formData.categoryId || undefined);
   const createConsultation = useCreateConsultation();
   const createCategory = useCreateCategory();
   const updateCategory = useUpdateCategory();
@@ -857,6 +857,7 @@ export default function NewConsultationPage() {
                         `고객: ${clientName}${isNonMember ? ' [비회원]' : ''}\n` +
                         `분류: ${categoryName}\n` +
                         `제목: ${formData.title}\n` +
+                        (formData.orderNumber ? `주문번호: ${formData.orderNumber}\n` : '') +
                         `우선순위: ${priorityOptions.find(p => p.value === formData.priority)?.label || '보통'}`
                       );
                     }
