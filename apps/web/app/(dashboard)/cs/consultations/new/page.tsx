@@ -648,8 +648,17 @@ export default function NewConsultationPage() {
                           관리
                         </Link>
                       </DropdownMenuLabel>
+                      {formData.categoryId && categories && (
+                        <div className="px-2 pb-1 text-xs text-muted-foreground">
+                          분류: {categories.find(c => c.id === formData.categoryId)?.name}
+                        </div>
+                      )}
                       <DropdownMenuSeparator />
-                      {guides && guides.length > 0 ? (
+                      {!formData.categoryId ? (
+                        <div className="py-4 text-center text-sm text-muted-foreground">
+                          상담 분류를 먼저 선택해주세요
+                        </div>
+                      ) : guides && guides.length > 0 ? (
                         guides
                           .filter(g => g.isActive)
                           .sort((a, b) => b.usageCount - a.usageCount)
@@ -673,7 +682,7 @@ export default function NewConsultationPage() {
                           ))
                       ) : (
                         <div className="py-4 text-center text-sm text-muted-foreground">
-                          등록된 상담 가이드가 없습니다
+                          해당 분류에 등록된 템플릿이 없습니다
                           <Link href="/cs/guides" className="block mt-2 text-blue-600 hover:underline">
                             상담 가이드 등록하기
                           </Link>
@@ -738,7 +747,7 @@ export default function NewConsultationPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {guides && guides
-                        .filter(g => g.isActive && g.solution && (!formData.categoryId || g.categoryId === formData.categoryId))
+                        .filter(g => g.isActive && g.solution)
                         .sort((a, b) => b.usageCount - a.usageCount)
                         .slice(0, 15)
                         .map((guide) => {
