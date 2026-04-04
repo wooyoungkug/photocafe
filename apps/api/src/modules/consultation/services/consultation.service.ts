@@ -381,7 +381,7 @@ export class ConsultationService {
 
       if (recipients.length > 0) {
         const alimtalkResult = await this.kakaoAlimtalkService.send({
-          templateCode: 'CS_STAFF_NOTIFY',
+          templateCode: 'KA01TP260404045313904q0sZXiilp8R',
           recipients,
           variables: { '#{내용}': dto.message },
           emailFallback: {
