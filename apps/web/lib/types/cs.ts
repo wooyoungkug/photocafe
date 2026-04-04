@@ -2,7 +2,7 @@
 
 export type ConsultationStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type ConsultationPriority = 'low' | 'normal' | 'high' | 'urgent';
-export type FollowUpActionType = 'phone' | 'visit' | 'email' | 'kakao' | 'other';
+export type FollowUpActionType = 'phone' | 'visit' | 'email' | 'kakao' | 'sms' | 'other';
 export type AlertType = 'repeat_claim' | 'urgent' | 'sla_breach' | 'at_risk' | 'follow_up_due';
 export type AlertLevel = 'info' | 'warning' | 'critical';
 

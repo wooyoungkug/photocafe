@@ -129,6 +129,7 @@ export default function ConsultationDetailPage() {
     visit: '방문',
     email: '이메일',
     kakao: '카카오톡',
+    sms: '문자(SMS)',
     other: '기타',
   };
 

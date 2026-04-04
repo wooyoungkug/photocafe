@@ -703,6 +703,7 @@ export default function ConsultationsPage() {
                             {followUp.actionType === 'visit' && '방문'}
                             {followUp.actionType === 'email' && '이메일'}
                             {followUp.actionType === 'kakao' && '카카오톡'}
+                            {followUp.actionType === 'sms' && '문자(SMS)'}
                             {followUp.actionType === 'other' && '기타'}
                           </Badge>
                           <span className="text-sm text-muted-foreground">{followUp.staffName}</span>
@@ -743,6 +744,7 @@ export default function ConsultationsPage() {
                         <SelectItem value="visit">방문</SelectItem>
                         <SelectItem value="email">이메일</SelectItem>
                         <SelectItem value="kakao">카카오톡</SelectItem>
+                        <SelectItem value="sms">문자(SMS)</SelectItem>
                         <SelectItem value="other">기타</SelectItem>
                       </SelectContent>
                     </Select>

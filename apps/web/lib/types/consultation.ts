@@ -1,6 +1,6 @@
 export type ConsultationStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
 export type ConsultationPriority = 'low' | 'normal' | 'high' | 'urgent';
-export type FollowUpActionType = 'phone' | 'visit' | 'email' | 'kakao' | 'other';
+export type FollowUpActionType = 'phone' | 'visit' | 'email' | 'kakao' | 'sms' | 'other';
 
 export interface ConsultationCategory {
   id: string;
@@ -203,6 +203,7 @@ export const FOLLOW_UP_ACTION_TYPE_CONFIG: Record<FollowUpActionType, { label: s
   visit: { label: '방문', icon: 'MapPin' },
   email: { label: '이메일', icon: 'Mail' },
   kakao: { label: '카카오톡', icon: 'MessageSquare' },
+  sms: { label: '문자(SMS)', icon: 'Smartphone' },
   other: { label: '기타', icon: 'MoreHorizontal' },
 };
 

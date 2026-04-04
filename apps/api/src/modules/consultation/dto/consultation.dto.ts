@@ -29,6 +29,7 @@ export enum FollowUpActionType {
   VISIT = 'visit',
   EMAIL = 'email',
   KAKAO = 'kakao',
+  SMS = 'sms',
   OTHER = 'other',
 }
 
