@@ -652,6 +652,26 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const { navigation, moveMenuUp, moveMenuDown, moveChildUp, moveChildDown } =
     useMenuOrder();
 
+  // 메뉴 접근권한 필터링 (최고관리자는 전체 표시)
+  const isSuperAdmin = user?.isSuperAdmin === true;
+  const menuPerms = user?.menuPermissions;
+  const filteredNavigation = isSuperAdmin || !menuPerms
+    ? navigation
+    : navigation
+        .map((item) => {
+          // 메인카테고리 권한 체크
+          if (!menuPerms[item.id]) return null;
+          // 서브메뉴가 없는 직접 링크 항목
+          if (!item.children) return item;
+          // 서브메뉴 필터링
+          const visibleChildren = item.children.filter(
+            (child) => menuPerms[child.href] === true
+          );
+          if (visibleChildren.length === 0) return null;
+          return { ...item, children: visibleChildren };
+        })
+        .filter(Boolean) as NavItem[];
+
   const toggleMenu = useCallback((name: string) => {
     setOpenMenu((prev) => (prev === name ? null : name));
   }, []);
@@ -722,7 +742,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
         ) : (
           /* Menu list */
           <ul className="space-y-0.5" role="list">
-            {navigation.map((item, index) => {
+            {filteredNavigation.map((item, index) => {
               const isActive = item.href ? pathname === item.href : false;
               const isOpen = openMenu === item.name;
               const hasActiveChild = item.children?.some(

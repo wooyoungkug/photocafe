@@ -54,7 +54,8 @@ import { useTeams } from '@/hooks/use-team';
 import { useEntityAuditLogs } from '@/hooks/use-audit-log';
 import { useImpersonateStaff } from '@/hooks/use-auth';
 import { useAuthStore } from '@/stores/auth-store';
-import { Staff, CreateStaffRequest, AuditLog, MENU_PERMISSIONS, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
+import { Staff, CreateStaffRequest, AuditLog, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
+import { DEFAULT_NAV_DATA, getPermissionEntries } from '@/lib/navigation';
 import { AddressSearch } from '@/components/address-search';
 import { DepartmentSelect } from '@/components/department-select';
 import {
@@ -327,18 +328,33 @@ export default function EmployeesPage() {
     }));
   };
 
-  const handleMenuPermissionChange = (code: string, checked: boolean) => {
+  // 메뉴 권한: 개별 서브메뉴 토글
+  const handleMenuChildPermissionChange = (parentId: string, href: string, checked: boolean) => {
     setFormData((prev) => {
-      const newPermissions = { ...prev.menuPermissions };
-      if (checked) {
-        newPermissions[code] = { menuCode: code, canView: true };
-      } else {
-        delete newPermissions[code];
+      const newPermissions = { ...prev.menuPermissions, [href]: checked };
+      // 부모 카테고리의 모든 자식 확인
+      const parent = DEFAULT_NAV_DATA.find((item) => item.id === parentId);
+      if (parent?.children) {
+        const anyChildChecked = parent.children.some(
+          (child) => child.href === href ? checked : !!newPermissions[child.href]
+        );
+        newPermissions[parentId] = anyChildChecked;
       }
-      return {
-        ...prev,
-        menuPermissions: newPermissions,
-      };
+      return { ...prev, menuPermissions: newPermissions };
+    });
+  };
+
+  // 메뉴 권한: 메인카테고리 토글 (서브메뉴 전체 연동)
+  const handleMenuCategoryPermissionChange = (itemId: string, checked: boolean) => {
+    setFormData((prev) => {
+      const newPermissions = { ...prev.menuPermissions, [itemId]: checked };
+      const item = DEFAULT_NAV_DATA.find((i) => i.id === itemId);
+      if (item?.children) {
+        item.children.forEach((child) => {
+          newPermissions[child.href] = checked;
+        });
+      }
+      return { ...prev, menuPermissions: newPermissions };
     });
   };
 
@@ -357,14 +373,11 @@ export default function EmployeesPage() {
     setFormData((prev) => {
       const newPermissions: typeof prev.menuPermissions = {};
       if (checked) {
-        Object.values(MENU_PERMISSIONS).forEach((item) => {
-          newPermissions[item.code] = { menuCode: item.code, canView: true };
+        getPermissionEntries().forEach((entry) => {
+          newPermissions[entry.key] = true;
         });
       }
-      return {
-        ...prev,
-        menuPermissions: newPermissions,
-      };
+      return { ...prev, menuPermissions: newPermissions };
     });
   };
 
@@ -385,9 +398,10 @@ export default function EmployeesPage() {
   };
 
   // 메뉴 권한 전체 선택 여부 확인
+  const allPermEntries = getPermissionEntries();
   const isAllMenuPermissionsSelected =
-    Object.keys(MENU_PERMISSIONS).length > 0 &&
-    Object.values(MENU_PERMISSIONS).every((item) => !!formData.menuPermissions?.[item.code]);
+    allPermEntries.length > 0 &&
+    allPermEntries.every((entry) => !!formData.menuPermissions?.[entry.key]);
 
   // 카테고리 권한 전체 선택 여부 확인
   const isAllCategoryPermissionsSelected =
@@ -1251,34 +1265,59 @@ export default function EmployeesPage() {
               {/* 메뉴 접근 권한 */}
               <div className="p-4 border rounded-lg">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">메뉴 접근 권한</h3>
+                  <h3 className="font-semibold text-[14px]">메뉴 접근 권한</h3>
                   <div className="flex items-center gap-2">
                     <Checkbox
                       id="menu-select-all"
                       checked={isAllMenuPermissionsSelected}
                       onCheckedChange={(checked) => handleMenuPermissionSelectAll(checked === true)}
                     />
-                    <Label htmlFor="menu-select-all" className="text-sm font-medium text-blue-600 cursor-pointer">
+                    <Label htmlFor="menu-select-all" className="text-[14px] font-medium text-blue-600 cursor-pointer">
                       전체선택
                     </Label>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mb-4">
-                  ※ 하위메뉴(검정 글씨)선택 하실 때는 앞쪽에 상위메뉴(파란글씨)를 체크해주세요.
-                </p>
-                <div className="grid grid-cols-4 gap-2">
-                  {Object.entries(MENU_PERMISSIONS).map(([key, item]) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`menu-${key}`}
-                        checked={!!formData.menuPermissions?.[item.code]}
-                        onCheckedChange={(checked) =>
-                          handleMenuPermissionChange(item.code, checked === true)
-                        }
-                      />
-                      <Label htmlFor={`menu-${key}`} className="text-sm">
-                        {item.label}
-                      </Label>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                  {DEFAULT_NAV_DATA.map((item) => (
+                    <div key={item.id} className="mb-2">
+                      {/* 메인카테고리 */}
+                      <div className="flex items-center gap-2 py-1">
+                        <Checkbox
+                          id={`menu-cat-${item.id}`}
+                          checked={!!formData.menuPermissions?.[item.id]}
+                          onCheckedChange={(checked) =>
+                            handleMenuCategoryPermissionChange(item.id, checked === true)
+                          }
+                        />
+                        <Label
+                          htmlFor={`menu-cat-${item.id}`}
+                          className="text-[14px] font-bold text-blue-700 cursor-pointer"
+                        >
+                          {item.name}
+                        </Label>
+                      </div>
+                      {/* 서브메뉴 */}
+                      {item.children && (
+                        <div className="ml-6 space-y-0.5">
+                          {item.children.map((child) => (
+                            <div key={child.href} className="flex items-center gap-2 py-0.5">
+                              <Checkbox
+                                id={`menu-child-${child.href}`}
+                                checked={!!formData.menuPermissions?.[child.href]}
+                                onCheckedChange={(checked) =>
+                                  handleMenuChildPermissionChange(item.id, child.href, checked === true)
+                                }
+                              />
+                              <Label
+                                htmlFor={`menu-child-${child.href}`}
+                                className="text-[14px] text-black cursor-pointer"
+                              >
+                                {child.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

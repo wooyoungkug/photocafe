@@ -698,6 +698,7 @@ export class AuthService {
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
         canEditMemberInfo: staff.canEditMemberInfo ?? false,
         profileImage: staff.profileImage,
+        menuPermissions: (staff.menuPermissions as Record<string, boolean>) ?? {},
       },
     };
   }
@@ -757,6 +758,7 @@ export class AuthService {
         email: staff.companyEmail || staff.email, isSuperAdmin: staff.isSuperAdmin ?? false,
         canEditMemberInfo: staff.canEditMemberInfo ?? false,
         profileImage: staff.profileImage,
+        menuPermissions: (staff.menuPermissions as Record<string, boolean>) ?? {},
       },
     };
   }
