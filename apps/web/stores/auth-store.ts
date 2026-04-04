@@ -166,37 +166,16 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
-          // sessionStorage에 토큰이 있고, localStorage에 별도 admin 세션이 있는 경우
-          // → sessionStorage만 정리 (다른 탭의 admin 세션 보호)
-          const hasSessionToken = !!sessionStorage.getItem('accessToken');
-          const hasLocalAdminSession = (() => {
-            try {
-              const raw = localStorage.getItem('auth-storage');
-              if (!raw) return false;
-              const parsed = JSON.parse(raw);
-              const role = parsed?.state?.user?.role;
-              return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
-            } catch { return false; }
-          })();
-
-          if (hasSessionToken && hasLocalAdminSession) {
-            // 대리로그인 세션 종료: sessionStorage만 정리 (원본 어드민 세션 보존)
-            sessionStorage.removeItem('accessToken');
-            sessionStorage.removeItem('refreshToken');
-            sessionStorage.removeItem('auth-storage');
-            sessionStorage.removeItem('impersonate-session');
-            return; // set({ user: null }) 호출 안 함 → 어드민 세션 메모리 유지
-          } else {
-            // 일반 로그아웃: 모두 정리
-            localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
-            sessionStorage.removeItem('accessToken');
-            sessionStorage.removeItem('refreshToken');
-            localStorage.removeItem('auth-storage');
-            sessionStorage.removeItem('auth-storage');
-            sessionStorage.removeItem('impersonate-session');
-            document.cookie = 'auth-verified=; path=/; max-age=0';
-          }
+          // 완전 로그아웃: 모든 스토리지 정리 (대리로그인 포함)
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          sessionStorage.removeItem('accessToken');
+          sessionStorage.removeItem('refreshToken');
+          localStorage.removeItem('auth-storage');
+          sessionStorage.removeItem('auth-storage');
+          sessionStorage.removeItem('impersonate-session');
+          sessionStorage.removeItem('owner-session');
+          document.cookie = 'auth-verified=; path=/; max-age=0';
         }
         set({
           user: null,

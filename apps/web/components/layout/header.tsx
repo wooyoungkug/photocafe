@@ -12,8 +12,9 @@ import {
   ExternalLink,
   Store,
   X,
+  ArrowLeftRight,
 } from "lucide-react";
-import { useLogout, useCurrentUser, useChangePassword } from "@/hooks/use-auth";
+import { useLogout, useCurrentUser, useChangePassword, useIsImpersonating, useEndImpersonation } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -49,6 +50,8 @@ interface HeaderProps {
 export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
   const { user } = useCurrentUser();
   const logout = useLogout();
+  const isImpersonating = useIsImpersonating();
+  const endImpersonation = useEndImpersonation();
   const changePassword = useChangePassword();
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -312,6 +315,16 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
+
+              {isImpersonating && (
+                <DropdownMenuItem
+                  onClick={endImpersonation}
+                  className="gap-2 cursor-pointer text-blue-600 focus:text-blue-600 focus:bg-blue-50"
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  대리로그인 종료
+                </DropdownMenuItem>
+              )}
 
               <DropdownMenuItem
                 onClick={logout}
