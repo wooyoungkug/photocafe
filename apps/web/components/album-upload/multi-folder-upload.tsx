@@ -1173,9 +1173,16 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       const fileSpecWidth = firstFile.widthInch;
       const fileSpecHeight = firstFile.heightInch;
 
+      console.log('[규격결정] firstFile:', { name: firstFile.fileName, widthPx: firstFile.widthPx, heightPx: firstFile.heightPx, dpi: firstFile.dpi, widthInch: firstFile.widthInch, heightInch: firstFile.heightInch, coverType: firstFile.coverType, isExtended: firstFile.isExtended, isSplit: firstFile.isSplit });
+      console.log('[규격결정] fileSpec:', { fileSpecWidth, fileSpecHeight, pageLayout });
+      // 모든 파일의 widthInch 목록 (처음 5개만)
+      console.log('[규격결정] 전체파일 widthInch:', sortedFiles.slice(0, 5).map(f => ({ name: f.fileName, w: f.widthInch, h: f.heightInch, cover: f.coverType })));
+
       // 앨범규격 계산
       const { albumWidth: rawAlbumWidth, albumHeight: rawAlbumHeight } = calculateAlbumSize(fileSpecWidth, fileSpecHeight, pageLayout);
+      console.log('[규격결정] albumSize:', { rawAlbumWidth, rawAlbumHeight });
       const closestStandard = findClosestStandardSize(indigoSpecs, rawAlbumWidth, rawAlbumHeight);
+      console.log('[규격결정] closestStandard:', closestStandard ? { w: closestStandard.width, h: closestStandard.height, label: closestStandard.label } : 'none');
 
       // 앨범 크기를 가장 가까운 표준 규격으로 스냅
       const albumWidth = closestStandard && Math.abs(rawAlbumWidth - closestStandard.width) < 0.5 && Math.abs(rawAlbumHeight - closestStandard.height) < 0.5
