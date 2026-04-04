@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   BookOpen,
   Plus,
@@ -12,6 +12,8 @@ import {
   Loader2,
   FileText,
   ThumbsUp,
+  ImagePlus,
+  X,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,6 +62,7 @@ import {
   useDeleteGuide,
 } from '@/hooks/use-cs';
 import { ConsultationGuide, CreateGuideDto, UpdateGuideDto } from '@/lib/types/cs';
+import { API_URL, API_BASE_URL } from '@/lib/api';
 
 export default function GuidesPage() {
   const { toast } = useToast();
@@ -75,7 +78,11 @@ export default function GuidesPage() {
     solution: '',
     categoryId: undefined,
     tagCodes: [],
+    attachments: [],
   });
+  const [uploading, setUploading] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: guides, isLoading } = useConsultationGuides();
   const { data: categories } = useConsultationCategories();
@@ -100,6 +107,7 @@ export default function GuidesPage() {
       solution: '',
       categoryId: undefined,
       tagCodes: [],
+      attachments: [],
     });
     setEditingGuide(null);
   };
@@ -119,6 +127,7 @@ export default function GuidesPage() {
       solution: guide.solution,
       categoryId: guide.categoryId || undefined,
       tagCodes: guide.tagCodes || [],
+      attachments: guide.attachments || [],
     });
     setIsFormOpen(true);
   };
@@ -179,6 +188,52 @@ export default function GuidesPage() {
     } catch (error) {
       toast({ title: '삭제에 실패했습니다.', variant: 'destructive' });
     }
+  };
+
+  // 이미지 업로드
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    try {
+      const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+      const newUrls: string[] = [];
+
+      for (const file of Array.from(files)) {
+        const fd = new FormData();
+        fd.append('file', file);
+
+        const res = await fetch(`${API_URL}/upload/cs-guide-image`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        });
+
+        if (!res.ok) throw new Error('업로드 실패');
+        const data = await res.json();
+        newUrls.push(data.url);
+      }
+
+      setFormData(prev => ({
+        ...prev,
+        attachments: [...(prev.attachments || []), ...newUrls],
+      }));
+      toast({ title: `${newUrls.length}개 이미지가 업로드되었습니다.` });
+    } catch {
+      toast({ title: '이미지 업로드에 실패했습니다.', variant: 'destructive' });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // 이미지 삭제
+  const handleRemoveImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: (prev.attachments || []).filter((_, i) => i !== index),
+    }));
   };
 
   // 카테고리명 조회
@@ -280,16 +335,26 @@ export default function GuidesPage() {
                 {filteredGuides.map((guide) => (
                   <TableRow key={guide.id}>
                     <TableCell>
-                      <div>
-                        <div className="font-medium">{guide.title}</div>
-                        <div className="text-sm text-muted-foreground line-clamp-1">
-                          {guide.problem}
+                      <div className="flex items-center gap-3">
+                        {guide.attachments && guide.attachments.length > 0 && (
+                          <img
+                            src={`${API_BASE_URL}${guide.attachments[0]}`}
+                            alt=""
+                            className="w-10 h-10 rounded object-cover border cursor-pointer shrink-0"
+                            onClick={() => setPreviewImage(`${API_BASE_URL}${guide.attachments![0]}`)}
+                          />
+                        )}
+                        <div>
+                          <div className="font-medium">{guide.title}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-1">
+                            {guide.problem}
+                          </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       {guide.categoryId && (
-                        <Badge variant="outline">
+                        <Badge variant="outline" className="whitespace-nowrap">
                           {getCategoryName(guide.categoryId)}
                         </Badge>
                       )}
@@ -413,6 +478,56 @@ export default function GuidesPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, solution: e.target.value }))}
               />
             </div>
+            {/* 이미지 첨부 */}
+            <div className="space-y-2">
+              <Label>이미지 첨부</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                title="이미지 파일 선택"
+                onChange={handleImageUpload}
+              />
+              {(formData.attachments?.length || 0) > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {formData.attachments!.map((url, idx) => (
+                    <div key={idx} className="relative group">
+                      <img
+                        src={`${API_BASE_URL}${url}`}
+                        alt={`첨부 ${idx + 1}`}
+                        className="w-20 h-20 object-cover rounded border cursor-pointer"
+                        onClick={() => setPreviewImage(`${API_BASE_URL}${url}`)}
+                      />
+                      <button
+                        type="button"
+                        title="이미지 삭제"
+                        onClick={() => handleRemoveImage(idx)}
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="gap-1"
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" />
+                )}
+                {uploading ? '업로드 중...' : '이미지 추가'}
+              </Button>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsFormOpen(false)}>
@@ -453,6 +568,28 @@ export default function GuidesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* 원본 이미지 미리보기 다이얼로그 */}
+      <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+        <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 overflow-auto bg-black/90 border-none">
+          <button
+            type="button"
+            title="닫기"
+            onClick={() => setPreviewImage(null)}
+            className="absolute top-3 right-3 z-10 bg-black/60 text-white rounded-full p-1.5 hover:bg-black/80"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          {previewImage && (
+            <img
+              src={previewImage}
+              alt="원본 미리보기"
+              className="block mx-auto"
+              style={{ maxWidth: '95vw', maxHeight: '93vh', objectFit: 'contain' }}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

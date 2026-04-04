@@ -250,6 +250,50 @@ export class UploadController {
         return res.sendFile(filePath);
     }
 
+    // ==================== CS 가이드 이미지 업로드 ====================
+
+    @Post('cs-guide-image')
+    @ApiOperation({ summary: 'CS 상담 가이드 이미지 업로드' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: { file: { type: 'string', format: 'binary' } },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: diskStorage({
+                destination: (_req, _file, cb) => cb(null, ensureDir('cs-guides')),
+                filename: (_req, file, callback) => {
+                    const uniqueName = `${randomUUID()}${extname(file.originalname)}`;
+                    callback(null, uniqueName);
+                },
+            }),
+            fileFilter: (_req, file, callback) => {
+                if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp|avif)$/)) {
+                    return callback(new BadRequestException('이미지 파일만 업로드 가능합니다.'), false);
+                }
+                callback(null, true);
+            },
+            limits: {
+                fileSize: 20 * 1024 * 1024, // 20MB
+            },
+        }),
+    )
+    uploadCsGuideImage(@UploadedFile() file: Express.Multer.File) {
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+
+        return {
+            filename: file.filename,
+            originalName: Buffer.from(file.originalname, 'latin1').toString('utf8'),
+            size: file.size,
+            url: this.fileStorage.toRelativeUrl(file.path),
+        };
+    }
+
     // ==================== 상품 이미지 업로드 ====================
 
     @Post('product-image')
