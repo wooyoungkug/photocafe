@@ -10,7 +10,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
-  Cog,
   CreditCard,
   Headphones,
   Image as ImageIcon,
@@ -233,16 +232,6 @@ const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "방문 통계", href: "/analytics" },
       { name: "의심 IP 관리", href: "/analytics/suspicious-ips" },
-    ],
-  },
-  {
-    id: "settings",
-    name: "설정",
-    icon: Cog,
-    children: [
-      { name: "환경설정", href: "/settings" },
-      { name: "모델 관리", href: "/settings/models" },
-      { name: "감사로그", href: "/settings/audit-logs" },
     ],
   },
 ];
