@@ -428,10 +428,10 @@ export class ConsultationService {
     }
 
     // 모두 미설정 시
-    this.logger.warn('카카오 알림톡/SMS 모두 미설정 상태입니다.');
+    this.logger.warn('Solapi SMS/알림톡 미설정 상태입니다.');
     return {
       success: false,
-      message: '알림 서비스가 설정되지 않았습니다. .env에 카카오 알림톡 또는 NHN SMS 설정을 추가하세요.',
+      message: '알림 서비스가 설정되지 않았습니다. .env에 SOLAPI_API_KEY, SOLAPI_API_SECRET, SOLAPI_SENDER_NO를 설정하세요.',
       results: [],
     };
   }

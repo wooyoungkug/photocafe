@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { SolapiMessageService } from 'solapi';
 
 export interface SendSmsResult {
   success: boolean;
@@ -9,24 +10,32 @@ export interface SendSmsResult {
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
-  private readonly appKey: string | undefined;
-  private readonly secretKey: string | undefined;
-  private readonly senderNo: string | undefined;
+  private readonly solapi: SolapiMessageService | null;
+  private readonly senderNo: string;
 
   constructor() {
-    this.appKey = process.env.NHN_SMS_APP_KEY;
-    this.secretKey = process.env.NHN_SMS_SECRET_KEY;
-    this.senderNo = process.env.NHN_SMS_SENDER_NO;
+    const apiKey = process.env.SOLAPI_API_KEY || '';
+    const apiSecret = process.env.SOLAPI_API_SECRET || '';
+    this.senderNo = process.env.SOLAPI_SENDER_NO || '';
 
-    if (!this.appKey || !this.secretKey || !this.senderNo) {
+    if (apiKey && apiSecret) {
+      this.solapi = new SolapiMessageService(apiKey, apiSecret);
+    } else {
+      this.solapi = null;
       this.logger.warn(
-        'NHN Cloud SMS 설정이 없습니다. SMS 발송 기능이 비활성화됩니다. (.env에 NHN_SMS_APP_KEY, NHN_SMS_SECRET_KEY, NHN_SMS_SENDER_NO 설정 필요)',
+        'Solapi SMS 설정이 없습니다. SOLAPI_API_KEY, SOLAPI_API_SECRET을 설정하세요.',
+      );
+    }
+
+    if (!this.senderNo) {
+      this.logger.warn(
+        'SOLAPI_SENDER_NO(발신번호)가 설정되지 않았습니다. SMS 발송 기능이 비활성화됩니다.',
       );
     }
   }
 
   isConfigured(): boolean {
-    return !!(this.appKey && this.secretKey && this.senderNo);
+    return !!this.solapi && !!this.senderNo;
   }
 
   async sendSms(to: string, message: string): Promise<SendSmsResult> {
@@ -36,31 +45,14 @@ export class SmsService {
     }
 
     try {
-      const url = `https://api-sms.cloud.toast.com/sms/v3.0/appKeys/${this.appKey}/sender/sms`;
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json;charset=UTF-8',
-          'X-Secret-Key': this.secretKey!,
-        },
-        body: JSON.stringify({
-          body: message,
-          sendNo: this.senderNo,
-          recipientList: [{ recipientNo: to }],
-        }),
+      const result = await this.solapi!.sendOne({
+        to: to.replace(/-/g, ''),
+        from: this.senderNo,
+        text: message,
       });
 
-      const result = await response.json();
-
-      if (result.header?.isSuccessful) {
-        const requestId = result.body?.data?.requestId;
-        this.logger.log(`SMS 발송 완료: ${to} (requestId: ${requestId})`);
-        return { success: true, requestId };
-      }
-
-      this.logger.error(`SMS 발송 실패: ${result.header?.resultMessage}`);
-      return { success: false, error: result.header?.resultMessage || 'SMS 발송 실패' };
+      this.logger.log(`SMS 발송 완료: ${to} (messageId: ${result.messageId})`);
+      return { success: true, requestId: result.messageId };
     } catch (error: any) {
       this.logger.error(`SMS 발송 오류: ${error.message}`);
       return { success: false, error: error.message };
