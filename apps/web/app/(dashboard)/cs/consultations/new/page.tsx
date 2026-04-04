@@ -738,7 +738,7 @@ export default function NewConsultationPage() {
                     </SelectTrigger>
                     <SelectContent>
                       {guides && guides
-                        .filter(g => g.isActive && g.solution)
+                        .filter(g => g.isActive && g.solution && (!formData.categoryId || g.categoryId === formData.categoryId))
                         .sort((a, b) => b.usageCount - a.usageCount)
                         .slice(0, 15)
                         .map((guide) => {
