@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MessageSquare,
@@ -72,6 +72,7 @@ import { CreateConsultationDto, ConsultationPriority } from '@/lib/types/cs';
 import { Client } from '@/lib/types/client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useStaffList } from '@/hooks/use-staff';
+import { useOrders } from '@/hooks/use-orders';
 import Link from 'next/link';
 
 export default function NewConsultationPage() {
@@ -124,6 +125,33 @@ export default function NewConsultationPage() {
     sortOrder: 0,
     isActive: true,
   });
+
+  // 주문 검색 상태
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
+  const [showOrderSearch, setShowOrderSearch] = useState(false);
+  const orderSearchRef = useRef<HTMLDivElement>(null);
+
+  const { data: orderResults } = useOrders({
+    clientId: selectedClient?.id,
+    search: orderSearchQuery,
+    limit: 10,
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => setOrderSearchQuery(orderSearch), 300);
+    return () => clearTimeout(timer);
+  }, [orderSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (orderSearchRef.current && !orderSearchRef.current.contains(e.target as Node)) {
+        setShowOrderSearch(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // 카카오톡 알림 상태
   const [kakaoNotify, setKakaoNotify] = useState(false);
@@ -720,12 +748,92 @@ export default function NewConsultationPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="orderId">관련 주문번호</Label>
-                  <Input
-                    id="orderId"
-                    placeholder="관련 주문이 있다면 입력"
-                    value={formData.orderNumber || ''}
-                    onChange={(e) => setFormData(prev => ({ ...prev, orderNumber: e.target.value }))}
-                  />
+                  <div className="relative" ref={orderSearchRef}>
+                    <div className="flex gap-1">
+                      <Input
+                        id="orderId"
+                        placeholder="주문번호 직접 입력 또는 검색"
+                        value={formData.orderNumber || ''}
+                        onChange={(e) => {
+                          setFormData(prev => ({ ...prev, orderNumber: e.target.value }));
+                          setOrderSearch(e.target.value);
+                          if (e.target.value.length > 0) setShowOrderSearch(true);
+                        }}
+                        onFocus={() => {
+                          if (formData.orderNumber || selectedClient) setShowOrderSearch(true);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                          setShowOrderSearch(!showOrderSearch);
+                          if (!showOrderSearch) setOrderSearch('');
+                        }}
+                        title="주문 검색"
+                      >
+                        <Search className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {showOrderSearch && (
+                      <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                        <div className="p-2 border-b">
+                          <Input
+                            placeholder="주문번호, 상품명으로 검색..."
+                            value={orderSearch}
+                            onChange={(e) => setOrderSearch(e.target.value)}
+                            autoFocus
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        {!selectedClient ? (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            고객을 먼저 선택해주세요
+                          </div>
+                        ) : orderResults?.data && orderResults.data.length > 0 ? (
+                          <div className="py-1">
+                            {orderResults.data.map((order) => (
+                              <button
+                                key={order.id}
+                                type="button"
+                                className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center justify-between gap-2 text-sm"
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, orderNumber: order.orderNumber }));
+                                  setShowOrderSearch(false);
+                                }}
+                              >
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium">{order.orderNumber}</div>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {order.items?.[0]?.productName || '상품 없음'}
+                                    {order.items?.length > 1 && ` 외 ${order.items.length - 1}건`}
+                                  </div>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                    {order.status === 'pending_receipt' ? '접수대기' :
+                                     order.status === 'receipt_completed' ? '접수완료' :
+                                     order.status === 'in_production' ? '생산진행' :
+                                     order.status === 'ready_for_shipping' ? '배송준비' :
+                                     order.status === 'shipped' ? '배송완료' :
+                                     order.status === 'cancelled' ? '취소' : order.status}
+                                  </Badge>
+                                  <div className="text-xs text-muted-foreground mt-0.5">
+                                    {new Date(order.orderedAt).toLocaleDateString('ko-KR')}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            {orderSearchQuery ? '검색 결과가 없습니다' : '주문 내역이 없습니다'}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="followUpDate">후속 조치 예정일</Label>
