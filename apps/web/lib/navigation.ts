@@ -103,6 +103,7 @@ export const DEFAULT_NAV_DATA: NavItemDef[] = [
       { name: "상담등록", href: "/cs/consultations/new" },
       { name: "상담분류", href: "/cs/categories" },
       { name: "상담가이드", href: "/cs/guides" },
+      { name: "견적관리", href: "/cs/quotations" },
     ],
   },
   {

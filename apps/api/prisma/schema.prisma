@@ -237,6 +237,7 @@ model Staff {
   leaveBalances           LeaveBalance[]
   leaveRequests           LeaveRequest[]
   leaveApprovals          LeaveApproval[]      @relation("LeaveApprover")
+  quotations              Quotation[]
 
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
@@ -434,6 +435,7 @@ model Client {
   notificationsReceived   RecruitmentNotificationLog[] @relation("NotificationRecipient")
   recruitmentTemplates    RecruitmentTemplate[] @relation("RecruitmentTemplateClient")
   assignedShootings       ShootingSchedule[]  @relation("AssignedExternalPhotographer")
+  quotations              Quotation[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -3623,4 +3625,72 @@ model MinStaffingRule {
   @@index([departmentId])
   @@index([teamId])
   @@map("min_staffing_rules")
+}
+
+// ==================== 견적 관리 ====================
+
+model Quotation {
+  id                String           @id @default(cuid())
+  quotationNumber   String           @unique            // 견적번호 (QT-20260404-001)
+  title             String                               // 견적 제목
+  quotationType     String                               // 견적 대분류: offset_print, digital_print, album, digital_output, single_product
+  subType           String?                              // 세부분류 (앨범: premium_photo, compressed, photobook / 디지털인쇄: booklet, single_item)
+  clientId          String?                              // 거래처 (선택)
+  clientName        String?                              // 비회원 고객명
+  clientPhone       String?                              // 비회원 연락처
+  clientEmail       String?                              // 비회원 이메일
+  staffId           String?                              // 담당 직원
+  status            String           @default("draft")   // draft, sent, confirmed, rejected, expired, ordered
+  totalAmount       Decimal          @default(0) @db.Decimal(12, 2)
+  tax               Decimal          @default(0) @db.Decimal(10, 2)
+  finalAmount       Decimal          @default(0) @db.Decimal(12, 2)
+  validUntil        DateTime?                            // 견적 유효기한
+  memo              String?                              // 메모
+  orderId           String?                              // 주문 전환 시 연결
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  client            Client?          @relation(fields: [clientId], references: [id])
+  staff             Staff?           @relation(fields: [staffId], references: [id])
+  items             QuotationItem[]
+
+  @@index([clientId])
+  @@index([staffId])
+  @@index([status])
+  @@index([quotationType])
+  @@index([createdAt])
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id                String      @id @default(cuid())
+  quotationId       String
+  itemName          String                               // 품목명
+  specification     String?                              // 규격 (예: A4, 8x10)
+  quantity          Int          @default(1)             // 수량
+  unitPrice         Decimal      @default(0) @db.Decimal(10, 2)  // 단가
+  totalPrice        Decimal      @default(0) @db.Decimal(12, 2)  // 소계
+  // 앨범 전용 필드
+  albumType         String?                              // premium_photo, compressed, photobook
+  compressedType    String?                              // premium, graduation (압축앨범 세부)
+  coverType         String?                              // hard, soft, leather
+  coverMaterial     String?                              // 표지 재질
+  coverPrice        Decimal?     @db.Decimal(10, 2)
+  printMethod       String?                              // hp_indigo, inkjet, offset
+  pages             Int?                                 // 페이지 수
+  printPrice        Decimal?     @db.Decimal(10, 2)
+  innerPageThickness String?                             // 0.1mm, 0.3mm, 0.6mm, 1mm
+  bindingType       String?                              // 제본 방식
+  bindingPrice      Decimal?     @db.Decimal(10, 2)
+  // 일반 인쇄 전용 필드
+  paperType         String?                              // 용지 종류
+  colorType         String?                              // 1도, 2도, 4도, 별색
+  finishing         String?                              // 후가공
+  memo              String?                              // 항목 메모
+  sortOrder         Int          @default(0)
+
+  quotation         Quotation    @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([quotationId])
+  @@map("quotation_items")
 }
