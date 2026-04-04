@@ -79,13 +79,13 @@ export class ConsultationCategoryService {
   }
 
   async delete(id: string) {
-    const category = await this.findOne(id);
+    await this.findOne(id);
 
-    if (category._count.consultations > 0) {
-      throw new ConflictException(
-        '해당 분류에 연결된 상담이 있어 삭제할 수 없습니다.',
-      );
-    }
+    // 연결된 상담의 categoryId를 null로 변경 후 삭제
+    await this.prisma.consultation.updateMany({
+      where: { categoryId: id },
+      data: { categoryId: null },
+    });
 
     return this.prisma.consultationCategory.delete({
       where: { id },
