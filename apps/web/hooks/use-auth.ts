@@ -154,6 +154,7 @@ interface ImpersonateStaffResponse {
     role: string;
     email?: string;
     isSuperAdmin?: boolean;
+    menuPermissions?: Record<string, boolean>;
   };
   impersonated: boolean;
 }
@@ -206,6 +207,7 @@ export function useImpersonateStaff() {
           role: response.user.role,
           staffId: response.user.staffId,
           isSuperAdmin: response.user.isSuperAdmin ?? false,
+          menuPermissions: response.user.menuPermissions,
         },
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
