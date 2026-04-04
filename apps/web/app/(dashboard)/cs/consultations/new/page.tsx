@@ -531,6 +531,95 @@ export default function NewConsultationPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* 분류 설정 */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label>상담 분류 *</Label>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => handleOpenCategoryDialog()}
+                        title="분류 추가"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                      {formData.categoryId && categories?.find(c => c.id === formData.categoryId) && (
+                        <>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => {
+                              const cat = categories?.find(c => c.id === formData.categoryId);
+                              if (cat) handleOpenCategoryDialog(cat);
+                            }}
+                            title="분류 수정"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              const cat = categories?.find(c => c.id === formData.categoryId);
+                              if (cat) setDeleteCategory(cat);
+                            }}
+                            title="분류 삭제"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Select
+                    value={formData.categoryId || ''}
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, categoryId: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="분류 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories?.map((category) => (
+                        <SelectItem key={category.id} value={category.id}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: category.colorCode || '#6B7280' }}
+                            />
+                            {category.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>우선순위</Label>
+                  <Select
+                    value={formData.priority || 'normal'}
+                    onValueChange={(v) => setFormData(prev => ({ ...prev, priority: v as ConsultationPriority }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {priorityOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          <Badge className={option.color}>{option.label}</Badge>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="title">상담 제목 *</Label>
                 <div className="flex gap-2">
@@ -706,104 +795,6 @@ export default function NewConsultationPage() {
 
         {/* 사이드바 */}
         <div className="space-y-6">
-          {/* 분류 및 우선순위 */}
-          <Card>
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Tag className="h-5 w-5 text-purple-600" />
-                분류 설정
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>상담 분류 *</Label>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={() => handleOpenCategoryDialog()}
-                      title="분류 추가"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                    </Button>
-                    {formData.categoryId && categories?.find(c => c.id === formData.categoryId) && (
-                      <>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          onClick={() => {
-                            const cat = categories?.find(c => c.id === formData.categoryId);
-                            if (cat) handleOpenCategoryDialog(cat);
-                          }}
-                          title="분류 수정"
-                        >
-                          <Edit className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 text-destructive hover:text-destructive"
-                          onClick={() => {
-                            const cat = categories?.find(c => c.id === formData.categoryId);
-                            if (cat) setDeleteCategory(cat);
-                          }}
-                          title="분류 삭제"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                <Select
-                  value={formData.categoryId || ''}
-                  onValueChange={(v) => setFormData(prev => ({ ...prev, categoryId: v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="분류 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((category) => (
-                      <SelectItem key={category.id} value={category.id}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: category.colorCode || '#6B7280' }}
-                          />
-                          {category.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>우선순위</Label>
-                <Select
-                  value={formData.priority || 'normal'}
-                  onValueChange={(v) => setFormData(prev => ({ ...prev, priority: v as ConsultationPriority }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {priorityOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        <Badge className={option.color}>{option.label}</Badge>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* 태그 선택 */}
           <Card>
             <CardHeader className="pb-4">
