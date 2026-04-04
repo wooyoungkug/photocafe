@@ -652,10 +652,10 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const { navigation, moveMenuUp, moveMenuDown, moveChildUp, moveChildDown } =
     useMenuOrder();
 
-  // 메뉴 접근권한 필터링 (최고관리자는 전체 표시)
+  // 메뉴 접근권한 필터링 (최고관리자만 전체 표시)
   const isSuperAdmin = user?.isSuperAdmin === true;
-  const menuPerms = user?.menuPermissions;
-  const filteredNavigation = isSuperAdmin || !menuPerms
+  const menuPerms = user?.menuPermissions ?? {};
+  const filteredNavigation = isSuperAdmin
     ? navigation
     : navigation
         .map((item) => {
