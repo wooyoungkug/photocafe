@@ -353,7 +353,7 @@ export class FileStorageService implements OnModuleInit {
   }
 
   /** 썸네일 파일명 생성 */
-  private getThumbName(originalName: string): string {
+  getThumbName(originalName: string): string {
     const ext = extname(originalName);
     const base = originalName.slice(0, -ext.length);
     return `${base}_thumb.jpg`;

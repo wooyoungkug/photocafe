@@ -2345,6 +2345,170 @@ export class OrderService {
   }
 
   /**
+   * 파일 이동 실패 시 이미 orders 디렉토리에 이동된 파일로 DB 복구
+   */
+  private async recoverFromOrderDir(order: any, item: any, companyName: string): Promise<void> {
+    const { readdirSync, existsSync } = require('fs');
+    const { join } = require('path');
+    const orderDir = this.fileStorage.getOrderDir(order.orderNumber, companyName);
+    const originalsDir = join(orderDir, 'originals');
+    const thumbnailsDir = join(orderDir, 'thumbnails');
+
+    if (!existsSync(originalsDir)) {
+      this.logger.warn(`[복구] orders 원본 디렉토리 없음: ${originalsDir}`);
+      return;
+    }
+
+    const diskFiles = readdirSync(originalsDir) as string[];
+    if (diskFiles.length === 0) {
+      this.logger.warn(`[복구] orders 원본 디렉토리 비어있음: ${originalsDir}`);
+      return;
+    }
+
+    this.logger.log(`[복구] orders에서 ${diskFiles.length}개 파일 발견 (주문: ${order.orderNumber})`);
+
+    const updates: { id: string; fileUrl: string; originalPath: string; thumbnailUrl: string; thumbnailPath: string | null }[] = [];
+
+    for (const diskFileName of diskFiles) {
+      const originalPath = join(originalsDir, diskFileName);
+      const thumbName = this.fileStorage.getThumbName(diskFileName);
+      const thumbPath = join(thumbnailsDir, thumbName);
+      const hasThumb = existsSync(thumbPath);
+
+      // DB 파일과 매칭
+      const matchingFile = item.files.find((f: any) => {
+        const decodedUrl = decodeURIComponent(f.fileUrl || '');
+        const decodedFileName = decodeURIComponent(diskFileName);
+        return decodedUrl.includes(diskFileName)
+          || (f.fileUrl || '').includes(diskFileName)
+          || decodedUrl.includes(decodedFileName)
+          || f.fileName === diskFileName
+          || f.fileName === decodedFileName;
+      });
+
+      if (matchingFile) {
+        updates.push({
+          id: matchingFile.id,
+          fileUrl: this.fileStorage.toRelativeUrl(originalPath),
+          originalPath,
+          thumbnailUrl: hasThumb ? this.fileStorage.toRelativeUrl(thumbPath) : matchingFile.thumbnailUrl,
+          thumbnailPath: hasThumb ? thumbPath : null,
+        });
+      }
+    }
+
+    if (updates.length > 0) {
+      this.logger.log(`[복구] ${updates.length}건 DB 업데이트 시작 (주문: ${order.orderNumber})`);
+      for (const u of updates) {
+        try {
+          await this.prisma.orderFile.update({
+            where: { id: u.id },
+            data: {
+              fileUrl: u.fileUrl,
+              originalPath: u.originalPath,
+              thumbnailUrl: u.thumbnailUrl,
+              thumbnailPath: u.thumbnailPath,
+              storageStatus: 'uploaded',
+            },
+          });
+        } catch (err) {
+          this.logger.error(`[복구] DB 업데이트 실패 (파일: ${u.id}):`, (err as Error).message);
+        }
+      }
+      this.logger.log(`[복구] DB 업데이트 완료: ${updates.length}건 (주문: ${order.orderNumber})`);
+    }
+  }
+
+  /**
+   * pending 상태 파일들의 DB URL을 orders 디렉토리 기준으로 일괄 복구
+   */
+  async repairPendingFiles(): Promise<{ repairedCount: number; failedCount: number; orders: string[] }> {
+    const { readdirSync, existsSync } = require('fs');
+    const { join } = require('path');
+
+    // pending 상태인 파일이 있는 주문 조회
+    const pendingOrders = await this.prisma.order.findMany({
+      where: {
+        items: {
+          some: {
+            files: {
+              some: { storageStatus: 'pending' },
+            },
+          },
+        },
+      },
+      include: {
+        client: true,
+        items: {
+          include: {
+            files: {
+              where: { storageStatus: 'pending' },
+            },
+          },
+        },
+      },
+    });
+
+    let repairedCount = 0;
+    let failedCount = 0;
+    const repairedOrders: string[] = [];
+
+    for (const order of pendingOrders) {
+      const companyName = order.client?.clientName;
+      if (!companyName) continue;
+
+      const orderDir = this.fileStorage.getOrderDir(order.orderNumber, companyName);
+      const originalsDir = join(orderDir, 'originals');
+      const thumbnailsDir = join(orderDir, 'thumbnails');
+
+      if (!existsSync(originalsDir)) continue;
+
+      const diskFiles = readdirSync(originalsDir) as string[];
+      if (diskFiles.length === 0) continue;
+
+      for (const item of order.items) {
+        for (const file of item.files) {
+          // disk에서 매칭되는 파일 찾기
+          const matchedDiskFile = diskFiles.find((df: string) => {
+            const decodedUrl = decodeURIComponent(file.fileUrl || '');
+            return decodedUrl.includes(df) || (file.fileUrl || '').includes(df) || file.fileName === df;
+          });
+
+          if (matchedDiskFile) {
+            const originalPath = join(originalsDir, matchedDiskFile);
+            const thumbName = this.fileStorage.getThumbName(matchedDiskFile);
+            const thumbPath = join(thumbnailsDir, thumbName);
+            const hasThumb = existsSync(thumbPath);
+
+            try {
+              await this.prisma.orderFile.update({
+                where: { id: file.id },
+                data: {
+                  fileUrl: this.fileStorage.toRelativeUrl(originalPath),
+                  originalPath,
+                  thumbnailUrl: hasThumb ? this.fileStorage.toRelativeUrl(thumbPath) : file.thumbnailUrl,
+                  thumbnailPath: hasThumb ? thumbPath : null,
+                  storageStatus: 'uploaded',
+                },
+              });
+              repairedCount++;
+            } catch {
+              failedCount++;
+            }
+          } else {
+            failedCount++;
+          }
+        }
+      }
+
+      if (repairedCount > 0) repairedOrders.push(order.orderNumber);
+    }
+
+    this.logger.log(`[파일복구] 완료: ${repairedCount}건 복구, ${failedCount}건 실패, 주문: [${repairedOrders.join(', ')}]`);
+    return { repairedCount, failedCount, orders: repairedOrders };
+  }
+
+  /**
    * 접수확정 시 PDF 생성 트리거 (비동기)
    */
   private async triggerPdfGeneration(orderId: string) {
