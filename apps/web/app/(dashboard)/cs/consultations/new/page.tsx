@@ -72,7 +72,8 @@ import { CreateConsultationDto, ConsultationPriority } from '@/lib/types/cs';
 import { Client } from '@/lib/types/client';
 import { useAuthStore } from '@/stores/auth-store';
 import { useStaffList } from '@/hooks/use-staff';
-import { useOrders } from '@/hooks/use-orders';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import Link from 'next/link';
 
 export default function NewConsultationPage() {
@@ -132,10 +133,14 @@ export default function NewConsultationPage() {
   const [showOrderSearch, setShowOrderSearch] = useState(false);
   const orderSearchRef = useRef<HTMLDivElement>(null);
 
-  const { data: orderResults } = useOrders({
-    clientId: selectedClient?.id,
-    search: orderSearchQuery,
-    limit: 10,
+  const { data: orderResults, isLoading: isOrderLoading } = useQuery({
+    queryKey: ['orders-search', selectedClient?.id, orderSearchQuery],
+    queryFn: () => api.get<{ data: any[]; total: number }>('/orders', {
+      clientId: selectedClient!.id,
+      search: orderSearchQuery || undefined,
+      limit: 10,
+    }),
+    enabled: !!selectedClient?.id && showOrderSearch,
   });
 
   useEffect(() => {
@@ -791,9 +796,14 @@ export default function NewConsultationPage() {
                           <div className="p-4 text-center text-sm text-muted-foreground">
                             고객을 먼저 선택해주세요
                           </div>
+                        ) : isOrderLoading ? (
+                          <div className="p-4 text-center text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                            주문 검색 중...
+                          </div>
                         ) : orderResults?.data && orderResults.data.length > 0 ? (
                           <div className="py-1">
-                            {orderResults.data.map((order) => (
+                            {orderResults.data.map((order: any) => (
                               <button
                                 key={order.id}
                                 type="button"
@@ -828,7 +838,7 @@ export default function NewConsultationPage() {
                           </div>
                         ) : (
                           <div className="p-4 text-center text-sm text-muted-foreground">
-                            {orderSearchQuery ? '검색 결과가 없습니다' : '주문 내역이 없습니다'}
+                            {orderSearchQuery ? '검색 결과가 없습니다' : '해당 거래처의 주문이 없습니다'}
                           </div>
                         )}
                       </div>
