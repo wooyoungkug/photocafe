@@ -3,6 +3,9 @@ export interface QuotationItem {
   quotationId: string;
   itemName: string;
   specification?: string | null;
+  categoryId?: string | null;
+  specificationId?: string | null;
+  printSide?: string | null;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -42,6 +45,8 @@ export interface Quotation {
   validUntil?: string | null;
   memo?: string | null;
   orderId?: string | null;
+  sentAt?: string | null;
+  sentMethod?: string | null;
   createdAt: string;
   updatedAt: string;
   client?: {
@@ -49,7 +54,14 @@ export interface Quotation {
     clientName: string;
     clientCode: string;
     phone?: string;
+    mobile?: string;
     email?: string;
+    groupId?: string | null;
+    group?: {
+      id: string;
+      groupName: string;
+      groupCode: string;
+    } | null;
   } | null;
   staff?: {
     id: string;
@@ -76,6 +88,9 @@ export interface QuotationQueryParams {
 export interface CreateQuotationItemDto {
   itemName: string;
   specification?: string;
+  categoryId?: string;
+  specificationId?: string;
+  printSide?: string;
   quantity: number;
   unitPrice: number;
   albumType?: string;
@@ -114,6 +129,13 @@ export interface UpdateQuotationDto extends Partial<CreateQuotationDto> {
   status?: string;
 }
 
+export interface SendQuotationDto {
+  method: 'kakao' | 'sms' | 'email';
+  recipientPhone?: string;
+  recipientEmail?: string;
+  message?: string;
+}
+
 export type QuotationStatus = 'draft' | 'sent' | 'confirmed' | 'rejected' | 'expired' | 'ordered';
 export type QuotationType = 'offset_print' | 'digital_print' | 'album' | 'digital_output' | 'single_product';
 
@@ -141,4 +163,20 @@ export const QUOTATION_TYPE_LABELS: Record<QuotationType, string> = {
   album: '앨범',
   digital_output: '디지털출력',
   single_product: '단일상품',
+};
+
+// 2차 카테고리명 → 규격 용도 매핑
+export const CATEGORY_TO_SPEC_USAGE: Record<string, string> = {
+  '압축앨범': 'album',
+  '화보앨범': 'indigoAlbum',
+  '인디고출력': 'indigo',
+  '잉크젯출력': 'inkjet',
+};
+
+// 2차 카테고리명 → 기본 양면/단면
+export const CATEGORY_DEFAULT_PRINT_SIDE: Record<string, 'double' | 'single'> = {
+  '압축앨범': 'single',
+  '화보앨범': 'double',
+  '인디고출력': 'double',
+  '잉크젯출력': 'double',
 };

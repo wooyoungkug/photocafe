@@ -110,6 +110,59 @@ export class CreateQuotationItemDto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+
+  @ApiPropertyOptional({ description: '2차 카테고리 ID' })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @ApiPropertyOptional({ description: '규격 ID' })
+  @IsOptional()
+  @IsString()
+  specificationId?: string;
+
+  @ApiPropertyOptional({ description: '양면/단면: double | single' })
+  @IsOptional()
+  @IsString()
+  printSide?: string;
+}
+
+export class SendQuotationDto {
+  @ApiProperty({ description: '발송 방법', enum: ['kakao', 'sms', 'email'] })
+  @IsString()
+  method: string;
+
+  @ApiPropertyOptional({ description: '수신 전화번호' })
+  @IsOptional()
+  @IsString()
+  recipientPhone?: string;
+
+  @ApiPropertyOptional({ description: '수신 이메일' })
+  @IsOptional()
+  @IsString()
+  recipientEmail?: string;
+
+  @ApiPropertyOptional({ description: '추가 메시지' })
+  @IsOptional()
+  @IsString()
+  message?: string;
+}
+
+export class PriceLookupDto {
+  @ApiPropertyOptional({ description: '거래처 ID' })
+  @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @ApiPropertyOptional({ description: '카테고리 ID' })
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @ApiPropertyOptional({ description: '규격 ID' })
+  @IsOptional()
+  @IsString()
+  specificationId?: string;
 }
 
 export class CreateQuotationDto {

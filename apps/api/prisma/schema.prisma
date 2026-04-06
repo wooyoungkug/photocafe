@@ -547,6 +547,7 @@ model Specification {
   productionSettings         ProductionSettingSpecification[]
   prices                     SpecificationPrice[]
   productionSettingPrices    ProductionSettingPrice[]
+  quotationItems             QuotationItem[]
 
   @@index([isActive])
   @@index([forIndigo])
@@ -636,6 +637,7 @@ model Category {
   children        Category[]    @relation("CategoryHierarchy")
   halfProducts    HalfProduct[]
   products        Product[]
+  quotationItems  QuotationItem[]
 
   @@index([parentId])
   @@index([categoryType])
@@ -3647,6 +3649,8 @@ model Quotation {
   validUntil        DateTime?                            // 견적 유효기한
   memo              String?                              // 메모
   orderId           String?                              // 주문 전환 시 연결
+  sentAt            DateTime?                            // 발송 일시
+  sentMethod        String?                              // 발송 방법: kakao, sms, email
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
@@ -3667,6 +3671,9 @@ model QuotationItem {
   quotationId       String
   itemName          String                               // 품목명
   specification     String?                              // 규격 (예: A4, 8x10)
+  categoryId        String?                              // 2차 카테고리 ID
+  specificationId   String?                              // 규격 ID
+  printSide         String?                              // 양면/단면: double | single
   quantity          Int          @default(1)             // 수량
   unitPrice         Decimal      @default(0) @db.Decimal(10, 2)  // 단가
   totalPrice        Decimal      @default(0) @db.Decimal(12, 2)  // 소계
@@ -3689,8 +3696,12 @@ model QuotationItem {
   memo              String?                              // 항목 메모
   sortOrder         Int          @default(0)
 
-  quotation         Quotation    @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  quotation         Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  category          Category?      @relation(fields: [categoryId], references: [id])
+  specRef           Specification? @relation(fields: [specificationId], references: [id])
 
   @@index([quotationId])
+  @@index([categoryId])
+  @@index([specificationId])
   @@map("quotation_items")
 }

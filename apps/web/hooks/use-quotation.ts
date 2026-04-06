@@ -7,6 +7,7 @@ import {
   QuotationQueryParams,
   CreateQuotationDto,
   UpdateQuotationDto,
+  SendQuotationDto,
 } from '@/lib/types/quotation';
 
 const QUOTATIONS_KEY = 'quotations';
@@ -96,5 +97,36 @@ export function useDeleteQuotation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QUOTATIONS_KEY] });
     },
+  });
+}
+
+// ==================== 견적 발송 ====================
+
+export function useSendQuotation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, dto }: { id: string; dto: SendQuotationDto }) =>
+      api.post<Quotation>(`/quotations/${id}/send`, dto),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUOTATIONS_KEY] });
+    },
+  });
+}
+
+// ==================== 단가 조회 ====================
+
+export function useQuotationPriceLookup(params: {
+  clientId?: string;
+  categoryId?: string;
+  specificationId?: string;
+}) {
+  return useQuery({
+    queryKey: ['quotation-price', params],
+    queryFn: () =>
+      api.get<{ unitPrice: number; priceSource: string; specName?: string }>(
+        '/quotations/price-lookup',
+        params as any,
+      ),
+    enabled: !!params.specificationId,
   });
 }

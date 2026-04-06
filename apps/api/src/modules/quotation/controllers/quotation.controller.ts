@@ -15,6 +15,8 @@ import {
   CreateQuotationDto,
   UpdateQuotationDto,
   QuotationQueryDto,
+  SendQuotationDto,
+  PriceLookupDto,
 } from '../dto';
 
 @ApiTags('Quotations')
@@ -27,6 +29,13 @@ export class QuotationController {
   @ApiResponse({ status: 200, description: '견적 통계' })
   async getStats() {
     return this.quotationService.getStats();
+  }
+
+  @Get('price-lookup')
+  @ApiOperation({ summary: '단가 조회 (거래처/그룹/표준)' })
+  @ApiResponse({ status: 200, description: '단가 정보' })
+  async priceLookup(@Query() query: PriceLookupDto) {
+    return this.quotationService.priceLookup(query);
   }
 
   @Get()
@@ -48,6 +57,13 @@ export class QuotationController {
   @ApiResponse({ status: 201, description: '견적 생성 성공' })
   async create(@Body() dto: CreateQuotationDto) {
     return this.quotationService.create(dto);
+  }
+
+  @Post(':id/send')
+  @ApiOperation({ summary: '견적 발송 (카카오/SMS/이메일)' })
+  @ApiResponse({ status: 200, description: '발송 성공' })
+  async send(@Param('id') id: string, @Body() dto: SendQuotationDto) {
+    return this.quotationService.send(id, dto);
   }
 
   @Put(':id')

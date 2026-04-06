@@ -225,6 +225,16 @@ export function useDeleteGlobalSpecification() {
   });
 }
 
+// ==================== 용도별 규격 조회 ====================
+
+export function useSpecificationsByUsage(usage: string | null) {
+  return useQuery({
+    queryKey: [SPECIFICATIONS_KEY, 'usage', usage],
+    queryFn: () => api.get<Specification[]>(`/specifications/usage/${usage}`),
+    enabled: !!usage,
+  });
+}
+
 // ==================== 제품별 규격 조회 ====================
 
 export function useProductSpecifications(productId: string) {
