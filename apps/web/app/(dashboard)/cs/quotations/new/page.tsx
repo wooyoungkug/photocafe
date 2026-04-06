@@ -390,61 +390,63 @@ export default function NewQuotationPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <Label className="text-[14px] text-black font-normal">고객명</Label>
-                <Input
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="고객명"
-                  className="mt-1"
-                />
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-[14px] text-black font-normal">고객명</Label>
+                  <Input
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    placeholder="고객명"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[14px] text-black font-normal">연락처</Label>
+                  <PhoneInput
+                    value={clientPhone}
+                    onChange={(v) => setClientPhone(v)}
+                    placeholder="010-0000-0000"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[14px] text-black font-normal">이메일</Label>
+                  <Input
+                    type="email"
+                    value={clientEmail}
+                    onChange={(e) => setClientEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label className="text-[14px] text-black font-normal">단가 그룹</Label>
+                  <Select
+                    value={clientGroupId}
+                    onValueChange={(v) => {
+                      setClientGroupId(v);
+                      const group = clientGroups.find((g: any) => g.id === v);
+                      setClientGroupName(group?.groupName || '');
+                    }}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="그룹 선택 (선택사항)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientGroups.map((group: any) => (
+                        <SelectItem key={group.id} value={group.id}>{group.groupName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label className="text-[14px] text-black font-normal">연락처</Label>
-                <PhoneInput
-                  value={clientPhone}
-                  onChange={(v) => setClientPhone(v)}
-                  placeholder="010-0000-0000"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-[14px] text-black font-normal">이메일</Label>
-                <Input
-                  type="email"
-                  value={clientEmail}
-                  onChange={(e) => setClientEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-[14px] text-black font-normal">단가 그룹</Label>
-                <Select
-                  value={clientGroupId}
-                  onValueChange={(v) => {
-                    setClientGroupId(v);
-                    const group = clientGroups.find((g: any) => g.id === v);
-                    setClientGroupName(group?.groupName || '');
-                  }}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="그룹 선택 (선택사항)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientGroups.map((group: any) => (
-                      <SelectItem key={group.id} value={group.id}>{group.groupName}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {clientGroupName && (
-              <Badge className="bg-blue-100 text-blue-700 mt-2">
-                그룹: {clientGroupName} (그룹단가 적용)
-              </Badge>
-            )}
+              {clientGroupName && (
+                <Badge className="bg-blue-100 text-blue-700 mt-2">
+                  그룹: {clientGroupName} (그룹단가 적용)
+                </Badge>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
