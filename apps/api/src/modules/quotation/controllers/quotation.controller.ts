@@ -22,18 +22,18 @@ import {
 export class QuotationController {
   constructor(private readonly quotationService: QuotationService) {}
 
-  @Get()
-  @ApiOperation({ summary: '견적 목록 조회' })
-  @ApiResponse({ status: 200, description: '견적 목록' })
-  async findAll(@Query() query: QuotationQueryDto) {
-    return this.quotationService.findAll(query);
-  }
-
   @Get('stats')
   @ApiOperation({ summary: '견적 통계' })
   @ApiResponse({ status: 200, description: '견적 통계' })
   async getStats() {
     return this.quotationService.getStats();
+  }
+
+  @Get()
+  @ApiOperation({ summary: '견적 목록 조회' })
+  @ApiResponse({ status: 200, description: '견적 목록' })
+  async findAll(@Query() query: QuotationQueryDto) {
+    return this.quotationService.findAll(query);
   }
 
   @Get(':id')

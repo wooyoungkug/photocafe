@@ -20,7 +20,7 @@ export function useQuotations(params?: QuotationQueryParams) {
       api.get<{
         data: Quotation[];
         pagination: { page: number; limit: number; total: number; totalPages: number };
-      }>('/quotations', { params: params as any }),
+      }>('/quotations', params as any),
   });
 }
 
