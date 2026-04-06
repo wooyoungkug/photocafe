@@ -430,6 +430,9 @@ export class QuotationService {
     let unitPrice = standardPrice ? Number(standardPrice.fourColorDoublePrice || standardPrice.doubleSidedPrice || 0) : 0;
     let priceSource = 'standard';
 
+    // 그룹 ID 결정: 거래처의 그룹 또는 직접 지정된 그룹
+    let effectiveGroupId = dto.groupId || null;
+
     if (dto.clientId) {
       const client = await this.prisma.client.findUnique({
         where: { id: dto.clientId },
@@ -445,20 +448,31 @@ export class QuotationService {
         if (clientPrice) {
           unitPrice = Number(clientPrice.fourColorDoublePrice || clientPrice.doubleSidedPrice || 0);
           priceSource = 'client';
-        } else if (client.groupId) {
-          // 그룹 단가
-          const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
-            where: { groupId: client.groupId, specificationId: dto.specificationId },
-          });
+          return { unitPrice, priceSource, specName: spec.name };
+        }
 
-          if (groupPrice) {
-            unitPrice = Number(groupPrice.fourColorDoublePrice || groupPrice.doubleSidedPrice || 0);
-            priceSource = 'group';
-          } else if (client.group?.generalDiscount && client.group.generalDiscount !== 100) {
-            // 그룹 할인율 적용
-            unitPrice = Math.round(unitPrice * Number(client.group.generalDiscount) / 100);
-            priceSource = 'group_discount';
-          }
+        // 거래처의 그룹 우선
+        if (client.groupId) effectiveGroupId = client.groupId;
+      }
+    }
+
+    // 그룹 단가 조회 (거래처 그룹 또는 비회원 직접 선택 그룹)
+    if (effectiveGroupId) {
+      const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+        where: { groupId: effectiveGroupId, specificationId: dto.specificationId },
+      });
+
+      if (groupPrice) {
+        unitPrice = Number(groupPrice.fourColorDoublePrice || groupPrice.doubleSidedPrice || 0);
+        priceSource = 'group';
+      } else {
+        const group = await this.prisma.clientGroup.findUnique({
+          where: { id: effectiveGroupId },
+          select: { generalDiscount: true },
+        });
+        if (group?.generalDiscount && Number(group.generalDiscount) !== 100) {
+          unitPrice = Math.round(unitPrice * Number(group.generalDiscount) / 100);
+          priceSource = 'group_discount';
         }
       }
     }

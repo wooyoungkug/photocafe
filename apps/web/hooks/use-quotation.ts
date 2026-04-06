@@ -117,6 +117,7 @@ export function useSendQuotation() {
 
 export function useQuotationPriceLookup(params: {
   clientId?: string;
+  groupId?: string;
   categoryId?: string;
   specificationId?: string;
 }) {

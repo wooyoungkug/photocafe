@@ -154,6 +154,11 @@ export class PriceLookupDto {
   @IsString()
   clientId?: string;
 
+  @ApiPropertyOptional({ description: '그룹 ID (비회원 그룹단가 조회용)' })
+  @IsOptional()
+  @IsString()
+  groupId?: string;
+
   @ApiPropertyOptional({ description: '카테고리 ID' })
   @IsOptional()
   @IsString()

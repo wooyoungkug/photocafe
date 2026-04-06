@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateQuotation, useQuotationPriceLookup } from '@/hooks/use-quotation';
-import { useClients } from '@/hooks/use-clients';
+import { useClients, useClientGroups } from '@/hooks/use-clients';
 import { useCategoryTree } from '@/hooks/use-categories';
 import { useSpecificationsByUsage } from '@/hooks/use-specifications';
 import { PhoneInput } from '@/components/ui/phone-input';
@@ -74,6 +74,7 @@ export default function NewQuotationPage() {
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientGroupName, setClientGroupName] = useState('');
+  const [clientGroupId, setClientGroupId] = useState('');
   const [clientSearch, setClientSearch] = useState('');
   const [clientSearchFocused, setClientSearchFocused] = useState(false);
 
@@ -84,6 +85,10 @@ export default function NewQuotationPage() {
     status: 'active',
   });
   const clients = clientsData?.data || [];
+
+  // 거래처 그룹 목록 (비회원 그룹 선택용)
+  const { data: groupsData } = useClientGroups({ isActive: true });
+  const clientGroups = groupsData?.data || [];
 
   // 카테고리 트리
   const { data: categoryTree } = useCategoryTree();
@@ -115,6 +120,7 @@ export default function NewQuotationPage() {
     setClientPhone(client.mobile || client.phone || '');
     setClientEmail(client.email || '');
     setClientGroupName(client.group?.groupName || '');
+    setClientGroupId(client.group?.id || '');
     setClientSearchFocused(false);
     setClientSearch('');
   };
@@ -124,11 +130,12 @@ export default function NewQuotationPage() {
     setClientType(value);
     if (value === 'guest') {
       setClientId('');
-      setClientGroupName('');
     }
     setClientName('');
     setClientPhone('');
     setClientEmail('');
+    setClientGroupName('');
+    setClientGroupId('');
   };
 
   // 세부분류 옵션
@@ -151,8 +158,8 @@ export default function NewQuotationPage() {
   };
   const subTypeOptions = getSubTypeOptions();
 
-  // 1차 카테고리 목록 (depth=1)
-  const parentCategories = (categoryTree || []).filter((c: any) => !c.parentId);
+  // 1차 카테고리 목록 (트리 루트 노드)
+  const parentCategories = categoryTree || [];
 
   // 합계 계산
   const totalAmount = items.reduce((sum, item) => sum + (item.unitPrice || 0) * (item.quantity || 0), 0);
@@ -383,7 +390,7 @@ export default function NewQuotationPage() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Label className="text-[14px] text-black font-normal">고객명</Label>
                 <Input
@@ -412,7 +419,32 @@ export default function NewQuotationPage() {
                   className="mt-1"
                 />
               </div>
+              <div>
+                <Label className="text-[14px] text-black font-normal">단가 그룹</Label>
+                <Select
+                  value={clientGroupId}
+                  onValueChange={(v) => {
+                    setClientGroupId(v);
+                    const group = clientGroups.find((g: any) => g.id === v);
+                    setClientGroupName(group?.groupName || '');
+                  }}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="그룹 선택 (선택사항)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clientGroups.map((group: any) => (
+                      <SelectItem key={group.id} value={group.id}>{group.groupName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+            {clientGroupName && (
+              <Badge className="bg-blue-100 text-blue-700 mt-2">
+                그룹: {clientGroupName} (그룹단가 적용)
+              </Badge>
+            )}
           )}
         </CardContent>
       </Card>
@@ -447,8 +479,8 @@ export default function NewQuotationPage() {
                   item={item}
                   index={idx}
                   parentCategories={parentCategories}
-                  categoryTree={categoryTree || []}
                   clientId={clientType === 'member' ? clientId : undefined}
+                  groupId={clientGroupId || undefined}
                   onUpdate={(updates) => updateItem(item._key, updates)}
                   onRemove={() => removeItem(item._key)}
                   canRemove={items.length > 1}
@@ -518,8 +550,8 @@ function QuotationItemRow({
   item,
   index,
   parentCategories,
-  categoryTree,
   clientId,
+  groupId,
   onUpdate,
   onRemove,
   canRemove,
@@ -527,8 +559,8 @@ function QuotationItemRow({
   item: FormItem;
   index: number;
   parentCategories: any[];
-  categoryTree: any[];
   clientId?: string;
+  groupId?: string;
   onUpdate: (updates: Partial<FormItem>) => void;
   onRemove: () => void;
   canRemove: boolean;
@@ -536,10 +568,9 @@ function QuotationItemRow({
   const [parentCatId, setParentCatId] = useState(item._parentCategoryId || '');
   const [specUsage, setSpecUsage] = useState<string | null>(item._specUsage || null);
 
-  // 2차 카테고리 목록
-  const childCategories = parentCatId
-    ? categoryTree.filter((c: any) => c.parentId === parentCatId)
-    : [];
+  // 2차 카테고리 목록: 트리 구조에서 children 가져오기
+  const parentCat = parentCategories.find((c: any) => c.id === parentCatId);
+  const childCategories = parentCat?.children || [];
 
   // 용도별 규격 조회
   const { data: specs } = useSpecificationsByUsage(specUsage);
@@ -547,6 +578,7 @@ function QuotationItemRow({
   // 단가 자동 조회
   const { data: priceData } = useQuotationPriceLookup({
     clientId: clientId || undefined,
+    groupId: groupId || undefined,
     categoryId: item.categoryId || undefined,
     specificationId: item.specificationId || undefined,
   });
@@ -561,7 +593,6 @@ function QuotationItemRow({
   // 1차 카테고리 선택
   const handleParentCategoryChange = (catId: string) => {
     setParentCatId(catId);
-    // 2차 초기화
     onUpdate({
       _parentCategoryId: catId,
       categoryId: undefined,
@@ -574,18 +605,26 @@ function QuotationItemRow({
     setSpecUsage(null);
   };
 
-  // 2차 카테고리 선택
+  // 2차 카테고리 선택 → 양면/단면 자동 결정 + 규격 용도 매핑
   const handleCategoryChange = (catId: string) => {
-    const category = categoryTree.find((c: any) => c.id === catId);
+    const category = childCategories.find((c: any) => c.id === catId);
     if (!category) return;
 
-    const usage = CATEGORY_TO_SPEC_USAGE[category.name] || null;
-    const defaultPrintSide = CATEGORY_DEFAULT_PRINT_SIDE[category.name] || 'double';
+    const catName = category.name as string;
+    const usage = CATEGORY_TO_SPEC_USAGE[catName] || null;
+
+    // 양면/단면 자동 결정: 압축앨범=단면, 화보앨범/포토북=양면
+    let defaultPrintSide: string | undefined;
+    if (catName.includes('압축')) {
+      defaultPrintSide = 'single';
+    } else if (catName.includes('화보') || catName.includes('포토북')) {
+      defaultPrintSide = 'double';
+    }
 
     setSpecUsage(usage);
     onUpdate({
       categoryId: catId,
-      itemName: category.name,
+      itemName: catName,
       _specUsage: usage,
       specificationId: undefined,
       specification: undefined,
@@ -598,14 +637,10 @@ function QuotationItemRow({
     const spec = specs?.find((s: any) => s.id === specId);
     if (!spec) return;
 
-    let printSide = item.printSide || 'double';
-    if (spec.jdfSides === 'OneSided') printSide = 'single';
-    else if (spec.jdfSides === 'TwoSidedHeadToHead') printSide = 'double';
-
+    // 양면/단면: 카테고리에서 이미 결정된 값 유지
     onUpdate({
       specificationId: specId,
       specification: spec.name,
-      printSide,
     });
   };
 
