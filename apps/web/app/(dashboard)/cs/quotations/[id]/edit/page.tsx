@@ -61,6 +61,8 @@ import {
   QUOTATION_TYPE_LABELS,
   CATEGORY_TO_SPEC_USAGE,
   CATEGORY_DEFAULT_PRINT_SIDE,
+  CATEGORY_TYPE_OPTIONS,
+  getCategoryTypeLabel,
   QuotationType,
 } from '@/lib/types/quotation';
 import Link from 'next/link';
@@ -610,6 +612,7 @@ export default function EditQuotationPage() {
               <TableRow>
                 <TableHead className="w-[40px]">#</TableHead>
                 <TableHead className="w-[140px]">품목 *</TableHead>
+                <TableHead className="w-[130px]">종류</TableHead>
                 <TableHead className="w-[140px]">규격</TableHead>
                 <TableHead className="w-[70px]">양면/단면</TableHead>
                 <TableHead className="w-[70px]">페이지</TableHead>
@@ -768,6 +771,17 @@ function EditQuotationItemRow({
       defaultPrintSide = 'double';
     }
 
+    // 종류 옵션이 1개면 자동 선택
+    const typeOptions = CATEGORY_TYPE_OPTIONS[catName] || [];
+    const autoType: Partial<FormItem> = {};
+    if (typeOptions.length === 1) {
+      const opt = typeOptions[0];
+      autoType[opt.field] = opt.value;
+    } else {
+      autoType.bindingType = undefined;
+      autoType.printMethod = undefined;
+    }
+
     setSpecUsage(usage);
     onUpdate({
       _parentCategoryId: category.parentId,
@@ -777,8 +791,17 @@ function EditQuotationItemRow({
       specificationId: undefined,
       specification: undefined,
       printSide: defaultPrintSide,
+      ...autoType,
     });
   };
+
+  // 현재 품목의 종류 옵션
+  const currentCategoryName = allChildCategories.find((c: any) => c.id === item.categoryId)?.name || '';
+  const typeOptions = CATEGORY_TYPE_OPTIONS[currentCategoryName] || [];
+  const typeLabel = getCategoryTypeLabel(currentCategoryName);
+  const currentTypeValue = typeOptions.length > 0
+    ? (typeOptions[0].field === 'bindingType' ? item.bindingType : item.printMethod) || ''
+    : '';
 
   // 규격 선택
   const [specOpen, setSpecOpen] = useState(false);
@@ -815,6 +838,34 @@ function EditQuotationItemRow({
             ))}
           </SelectContent>
         </Select>
+      </TableCell>
+
+      {/* 종류 (앨범=제본방식, 출력=출력방식) */}
+      <TableCell>
+        {typeOptions.length > 1 ? (
+          <Select
+            value={currentTypeValue}
+            onValueChange={(v) => {
+              const opt = typeOptions.find((o) => o.value === v);
+              if (opt) {
+                onUpdate({ [opt.field]: v });
+              }
+            }}
+          >
+            <SelectTrigger className="h-9 text-[13px]">
+              <SelectValue placeholder={typeLabel || '종류 선택'} />
+            </SelectTrigger>
+            <SelectContent>
+              {typeOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : typeOptions.length === 1 ? (
+          <span className="text-[13px] text-black px-2">{typeOptions[0].label}</span>
+        ) : (
+          <span className="text-[13px] text-gray-400 px-2">-</span>
+        )}
       </TableCell>
 
       {/* 규격 - 검색 가능한 콤보박스 */}

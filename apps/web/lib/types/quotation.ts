@@ -180,3 +180,27 @@ export const CATEGORY_DEFAULT_PRINT_SIDE: Record<string, 'double' | 'single'> = 
   '인디고출력': 'double',
   '잉크젯출력': 'double',
 };
+
+// 2차 카테고리명 → 종류 옵션 (앨범=제본방식, 출력=출력방식)
+export const CATEGORY_TYPE_OPTIONS: Record<string, { label: string; value: string; field: 'bindingType' | 'printMethod' }[]> = {
+  '압축앨범': [
+    { label: '인디고압축제본', value: '인디고압축제본', field: 'bindingType' },
+    { label: '인디고압축제본(용지별도)', value: '인디고압축제본_용지별도', field: 'bindingType' },
+  ],
+  '화보앨범': [
+    { label: '스타제본', value: '스타제본', field: 'bindingType' },
+  ],
+  '인디고출력': [
+    { label: 'HP 인디고', value: 'indigo', field: 'printMethod' },
+  ],
+  '잉크젯출력': [
+    { label: '잉크젯', value: 'inkjet', field: 'printMethod' },
+  ],
+};
+
+// 카테고리가 앨범인지 출력인지 판별
+export const getCategoryTypeLabel = (categoryName: string): string | null => {
+  if (categoryName.includes('앨범')) return '제본방식';
+  if (categoryName.includes('출력')) return '출력방식';
+  return null;
+};
