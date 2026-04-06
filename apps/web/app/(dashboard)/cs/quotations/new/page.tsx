@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
@@ -35,19 +35,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateQuotation, useQuotationPriceLookup } from '@/hooks/use-quotation';
 import { useClients } from '@/hooks/use-clients';
@@ -88,7 +75,7 @@ export default function NewQuotationPage() {
   const [clientEmail, setClientEmail] = useState('');
   const [clientGroupName, setClientGroupName] = useState('');
   const [clientSearch, setClientSearch] = useState('');
-  const [clientPopoverOpen, setClientPopoverOpen] = useState(false);
+  const [clientSearchFocused, setClientSearchFocused] = useState(false);
 
   // 거래처 검색
   const { data: clientsData } = useClients({
@@ -128,7 +115,7 @@ export default function NewQuotationPage() {
     setClientPhone(client.mobile || client.phone || '');
     setClientEmail(client.email || '');
     setClientGroupName(client.group?.groupName || '');
-    setClientPopoverOpen(false);
+    setClientSearchFocused(false);
     setClientSearch('');
   };
 
@@ -328,51 +315,46 @@ export default function NewQuotationPage() {
           {clientType === 'member' ? (
             <div className="space-y-4">
               {/* 거래처 검색 */}
-              <div>
+              <div className="relative">
                 <Label className="text-[14px] text-black font-normal">거래처 검색</Label>
-                <Popover open={clientPopoverOpen} onOpenChange={setClientPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      className="w-full justify-between mt-1 font-normal"
-                    >
-                      {clientName || '거래처를 검색하세요...'}
-                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
-                      <CommandInput
-                        placeholder="거래처명, 코드로 검색..."
-                        value={clientSearch}
-                        onValueChange={setClientSearch}
-                      />
-                      <CommandList>
-                        <CommandEmpty>검색 결과가 없습니다.</CommandEmpty>
-                        <CommandGroup>
-                          {clients.map((client: any) => (
-                            <CommandItem
-                              key={client.id}
-                              onSelect={() => handleClientSelect(client)}
-                              className="flex justify-between"
-                            >
-                              <div>
-                                <span className="font-medium">{client.clientName}</span>
-                                <span className="text-gray-400 ml-2 text-xs">{client.clientCode}</span>
-                              </div>
-                              {client.group && (
-                                <Badge variant="outline" className="text-xs">
-                                  {client.group.groupName}
-                                </Badge>
-                              )}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <div className="relative mt-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    value={clientSearch}
+                    onChange={(e) => { setClientSearch(e.target.value); setClientSearchFocused(true); }}
+                    onFocus={() => setClientSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setClientSearchFocused(false), 200)}
+                    placeholder="거래처명, 코드로 검색..."
+                    className="pl-10"
+                  />
+                </div>
+                {clientSearchFocused && clientSearch && (
+                  <div className="absolute z-50 w-full mt-1 bg-white border rounded-md shadow-lg max-h-60 overflow-auto">
+                    {clients.length === 0 ? (
+                      <p className="p-3 text-[14px] text-gray-400">검색 결과가 없습니다.</p>
+                    ) : (
+                      clients.map((client: any) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          className="w-full px-3 py-2 text-left hover:bg-gray-100 flex items-center justify-between"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleClientSelect(client)}
+                        >
+                          <div>
+                            <span className="text-[14px] font-medium">{client.clientName}</span>
+                            <span className="text-gray-400 ml-2 text-xs">{client.clientCode}</span>
+                          </div>
+                          {client.group && (
+                            <Badge variant="outline" className="text-xs">
+                              {client.group.groupName}
+                            </Badge>
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* 선택된 거래처 정보 */}
