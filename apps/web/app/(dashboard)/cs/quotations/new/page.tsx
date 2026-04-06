@@ -30,6 +30,20 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import {
   Table,
   TableBody,
   TableCell,
@@ -310,12 +324,35 @@ export default function NewQuotationPage() {
             )}
             <div>
               <Label className="text-[14px] text-black font-normal">유효기한</Label>
-              <Input
-                type="date"
-                value={validUntil}
-                onChange={(e) => setValidUntil(e.target.value)}
-                className="mt-1"
-              />
+              <div className="flex gap-2 mt-1">
+                {[
+                  { label: '30일', days: 30 },
+                  { label: '60일', days: 60 },
+                  { label: '90일', days: 90 },
+                ].map((opt) => {
+                  const target = new Date();
+                  target.setDate(target.getDate() + opt.days);
+                  const targetStr = target.toISOString().split('T')[0];
+                  const isSelected = validUntil === targetStr;
+                  return (
+                    <Button
+                      key={opt.days}
+                      type="button"
+                      variant={isSelected ? 'default' : 'outline'}
+                      size="sm"
+                      className={isSelected ? '' : ''}
+                      onClick={() => setValidUntil(targetStr)}
+                    >
+                      {opt.label}
+                    </Button>
+                  );
+                })}
+              </div>
+              {validUntil && (
+                <p className="text-[13px] text-gray-500 mt-1">
+                  ~ {validUntil}
+                </p>
+              )}
             </div>
           </div>
         </CardContent>
@@ -496,6 +533,7 @@ export default function NewQuotationPage() {
                 <TableHead className="w-[140px]">품목(2차) *</TableHead>
                 <TableHead className="w-[140px]">규격</TableHead>
                 <TableHead className="w-[70px]">양면/단면</TableHead>
+                <TableHead className="w-[70px]">페이지</TableHead>
                 <TableHead className="w-[80px]">수량</TableHead>
                 <TableHead className="w-[120px]">단가</TableHead>
                 <TableHead className="w-[120px] text-right">소계</TableHead>
@@ -691,16 +729,20 @@ function QuotationItemRow({
   };
 
   // 규격 선택
+  const [specOpen, setSpecOpen] = useState(false);
+
   const handleSpecChange = (specId: string) => {
     const spec = specs?.find((s: any) => s.id === specId);
     if (!spec) return;
 
-    // 양면/단면: 카테고리에서 이미 결정된 값 유지
     onUpdate({
       specificationId: specId,
       specification: spec.name,
     });
+    setSpecOpen(false);
   };
+
+  const selectedSpecName = specs?.find((s: any) => s.id === item.specificationId)?.name;
 
   const subtotal = (item.unitPrice || 0) * (item.quantity || 0);
   const formatAmount = (amount: number) => amount.toLocaleString('ko-KR');
@@ -746,19 +788,49 @@ function QuotationItemRow({
         )}
       </TableCell>
 
-      {/* 규격 */}
+      {/* 규격 - 검색 가능한 콤보박스 */}
       <TableCell>
         {specs && specs.length > 0 ? (
-          <Select value={item.specificationId || ''} onValueChange={handleSpecChange}>
-            <SelectTrigger className="h-9 text-[13px]">
-              <SelectValue placeholder="규격 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {specs.map((spec: any) => (
-                <SelectItem key={spec.id} value={spec.id}>{spec.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Popover open={specOpen} onOpenChange={setSpecOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                aria-expanded={specOpen}
+                className="h-9 w-full justify-between text-[13px] font-normal"
+              >
+                <span className="truncate">
+                  {selectedSpecName || '규격 검색...'}
+                </span>
+                <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[220px] p-0" align="start">
+              <Command>
+                <CommandInput placeholder="규격명 검색..." className="h-8 text-[13px]" />
+                <CommandList>
+                  <CommandEmpty>검색 결과 없음</CommandEmpty>
+                  <CommandGroup>
+                    {specs.map((spec: any) => (
+                      <CommandItem
+                        key={spec.id}
+                        value={spec.name}
+                        onSelect={() => handleSpecChange(spec.id)}
+                        className="text-[13px]"
+                      >
+                        <Check
+                          className={`mr-2 h-3 w-3 ${
+                            item.specificationId === spec.id ? 'opacity-100' : 'opacity-0'
+                          }`}
+                        />
+                        {spec.name}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         ) : (
           <Input
             value={item.specification || ''}
@@ -779,6 +851,18 @@ function QuotationItemRow({
             {item.printSide === 'double' ? '양면' : '단면'}
           </Badge>
         )}
+      </TableCell>
+
+      {/* 페이지 */}
+      <TableCell>
+        <Input
+          type="number"
+          min={1}
+          value={item.pages || ''}
+          onChange={(e) => onUpdate({ pages: parseInt(e.target.value) || undefined })}
+          placeholder="P"
+          className="h-9 text-[13px]"
+        />
       </TableCell>
 
       {/* 수량 */}
