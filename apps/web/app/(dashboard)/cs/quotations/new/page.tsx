@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
@@ -12,6 +12,8 @@ import {
   Search,
   User,
   UserPlus,
+  MessageSquare,
+  Mail,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +38,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateQuotation, useQuotationPriceLookup } from '@/hooks/use-quotation';
+import { useCreateQuotation, useQuotationPriceLookup, useSendQuotation } from '@/hooks/use-quotation';
 import { useClients, useClientGroups } from '@/hooks/use-clients';
 import { useCategoryTree } from '@/hooks/use-categories';
 import { useSpecificationsByUsage } from '@/hooks/use-specifications';
@@ -59,6 +61,7 @@ export default function NewQuotationPage() {
   const router = useRouter();
   const { toast } = useToast();
   const createMutation = useCreateQuotation();
+  const sendMutation = useSendQuotation();
 
   // 기본 정보
   const [title, setTitle] = useState('');
@@ -167,8 +170,8 @@ export default function NewQuotationPage() {
   const finalAmount = totalAmount + tax;
   const formatAmount = (amount: number) => amount.toLocaleString('ko-KR');
 
-  // 제출
-  const handleSubmit = async () => {
+  // 제출 (sendMethod: 저장만 할 때 undefined, 발송도 할 때 'kakao' | 'email')
+  const handleSubmit = async (sendMethod?: 'kakao' | 'email') => {
     if (!title.trim()) {
       toast({ title: '견적 제목을 입력하세요.', variant: 'destructive' });
       return;
@@ -181,9 +184,17 @@ export default function NewQuotationPage() {
       toast({ title: '모든 항목의 품목명을 입력하세요.', variant: 'destructive' });
       return;
     }
+    if (sendMethod === 'kakao' && !clientPhone) {
+      toast({ title: '카카오톡 발송을 위해 연락처를 입력하세요.', variant: 'destructive' });
+      return;
+    }
+    if (sendMethod === 'email' && !clientEmail) {
+      toast({ title: '이메일 발송을 위해 이메일을 입력하세요.', variant: 'destructive' });
+      return;
+    }
 
     try {
-      await createMutation.mutateAsync({
+      const created = await createMutation.mutateAsync({
         title,
         quotationType,
         subType: subType || undefined,
@@ -198,7 +209,24 @@ export default function NewQuotationPage() {
           sortOrder: idx,
         })),
       });
-      toast({ title: '견적이 생성되었습니다.' });
+
+      if (sendMethod && created?.id) {
+        try {
+          await sendMutation.mutateAsync({
+            id: created.id,
+            dto: {
+              method: sendMethod,
+              recipientPhone: clientPhone || undefined,
+              recipientEmail: clientEmail || undefined,
+            },
+          });
+          toast({ title: `견적이 생성되고 ${sendMethod === 'kakao' ? '카카오톡' : '이메일'}으로 발송되었습니다.` });
+        } catch {
+          toast({ title: '견적은 생성되었으나 발송에 실패했습니다. 상세 페이지에서 다시 시도하세요.', variant: 'destructive' });
+        }
+      } else {
+        toast({ title: '견적이 생성되었습니다.' });
+      }
       router.push('/cs/quotations');
     } catch {
       toast({ title: '견적 생성에 실패했습니다.', variant: 'destructive' });
@@ -223,8 +251,8 @@ export default function NewQuotationPage() {
           </div>
         </div>
         <Button
-          onClick={handleSubmit}
-          disabled={createMutation.isPending}
+          onClick={() => handleSubmit()}
+          disabled={createMutation.isPending || sendMutation.isPending}
           className="bg-pink-500 hover:bg-pink-600"
         >
           {createMutation.isPending ? (
@@ -525,22 +553,48 @@ export default function NewQuotationPage() {
       </Card>
 
       {/* 하단 버튼 */}
-      <div className="flex justify-end gap-3">
+      <div className="flex justify-between">
         <Link href="/cs/quotations">
           <Button variant="outline">취소</Button>
         </Link>
-        <Button
-          onClick={handleSubmit}
-          disabled={createMutation.isPending}
-          className="bg-pink-500 hover:bg-pink-600"
-        >
-          {createMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          견적 저장
-        </Button>
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit('kakao')}
+            disabled={createMutation.isPending || sendMutation.isPending}
+          >
+            {sendMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <MessageSquare className="mr-2 h-4 w-4" />
+            )}
+            저장 + 카카오톡 발송
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleSubmit('email')}
+            disabled={createMutation.isPending || sendMutation.isPending}
+          >
+            {sendMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Mail className="mr-2 h-4 w-4" />
+            )}
+            저장 + 이메일 발송
+          </Button>
+          <Button
+            onClick={() => handleSubmit()}
+            disabled={createMutation.isPending || sendMutation.isPending}
+            className="bg-pink-500 hover:bg-pink-600"
+          >
+            {createMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            견적 저장
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -585,9 +639,11 @@ function QuotationItemRow({
     specificationId: item.specificationId || undefined,
   });
 
-  // 단가 자동 적용 (가격 데이터 변경 시)
+  // 단가 자동 적용 (중복 호출 방지)
+  const lastAppliedPrice = useRef<number>(0);
   useEffect(() => {
-    if (priceData && priceData.unitPrice > 0 && item.specificationId) {
+    if (priceData && priceData.unitPrice > 0 && item.specificationId && priceData.unitPrice !== lastAppliedPrice.current) {
+      lastAppliedPrice.current = priceData.unitPrice;
       onUpdate({ unitPrice: priceData.unitPrice });
     }
   }, [priceData?.unitPrice, item.specificationId]);
