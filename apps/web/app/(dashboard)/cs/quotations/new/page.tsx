@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   FileText,
@@ -529,8 +529,7 @@ export default function NewQuotationPage() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[40px]">#</TableHead>
-                <TableHead className="w-[140px]">1차 분류</TableHead>
-                <TableHead className="w-[140px]">품목(2차) *</TableHead>
+                <TableHead className="w-[140px]">품목 *</TableHead>
                 <TableHead className="w-[140px]">규격</TableHead>
                 <TableHead className="w-[70px]">양면/단면</TableHead>
                 <TableHead className="w-[70px]">페이지</TableHead>
@@ -659,12 +658,20 @@ function QuotationItemRow({
   onRemove: () => void;
   canRemove: boolean;
 }) {
-  const [parentCatId, setParentCatId] = useState(item._parentCategoryId || '');
   const [specUsage, setSpecUsage] = useState<string | null>(item._specUsage || null);
 
-  // 2차 카테고리 목록: 트리 구조에서 children 가져오기
-  const parentCat = parentCategories.find((c: any) => c.id === parentCatId);
-  const childCategories = parentCat?.children || [];
+  // 모든 자식 카테고리를 평탄화 (1차 드롭다운에서 직접 선택)
+  const allChildCategories = useMemo(() => {
+    const result: any[] = [];
+    parentCategories.forEach((parent: any) => {
+      if (parent.children) {
+        parent.children.forEach((child: any) => {
+          result.push({ ...child, parentId: parent.id, parentName: parent.name });
+        });
+      }
+    });
+    return result;
+  }, [parentCategories]);
 
   // 용도별 규격 조회
   const { data: specs } = useSpecificationsByUsage(specUsage);
@@ -686,30 +693,14 @@ function QuotationItemRow({
     }
   }, [priceData?.unitPrice, item.specificationId]);
 
-  // 1차 카테고리 선택
-  const handleParentCategoryChange = (catId: string) => {
-    setParentCatId(catId);
-    onUpdate({
-      _parentCategoryId: catId,
-      categoryId: undefined,
-      itemName: '',
-      specificationId: undefined,
-      specification: undefined,
-      printSide: undefined,
-      _specUsage: null,
-    });
-    setSpecUsage(null);
-  };
-
-  // 2차 카테고리 선택 → 양면/단면 자동 결정 + 규격 용도 매핑
+  // 품목 선택 (1차 드롭다운에서 바로 자식 카테고리 선택)
   const handleCategoryChange = (catId: string) => {
-    const category = childCategories.find((c: any) => c.id === catId);
+    const category = allChildCategories.find((c: any) => c.id === catId);
     if (!category) return;
 
     const catName = category.name as string;
     const usage = CATEGORY_TO_SPEC_USAGE[catName] || null;
 
-    // 양면/단면 자동 결정: 압축앨범=단면, 화보앨범/포토북=양면
     let defaultPrintSide: string | undefined;
     if (catName.includes('압축')) {
       defaultPrintSide = 'single';
@@ -719,6 +710,7 @@ function QuotationItemRow({
 
     setSpecUsage(usage);
     onUpdate({
+      _parentCategoryId: category.parentId,
       categoryId: catId,
       itemName: catName,
       _specUsage: usage,
@@ -751,41 +743,18 @@ function QuotationItemRow({
     <TableRow>
       <TableCell className="text-[14px] text-black font-normal">{index + 1}</TableCell>
 
-      {/* 1차 카테고리 */}
+      {/* 품목 선택 (자식 카테고리 직접 선택) */}
       <TableCell>
-        <Select value={parentCatId} onValueChange={handleParentCategoryChange}>
+        <Select value={item.categoryId || ''} onValueChange={handleCategoryChange}>
           <SelectTrigger className="h-9 text-[13px]">
-            <SelectValue placeholder="1차 분류" />
+            <SelectValue placeholder="품목 선택" />
           </SelectTrigger>
           <SelectContent>
-            {parentCategories.map((cat: any) => (
+            {allChildCategories.map((cat: any) => (
               <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-      </TableCell>
-
-      {/* 2차 카테고리 (품목명) */}
-      <TableCell>
-        {childCategories.length > 0 ? (
-          <Select value={item.categoryId || ''} onValueChange={handleCategoryChange}>
-            <SelectTrigger className="h-9 text-[13px]">
-              <SelectValue placeholder="품목 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {childCategories.map((cat: any) => (
-                <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          <Input
-            value={item.itemName}
-            onChange={(e) => onUpdate({ itemName: e.target.value })}
-            placeholder="품목명"
-            className="h-9 text-[13px]"
-          />
-        )}
       </TableCell>
 
       {/* 규격 - 검색 가능한 콤보박스 */}
