@@ -1323,38 +1323,6 @@ export default function EmployeesPage() {
                 </div>
               </div>
 
-              {/* 카테고리 접근 권한 */}
-              <div className="p-4 border rounded-lg">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold">카테고리 접근 권한</h3>
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="category-select-all"
-                      checked={isAllCategoryPermissionsSelected}
-                      onCheckedChange={(checked) => handleCategoryPermissionSelectAll(checked === true)}
-                    />
-                    <Label htmlFor="category-select-all" className="text-sm font-medium text-blue-600 cursor-pointer">
-                      전체선택
-                    </Label>
-                  </div>
-                </div>
-                <div className="grid grid-cols-5 gap-4">
-                  {Object.entries(CATEGORY_PERMISSIONS).map(([key, item]) => (
-                    <div key={key} className="flex items-center gap-2">
-                      <Checkbox
-                        id={`cat-${key}`}
-                        checked={!!formData.categoryPermissions?.[item.code]}
-                        onCheckedChange={(checked) =>
-                          handleCategoryPermissionChange(item.code, checked === true)
-                        }
-                      />
-                      <Label htmlFor={`cat-${key}`} className="text-sm">
-                        {item.label}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
             </TabsContent>
           </Tabs>
 
