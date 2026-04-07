@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1278,8 +1278,12 @@ export default function EmployeesPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-4 gap-x-6 gap-y-1">
-                  {DEFAULT_NAV_DATA.map((item) => (
-                    <div key={item.id} className="mb-2">
+                  {DEFAULT_NAV_DATA.map((item, index) => (
+                    <Fragment key={item.id}>
+                      {index > 0 && index % 4 === 0 && (
+                        <div className="col-span-4 border-t border-gray-200 my-2" />
+                      )}
+                    <div className="mb-2">
                       {/* 메인카테고리 */}
                       <div className="flex items-center gap-2 py-1">
                         <Checkbox
@@ -1319,6 +1323,7 @@ export default function EmployeesPage() {
                         </div>
                       )}
                     </div>
+                    </Fragment>
                   ))}
                 </div>
               </div>
