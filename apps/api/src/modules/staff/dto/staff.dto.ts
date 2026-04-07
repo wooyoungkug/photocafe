@@ -99,8 +99,8 @@ export class CreateStaffDto {
   mobile?: string;
 
   @ApiPropertyOptional({ description: '이메일', example: 'staff@company.com' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
   @IsOptional()
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
   email?: string;
 
   @ApiPropertyOptional({ description: '우편번호' })

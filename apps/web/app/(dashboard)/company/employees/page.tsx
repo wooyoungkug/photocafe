@@ -1277,7 +1277,7 @@ export default function EmployeesPage() {
                     </Label>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                <div className="grid grid-cols-4 gap-x-6 gap-y-1">
                   {DEFAULT_NAV_DATA.map((item) => (
                     <div key={item.id} className="mb-2">
                       {/* 메인카테고리 */}
