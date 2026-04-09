@@ -656,6 +656,13 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   // 메뉴 접근권한 필터링 (최고관리자만 전체 표시)
   const isSuperAdmin = user?.isSuperAdmin === true;
   const menuPerms = user?.menuPermissions ?? {};
+  // menuPermissions 값이 boolean(true) 또는 객체({ canView: true })일 수 있음
+  const hasPerm = (key: string): boolean => {
+    const val = menuPerms[key];
+    if (val === true) return true;
+    if (val && typeof val === 'object' && (val as Record<string, unknown>).canView === true) return true;
+    return false;
+  };
   const filteredNavigation = isSuperAdmin
     ? navigation
     : navigation
@@ -666,7 +673,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           if (!item.children) return item;
           // 서브메뉴 필터링
           const visibleChildren = item.children.filter(
-            (child) => menuPerms[child.href] === true
+            (child) => hasPerm(child.href)
           );
           if (visibleChildren.length === 0) return null;
           return { ...item, children: visibleChildren };
