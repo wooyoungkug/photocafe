@@ -459,7 +459,7 @@ export class QuotationService {
     // 그룹 단가 조회 (거래처 그룹 또는 비회원 직접 선택 그룹)
     if (effectiveGroupId) {
       const groupPrice = await this.prisma.groupProductionSettingPrice.findFirst({
-        where: { groupId: effectiveGroupId, specificationId: dto.specificationId },
+        where: { clientGroupId: effectiveGroupId, specificationId: dto.specificationId },
       });
 
       if (groupPrice) {
