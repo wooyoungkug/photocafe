@@ -332,13 +332,124 @@ function formatCurrency(amount: number): string {
 }
 ```
 
+## 인쇄용 PDF 변환 시스템 (PrintPdfModule)
+
+2026-04-10 구축 완료. 출력대기 주문의 JPG → 인쇄용 PDF 변환 (재단여백 + 인덱스 + Nup).
+
+### 모듈 구조
+
+```
+apps/api/src/modules/print-pdf/
+  print-pdf.module.ts                          # NestJS 모듈
+  controllers/print-pdf.controller.ts          # API 엔드포인트
+  services/
+    print-pdf.service.ts                       # 오케스트레이션 + Job 관리
+    print-pdf-renderer.service.ts              # PDFKit 렌더링 (이미지+인덱스+재단선)
+    print-pdf-layout.service.ts                # 1up/Nup 페이지 크기 계산
+  dto/print-pdf.dto.ts                         # DTO 정의
+
+apps/web/app/(dashboard)/orders/print-queue/
+  page.tsx                                     # 메인 페이지
+  components/
+    PrintQueueTable.tsx                        # 출력대기 테이블 (체크박스 선택)
+    PdfConvertDialog.tsx                       # 변환 옵션 (인덱스 10개 ON/OFF)
+    PdfProgressTracker.tsx                     # 진행상태 + 다운로드
+
+apps/web/hooks/use-print-pdf.ts                # TanStack Query 훅
+```
+
+### API 엔드포인트
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/print-pdf/queue` | 출력대기 주문목록 (currentProcess='print_waiting') |
+| GET | `/print-pdf/queue/:orderItemId` | 항목 상세 (파일목록 포함) |
+| POST | `/print-pdf/generate` | PDF 생성 요청 (비동기 Job) |
+| GET | `/print-pdf/jobs/:jobId/status` | 진행상태 |
+| GET | `/print-pdf/jobs/:jobId/download` | PDF 다운로드 (스트리밍) |
+
+### PDF 페이지 레이아웃
+
+```
++--------------------------------------------------+
+| 인덱스 영역 (8mm) - 재단 후 잘려나감               |
+| 2026-04-10 15:30 | ORD-260410-001 | 스마일스튜디오 |
++==================================================+ ← crop mark
+| bleed top (3mm)                                   |
++--------------------------------------------------+
+|           원본 이미지 (trim 영역, 무손실 100%)      |
++--------------------------------------------------+
+| bleed bottom (3mm)                                |
++==================================================+ ← crop mark
+```
+
+### 핵심 기술
+
+- **화질 무손실**: PDFKit이 JPEG 원본 바이트스트림을 그대로 임베딩 (`compress: false`)
+- **인덱스 10항목**: 출력날짜, 날짜+시간, 주문번호, 스튜디오명, 규격, 용지명, 페이지정보, 인디고도수(4도/6도), 제본방법, Nup
+- **재단선**: ISO 12647 L자형 crop mark (0.25pt 헤어라인, 5mm 길이, 1mm offset)
+- **Nup 지원**: 1up/2up/4up/6up/9up, 용지 원판 크기 기준 셀 배치
+- **한글 폰트**: NanumGothic.ttf (`apps/api/fonts/`), 6pt
+
+### 페이지 크기 계산식
+
+```
+trimW  = Specification.jdfTrimWidth  || widthMm
+trimH  = Specification.jdfTrimHeight || heightMm
+bleed  = jdfBleed* (기본 3mm)
+INDEX_HEIGHT = 8mm
+MM_TO_PT = 72 / 25.4
+
+pageW_pt = (trimW + bleedL + bleedR) * MM_TO_PT
+pageH_pt = (trimH + bleedT + bleedB + INDEX_HEIGHT) * MM_TO_PT
+```
+
+### 데이터 소스 (인덱스 항목)
+
+| 항목 | 소스 |
+|------|------|
+| 규격 | OrderItem.size / Specification 모델 |
+| 용지명 | OrderItem.paper / Paper.name |
+| 인디고도수 | ColorIntent.displayNameKo (colorIntentId로 조회) |
+| 제본방법 | OrderItem.bindingType |
+| Nup | Specification.nup |
+
+### 저장 경로
+
+```
+uploads/orders/{YYYY}/{MM}/{DD}/{company}/{orderNumber}/print-pdf/
+  {productionNumber}_print_{timestamp}.pdf
+```
+
+### GeneratePrintPdfDto 주요 필드
+
+```typescript
+{
+  orderItemIds: string[];       // 변환할 주문항목 ID
+  indexOptions: IndexOptionsDto; // 10개 항목 개별 ON/OFF
+  includeBleed: boolean;        // 재단여백 포함
+  includeCropMarks: boolean;    // 재단선 표시
+  nupOverride?: string;         // Nup 수동 지정 (예: "2up")
+}
+```
+
+### 비동기 Job 방식
+
+1. `POST /print-pdf/generate` → jobId 반환
+2. 프론트에서 `GET /jobs/:jobId/status` 2초 폴링
+3. 완료 시 `GET /jobs/:jobId/download`로 다운로드
+4. Job 상태는 메모리(Map) 저장 (서버 재시작 시 초기화)
+
 ## 체크리스트
 
 PDF 기능 구현 시 확인사항:
 
-- [ ] 한글 폰트 포함 (NotoSansKR 권장)
+- [ ] 한글 폰트 포함 (NanumGothic.ttf - `apps/api/fonts/`)
 - [ ] 파일명 인코딩 처리 (한글 파일명)
 - [ ] 메모리 관리 (대용량 PDF 스트리밍)
 - [ ] 에러 처리 (폰트 없음, 템플릿 오류)
 - [ ] 캐싱 고려 (동일 문서 재생성 방지)
 - [ ] 인쇄 최적화 설정 (300 DPI)
+- [ ] 인쇄용 PDF: 무손실 이미지 임베딩 (sharp 리사이즈 금지)
+- [ ] crop mark: ISO 12647 표준 준수
+- [ ] Nup 배치 시 셀 간 gutter 확보
