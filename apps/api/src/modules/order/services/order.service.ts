@@ -300,8 +300,29 @@ export class OrderService {
     );
     const nameMap = await this.resolveProcessedByNames(processedByIds);
 
+    // 각 주문 아이템별 원본 파일(uploaded) 수 조회
+    const allItemIds = data.flatMap(order => order.items.map(item => item.id));
+    const originalFileCounts = allItemIds.length > 0
+      ? await this.prisma.orderFile.groupBy({
+          by: ['orderItemId'],
+          where: {
+            orderItemId: { in: allItemIds },
+            originalPath: { not: null },
+            storageStatus: 'uploaded',
+          },
+          _count: true,
+        })
+      : [];
+    const originalCountMap = new Map(
+      originalFileCounts.map(r => [r.orderItemId, r._count]),
+    );
+
     const enrichedData = data.map(order => ({
       ...order,
+      items: order.items.map(item => ({
+        ...item,
+        originalFileCount: originalCountMap.get(item.id) || 0,
+      })),
       processHistory: order.processHistory?.map(h => ({
         ...h,
         processedByName: nameMap[h.processedBy] || '-',

@@ -429,6 +429,8 @@ export default function OrderListPage() {
                       : (STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt);
                     const isSelected = selectedOrderIds.has(order.id);
 
+                    const hasOriginals = items.some((i: any) => i.originalFileCount > 0);
+
                     return items.map((item, idx) => (
                       <TableRow
                         key={item.id}
@@ -551,6 +553,11 @@ export default function OrderListPage() {
                             <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-300 text-red-500">
                               삭제됨
                             </Badge>
+                          ) : !hasOriginals ? (
+                            <div className="space-y-1 whitespace-nowrap">
+                              <div className="text-muted-foreground">{formatFileSize(Number(item.totalFileSize))}</div>
+                              <span className="text-[11px] text-muted-foreground">원본 없음</span>
+                            </div>
                           ) : (
                             <div className="space-y-1 whitespace-nowrap">
                               <div>{formatFileSize(Number(item.totalFileSize))}</div>
