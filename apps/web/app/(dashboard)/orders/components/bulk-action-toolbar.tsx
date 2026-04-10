@@ -41,6 +41,7 @@ const STATUS_OPTIONS = [
   { value: 'pending_receipt', label: '접수대기' },
   { value: 'receipt_completed', label: '접수완료' },
   { value: 'in_production', label: '생산진행' },
+  { value: 'print_waiting', label: '출력대기' },
   { value: 'ready_for_shipping', label: '제작완료' },
   { value: 'shipped', label: '거래완료' },
   { value: 'cancelled', label: '취소' },
