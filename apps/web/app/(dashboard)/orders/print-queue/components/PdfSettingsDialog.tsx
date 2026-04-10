@@ -388,6 +388,9 @@ export default function PdfSettingsDialog({
                     />
                     <span className="text-[14px] text-gray-500">mm</span>
                   </div>
+                  <span className="text-[12px] text-gray-400 whitespace-nowrap">
+                    ({(parseFloat(canvasWidth) / 25.4).toFixed(1)}" x {(parseFloat(canvasHeight) / 25.4).toFixed(1)}")
+                  </span>
                 </div>
               )}
 
