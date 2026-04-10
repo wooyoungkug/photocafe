@@ -120,7 +120,12 @@ export class PrintPdfService {
           nup: nupMap.get(item.size) || null,
           orderedAt: order.orderedAt,
           requestedDeliveryDate: order.requestedDeliveryDate,
-          pdfStatus: item.pdfStatus || null,
+          pdfStatus: item.pdfStatus || (
+            // 유효한 원본 파일이 없으면 실패로 표시
+            (item.files || []).every((f: any) => !f.originalPath || f.storageStatus === 'deleted' || f.storageStatus === 'missing')
+              ? 'failed'
+              : null
+          ),
         })),
     );
 
