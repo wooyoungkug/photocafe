@@ -122,6 +122,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "접수대기", href: "/orders/pending" },
       { name: "공정 현황", href: "/orders/production" },
       { name: "공정 스캔", href: "/orders/process-scan" },
+      { name: "출력대기 PDF", href: "/orders/print-queue" },
       { name: "배송관리", href: "/orders/shipping" },
       { name: "마감관리", href: "/orders/reception" },
     ],
