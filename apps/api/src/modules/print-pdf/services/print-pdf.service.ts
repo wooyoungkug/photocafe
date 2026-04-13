@@ -11,6 +11,8 @@ import { PrintPdfLayoutService, SpecInput, PaperInput } from './print-pdf-layout
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const sharp = require('sharp');
 
 @Injectable()
 export class PrintPdfService {
@@ -354,6 +356,14 @@ export class PrintPdfService {
           }
         }
 
+        // 펼친면(spread) 주문 → 이미지를 좌/우로 분할 (좌 우선)
+        // 제본방향에 따라 첫/막 페이지 한 쪽 절반을 버림
+        // - bindingDirection에 'RIGHT_START' 포함 → 첫 이미지의 왼쪽 절반 버림
+        // - bindingDirection에 'LEFT_END' 포함 → 마지막 이미지의 오른쪽 절반 버림
+        if ((item.pageLayout || '').toLowerCase() === 'spread' && files.length > 0) {
+          files = await this.splitSpreads(files, item.bindingDirection, tempDir);
+        }
+
         if (files.length === 0) {
           const totalFiles = item.files?.length || 0;
           const fileUrlSample = item.files?.[0]?.fileUrl?.substring(0, 50) || 'none';
@@ -443,6 +453,71 @@ export class PrintPdfService {
 
     job.status = job.results.some((r) => r.status === 'failed') ? 'completed' : 'completed';
     job.currentItem = undefined;
+  }
+
+  /**
+   * 펼친면 이미지를 좌/우로 분할한 파일 리스트 생성.
+   * 좌→우 순서로 배치. 제본방향 규칙에 따라 첫/막 절반을 드롭.
+   */
+  private async splitSpreads(
+    files: Array<{ originalPath: string; sortOrder: number; isTemp?: boolean }>,
+    bindingDirection: string | null | undefined,
+    tempDir: string,
+  ): Promise<Array<{ originalPath: string; sortOrder: number; isTemp?: boolean }>> {
+    const spreadDir = path.join(tempDir, 'spread-split');
+    if (!fs.existsSync(spreadDir)) fs.mkdirSync(spreadDir, { recursive: true });
+
+    const sorted = [...files].sort((a, b) => a.sortOrder - b.sortOrder);
+    const bd = (bindingDirection || '').toUpperCase();
+    const dropLeftOfFirst = bd.includes('RIGHT_START');
+    const dropRightOfLast = bd.includes('LEFT_END');
+
+    const out: Array<{ originalPath: string; sortOrder: number; isTemp?: boolean }> = [];
+    let order = 0;
+
+    for (let i = 0; i < sorted.length; i++) {
+      const f = sorted[i];
+      const isFirst = i === 0;
+      const isLast = i === sorted.length - 1;
+
+      let meta: any;
+      try {
+        meta = await sharp(f.originalPath).metadata();
+      } catch (err: any) {
+        this.logger.warn(`spread split: metadata failed for ${f.originalPath}: ${err.message}`);
+        out.push({ ...f, sortOrder: order++ });
+        continue;
+      }
+      const w = meta.width || 0;
+      const h = meta.height || 0;
+      if (w < 2 || h < 1) {
+        out.push({ ...f, sortOrder: order++ });
+        continue;
+      }
+      const halfW = Math.floor(w / 2);
+
+      // 좌 절반
+      if (!(isFirst && dropLeftOfFirst)) {
+        const leftPath = path.join(spreadDir, `${crypto.randomUUID()}_L.jpg`);
+        await sharp(f.originalPath)
+          .extract({ left: 0, top: 0, width: halfW, height: h })
+          .jpeg({ quality: 100, chromaSubsampling: '4:4:4', mozjpeg: true })
+          .toFile(leftPath);
+        out.push({ originalPath: leftPath, sortOrder: order++, isTemp: true });
+      }
+
+      // 우 절반
+      if (!(isLast && dropRightOfLast)) {
+        const rightPath = path.join(spreadDir, `${crypto.randomUUID()}_R.jpg`);
+        await sharp(f.originalPath)
+          .extract({ left: halfW, top: 0, width: w - halfW, height: h })
+          .jpeg({ quality: 100, chromaSubsampling: '4:4:4', mozjpeg: true })
+          .toFile(rightPath);
+        out.push({ originalPath: rightPath, sortOrder: order++, isTemp: true });
+      }
+    }
+
+    return out;
   }
 
   /**
