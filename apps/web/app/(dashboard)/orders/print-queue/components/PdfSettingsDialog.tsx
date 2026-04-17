@@ -56,7 +56,6 @@ const SETTING_KEYS = {
 const CATEGORY = 'print_pdf';
 
 const INDEX_OPTION_LABELS: { key: keyof IndexOptions; label: string }[] = [
-  { key: 'showDate', label: '출력날짜' },
   { key: 'showDateTime', label: '출력날짜+시간' },
   { key: 'showOrderNumber', label: '주문번호' },
   { key: 'showStudioName', label: '스튜디오명' },

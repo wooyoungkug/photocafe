@@ -11,10 +11,6 @@ import { Type } from 'class-transformer';
 
 // ==================== 인덱스 옵션 ====================
 export class IndexOptionsDto {
-  @ApiProperty({ description: '출력날짜 표시', default: true })
-  @IsBoolean()
-  showDate: boolean = true;
-
   @ApiProperty({ description: '출력날짜+시간 표시', default: true })
   @IsBoolean()
   showDateTime: boolean = true;

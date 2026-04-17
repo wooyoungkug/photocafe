@@ -390,7 +390,6 @@ export class PrintPdfRendererService {
 
     // key → 텍스트 매핑
     const keyValueMap: Record<string, () => string> = {
-      showDate: () => this.formatDate(now),
       showDateTime: () => this.formatDateTime(now),
       showOrderNumber: () => data.orderNumber,
       showStudioName: () => data.studioName,

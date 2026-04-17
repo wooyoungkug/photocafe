@@ -36,7 +36,6 @@ export interface IndexOrderItem {
 }
 
 const DEFAULT_INDEX_ORDER: IndexOrderItem[] = [
-  { key: 'showDate', label: '출력날짜', enabled: true },
   { key: 'showDateTime', label: '출력날짜+시간', enabled: true },
   { key: 'showOrderNumber', label: '주문번호', enabled: true },
   { key: 'showStudioName', label: '스튜디오명', enabled: true },

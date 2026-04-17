@@ -37,7 +37,6 @@ export interface PrintQueueResponse {
 }
 
 export interface IndexOptions {
-  showDate: boolean;
   showDateTime: boolean;
   showOrderNumber: boolean;
   showStudioName: boolean;
@@ -84,7 +83,6 @@ export interface PdfJobProgress {
 // ==================== 기본 인덱스 옵션 ====================
 
 export const DEFAULT_INDEX_OPTIONS: IndexOptions = {
-  showDate: true,
   showDateTime: true,
   showOrderNumber: true,
   showStudioName: true,
