@@ -121,8 +121,9 @@ function TreeNode({
             ? "bg-indigo-50 border-indigo-200 shadow-sm"
             : "hover:bg-gray-50 border-transparent hover:border-gray-100"
         )}
-        style={{ marginLeft: `${level * 24}px` }}
+        style={{ marginLeft: `${level * 14}px` }}
         onClick={() => onSelectGroup(group)}
+        title={group.name}
       >
         <div
           className={cn(
@@ -175,8 +176,12 @@ function TreeNode({
         </div>
 
         {settingsCount > 0 && (
-          <Badge variant="secondary" className="text-[10px] h-4 px-1.5 bg-slate-100 text-slate-500">
-            {settingsCount}개 설정
+          <Badge
+            variant="secondary"
+            className="text-[10px] h-4 px-1.5 bg-slate-100 text-slate-500 shrink-0"
+            title={`${settingsCount}개 설정`}
+          >
+            {settingsCount}
           </Badge>
         )}
       </div>
@@ -1893,7 +1898,7 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName,
       )}
 
       {/* 메인 콘텐츠: 트리 + 설정 패널 */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
         {/* 좌측: 제품 분류 트리 */}
         <Card className="flex flex-col border-0 shadow-lg bg-white/50 backdrop-blur-sm overflow-hidden h-full">
           <CardHeader className="border-b border-gray-100 bg-white/80 py-3 px-4">
