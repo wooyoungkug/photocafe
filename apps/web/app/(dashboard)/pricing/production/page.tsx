@@ -3107,7 +3107,7 @@ export default function ProductionSettingPage() {
                                     <span className="text-gray-500">총 {rows.length}개 Nup</span>
                                   )}
                                 </div>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-0.5">
+                                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                                   {rows.map(({ nupKey, specs }) => (
                                     <div key={nupKey} className="flex items-start gap-1">
                                       <span className="font-bold text-indigo-600 min-w-[42px] shrink-0">{nupKey}</span>
