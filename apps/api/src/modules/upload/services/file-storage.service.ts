@@ -2,7 +2,6 @@ import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/co
 import { join, extname } from 'path';
 import { existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync, rmSync, copyFileSync } from 'fs';
 import { rm } from 'fs/promises';
-import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ThumbnailService } from './thumbnail.service';
 
 // 모듈 레벨 base path (multer 콜백에서 접근용)
@@ -23,7 +22,6 @@ export class FileStorageService implements OnModuleInit {
   private basePath: string;
 
   constructor(
-    private readonly prisma: PrismaService,
     @Inject(forwardRef(() => ThumbnailService))
     private readonly thumbnailService: ThumbnailService,
   ) {
@@ -37,29 +35,8 @@ export class FileStorageService implements OnModuleInit {
   }
 
   async onModuleInit() {
-    try {
-      const setting = await this.prisma.systemSetting.findUnique({
-        where: { key: 'server_upload_base_path' },
-      });
-      if (setting?.value) {
-        const dbPath = setting.value;
-        const resolvedPath = (dbPath.startsWith('/') || /^[A-Z]:/i.test(dbPath))
-          ? dbPath
-          : join(process.cwd(), dbPath);
-        if (existsSync(resolvedPath)) {
-          this.basePath = resolvedPath;
-          _sharedBasePath = resolvedPath;
-          this.ensureDirectories();
-          this.logger.log(`업로드 경로 (DB 설정): ${resolvedPath}`);
-        } else {
-          this.logger.warn(`DB 설정 경로 접근 불가, 기본값 사용: ${this.basePath}`);
-        }
-      } else {
-        this.logger.log(`업로드 경로 (ENV 기본값): ${this.basePath}`);
-      }
-    } catch (err) {
-      this.logger.warn(`DB 설정 로드 실패, 기본값 사용: ${this.basePath}`);
-    }
+    // 경로 결정은 ENV(UPLOAD_BASE_PATH)만 사용. DB 설정은 제거됨.
+    this.logger.log(`업로드 경로: ${this.basePath} (source: ${process.env.UPLOAD_BASE_PATH ? 'ENV' : 'default'})`);
   }
 
   private ensureDirectories() {
