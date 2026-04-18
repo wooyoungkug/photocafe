@@ -224,18 +224,24 @@ export class PrintPdfService {
 
   /**
    * PDF 다운로드 경로 반환
+   * - itemId 지정 시: 해당 orderItem의 PDF 반환 (job 완료 전에도 개별 항목 완료 시점에 다운로드 가능)
+   * - itemId 미지정 시: job 완료 후 첫 번째 완료 PDF 반환 (하위 호환)
    */
-  async getDownloadPath(jobId: string): Promise<string | null> {
+  async getDownloadPath(jobId: string, itemId?: string): Promise<string | null> {
     const job = this.jobs.get(jobId);
-    if (!job || job.status !== 'completed') return null;
+    if (!job) return null;
+
+    if (itemId) {
+      const target = job.results.find(
+        (r) => r.orderItemId === itemId && r.status === 'completed' && r.pdfPath,
+      );
+      return target?.pdfPath || null;
+    }
+
+    if (job.status !== 'completed') return null;
 
     const completedResults = job.results.filter((r) => r.status === 'completed' && r.pdfPath);
     if (completedResults.length === 0) return null;
-
-    // 단건이면 바로 반환
-    if (completedResults.length === 1) {
-      return completedResults[0].pdfPath!;
-    }
 
     // 다건이면 첫 번째 반환 (ZIP은 Phase 4에서 구현)
     return completedResults[0].pdfPath!;
@@ -244,7 +250,7 @@ export class PrintPdfService {
   // ==================== Private ====================
 
   /** 동시 처리 항목 수 (PDF 렌더링은 CPU/IO 부담이 크므로 과도한 병렬은 피함) */
-  private static readonly PROCESS_CONCURRENCY = 2;
+  private static readonly PROCESS_CONCURRENCY = 4;
 
   private async processJob(jobId: string, dto: GeneratePrintPdfDto) {
     const job = this.jobs.get(jobId)!;

@@ -53,9 +53,13 @@ export class PrintPdfController {
   }
 
   @Get('jobs/:jobId/download')
-  @ApiOperation({ summary: '생성된 PDF 다운로드' })
-  async downloadPdf(@Param('jobId') jobId: string, @Res() res: Response) {
-    const pdfPath = await this.printPdfService.getDownloadPath(jobId);
+  @ApiOperation({ summary: '생성된 PDF 다운로드 (itemId 지정 시 해당 항목의 PDF만 반환)' })
+  async downloadPdf(
+    @Param('jobId') jobId: string,
+    @Res() res: Response,
+    @Query('itemId') itemId?: string,
+  ) {
+    const pdfPath = await this.printPdfService.getDownloadPath(jobId, itemId);
     if (!pdfPath || !fs.existsSync(pdfPath)) {
       throw new NotFoundException('PDF 파일을 찾을 수 없습니다.');
     }
