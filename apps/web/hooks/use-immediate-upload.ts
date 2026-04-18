@@ -460,13 +460,22 @@ export function useImmediateUpload(productId: string) {
           immediateUploadStatus: 'completed',
           immediateUploadProgress: 100,
           immediateUploadedCount: data.files.length,
-          immediateServerFiles: data.files.map((f: any) => ({
-            tempFileId: `${sf.tempFolderId}/${f.fileName}`,
-            fileUrl: f.fileUrl,
-            thumbnailUrl: f.thumbnailUrl,
-            sortOrder: f.sortOrder,
-            fileName: f.fileName,
-          })),
+          immediateServerFiles: data.files.map((f: any, idx: number) => {
+            const reconstructed = files[idx];
+            return {
+              tempFileId: `${sf.tempFolderId}/${f.fileName}`,
+              fileUrl: f.fileUrl,
+              thumbnailUrl: f.thumbnailUrl,
+              sortOrder: f.sortOrder,
+              fileName: f.fileName,
+              widthPx: reconstructed?.widthPx || 0,
+              heightPx: reconstructed?.heightPx || 0,
+              widthInch: reconstructed?.widthInch || 0,
+              heightInch: reconstructed?.heightInch || 0,
+              dpi: reconstructed?.dpi || 0,
+              fileSize: f.fileSize || reconstructed?.fileSize || 0,
+            };
+          }),
         };
 
         // addFolder로 추가 (validateFolder로 availableSizes 등 계산)

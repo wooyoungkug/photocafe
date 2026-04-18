@@ -264,11 +264,11 @@ export const api = {
   get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
     request<T>(endpoint, { method: 'GET', params }),
 
-  post: <T>(endpoint: string, data?: unknown) =>
-    request<T>(endpoint, { method: 'POST', body: JSON.stringify(data), timeout: 30000 }),
+  post: <T>(endpoint: string, data?: unknown, options?: { timeout?: number }) =>
+    request<T>(endpoint, { method: 'POST', body: JSON.stringify(data), timeout: options?.timeout ?? 30000 }),
 
-  put: <T>(endpoint: string, data?: unknown) =>
-    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data), timeout: 30000 }),
+  put: <T>(endpoint: string, data?: unknown, options?: { timeout?: number }) =>
+    request<T>(endpoint, { method: 'PUT', body: JSON.stringify(data), timeout: options?.timeout ?? 30000 }),
 
   patch: <T>(endpoint: string, data?: unknown) =>
     request<T>(endpoint, { method: 'PATCH', body: JSON.stringify(data) }),

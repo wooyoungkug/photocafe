@@ -459,6 +459,28 @@ export class OrderService {
       throw new NotFoundException('거래처를 찾을 수 없습니다');
     }
 
+    // temp 파일 존재 검증 (세션 복원 등으로 만료된 temp URL 참조 방지)
+    // 파일이 있는데 전부 temp 경로를 참조하고, 해당 temp 폴더가 비어있거나 없으면 에러
+    for (const item of items) {
+      if (!item.files?.length) continue;
+      const firstUrl = item.files[0].fileUrl || '';
+      if (!firstUrl.includes('/temp/')) continue;
+      const parts = firstUrl.replace(/\\/g, '/').split('/temp/');
+      if (parts.length < 2) continue;
+      const tempFolderId = parts[1].split('/')[0];
+      const tempOriginalsDir = this.fileStorage.getTempOriginalsDir(tempFolderId);
+      const { readdirSync, existsSync } = require('fs');
+      let uploadedCount = 0;
+      if (existsSync(tempOriginalsDir)) {
+        try { uploadedCount = readdirSync(tempOriginalsDir).length; } catch { /* ignore */ }
+      }
+      if (uploadedCount === 0) {
+        throw new BadRequestException(
+          `업로드된 파일이 만료되었거나 존재하지 않습니다. 파일을 다시 업로드해주세요. (폴더: ${item.folderName || '-'})`,
+        );
+      }
+    }
+
     // 트랜잭션 내에서 주문번호 생성 + 주문 생성 (advisory lock으로 직렬화)
     const order = await this.prisma.$transaction(async (tx) => {
       const orderNumber = await this.generateOrderNumber(tx);
