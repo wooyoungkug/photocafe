@@ -102,6 +102,7 @@ export class PrintPdfRendererService {
     indexOrderKeys?: string[],
     indexPosition: 'top' | 'bottom' = 'bottom',
     canvasSize?: { widthMm: number; heightMm: number },
+    onPageRendered?: (current: number, total: number) => void,
   ): Promise<string> {
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
@@ -190,6 +191,11 @@ export class PrintPdfRendererService {
           if (includeCropMarks) {
             this.renderCropMarks(doc, offsetDims);
           }
+
+          // 페이지별 진행률 콜백 (이벤트 루프 양보로 폴링 응답 보장)
+          if (onPageRendered) {
+            try { onPageRendered(i + 1, totalPages); } catch { /* ignore */ }
+          }
         }
 
         doc.end();
@@ -211,6 +217,7 @@ export class PrintPdfRendererService {
     includeCropMarks: boolean,
     indexOrderKeys?: string[],
     indexPosition: 'top' | 'bottom' = 'bottom',
+    onPageRendered?: (current: number, total: number) => void,
   ): Promise<string> {
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
@@ -272,6 +279,11 @@ export class PrintPdfRendererService {
             // 셀 내 재단선
             if (includeCropMarks) {
               this.renderCropMarksInCell(doc, dims, cell.x, cell.y);
+            }
+
+            // 페이지별 진행률 콜백
+            if (onPageRendered) {
+              try { onPageRendered(fileIdx + 1, totalPages); } catch { /* ignore */ }
             }
           }
         }

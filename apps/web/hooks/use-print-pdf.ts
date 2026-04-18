@@ -67,8 +67,10 @@ export interface PdfJobResult {
   studioName: string;
   status: 'completed' | 'failed' | 'pending' | 'in_progress';
   pdfPath?: string;
-  /** 다운로드 파일명 (주문번호_파일명_용지_양면|단면.pdf) */
+  /** 다운로드 파일명 */
   fileName?: string;
+  /** 하위폴더 분리용(양면/단면) */
+  side?: string;
   error?: string;
 }
 
@@ -77,6 +79,10 @@ export interface PdfJobProgress {
   status: 'pending' | 'in_progress' | 'completed' | 'failed';
   totalItems: number;
   completedItems: number;
+  /** 전체 페이지 수 (세밀 진행률) */
+  totalPages?: number;
+  /** 처리된 페이지 수 */
+  processedPages?: number;
   currentItem?: string;
   results: PdfJobResult[];
   createdAt: string;
@@ -173,7 +179,7 @@ export function usePdfJobStatus(jobId: string | null) {
       const data = query.state.data as PdfJobProgress | undefined;
       // 완료/실패 시 폴링 중지
       if (data?.status === 'completed' || data?.status === 'failed') return false;
-      return 2000; // 2초 간격 폴링
+      return 1000; // 1초 간격 폴링 (세밀한 페이지 진행률 반영)
     },
   });
 }

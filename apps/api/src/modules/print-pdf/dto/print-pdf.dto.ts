@@ -155,6 +155,10 @@ export interface PdfJobProgress {
   status: PdfJobStatus;
   totalItems: number;
   completedItems: number;
+  /** 전체 페이지 수 (세밀 진행률) */
+  totalPages?: number;
+  /** 처리된 페이지 수 */
+  processedPages?: number;
   currentItem?: string;
   results: Array<{
     orderItemId: string;
@@ -163,8 +167,10 @@ export interface PdfJobProgress {
     status: 'completed' | 'failed' | 'pending' | 'in_progress';
     pdfPath?: string;
     error?: string;
-    /** 다운로드 시 사용할 파일명 (주문번호_파일명_용지_양면|단면.pdf) */
+    /** 다운로드 시 사용할 파일명 */
     fileName?: string;
+    /** 하위폴더 분리용 구분(양면/단면) */
+    side?: string;
   }>;
   createdAt: Date;
 }

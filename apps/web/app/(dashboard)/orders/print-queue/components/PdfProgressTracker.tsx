@@ -39,9 +39,17 @@ export default function PdfProgressTracker({
   isDownloading,
   saveToLocal = true,
 }: PdfProgressTrackerProps) {
-  const progress = job.totalItems > 0
-    ? Math.round((job.completedItems / job.totalItems) * 100)
-    : 0;
+  // 페이지 단위 진행률을 우선 사용 (1% 단위). 페이지 정보가 없으면 항목 단위로 fallback.
+  const progress = (() => {
+    if (job.totalPages && job.totalPages > 0) {
+      const pct = Math.floor(((job.processedPages || 0) / job.totalPages) * 100);
+      return Math.max(0, Math.min(100, pct));
+    }
+    if (job.totalItems > 0) {
+      return Math.round((job.completedItems / job.totalItems) * 100);
+    }
+    return 0;
+  })();
 
   const isJobDone = job.status === 'completed' || job.status === 'failed';
   const hasCompletedPdfs = job.results.some((r) => r.status === 'completed');
@@ -52,7 +60,7 @@ export default function PdfProgressTracker({
     'idle' | 'saving' | 'done' | 'error' | 'permission-needed'
   >('idle');
 
-  /** 공통: completed 항목을 순회하며 폴더 혹은 다운로드로 저장 */
+  /** 공통: completed 항목을 순회하며 폴더 혹은 다운로드로 저장 (양면/단면 하위폴더 분리) */
   const saveCompletedPdfs = async (forceHandle?: FileSystemDirectoryHandle) => {
     const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
     for (const result of job.results) {
@@ -66,7 +74,9 @@ export default function PdfProgressTracker({
 
       const blob = await response.blob();
       const fileName = resolveFileName(result);
-      await saveToLocalFolder(blob, fileName, forceHandle);
+      // side가 있으면 양면/단면 하위폴더로 분리 저장
+      const subfolder = result.side || undefined;
+      await saveToLocalFolder(blob, fileName, forceHandle, subfolder);
     }
   };
 
@@ -167,7 +177,13 @@ export default function PdfProgressTracker({
         <div className="space-y-1">
           <div className="flex items-center justify-between text-[14px] text-black font-normal">
             <span>
-              {job.completedItems}/{job.totalItems} 완료
+              {job.totalPages && job.totalPages > 0 ? (
+                <>
+                  {job.processedPages || 0}/{job.totalPages} 페이지 ({job.completedItems}/{job.totalItems} 건)
+                </>
+              ) : (
+                <>{job.completedItems}/{job.totalItems} 완료</>
+              )}
             </span>
             <span>{progress}%</span>
           </div>

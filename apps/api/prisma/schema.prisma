@@ -3713,6 +3713,8 @@ model PdfJob {
   status         String       @default("pending") // pending|in_progress|completed|failed
   totalItems     Int
   completedItems Int          @default(0)
+  totalPages     Int          @default(0)   // 전체 페이지 수 (세밀 progress용)
+  processedPages Int          @default(0)   // 처리된 페이지 수
   currentItem    String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -3731,7 +3733,8 @@ model PdfJobItem {
   studioName  String   @default("")
   status      String   @default("pending") // pending|in_progress|completed|failed
   pdfPath     String?
-  fileName    String?  // 다운로드 파일명 (주문번호_파일명_용지_양면|단면.pdf)
+  fileName    String?  // 다운로드 파일명
+  side        String?  // 양면|단면 (하위폴더 분리용)
   error       String?
   sortOrder   Int      @default(0)
   updatedAt   DateTime @updatedAt

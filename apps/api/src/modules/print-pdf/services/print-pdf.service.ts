@@ -198,11 +198,14 @@ export class PrintPdfService implements OnModuleInit {
   async generatePdf(dto: GeneratePrintPdfDto): Promise<PdfJobProgress> {
     const jobId = crypto.randomUUID();
 
-    // 대기 항목부터 주문번호/스튜디오명을 표시하기 위해 먼저 조회
+    // 대기 항목의 메타(주문번호/스튜디오/페이지레이아웃/파일수)를 한 번에 조회
     const metas = await this.prisma.orderItem.findMany({
       where: { id: { in: dto.orderItemIds } },
       select: {
         id: true,
+        pageLayout: true,
+        bindingDirection: true,
+        _count: { select: { files: true } },
         order: {
           select: {
             orderNumber: true,
@@ -213,11 +216,26 @@ export class PrintPdfService implements OnModuleInit {
     });
     const metaById = new Map(metas.map((m) => [m.id, m]));
 
+    // 전체 페이지 수 사전 계산 (spread는 좌/우 분할 x2, 제본방향 따라 첫/마지막 절반 드롭)
+    const totalPagesGuess = dto.orderItemIds.reduce((sum, id) => {
+      const m = metaById.get(id);
+      const fileCount = m?._count?.files ?? 0;
+      const isSpread = String(m?.pageLayout || '').toLowerCase() === 'spread';
+      if (!isSpread) return sum + fileCount;
+      const bd = String(m?.bindingDirection || '').toUpperCase();
+      let pages = fileCount * 2;
+      if (bd.includes('RIGHT_START')) pages -= 1;
+      if (bd.includes('LEFT_END')) pages -= 1;
+      return sum + Math.max(pages, 0);
+    }, 0);
+
     const job: PdfJobProgress = {
       jobId,
       status: 'pending',
       totalItems: dto.orderItemIds.length,
       completedItems: 0,
+      totalPages: totalPagesGuess,
+      processedPages: 0,
       results: dto.orderItemIds.map((id) => {
         const m = metaById.get(id);
         return {
@@ -240,6 +258,8 @@ export class PrintPdfService implements OnModuleInit {
           status: 'pending',
           totalItems: job.totalItems,
           completedItems: 0,
+          totalPages: totalPagesGuess,
+          processedPages: 0,
           items: {
             create: job.results.map((r, idx) => ({
               orderItemId: r.orderItemId,
@@ -289,6 +309,8 @@ export class PrintPdfService implements OnModuleInit {
         status: dbJob.status as PdfJobProgress['status'],
         totalItems: dbJob.totalItems,
         completedItems: dbJob.completedItems,
+        totalPages: dbJob.totalPages,
+        processedPages: dbJob.processedPages,
         currentItem: dbJob.currentItem ?? undefined,
         results: dbJob.items.map((it) => ({
           orderItemId: it.orderItemId,
@@ -297,6 +319,7 @@ export class PrintPdfService implements OnModuleInit {
           status: it.status as PdfJobProgress['results'][number]['status'],
           pdfPath: it.pdfPath ?? undefined,
           fileName: it.fileName ?? undefined,
+          side: it.side ?? undefined,
           error: it.error ?? undefined,
         })),
         createdAt: dbJob.createdAt,
@@ -334,8 +357,8 @@ export class PrintPdfService implements OnModuleInit {
 
   // ==================== Private ====================
 
-  /** 동시 처리 항목 수 (PDF 렌더링은 CPU/IO 부담이 크므로 과도한 병렬은 피함) */
-  private static readonly PROCESS_CONCURRENCY = 4;
+  /** 동시 처리 항목 수. 1=순차 처리 (세밀한 페이지 단위 진행률 제공) */
+  private static readonly PROCESS_CONCURRENCY = 1;
 
   private async processJob(jobId: string, dto: GeneratePrintPdfDto) {
     const job = this.jobs.get(jobId)!;
@@ -359,10 +382,22 @@ export class PrintPdfService implements OnModuleInit {
 
     job.status = 'completed';
     job.currentItem = undefined;
+    // 예측 페이지 수와 실제 처리 페이지 수가 다를 수 있으므로 100%로 보정
+    if (job.totalPages && (job.processedPages || 0) < job.totalPages) {
+      job.processedPages = job.totalPages;
+    } else if (job.processedPages && (!job.totalPages || job.processedPages > job.totalPages)) {
+      job.totalPages = job.processedPages;
+    }
     await this.prisma.pdfJob
       .update({
         where: { id: jobId },
-        data: { status: 'completed', currentItem: null, completedItems: job.completedItems },
+        data: {
+          status: 'completed',
+          currentItem: null,
+          completedItems: job.completedItems,
+          processedPages: job.processedPages ?? 0,
+          totalPages: job.totalPages ?? 0,
+        },
       })
       .catch(() => {});
   }
@@ -563,6 +598,21 @@ export class PrintPdfService implements OnModuleInit {
         ? { widthMm: dto.canvasWidthMm, heightMm: dto.canvasHeightMm }
         : undefined;
 
+      // 페이지 단위 progress 콜백: 메모리 즉시 반영 + DB는 주기적으로만 write
+      let lastDbWrite = 0;
+      const onPageRendered = (current: number, _total: number) => {
+        const j = this.jobs.get(jobId);
+        if (!j) return;
+        j.processedPages = (j.processedPages || 0) + 1;
+        const now = Date.now();
+        if (now - lastDbWrite > 500) {
+          lastDbWrite = now;
+          this.prisma.pdfJob
+            .update({ where: { id: jobId }, data: { processedPages: j.processedPages } })
+            .catch(() => {});
+        }
+      };
+
       if (nupLayout.nUpX === 1 && nupLayout.nUpY === 1) {
         await this.renderer.generate1upPdf(
           files,
@@ -574,6 +624,7 @@ export class PrintPdfService implements OnModuleInit {
           dto.indexOrderKeys,
           indexPosition,
           canvasSize,
+          onPageRendered,
         );
       } else {
         await this.renderer.generateNupPdf(
@@ -585,12 +636,19 @@ export class PrintPdfService implements OnModuleInit {
           dto.includeCropMarks,
           dto.indexOrderKeys,
           indexPosition,
+          onPageRendered as any,
         );
       }
 
       result.status = 'completed';
       result.pdfPath = outputPath;
-      result.fileName = this.buildDownloadFileName(item);
+      const nupCount = nupLayout.nUpX * nupLayout.nUpY;
+      const isSpread = String(item?.pageLayout || '').toLowerCase() === 'spread';
+      result.side = isSpread ? '양면' : '단면';
+      result.fileName = this.buildDownloadFileName(item, {
+        colorMode,
+        nup: `${nupCount}up`,
+      });
       job.completedItems++;
 
       // DB에 pdfStatus 업데이트
@@ -606,7 +664,12 @@ export class PrintPdfService implements OnModuleInit {
         this.prisma.pdfJobItem
           .updateMany({
             where: { jobId, orderItemId, sortOrder: i },
-            data: { status: 'completed', pdfPath: outputPath, fileName: result.fileName },
+            data: {
+              status: 'completed',
+              pdfPath: outputPath,
+              fileName: result.fileName,
+              side: result.side,
+            },
           })
           .catch(() => {}),
         this.prisma.pdfJob
@@ -809,20 +872,26 @@ export class PrintPdfService implements OnModuleInit {
   }
 
   /**
-   * 다운로드 파일명 생성: {주문번호}_{파일명}_{용지}_{양면|단면}.pdf
-   * - 파일명: folderName 우선, 없으면 productionNumber
-   * - 양면/단면: pageLayout === 'spread'면 양면
+   * 다운로드 파일명 생성: {주문번호}_{스튜디오명}_{인디고도수}_{양면|단면}_{제본방법}_{Nup}.pdf
    */
-  private buildDownloadFileName(item: any): string {
+  private buildDownloadFileName(
+    item: any,
+    context: { colorMode?: string; nup?: string } = {},
+  ): string {
     const orderNumber = item?.order?.orderNumber || 'order';
-    const fileLabel = item?.folderName || item?.productionNumber || 'item';
-    const paper = item?.paper || '';
+    const studio = item?.order?.client?.clientName || '';
+    const colorMode = (context.colorMode || '').trim();
     const isSpread = String(item?.pageLayout || '').toLowerCase() === 'spread';
     const sideText = isSpread ? '양면' : '단면';
+    const binding = item?.bindingType || '';
+    const nup = context.nup || '1up';
 
-    const parts = [orderNumber, fileLabel];
-    if (paper) parts.push(paper);
+    const parts = [orderNumber];
+    if (studio) parts.push(studio);
+    if (colorMode && colorMode !== '-') parts.push(colorMode);
     parts.push(sideText);
+    if (binding && binding !== '-') parts.push(binding);
+    parts.push(nup);
 
     const raw = parts.join('_') + '.pdf';
     // 파일시스템 금지문자 치환

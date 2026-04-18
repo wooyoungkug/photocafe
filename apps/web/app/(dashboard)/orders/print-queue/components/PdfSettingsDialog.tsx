@@ -638,11 +638,13 @@ export async function restoreGlobalDirHandle(): Promise<FileSystemDirectoryHandl
 
 /**
  * 로컬 PC에 PDF blob을 저장하는 유틸
+ * - subfolder 지정 시 선택 폴더 아래 자동으로 하위 폴더를 생성하여 분리 저장
  */
 export async function saveToLocalFolder(
   blob: Blob,
   fileName: string,
   dirHandle?: FileSystemDirectoryHandle | null,
+  subfolder?: string,
 ): Promise<boolean> {
   let handle = dirHandle || _localDirHandle;
   if (!handle) {
@@ -654,7 +656,15 @@ export async function saveToLocalFolder(
     const perm = await queryHandlePermission(handle);
     if (perm === 'granted') {
       try {
-        const fileHandle = await handle.getFileHandle(fileName, { create: true });
+        // subfolder 지정 시 하위 폴더 핸들 확보 (없으면 생성)
+        let targetDir: FileSystemDirectoryHandle = handle;
+        if (subfolder) {
+          const safeSub = subfolder.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim();
+          if (safeSub) {
+            targetDir = await (handle as any).getDirectoryHandle(safeSub, { create: true });
+          }
+        }
+        const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
         const writable = await fileHandle.createWritable();
         await writable.write(blob);
         await writable.close();
