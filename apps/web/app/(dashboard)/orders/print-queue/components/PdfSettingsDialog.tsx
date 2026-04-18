@@ -583,8 +583,24 @@ async function idbClearHandle(): Promise<void> {
   } catch { /* ignore */ }
 }
 
-/** readwrite 권한 확인/요청. false면 권한 획득 실패. */
-async function ensureHandlePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
+/** 권한 상태만 확인 (passive). 'granted' | 'prompt' | 'denied' */
+export async function queryHandlePermission(
+  handle: FileSystemDirectoryHandle,
+): Promise<'granted' | 'prompt' | 'denied'> {
+  try {
+    const opts = { mode: 'readwrite' as const };
+    const anyHandle = handle as any;
+    const current = await anyHandle.queryPermission?.(opts);
+    return (current as any) || 'prompt';
+  } catch {
+    return 'denied';
+  }
+}
+
+/** readwrite 권한 요청 (user gesture 필요). false면 거부. */
+export async function requestHandlePermission(
+  handle: FileSystemDirectoryHandle,
+): Promise<boolean> {
   try {
     const opts = { mode: 'readwrite' as const };
     const anyHandle = handle as any;
@@ -634,14 +650,10 @@ export async function saveToLocalFolder(
   }
 
   if (handle) {
-    const allowed = await ensureHandlePermission(handle);
-    if (!allowed) {
-      // 권한 거부 → 핸들 폐기 후 브라우저 다운로드 fallback
-      setGlobalDirHandle(null);
-      console.warn('폴더 접근 권한이 거부되어 기본 다운로드로 전환합니다.');
-    } else {
+    // passive 체크만 수행 (폴링 컨텍스트에선 requestPermission 불가)
+    const perm = await queryHandlePermission(handle);
+    if (perm === 'granted') {
       try {
-        // File System Access API로 직접 저장
         const fileHandle = await handle.getFileHandle(fileName, { create: true });
         const writable = await fileHandle.createWritable();
         await writable.write(blob);
@@ -650,6 +662,8 @@ export async function saveToLocalFolder(
       } catch (err) {
         console.error('로컬 폴더 저장 실패, 다운로드로 전환:', err);
       }
+    } else {
+      console.warn(`폴더 권한 상태: ${perm} → 수동 저장 버튼을 사용해주세요.`);
     }
   }
 

@@ -8,7 +8,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { PdfJobProgress } from '@/hooks/use-print-pdf';
 import { API_URL } from '@/lib/api';
-import { saveToLocalFolder, getGlobalDirHandle, restoreGlobalDirHandle } from './PdfSettingsDialog';
+import {
+  saveToLocalFolder,
+  getGlobalDirHandle,
+  restoreGlobalDirHandle,
+  queryHandlePermission,
+  requestHandlePermission,
+  setGlobalDirHandle,
+} from './PdfSettingsDialog';
 
 interface PdfProgressTrackerProps {
   job: PdfJobProgress;
@@ -41,7 +48,27 @@ export default function PdfProgressTracker({
 
   // 자동 로컬 저장 (완료 시 한 번만 실행)
   const autoSavedRef = useRef(false);
-  const [localSaveStatus, setLocalSaveStatus] = useState<'idle' | 'saving' | 'done' | 'error'>('idle');
+  const [localSaveStatus, setLocalSaveStatus] = useState<
+    'idle' | 'saving' | 'done' | 'error' | 'permission-needed'
+  >('idle');
+
+  /** 공통: completed 항목을 순회하며 폴더 혹은 다운로드로 저장 */
+  const saveCompletedPdfs = async (forceHandle?: FileSystemDirectoryHandle) => {
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
+    for (const result of job.results) {
+      if (result.status !== 'completed') continue;
+
+      const response = await fetch(
+        `${API_URL}/print-pdf/jobs/${job.jobId}/download?itemId=${result.orderItemId}`,
+        { headers: { ...(token && { Authorization: `Bearer ${token}` }) } },
+      );
+      if (!response.ok) continue;
+
+      const blob = await response.blob();
+      const fileName = resolveFileName(result);
+      await saveToLocalFolder(blob, fileName, forceHandle);
+    }
+  };
 
   useEffect(() => {
     if (!isJobDone || !saveToLocal || autoSavedRef.current || !hasCompletedPdfs) return;
@@ -49,45 +76,21 @@ export default function PdfProgressTracker({
 
     (async () => {
       // IDB에서 폴더 핸들 복원 (새로고침 후 첫 완료 시 대비)
-      await restoreGlobalDirHandle();
+      const handle = await restoreGlobalDirHandle();
+
+      // 핸들이 있지만 권한이 없으면 사용자 클릭 필요 상태로 전환
+      if (handle) {
+        const perm = await queryHandlePermission(handle);
+        if (perm !== 'granted') {
+          setLocalSaveStatus('permission-needed');
+          toast.info('폴더 저장 권한이 필요합니다. 아래 "폴더에 저장" 버튼을 클릭해주세요.');
+          return;
+        }
+      }
+
       setLocalSaveStatus('saving');
       try {
-        const token =
-          sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-
-        // 각 완료된 항목을 개별 다운로드하여 로컬에 저장
-        for (const result of job.results) {
-          if (result.status !== 'completed') continue;
-
-          const response = await fetch(
-            `${API_URL}/print-pdf/jobs/${job.jobId}/download?itemId=${result.orderItemId}`,
-            {
-              headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-            },
-          );
-
-          if (!response.ok) {
-            // 개별 다운로드 실패 시 전체 job 다운로드 시도
-            const fallbackResponse = await fetch(
-              `${API_URL}/print-pdf/jobs/${job.jobId}/download`,
-              {
-                headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-              },
-            );
-            if (fallbackResponse.ok) {
-              const blob = await fallbackResponse.blob();
-              const fileName = `${result.orderNumber || job.jobId}_print.pdf`;
-              await saveToLocalFolder(blob, fileName);
-            }
-            continue;
-          }
-
-          const blob = await response.blob();
-          const fileName = `${result.orderNumber || 'print'}_${result.studioName || ''}.pdf`
-            .replace(/[<>:"/\\|?*]/g, '_');
-          await saveToLocalFolder(blob, fileName);
-        }
-
+        await saveCompletedPdfs();
         setLocalSaveStatus('done');
         toast.success(
           getGlobalDirHandle()
@@ -100,35 +103,52 @@ export default function PdfProgressTracker({
         toast.error('로컬 저장에 실패했습니다. 수동 다운로드를 이용해주세요.');
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isJobDone, saveToLocal, hasCompletedPdfs]);
 
+  /** 서버가 내려준 fileName 우선, 없으면 레거시 포맷 */
+  const resolveFileName = (result: PdfJobProgress['results'][number]): string => {
+    if (result.fileName) {
+      return result.fileName.replace(/[<>:"/\\|?*]/g, '_');
+    }
+    return `${result.orderNumber || 'print'}_${result.studioName || ''}.pdf`
+      .replace(/[<>:"/\\|?*]/g, '_');
+  };
+
+  /**
+   * 수동 저장: 이미 저장된 폴더 핸들이 있으면 권한만 재요청하고 즉시 저장,
+   * 없으면 폴더 선택 프롬프트 → 저장.
+   */
   const handleManualLocalSave = async () => {
     try {
-      if ('showDirectoryPicker' in window) {
-        const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-        setLocalSaveStatus('saving');
+      // 기존에 저장된 핸들이 있으면 그걸 우선 사용
+      let handle = getGlobalDirHandle() || (await restoreGlobalDirHandle());
 
-        const token =
-          sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-
-        const response = await fetch(
-          `${API_URL}/print-pdf/jobs/${job.jobId}/download`,
-          { headers: { ...(token && { Authorization: `Bearer ${token}` }) } },
-        );
-
-        if (response.ok) {
-          const blob = await response.blob();
-          const fileName = `print_${job.jobId.slice(0, 8)}.pdf`;
-          await saveToLocalFolder(blob, fileName, handle);
-          setLocalSaveStatus('done');
-          toast.success(`PDF가 ${handle.name} 폴더에 저장되었습니다`);
+      if (handle) {
+        const granted = await requestHandlePermission(handle);
+        if (!granted) {
+          toast.error('폴더 접근 권한이 거부되었습니다. 폴더를 다시 선택해주세요.');
+          setGlobalDirHandle(null);
+          handle = null;
         }
-      } else {
-        // fallback: 일반 다운로드
-        onDownload(job.jobId);
       }
+
+      if (!handle) {
+        if (!('showDirectoryPicker' in window)) {
+          onDownload(job.jobId);
+          return;
+        }
+        handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+        setGlobalDirHandle(handle);
+      }
+
+      setLocalSaveStatus('saving');
+      await saveCompletedPdfs(handle!);
+      setLocalSaveStatus('done');
+      toast.success(`PDF가 ${handle!.name} 폴더에 저장되었습니다`);
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
+      if (err?.name !== 'AbortError') {
+        console.error(err);
         toast.error('저장 실패');
         setLocalSaveStatus('error');
       }
@@ -156,18 +176,34 @@ export default function PdfProgressTracker({
 
         {/* 로컬 저장 상태 */}
         {saveToLocal && localSaveStatus !== 'idle' && (
-          <div className={`text-[14px] px-3 py-2 rounded ${
+          <div className={`text-[14px] px-3 py-2 rounded flex items-center justify-between gap-2 ${
             localSaveStatus === 'saving' ? 'bg-blue-50 text-blue-700' :
             localSaveStatus === 'done' ? 'bg-green-50 text-green-700' :
+            localSaveStatus === 'permission-needed' ? 'bg-amber-50 text-amber-800' :
             'bg-red-50 text-red-700'
           }`}>
-            {localSaveStatus === 'saving' && '로컬 PC에 저장 중...'}
-            {localSaveStatus === 'done' && (
-              getGlobalDirHandle()
-                ? `선택한 폴더에 저장 완료`
-                : '다운로드 폴더에 저장 완료'
+            <span>
+              {localSaveStatus === 'saving' && '로컬 PC에 저장 중...'}
+              {localSaveStatus === 'done' && (
+                getGlobalDirHandle()
+                  ? `선택한 폴더에 저장 완료`
+                  : '다운로드 폴더에 저장 완료'
+              )}
+              {localSaveStatus === 'permission-needed' &&
+                '새로고침 후에는 폴더 접근 권한을 다시 허용해야 합니다. 오른쪽 버튼을 클릭해주세요.'}
+              {localSaveStatus === 'error' && '로컬 저장 실패 - 수동 다운로드를 이용해주세요'}
+            </span>
+            {localSaveStatus === 'permission-needed' && isJobDone && hasCompletedPdfs && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleManualLocalSave}
+                className="h-7"
+              >
+                <FolderDown className="h-3.5 w-3.5 mr-1" />
+                폴더에 저장
+              </Button>
             )}
-            {localSaveStatus === 'error' && '로컬 저장 실패 - 수동 다운로드를 이용해주세요'}
           </div>
         )}
 

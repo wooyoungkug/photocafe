@@ -64,7 +64,13 @@ export class PrintPdfController {
       throw new NotFoundException('PDF 파일을 찾을 수 없습니다.');
     }
 
-    const fileName = path.basename(pdfPath);
+    // 항목별 다운로드 시: 규칙에 따른 파일명 사용. 없으면 디스크 파일명.
+    let fileName = path.basename(pdfPath);
+    if (itemId) {
+      const job = await this.printPdfService.getJobStatus(jobId);
+      const target = job?.results.find((r) => r.orderItemId === itemId);
+      if (target?.fileName) fileName = target.fileName;
+    }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Length', fs.statSync(pdfPath).size);

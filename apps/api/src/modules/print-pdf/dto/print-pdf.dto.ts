@@ -163,6 +163,8 @@ export interface PdfJobProgress {
     status: 'completed' | 'failed' | 'pending' | 'in_progress';
     pdfPath?: string;
     error?: string;
+    /** 다운로드 시 사용할 파일명 (주문번호_파일명_용지_양면|단면.pdf) */
+    fileName?: string;
   }>;
   createdAt: Date;
 }

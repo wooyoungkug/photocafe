@@ -296,6 +296,7 @@ export class PrintPdfService implements OnModuleInit {
           studioName: it.studioName,
           status: it.status as PdfJobProgress['results'][number]['status'],
           pdfPath: it.pdfPath ?? undefined,
+          fileName: it.fileName ?? undefined,
           error: it.error ?? undefined,
         })),
         createdAt: dbJob.createdAt,
@@ -589,6 +590,7 @@ export class PrintPdfService implements OnModuleInit {
 
       result.status = 'completed';
       result.pdfPath = outputPath;
+      result.fileName = this.buildDownloadFileName(item);
       job.completedItems++;
 
       // DB에 pdfStatus 업데이트
@@ -604,7 +606,7 @@ export class PrintPdfService implements OnModuleInit {
         this.prisma.pdfJobItem
           .updateMany({
             where: { jobId, orderItemId, sortOrder: i },
-            data: { status: 'completed', pdfPath: outputPath },
+            data: { status: 'completed', pdfPath: outputPath, fileName: result.fileName },
           })
           .catch(() => {}),
         this.prisma.pdfJob
@@ -804,6 +806,27 @@ export class PrintPdfService implements OnModuleInit {
       }
     }
     return '-';
+  }
+
+  /**
+   * 다운로드 파일명 생성: {주문번호}_{파일명}_{용지}_{양면|단면}.pdf
+   * - 파일명: folderName 우선, 없으면 productionNumber
+   * - 양면/단면: pageLayout === 'spread'면 양면
+   */
+  private buildDownloadFileName(item: any): string {
+    const orderNumber = item?.order?.orderNumber || 'order';
+    const fileLabel = item?.folderName || item?.productionNumber || 'item';
+    const paper = item?.paper || '';
+    const isSpread = String(item?.pageLayout || '').toLowerCase() === 'spread';
+    const sideText = isSpread ? '양면' : '단면';
+
+    const parts = [orderNumber, fileLabel];
+    if (paper) parts.push(paper);
+    parts.push(sideText);
+
+    const raw = parts.join('_') + '.pdf';
+    // 파일시스템 금지문자 치환
+    return raw.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/\s+/g, ' ').trim();
   }
 
   /**

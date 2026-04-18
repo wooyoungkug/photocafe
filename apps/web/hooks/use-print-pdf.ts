@@ -67,6 +67,8 @@ export interface PdfJobResult {
   studioName: string;
   status: 'completed' | 'failed' | 'pending' | 'in_progress';
   pdfPath?: string;
+  /** 다운로드 파일명 (주문번호_파일명_용지_양면|단면.pdf) */
+  fileName?: string;
   error?: string;
 }
 

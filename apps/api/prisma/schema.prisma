@@ -3731,6 +3731,7 @@ model PdfJobItem {
   studioName  String   @default("")
   status      String   @default("pending") // pending|in_progress|completed|failed
   pdfPath     String?
+  fileName    String?  // 다운로드 파일명 (주문번호_파일명_용지_양면|단면.pdf)
   error       String?
   sortOrder   Int      @default(0)
   updatedAt   DateTime @updatedAt
