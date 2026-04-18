@@ -71,6 +71,8 @@ export interface PdfJobResult {
   fileName?: string;
   /** 하위폴더 분리용(양면/단면) */
   side?: string;
+  /** 하위폴더 분리용 인디고 도수 (예: 4도, 6도) */
+  colorMode?: string;
   error?: string;
 }
 

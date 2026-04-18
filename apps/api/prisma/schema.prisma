@@ -3735,6 +3735,7 @@ model PdfJobItem {
   pdfPath     String?
   fileName    String?  // 다운로드 파일명
   side        String?  // 양면|단면 (하위폴더 분리용)
+  colorMode   String?  // 인디고도수 표시명 (예: 4도, 6도) - 하위폴더 분리용
   error       String?
   sortOrder   Int      @default(0)
   updatedAt   DateTime @updatedAt

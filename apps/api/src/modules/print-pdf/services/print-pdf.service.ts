@@ -320,6 +320,7 @@ export class PrintPdfService implements OnModuleInit {
           pdfPath: it.pdfPath ?? undefined,
           fileName: it.fileName ?? undefined,
           side: it.side ?? undefined,
+          colorMode: it.colorMode ?? undefined,
           error: it.error ?? undefined,
         })),
         createdAt: dbJob.createdAt,
@@ -645,6 +646,7 @@ export class PrintPdfService implements OnModuleInit {
       const nupCount = nupLayout.nUpX * nupLayout.nUpY;
       const isSpread = String(item?.pageLayout || '').toLowerCase() === 'spread';
       result.side = isSpread ? '양면' : '단면';
+      result.colorMode = colorMode && colorMode !== '-' ? colorMode : undefined;
       result.fileName = this.buildDownloadFileName(item, {
         colorMode,
         nup: `${nupCount}up`,
@@ -669,6 +671,7 @@ export class PrintPdfService implements OnModuleInit {
               pdfPath: outputPath,
               fileName: result.fileName,
               side: result.side,
+              colorMode: result.colorMode,
             },
           })
           .catch(() => {}),

@@ -74,14 +74,15 @@ export default function PdfProgressTracker({
 
       const blob = await response.blob();
       const fileName = resolveFileName(result);
-      // 저장 경로: {YYMMDD(오늘)}/{양면|단면}/
+      // 저장 경로: {YYMMDD(오늘)}/{인디고도수}/{양면|단면}/
       const today = new Date();
       const yy = String(today.getFullYear()).slice(-2);
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       const datePart = `${yy}${mm}${dd}`;
-      const sidePart = result.side || '';
-      const subfolder = sidePart ? `${datePart}/${sidePart}` : datePart;
+      const colorPart = result.colorMode || '기타';
+      const sidePart = result.side || '기타';
+      const subfolder = `${datePart}/${colorPart}/${sidePart}`;
       await saveToLocalFolder(blob, fileName, forceHandle, subfolder);
     }
   };

@@ -171,6 +171,8 @@ export interface PdfJobProgress {
     fileName?: string;
     /** 하위폴더 분리용 구분(양면/단면) */
     side?: string;
+    /** 하위폴더 분리용 인디고 도수 (예: 4도, 6도) */
+    colorMode?: string;
   }>;
   createdAt: Date;
 }
