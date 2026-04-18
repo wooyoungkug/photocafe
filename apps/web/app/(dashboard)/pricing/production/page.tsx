@@ -3109,12 +3109,12 @@ export default function ProductionSettingPage() {
                                 </div>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-0.5">
                                   {rows.map(({ nupKey, specs }) => (
-                                    <div key={nupKey} className="flex items-center gap-1 truncate">
-                                      <span className="font-bold text-indigo-600 min-w-[42px]">{nupKey}</span>
-                                      <span className={cn("truncate", specs.length === 0 ? "text-red-500" : "text-gray-700")}>
+                                    <div key={nupKey} className="flex items-start gap-1">
+                                      <span className="font-bold text-indigo-600 min-w-[42px] shrink-0">{nupKey}</span>
+                                      <span className={cn("break-words", specs.length === 0 ? "text-red-500" : "text-gray-700")}>
                                         {specs.length === 0
                                           ? '규격 없음'
-                                          : getNupGroupLabel(specs)}
+                                          : specs.map(s => s.name).join(', ')}
                                       </span>
                                       {specs.length > 0 && (
                                         <span className="text-gray-400 shrink-0">({specs.length})</span>
