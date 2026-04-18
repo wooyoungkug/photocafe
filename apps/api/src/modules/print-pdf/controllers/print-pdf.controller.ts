@@ -45,7 +45,7 @@ export class PrintPdfController {
   @Get('jobs/:jobId/status')
   @ApiOperation({ summary: 'PDF 생성 진행상태 조회' })
   async getJobStatus(@Param('jobId') jobId: string) {
-    const job = this.printPdfService.getJobStatus(jobId);
+    const job = await this.printPdfService.getJobStatus(jobId);
     if (!job) {
       throw new NotFoundException('Job을 찾을 수 없습니다.');
     }

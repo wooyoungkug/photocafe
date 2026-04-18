@@ -3705,3 +3705,38 @@ model QuotationItem {
   @@index([specificationId])
   @@map("quotation_items")
 }
+
+// ==================== PDF 변환 Job (영속화) ====================
+// 출력대기 PDF 변환 비동기 작업 상태. 서버 재시작 시 복구를 위해 DB 영속화.
+model PdfJob {
+  id             String       @id  // jobId (uuid)
+  status         String       @default("pending") // pending|in_progress|completed|failed
+  totalItems     Int
+  completedItems Int          @default(0)
+  currentItem    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  items          PdfJobItem[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("pdf_jobs")
+}
+
+model PdfJobItem {
+  id          String   @id @default(cuid())
+  jobId       String
+  orderItemId String
+  orderNumber String   @default("")
+  studioName  String   @default("")
+  status      String   @default("pending") // pending|in_progress|completed|failed
+  pdfPath     String?
+  error       String?
+  sortOrder   Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  job         PdfJob   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([orderItemId])
+  @@map("pdf_job_items")
+}
