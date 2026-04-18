@@ -8,6 +8,7 @@ import {
 } from '../dto/print-pdf.dto';
 import { PrintPdfRendererService, IndexData } from './print-pdf-renderer.service';
 import { PrintPdfLayoutService, SpecInput, PaperInput } from './print-pdf-layout.service';
+import { PrintPdfSlipPrinterService } from './print-pdf-slip-printer.service';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -25,6 +26,7 @@ export class PrintPdfService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly renderer: PrintPdfRendererService,
     private readonly layout: PrintPdfLayoutService,
+    private readonly slipPrinter: PrintPdfSlipPrinterService,
   ) {}
 
   /**
@@ -690,6 +692,23 @@ export class PrintPdfService implements OnModuleInit {
       ]);
 
       this.logger.log(`PDF generated: ${outputPath} (${files.length} pages)`);
+
+      // 작업 지시서 자동 인쇄 (활성화 시) - fire-and-forget
+      this.slipPrinter
+        .printSlipIfEnabled({
+          orderNumber: item.order.orderNumber,
+          studioName: item.order.client?.clientName || '-',
+          fileName: fileNameEarly,
+          paper: item.paper || '-',
+          spec: item.size || '-',
+          pages: files.length,
+          colorMode: colorMode || '-',
+          side: sideEarly,
+          binding: item.bindingType || '-',
+          nup: `${nupCountEarly}up`,
+          outputPath,
+        })
+        .catch(() => { /* 슬립 인쇄 실패는 PDF 성공에 영향 없음 */ });
     } catch (err: any) {
       result.status = 'failed';
       result.error = err.message;

@@ -3,10 +3,20 @@ import { PrintPdfController } from './controllers/print-pdf.controller';
 import { PrintPdfService } from './services/print-pdf.service';
 import { PrintPdfRendererService } from './services/print-pdf-renderer.service';
 import { PrintPdfLayoutService } from './services/print-pdf-layout.service';
+import { PrintPdfAutoConvertService } from './services/print-pdf-auto-convert.service';
+import { PrintPdfSlipPrinterService } from './services/print-pdf-slip-printer.service';
+import { SystemSettingsModule } from '../system-settings/system-settings.module';
 
 @Module({
+  imports: [SystemSettingsModule],
   controllers: [PrintPdfController],
-  providers: [PrintPdfService, PrintPdfRendererService, PrintPdfLayoutService],
+  providers: [
+    PrintPdfService,
+    PrintPdfRendererService,
+    PrintPdfLayoutService,
+    PrintPdfAutoConvertService,
+    PrintPdfSlipPrinterService,
+  ],
   exports: [PrintPdfService],
 })
 export class PrintPdfModule {}

@@ -51,6 +51,8 @@ const SETTING_KEYS = {
   CANVAS_WIDTH: 'print_pdf_canvas_width',
   CANVAS_HEIGHT: 'print_pdf_canvas_height',
   CANVAS_ENABLED: 'print_pdf_canvas_enabled',
+  AUTO_PRINT_ENABLED: 'print_pdf_auto_print_enabled',
+  AUTO_PRINT_NAME: 'print_pdf_auto_print_name',
 } as const;
 
 const CATEGORY = 'print_pdf';
@@ -113,6 +115,8 @@ export default function PdfSettingsDialog({
   const [canvasEnabled, setCanvasEnabled] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState('310');
   const [canvasHeight, setCanvasHeight] = useState('450');
+  const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
+  const [autoPrintName, setAutoPrintName] = useState('');
 
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
   useEffect(() => {
@@ -142,6 +146,8 @@ export default function PdfSettingsDialog({
     setCanvasEnabled(map[SETTING_KEYS.CANVAS_ENABLED] === 'true');
     setCanvasWidth(map[SETTING_KEYS.CANVAS_WIDTH] || '310');
     setCanvasHeight(map[SETTING_KEYS.CANVAS_HEIGHT] || '450');
+    setAutoPrintEnabled(map[SETTING_KEYS.AUTO_PRINT_ENABLED] === 'true');
+    setAutoPrintName(map[SETTING_KEYS.AUTO_PRINT_NAME] || '');
 
     // 인덱스 옵션 파싱
     try {
@@ -174,6 +180,8 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.CANVAS_ENABLED, value: String(canvasEnabled), category: CATEGORY, label: '캔버스 크기 사용' },
       { key: SETTING_KEYS.CANVAS_WIDTH, value: canvasWidth, category: CATEGORY, label: '캔버스 너비(mm)' },
       { key: SETTING_KEYS.CANVAS_HEIGHT, value: canvasHeight, category: CATEGORY, label: '캔버스 높이(mm)' },
+      { key: SETTING_KEYS.AUTO_PRINT_ENABLED, value: String(autoPrintEnabled), category: CATEGORY, label: '작업지시서 자동 인쇄' },
+      { key: SETTING_KEYS.AUTO_PRINT_NAME, value: autoPrintName, category: CATEGORY, label: '자동 인쇄 프린터명' },
     ];
 
     bulkUpdate.mutate(settings, {
@@ -509,6 +517,39 @@ export default function PdfSettingsDialog({
                 )}
 
               </div>
+            </CardContent>
+          </Card>
+
+          {/* ===== 4. 작업지시서 자동 인쇄 ===== */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[14px] text-black font-bold">작업지시서 자동 인쇄</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[14px] text-black font-normal">자동 인쇄 사용</Label>
+                  <p className="text-[12px] text-gray-500 mt-0.5">
+                    PDF 1건이 만들어질 때마다 작업지시서(슬립)를 프린터로 출력합니다
+                  </p>
+                </div>
+                <Switch checked={autoPrintEnabled} onCheckedChange={setAutoPrintEnabled} />
+              </div>
+
+              {autoPrintEnabled && (
+                <div className="space-y-1.5 pl-4">
+                  <Label className="text-[14px] text-black font-normal">프린터 이름</Label>
+                  <Input
+                    placeholder="비워두면 Windows 기본 프린터 사용"
+                    value={autoPrintName}
+                    onChange={(e) => setAutoPrintName(e.target.value)}
+                    className="h-9 text-[14px]"
+                  />
+                  <p className="text-[12px] text-gray-500">
+                    제어판 → 장치 및 프린터에서 확인되는 이름을 정확히 입력하세요.
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
