@@ -60,6 +60,7 @@ const ORDER_STATUS = {
   PENDING_RECEIPT: 'pending_receipt',
   RECEIPT_COMPLETED: 'receipt_completed',
   IN_PRODUCTION: 'in_production',
+  PRINT_WAITING: 'print_waiting',
   READY_FOR_SHIPPING: 'ready_for_shipping',
   SHIPPED: 'shipped',
   CANCELLED: 'cancelled',
@@ -87,6 +88,11 @@ const STATUS_CONFIG: Record<OrderStatus, {
     icon: <Package className="h-5 w-5" />,
     className: 'text-purple-600 bg-purple-50',
   },
+  [ORDER_STATUS.PRINT_WAITING]: {
+    label: '출력대기',
+    icon: <Package className="h-5 w-5" />,
+    className: 'text-purple-600 bg-purple-50',
+  },
   [ORDER_STATUS.READY_FOR_SHIPPING]: {
     label: '제작완료',
     icon: <Package className="h-5 w-5" />,
@@ -102,6 +108,12 @@ const STATUS_CONFIG: Record<OrderStatus, {
     icon: <XCircle className="h-5 w-5" />,
     className: 'text-gray-600 bg-gray-50',
   },
+};
+
+const FALLBACK_STATUS_CONFIG = {
+  label: '상태 확인 중',
+  icon: <Clock className="h-5 w-5" />,
+  className: 'text-gray-600 bg-gray-50',
 };
 
 interface OrderFile {
@@ -342,7 +354,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  const statusConfig = STATUS_CONFIG[order.status];
+  const statusConfig = STATUS_CONFIG[order.status] || FALLBACK_STATUS_CONFIG;
   const retention = order.fileRetention;
   const allOriginalsDeleted = order.items.every(item => item.originalsDeleted);
   const isOriginalsExpired = retention?.isExpired || allOriginalsDeleted;
