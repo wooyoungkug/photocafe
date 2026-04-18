@@ -301,19 +301,20 @@ export class PrintPdfRendererService {
     let indexY: number;
     let textWidth: number;
 
-    // 블리드 영역: 이미지 안쪽 ~ 재단선 사이
+    // 이미지 바깥의 crop margin 영역에 배치 (재단선·블리드 밖, 크롭마크와 같은 공간)
     const imgBottom = dims.imageY + dims.imageHeightPt;
     const imgTop = dims.imageY;
+    const pageBottom = dims.pageHeightPt;
 
     if (indexPosition === 'top') {
-      // 상단 블리드 영역 (imageY ~ trimTop) 중앙
+      // 상단: 페이지 상단(0) ~ 이미지 상단(imgTop) 사이 중앙
       indexX = dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = imgTop + (dims.trimTop - imgTop - INDEX_FONT_SIZE) / 2;
+      indexY = (imgTop - INDEX_FONT_SIZE) / 2;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     } else {
-      // 하단 블리드 영역 (trimBottom ~ imageBottom) 중앙
+      // 하단: 이미지 하단(imgBottom) ~ 페이지 하단 사이 중앙
       indexX = dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = dims.trimBottom + (imgBottom - dims.trimBottom - INDEX_FONT_SIZE) / 2;
+      indexY = imgBottom + (pageBottom - imgBottom - INDEX_FONT_SIZE) / 2;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     }
 
@@ -351,16 +352,20 @@ export class PrintPdfRendererService {
     let indexY: number;
     let textWidth: number;
 
-    const cellImgBottom = cellY + dims.imageY + dims.imageHeightPt;
+    // 셀 기준 이미지 바깥 crop margin 영역에 배치
     const cellImgTop = cellY + dims.imageY;
+    const cellImgBottom = cellY + dims.imageY + dims.imageHeightPt;
+    const cellBottom = cellY + dims.pageHeightPt;
 
     if (indexPosition === 'top') {
+      // 셀 상단 ~ 이미지 상단 사이 crop margin 영역
       indexX = cellX + dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = cellImgTop + (cellY + dims.trimTop - cellImgTop - INDEX_FONT_SIZE) / 2;
+      indexY = cellY + (cellImgTop - cellY - INDEX_FONT_SIZE) / 2;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     } else {
+      // 이미지 하단 ~ 셀 하단 사이 crop margin 영역
       indexX = cellX + dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = cellY + dims.trimBottom + (cellImgBottom - (cellY + dims.trimBottom) - INDEX_FONT_SIZE) / 2;
+      indexY = cellImgBottom + (cellBottom - cellImgBottom - INDEX_FONT_SIZE) / 2;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     }
 
