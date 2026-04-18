@@ -45,7 +45,18 @@ export class PrintPdfAutoConvertService {
       return;
     }
 
-    // 4) 대상 항목 조회
+    // 4) 이미 진행중인 Job이 있으면 스킵 (생성요청은 즉시 반환하지만 실제 처리는 비동기라
+    //    여러 cron tick이 중복 스케줄되는 것을 방지)
+    const activeJob = await this.prisma.pdfJob.findFirst({
+      where: { status: { in: ['pending', 'in_progress'] } },
+      select: { id: true },
+    });
+    if (activeJob) {
+      this.logger.debug(`auto-convert skipped: job ${activeJob.id} still active`);
+      return;
+    }
+
+    // 5) 대상 항목 조회
     const items = await this.findPendingItems();
     if (items.length === 0) {
       this.lastRunAt = Date.now();
@@ -60,8 +71,7 @@ export class PrintPdfAutoConvertService {
       const dto = await this.buildDto(items, outputPath);
       const job = await this.printPdf.generatePdf(dto);
       this.logger.log(`auto-convert job created: ${job.jobId}`);
-      // 생성 요청만 하고 즉시 반환 (processJob은 비동기). 다음 tick에서 isRunning 해제 시
-      // 이미 완료돼있으면 다음 후보를 바로 처리하지 않고 간격을 다시 기다린다.
+      // 생성 요청만 하고 즉시 반환 (processJob은 비동기). 다음 tick은 pdf_jobs 상태 확인으로 재진입 차단.
     } catch (err: any) {
       this.logger.error(`auto-convert failed: ${err.message}`);
     } finally {
@@ -69,7 +79,11 @@ export class PrintPdfAutoConvertService {
     }
   }
 
-  /** pending 상태 대기 항목 조회 (pdfStatus completed 제외) */
+  /**
+   * pending 상태 대기 항목 조회.
+   * 제외: completed(이미 성공), in_progress(현재 처리 중),
+   *      failed(자동 재시도 시 무한 루프 방지 — 사용자가 수동으로 재시도하도록 유도)
+   */
   private async findPendingItems(): Promise<Array<{ id: string }>> {
     const orders = await this.prisma.order.findMany({
       where: {
@@ -81,7 +95,10 @@ export class PrintPdfAutoConvertService {
       select: {
         items: {
           where: {
-            OR: [{ pdfStatus: null }, { pdfStatus: { notIn: ['completed', 'in_progress'] } }],
+            OR: [
+              { pdfStatus: null },
+              { pdfStatus: { notIn: ['completed', 'in_progress', 'failed'] } },
+            ],
             // 원본 파일이 하나라도 있는 항목만
             files: { some: { originalPath: { not: null } } },
           },
