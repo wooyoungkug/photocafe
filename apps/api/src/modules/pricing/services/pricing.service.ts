@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import {
   CalculateProductPriceDto,
@@ -218,26 +219,50 @@ export class PricingService {
     let bindingGroupId: string | null = null;
 
     // 제본단가 조회: specificationId 또는 minQuantity(nup) 매칭
-    const bindingPriceOR = [
+    // 유효값(basePrice/pricePerPage/rangePrices 중 하나라도 실제값) 보유 레코드만 선택
+    const hasValueFilter = {
+      OR: [
+        { basePrice: { not: null } },
+        { pricePerPage: { not: null } },
+        { rangePrices: { not: Prisma.JsonNull } },
+      ],
+    };
+
+    // 같은 Nup 규격 ID 목록 (Nup별 단일 단가 정책 - 폴백용)
+    const sameNupSpecIds = specInfo?.nup
+      ? (
+          await this.prisma.specification.findMany({
+            where: { nup: specInfo.nup, isActive: true },
+            select: { id: true },
+          })
+        ).map((s) => s.id)
+      : [specificationId];
+
+    // 우선순위: 정확 spec 매칭 → 같은 Nup 다른 spec → nup/specNull 매칭
+    const bindingQueryLevels = [
       { specificationId },
+      { specificationId: { in: sameNupSpecIds } },
       { minQuantity: nupNum, specificationId: null },
     ];
 
     // 3-1. 거래처 개별 제본 단가
     if (clientId && !bindingFound) {
-      const clientBindingPrice = await this.prisma.clientProductionSettingPrice.findFirst({
-        where: {
-          clientId,
-          productionSettingId: bindingPsId,
-          OR: bindingPriceOR,
-        },
-      });
-      if (clientBindingPrice && (Number(clientBindingPrice.basePrice) || Number(clientBindingPrice.pricePerPage) || clientBindingPrice.rangePrices)) {
-        bindingBasePrice = Number(clientBindingPrice.basePrice) || 0;
-        bindingPricePerPage = Number(clientBindingPrice.pricePerPage) || 0;
-        bindingRangePrices = clientBindingPrice.rangePrices as Record<string, number> | null;
-        bindingFound = true;
-        bindingPriceSource = 'client';
+      for (const level of bindingQueryLevels) {
+        const clientBindingPrice = await this.prisma.clientProductionSettingPrice.findFirst({
+          where: {
+            clientId,
+            productionSettingId: bindingPsId,
+            AND: [level, hasValueFilter],
+          },
+        });
+        if (clientBindingPrice) {
+          bindingBasePrice = Number(clientBindingPrice.basePrice) || 0;
+          bindingPricePerPage = Number(clientBindingPrice.pricePerPage) || 0;
+          bindingRangePrices = clientBindingPrice.rangePrices as Record<string, number> | null;
+          bindingFound = true;
+          bindingPriceSource = 'client';
+          break;
+        }
       }
     }
 
@@ -248,25 +273,28 @@ export class PricingService {
         select: { groupId: true },
       });
       if (clientForBinding?.groupId) {
-        const groupBindingPrice = await this.prisma.groupProductionSettingPrice.findFirst({
-          where: {
-            clientGroupId: clientForBinding.groupId,
-            productionSettingId: bindingPsId,
-            OR: bindingPriceOR,
-          },
-        });
-        if (groupBindingPrice && (Number(groupBindingPrice.basePrice) || Number(groupBindingPrice.pricePerPage) || groupBindingPrice.rangePrices)) {
-          bindingBasePrice = Number(groupBindingPrice.basePrice) || 0;
-          bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
-          bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
-          bindingFound = true;
-          bindingPriceSource = 'group';
-          bindingGroupId = clientForBinding.groupId;
-          const bindingGroup = await this.prisma.clientGroup.findUnique({
-            where: { id: clientForBinding.groupId },
-            select: { groupName: true },
+        for (const level of bindingQueryLevels) {
+          const groupBindingPrice = await this.prisma.groupProductionSettingPrice.findFirst({
+            where: {
+              clientGroupId: clientForBinding.groupId,
+              productionSettingId: bindingPsId,
+              AND: [level, hasValueFilter],
+            },
           });
-          bindingGroupName = bindingGroup?.groupName || null;
+          if (groupBindingPrice) {
+            bindingBasePrice = Number(groupBindingPrice.basePrice) || 0;
+            bindingPricePerPage = Number(groupBindingPrice.pricePerPage) || 0;
+            bindingRangePrices = groupBindingPrice.rangePrices as Record<string, number> | null;
+            bindingFound = true;
+            bindingPriceSource = 'group';
+            bindingGroupId = clientForBinding.groupId;
+            const bindingGroup = await this.prisma.clientGroup.findUnique({
+              where: { id: clientForBinding.groupId },
+              select: { groupName: true },
+            });
+            bindingGroupName = bindingGroup?.groupName || null;
+            break;
+          }
         }
       }
     }
@@ -276,7 +304,11 @@ export class PricingService {
       const standardBindingPrice = await this.prisma.productionSettingPrice.findFirst({
         where: {
           productionSettingId: bindingPsId,
-          OR: bindingPriceOR,
+          OR: [
+            { specificationId },
+            { specificationId: { in: sameNupSpecIds } },
+            { minQuantity: nupNum, specificationId: null },
+          ],
         },
       });
       if (standardBindingPrice) {
