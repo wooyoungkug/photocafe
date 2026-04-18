@@ -169,17 +169,35 @@ export class PrintPdfService {
   async generatePdf(dto: GeneratePrintPdfDto): Promise<PdfJobProgress> {
     const jobId = crypto.randomUUID();
 
+    // 대기 항목부터 주문번호/스튜디오명을 표시하기 위해 먼저 조회
+    const metas = await this.prisma.orderItem.findMany({
+      where: { id: { in: dto.orderItemIds } },
+      select: {
+        id: true,
+        order: {
+          select: {
+            orderNumber: true,
+            client: { select: { clientName: true } },
+          },
+        },
+      },
+    });
+    const metaById = new Map(metas.map((m) => [m.id, m]));
+
     const job: PdfJobProgress = {
       jobId,
       status: 'pending',
       totalItems: dto.orderItemIds.length,
       completedItems: 0,
-      results: dto.orderItemIds.map((id) => ({
-        orderItemId: id,
-        orderNumber: '',
-        studioName: '',
-        status: 'pending',
-      })),
+      results: dto.orderItemIds.map((id) => {
+        const m = metaById.get(id);
+        return {
+          orderItemId: id,
+          orderNumber: m?.order?.orderNumber || '',
+          studioName: m?.order?.client?.clientName || '',
+          status: 'pending',
+        };
+      }),
       createdAt: new Date(),
     };
 
@@ -225,244 +243,261 @@ export class PrintPdfService {
 
   // ==================== Private ====================
 
+  /** 동시 처리 항목 수 (PDF 렌더링은 CPU/IO 부담이 크므로 과도한 병렬은 피함) */
+  private static readonly PROCESS_CONCURRENCY = 2;
+
   private async processJob(jobId: string, dto: GeneratePrintPdfDto) {
     const job = this.jobs.get(jobId)!;
     job.status = 'in_progress';
 
-    for (let i = 0; i < dto.orderItemIds.length; i++) {
-      const orderItemId = dto.orderItemIds[i];
-      const result = job.results[i];
-      result.status = 'in_progress';
-      job.currentItem = orderItemId;
+    // 고정 크기 워커 풀로 병렬 처리 (순서 보존 X, 완료 카운터만 증가)
+    const total = dto.orderItemIds.length;
+    let cursor = 0;
+    const worker = async () => {
+      while (true) {
+        const i = cursor++;
+        if (i >= total) return;
+        await this.processItem(jobId, dto, i);
+      }
+    };
+    const concurrency = Math.min(PrintPdfService.PROCESS_CONCURRENCY, total);
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
 
-      // DB에 진행중 상태 업데이트
-      await this.prisma.orderItem.update({
+    job.status = 'completed';
+    job.currentItem = undefined;
+  }
+
+  private async processItem(jobId: string, dto: GeneratePrintPdfDto, i: number): Promise<void> {
+    const job = this.jobs.get(jobId)!;
+    const orderItemId = dto.orderItemIds[i];
+    const result = job.results[i];
+    result.status = 'in_progress';
+    job.currentItem = orderItemId;
+
+    // DB에 진행중 상태 업데이트
+    await this.prisma.orderItem.update({
+      where: { id: orderItemId },
+      data: { pdfStatus: 'in_progress' },
+    }).catch(() => {});
+
+    let files: Array<{ originalPath: string; sortOrder: number; isTemp?: boolean }> = [];
+
+    try {
+      // 주문항목 + 파일 조회
+      const item = await this.prisma.orderItem.findUnique({
         where: { id: orderItemId },
-        data: { pdfStatus: 'in_progress' },
-      }).catch(() => {});
-
-      let files: Array<{ originalPath: string; sortOrder: number; isTemp?: boolean }> = [];
-
-      try {
-        // 주문항목 + 파일 조회
-        const item = await this.prisma.orderItem.findUnique({
-          where: { id: orderItemId },
-          include: {
-            files: { orderBy: { sortOrder: 'asc' } },
-            order: {
-              include: {
-                client: { select: { id: true, clientName: true } },
-              },
+        include: {
+          files: { orderBy: { sortOrder: 'asc' } },
+          order: {
+            include: {
+              client: { select: { id: true, clientName: true } },
             },
           },
-        });
+        },
+      });
 
-        if (!item) {
-          result.status = 'failed';
-          result.error = '주문 항목을 찾을 수 없습니다.';
-          continue;
-        }
-
-        result.orderNumber = item.order.orderNumber;
-        result.studioName = item.order.client?.clientName || '-';
-
-        // 규격 정보 조회
-        const specData = await this.resolveSpecification(item);
-        const paperData = await this.resolvePaper(item);
-        const colorMode = await this.resolveColorMode(item);
-
-        // 레이아웃 계산
-        const specInput: SpecInput = {
-          widthMm: specData.widthMm,
-          heightMm: specData.heightMm,
-          trimWidthMm: specData.trimWidthMm,
-          trimHeightMm: specData.trimHeightMm,
-          bleedTop: specData.bleedTop,
-          bleedBottom: specData.bleedBottom,
-          bleedLeft: specData.bleedLeft,
-          bleedRight: specData.bleedRight,
-          nup: specData.nup,
-          nUpX: specData.nUpX,
-          nUpY: specData.nUpY,
-        };
-
-        const paperInput: PaperInput = {
-          sheetWidthMm: paperData.sheetWidthMm,
-          sheetHeightMm: paperData.sheetHeightMm,
-        };
-
-        const nupLayout = this.layout.calculateNupLayout(
-          specInput,
-          paperInput,
-          dto.includeBleed,
-          dto.nupOverride,
-        );
-
-        // 인덱스 데이터
-        const indexData: Omit<IndexData, 'currentPage' | 'totalPages'> = {
-          orderNumber: item.order.orderNumber,
-          studioName: item.order.client?.clientName || '-',
-          spec: item.size || `${specData.widthMm}x${specData.heightMm}`,
-          paper: item.paper || paperData.name || '-',
-          colorMode: colorMode,
-          binding: item.bindingType || '-',
-          nup: specData.nup || '1up',
-        };
-
-        // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용
-        const tempDir = path.join(process.cwd(), 'uploads', 'temp', 'pdf-convert');
-
-        for (const f of (item.files || [])) {
-          try {
-            // 1) 디스크 파일이 있으면 그대로 사용
-            if (f.originalPath && fs.existsSync(f.originalPath)) {
-              files.push({ originalPath: f.originalPath, sortOrder: f.sortOrder || 0 });
-              continue;
-            }
-
-            // 2) base64 데이터 → 임시 파일 저장
-            if (f.fileUrl && f.fileUrl.startsWith('data:')) {
-              if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
-              const base64Match = f.fileUrl.match(/^data:image\/([^;]+);base64,(.+)$/s);
-              if (base64Match) {
-                const ext = base64Match[1] === 'jpeg' ? 'jpg' : base64Match[1];
-                const tempFile = path.join(tempDir, `${f.id || crypto.randomUUID()}.${ext}`);
-                fs.writeFileSync(tempFile, Buffer.from(base64Match[2], 'base64'));
-                files.push({ originalPath: tempFile, sortOrder: f.sortOrder || 0, isTemp: true });
-                continue;
-              }
-            }
-
-            // 3) fileUrl이 서버 경로(/uploads/...)인 경우
-            if (f.fileUrl && (f.fileUrl.startsWith('/uploads/') || f.fileUrl.startsWith('uploads/'))) {
-              const basePath = process.env.UPLOAD_BASE_PATH || path.join(process.cwd(), 'uploads');
-              const relativePath = f.fileUrl.replace(/^\/?uploads\/?/, '');
-              // URL 인코딩된 한글/특수문자 디코딩 시도 (인코딩된 경로 / 디코딩된 경로 둘 다 확인)
-              const candidates = new Set<string>();
-              candidates.add(path.join(basePath, relativePath));
-              try {
-                candidates.add(path.join(basePath, decodeURIComponent(relativePath)));
-              } catch { /* malformed URI는 무시 */ }
-              let found = false;
-              for (const candidate of candidates) {
-                if (fs.existsSync(candidate)) {
-                  files.push({ originalPath: candidate, sortOrder: f.sortOrder || 0 });
-                  found = true;
-                  break;
-                }
-              }
-              if (found) continue;
-            }
-
-            // 4) fileUrl이 API URL인 경우 (/api/v1/upload/...)
-            if (f.fileUrl && f.fileUrl.startsWith('/api/')) {
-              this.logger.warn(`File ${f.fileName}: URL-based fileUrl not supported for PDF conversion: ${f.fileUrl.substring(0, 80)}`);
-              continue;
-            }
-
-            this.logger.warn(`File ${f.fileName}: no valid source (originalPath=${f.originalPath}, fileUrl type=${f.fileUrl?.substring(0, 20)})`);
-          } catch (fileErr: any) {
-            this.logger.error(`File ${f.fileName} processing failed: ${fileErr.message}`);
-          }
-        }
-
-        // 펼친면(spread) 주문 → 이미지를 좌/우로 분할 (좌 우선)
-        // 제본방향에 따라 첫/막 페이지 한 쪽 절반을 버림
-        // - bindingDirection에 'RIGHT_START' 포함 → 첫 이미지의 왼쪽 절반 버림
-        // - bindingDirection에 'LEFT_END' 포함 → 마지막 이미지의 오른쪽 절반 버림
-        if ((item.pageLayout || '').toLowerCase() === 'spread' && files.length > 0) {
-          files = await this.splitSpreads(files, item.bindingDirection, tempDir);
-        }
-
-        if (files.length === 0) {
-          const totalFiles = item.files?.length || 0;
-          const fileUrlSample = item.files?.[0]?.fileUrl?.substring(0, 50) || 'none';
-          result.status = 'failed';
-          result.error = `유효한 이미지 파일이 없습니다. (총 ${totalFiles}개 파일, originalPath=${item.files?.[0]?.originalPath || 'null'}, urlType=${fileUrlSample}...)`;
-          this.logger.error(`No valid files for item ${orderItemId}: total=${totalFiles}, sample originalPath=${item.files?.[0]?.originalPath}, sample fileUrl prefix=${fileUrlSample}`);
-          await this.prisma.orderItem.update({
-            where: { id: orderItemId },
-            data: { pdfStatus: 'failed' },
-          }).catch(() => {});
-          continue;
-        }
-
-        // 출력 경로 결정
-        const outputPath = this.resolveOutputPath(
-          dto.outputPath,
-          item.order.orderNumber,
-          item.order.client?.clientName || 'unknown',
-          item.productionNumber || `item-${i + 1}`,
-        );
-
-        // PDF 생성
-        const indexPosition = dto.indexPosition || 'bottom';
-        const canvasSize = dto.canvasWidthMm && dto.canvasHeightMm
-          ? { widthMm: dto.canvasWidthMm, heightMm: dto.canvasHeightMm }
-          : undefined;
-
-        if (nupLayout.nUpX === 1 && nupLayout.nUpY === 1) {
-          await this.renderer.generate1upPdf(
-            files,
-            outputPath,
-            nupLayout.cellPageDimensions,
-            indexData,
-            dto.indexOptions,
-            dto.includeCropMarks,
-            dto.indexOrderKeys,
-            indexPosition,
-            canvasSize,
-          );
-        } else {
-          await this.renderer.generateNupPdf(
-            files,
-            outputPath,
-            nupLayout,
-            indexData,
-            dto.indexOptions,
-            dto.includeCropMarks,
-            dto.indexOrderKeys,
-            indexPosition,
-          );
-        }
-
-        result.status = 'completed';
-        result.pdfPath = outputPath;
-        job.completedItems++;
-
-        // DB에 pdfStatus 업데이트
-        await this.prisma.orderItem.update({
-          where: { id: orderItemId },
-          data: {
-            pdfStatus: 'completed',
-            pdfPath: outputPath,
-            pdfGeneratedAt: new Date(),
-          },
-        });
-
-        this.logger.log(`PDF generated: ${outputPath} (${files.length} pages)`);
-      } catch (err: any) {
+      if (!item) {
         result.status = 'failed';
-        result.error = err.message;
-        this.logger.error(`Failed to generate PDF for item ${orderItemId}: ${err.message}`);
+        result.error = '주문 항목을 찾을 수 없습니다.';
+        return;
+      }
 
-        // DB에 실패 상태 업데이트
+      result.orderNumber = item.order.orderNumber;
+      result.studioName = item.order.client?.clientName || '-';
+
+      // 규격 정보 조회
+      const specData = await this.resolveSpecification(item);
+      const paperData = await this.resolvePaper(item);
+      const colorMode = await this.resolveColorMode(item);
+
+      // 레이아웃 계산
+      const specInput: SpecInput = {
+        widthMm: specData.widthMm,
+        heightMm: specData.heightMm,
+        trimWidthMm: specData.trimWidthMm,
+        trimHeightMm: specData.trimHeightMm,
+        bleedTop: specData.bleedTop,
+        bleedBottom: specData.bleedBottom,
+        bleedLeft: specData.bleedLeft,
+        bleedRight: specData.bleedRight,
+        nup: specData.nup,
+        nUpX: specData.nUpX,
+        nUpY: specData.nUpY,
+      };
+
+      const paperInput: PaperInput = {
+        sheetWidthMm: paperData.sheetWidthMm,
+        sheetHeightMm: paperData.sheetHeightMm,
+      };
+
+      const nupLayout = this.layout.calculateNupLayout(
+        specInput,
+        paperInput,
+        dto.includeBleed,
+        dto.nupOverride,
+      );
+
+      // 인덱스 데이터
+      const indexData: Omit<IndexData, 'currentPage' | 'totalPages'> = {
+        orderNumber: item.order.orderNumber,
+        studioName: item.order.client?.clientName || '-',
+        spec: item.size || `${specData.widthMm}x${specData.heightMm}`,
+        paper: item.paper || paperData.name || '-',
+        colorMode: colorMode,
+        binding: item.bindingType || '-',
+        nup: specData.nup || '1up',
+      };
+
+      // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용
+      const tempDir = path.join(process.cwd(), 'uploads', 'temp', 'pdf-convert');
+
+      for (const f of (item.files || [])) {
+        try {
+          // 1) 디스크 파일이 있으면 그대로 사용
+          if (f.originalPath && fs.existsSync(f.originalPath)) {
+            files.push({ originalPath: f.originalPath, sortOrder: f.sortOrder || 0 });
+            continue;
+          }
+
+          // 2) base64 데이터 → 임시 파일 저장
+          if (f.fileUrl && f.fileUrl.startsWith('data:')) {
+            if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+            const base64Match = f.fileUrl.match(/^data:image\/([^;]+);base64,(.+)$/s);
+            if (base64Match) {
+              const ext = base64Match[1] === 'jpeg' ? 'jpg' : base64Match[1];
+              const tempFile = path.join(tempDir, `${f.id || crypto.randomUUID()}.${ext}`);
+              fs.writeFileSync(tempFile, Buffer.from(base64Match[2], 'base64'));
+              files.push({ originalPath: tempFile, sortOrder: f.sortOrder || 0, isTemp: true });
+              continue;
+            }
+          }
+
+          // 3) fileUrl이 서버 경로(/uploads/...)인 경우
+          if (f.fileUrl && (f.fileUrl.startsWith('/uploads/') || f.fileUrl.startsWith('uploads/'))) {
+            const basePath = process.env.UPLOAD_BASE_PATH || path.join(process.cwd(), 'uploads');
+            const relativePath = f.fileUrl.replace(/^\/?uploads\/?/, '');
+            // URL 인코딩된 한글/특수문자 디코딩 시도 (인코딩된 경로 / 디코딩된 경로 둘 다 확인)
+            const candidates = new Set<string>();
+            candidates.add(path.join(basePath, relativePath));
+            try {
+              candidates.add(path.join(basePath, decodeURIComponent(relativePath)));
+            } catch { /* malformed URI는 무시 */ }
+            let found = false;
+            for (const candidate of candidates) {
+              if (fs.existsSync(candidate)) {
+                files.push({ originalPath: candidate, sortOrder: f.sortOrder || 0 });
+                found = true;
+                break;
+              }
+            }
+            if (found) continue;
+          }
+
+          // 4) fileUrl이 API URL인 경우 (/api/v1/upload/...)
+          if (f.fileUrl && f.fileUrl.startsWith('/api/')) {
+            this.logger.warn(`File ${f.fileName}: URL-based fileUrl not supported for PDF conversion: ${f.fileUrl.substring(0, 80)}`);
+            continue;
+          }
+
+          this.logger.warn(`File ${f.fileName}: no valid source (originalPath=${f.originalPath}, fileUrl type=${f.fileUrl?.substring(0, 20)})`);
+        } catch (fileErr: any) {
+          this.logger.error(`File ${f.fileName} processing failed: ${fileErr.message}`);
+        }
+      }
+
+      // 펼친면(spread) 주문 → 이미지를 좌/우로 분할 (좌 우선)
+      // 제본방향에 따라 첫/막 페이지 한 쪽 절반을 버림
+      // - bindingDirection에 'RIGHT_START' 포함 → 첫 이미지의 왼쪽 절반 버림
+      // - bindingDirection에 'LEFT_END' 포함 → 마지막 이미지의 오른쪽 절반 버림
+      if ((item.pageLayout || '').toLowerCase() === 'spread' && files.length > 0) {
+        files = await this.splitSpreads(files, item.bindingDirection, tempDir);
+      }
+
+      if (files.length === 0) {
+        const totalFiles = item.files?.length || 0;
+        const fileUrlSample = item.files?.[0]?.fileUrl?.substring(0, 50) || 'none';
+        result.status = 'failed';
+        result.error = `유효한 이미지 파일이 없습니다. (총 ${totalFiles}개 파일, originalPath=${item.files?.[0]?.originalPath || 'null'}, urlType=${fileUrlSample}...)`;
+        this.logger.error(`No valid files for item ${orderItemId}: total=${totalFiles}, sample originalPath=${item.files?.[0]?.originalPath}, sample fileUrl prefix=${fileUrlSample}`);
         await this.prisma.orderItem.update({
           where: { id: orderItemId },
           data: { pdfStatus: 'failed' },
         }).catch(() => {});
-      } finally {
-        // 임시 파일 정리
-        for (const f of files) {
-          if ((f as any).isTemp) {
-            try { fs.unlinkSync(f.originalPath); } catch { /* ignore */ }
-          }
+        return;
+      }
+
+      // 출력 경로 결정
+      const outputPath = this.resolveOutputPath(
+        dto.outputPath,
+        item.order.orderNumber,
+        item.order.client?.clientName || 'unknown',
+        item.productionNumber || `item-${i + 1}`,
+      );
+
+      // PDF 생성
+      const indexPosition = dto.indexPosition || 'bottom';
+      const canvasSize = dto.canvasWidthMm && dto.canvasHeightMm
+        ? { widthMm: dto.canvasWidthMm, heightMm: dto.canvasHeightMm }
+        : undefined;
+
+      if (nupLayout.nUpX === 1 && nupLayout.nUpY === 1) {
+        await this.renderer.generate1upPdf(
+          files,
+          outputPath,
+          nupLayout.cellPageDimensions,
+          indexData,
+          dto.indexOptions,
+          dto.includeCropMarks,
+          dto.indexOrderKeys,
+          indexPosition,
+          canvasSize,
+        );
+      } else {
+        await this.renderer.generateNupPdf(
+          files,
+          outputPath,
+          nupLayout,
+          indexData,
+          dto.indexOptions,
+          dto.includeCropMarks,
+          dto.indexOrderKeys,
+          indexPosition,
+        );
+      }
+
+      result.status = 'completed';
+      result.pdfPath = outputPath;
+      job.completedItems++;
+
+      // DB에 pdfStatus 업데이트
+      await this.prisma.orderItem.update({
+        where: { id: orderItemId },
+        data: {
+          pdfStatus: 'completed',
+          pdfPath: outputPath,
+          pdfGeneratedAt: new Date(),
+        },
+      });
+
+      this.logger.log(`PDF generated: ${outputPath} (${files.length} pages)`);
+    } catch (err: any) {
+      result.status = 'failed';
+      result.error = err.message;
+      this.logger.error(`Failed to generate PDF for item ${orderItemId}: ${err.message}`);
+
+      // DB에 실패 상태 업데이트
+      await this.prisma.orderItem.update({
+        where: { id: orderItemId },
+        data: { pdfStatus: 'failed' },
+      }).catch(() => {});
+    } finally {
+      // 임시 파일 정리
+      for (const f of files) {
+        if ((f as any).isTemp) {
+          try { fs.unlinkSync(f.originalPath); } catch { /* ignore */ }
         }
       }
     }
-
-    job.status = job.results.some((r) => r.status === 'failed') ? 'completed' : 'completed';
-    job.currentItem = undefined;
   }
 
   /**
