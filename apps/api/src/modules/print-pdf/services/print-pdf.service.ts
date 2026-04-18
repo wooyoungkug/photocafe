@@ -337,11 +337,21 @@ export class PrintPdfService {
             if (f.fileUrl && (f.fileUrl.startsWith('/uploads/') || f.fileUrl.startsWith('uploads/'))) {
               const basePath = process.env.UPLOAD_BASE_PATH || path.join(process.cwd(), 'uploads');
               const relativePath = f.fileUrl.replace(/^\/?uploads\/?/, '');
-              const fullPath = path.join(basePath, relativePath);
-              if (fs.existsSync(fullPath)) {
-                files.push({ originalPath: fullPath, sortOrder: f.sortOrder || 0 });
-                continue;
+              // URL 인코딩된 한글/특수문자 디코딩 시도 (인코딩된 경로 / 디코딩된 경로 둘 다 확인)
+              const candidates = new Set<string>();
+              candidates.add(path.join(basePath, relativePath));
+              try {
+                candidates.add(path.join(basePath, decodeURIComponent(relativePath)));
+              } catch { /* malformed URI는 무시 */ }
+              let found = false;
+              for (const candidate of candidates) {
+                if (fs.existsSync(candidate)) {
+                  files.push({ originalPath: candidate, sortOrder: f.sortOrder || 0 });
+                  found = true;
+                  break;
+                }
               }
+              if (found) continue;
             }
 
             // 4) fileUrl이 API URL인 경우 (/api/v1/upload/...)
