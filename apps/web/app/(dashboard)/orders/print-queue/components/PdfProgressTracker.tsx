@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { PdfJobProgress } from '@/hooks/use-print-pdf';
 import { API_URL } from '@/lib/api';
-import { saveToLocalFolder, getGlobalDirHandle } from './PdfSettingsDialog';
+import { saveToLocalFolder, getGlobalDirHandle, restoreGlobalDirHandle } from './PdfSettingsDialog';
 
 interface PdfProgressTrackerProps {
   job: PdfJobProgress;
@@ -48,6 +48,8 @@ export default function PdfProgressTracker({
     autoSavedRef.current = true;
 
     (async () => {
+      // IDB에서 폴더 핸들 복원 (새로고침 후 첫 완료 시 대비)
+      await restoreGlobalDirHandle();
       setLocalSaveStatus('saving');
       try {
         const token =

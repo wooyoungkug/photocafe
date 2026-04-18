@@ -114,6 +114,16 @@ export default function PdfSettingsDialog({
   const [canvasWidth, setCanvasWidth] = useState('310');
   const [canvasHeight, setCanvasHeight] = useState('450');
 
+  // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
+  useEffect(() => {
+    restoreGlobalDirHandle().then((handle) => {
+      if (handle) {
+        setLocalDirHandle(handle);
+        setLocalDirName(handle.name);
+      }
+    });
+  }, []);
+
   // 설정 로드 시 로컬 상태 반영
   useEffect(() => {
     if (!settingsData) return;
@@ -513,14 +523,100 @@ export default function PdfSettingsDialog({
 /**
  * 시스템 설정에서 PDF 설정을 읽어 기본값으로 사용하는 유틸
  */
-// 로컬 폴더 핸들을 전역으로 관리 (설정 다이얼로그에서 선택, 변환 시 사용)
+// 로컬 폴더 핸들을 전역 + IndexedDB로 영속화 (새로고침 내성)
+const IDB_DB_NAME = 'printing114';
+const IDB_STORE = 'pdf-folder-handle';
+const IDB_KEY = 'selected';
 let _localDirHandle: FileSystemDirectoryHandle | null = null;
+
+function openIdb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) {
+        db.createObjectStore(IDB_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbPutHandle(handle: FileSystemDirectoryHandle): Promise<void> {
+  const db = await openIdb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+  db.close();
+}
+
+async function idbGetHandle(): Promise<FileSystemDirectoryHandle | null> {
+  try {
+    const db = await openIdb();
+    const handle = await new Promise<FileSystemDirectoryHandle | null>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+      req.onsuccess = () => resolve((req.result as FileSystemDirectoryHandle) ?? null);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return handle;
+  } catch {
+    return null;
+  }
+}
+
+async function idbClearHandle(): Promise<void> {
+  try {
+    const db = await openIdb();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(IDB_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+    db.close();
+  } catch { /* ignore */ }
+}
+
+/** readwrite 권한 확인/요청. false면 권한 획득 실패. */
+async function ensureHandlePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
+  try {
+    const opts = { mode: 'readwrite' as const };
+    const anyHandle = handle as any;
+    const current = await anyHandle.queryPermission?.(opts);
+    if (current === 'granted') return true;
+    const requested = await anyHandle.requestPermission?.(opts);
+    return requested === 'granted';
+  } catch {
+    return false;
+  }
+}
 
 export function setGlobalDirHandle(handle: FileSystemDirectoryHandle | null) {
   _localDirHandle = handle;
+  if (typeof window === 'undefined') return;
+  if (handle) {
+    idbPutHandle(handle).catch((err) => console.warn('IDB put handle failed:', err));
+  } else {
+    idbClearHandle();
+  }
 }
 
 export function getGlobalDirHandle(): FileSystemDirectoryHandle | null {
+  return _localDirHandle;
+}
+
+/** 페이지 로드 시 IndexedDB에서 핸들 복원 (권한은 이 시점에 재요청 불가 → 실제 쓰기 직전에 재요청) */
+export async function restoreGlobalDirHandle(): Promise<FileSystemDirectoryHandle | null> {
+  if (typeof window === 'undefined') return null;
+  if (_localDirHandle) return _localDirHandle;
+  const handle = await idbGetHandle();
+  if (handle) _localDirHandle = handle;
   return _localDirHandle;
 }
 
@@ -532,18 +628,28 @@ export async function saveToLocalFolder(
   fileName: string,
   dirHandle?: FileSystemDirectoryHandle | null,
 ): Promise<boolean> {
-  const handle = dirHandle || _localDirHandle;
+  let handle = dirHandle || _localDirHandle;
+  if (!handle) {
+    handle = await restoreGlobalDirHandle();
+  }
 
   if (handle) {
-    try {
-      // File System Access API로 직접 저장
-      const fileHandle = await handle.getFileHandle(fileName, { create: true });
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return true;
-    } catch (err) {
-      console.error('로컬 폴더 저장 실패, 다운로드로 전환:', err);
+    const allowed = await ensureHandlePermission(handle);
+    if (!allowed) {
+      // 권한 거부 → 핸들 폐기 후 브라우저 다운로드 fallback
+      setGlobalDirHandle(null);
+      console.warn('폴더 접근 권한이 거부되어 기본 다운로드로 전환합니다.');
+    } else {
+      try {
+        // File System Access API로 직접 저장
+        const fileHandle = await handle.getFileHandle(fileName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return true;
+      } catch (err) {
+        console.error('로컬 폴더 저장 실패, 다운로드로 전환:', err);
+      }
     }
   }
 

@@ -689,7 +689,7 @@ export class PrintPdfService implements OnModuleInit {
         const leftPath = path.join(spreadDir, `${crypto.randomUUID()}_L.jpg`);
         await sharp(f.originalPath)
           .extract({ left: 0, top: 0, width: halfW, height: h })
-          .jpeg({ quality: 100, chromaSubsampling: '4:4:4', mozjpeg: true })
+          .jpeg({ quality: 92 })
           .toFile(leftPath);
         out.push({ originalPath: leftPath, sortOrder: order++, isTemp: true });
       }
@@ -699,7 +699,7 @@ export class PrintPdfService implements OnModuleInit {
         const rightPath = path.join(spreadDir, `${crypto.randomUUID()}_R.jpg`);
         await sharp(f.originalPath)
           .extract({ left: halfW, top: 0, width: w - halfW, height: h })
-          .jpeg({ quality: 100, chromaSubsampling: '4:4:4', mozjpeg: true })
+          .jpeg({ quality: 92 })
           .toFile(rightPath);
         out.push({ originalPath: rightPath, sortOrder: order++, isTemp: true });
       }
