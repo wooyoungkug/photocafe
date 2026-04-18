@@ -360,7 +360,7 @@ export default function OrderPage() {
         const orderData = orderDataList[i];
         try {
           console.log(`[주문] ${i + 1}/${orderDataList.length}번 항목 전송:`, JSON.stringify(orderData, null, 2));
-          const res = await api.post<{ orderNumber: string }>('/orders', orderData);
+          const res = await api.post<{ orderNumber: string }>('/orders', orderData, { timeout: 90000 });
           if (!firstOrderNumber) firstOrderNumber = res.orderNumber;
         } catch (itemError) {
           const itemName = orderData.items?.[0]?.productName || orderData.items?.[0]?.folderName || `${i + 1}번째 항목`;
