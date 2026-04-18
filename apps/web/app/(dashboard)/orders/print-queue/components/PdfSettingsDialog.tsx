@@ -431,16 +431,37 @@ export default function PdfSettingsDialog({
 
               {/* 저장 위치 */}
               <div className="space-y-3">
+                {/* 서버 자동 저장 경로 (무인 모드) */}
+                <div className="space-y-1.5 p-3 bg-blue-50 border border-blue-200 rounded">
+                  <Label className="text-[14px] text-black font-bold">
+                    무인 자동 저장 경로 (야간 자동 변환 권장)
+                  </Label>
+                  <Input
+                    placeholder={String.raw`예: Z:\출력팀\Wooceo_출력백업\!2025년\접수대기`}
+                    value={outputPath}
+                    onChange={(e) => setOutputPath(e.target.value)}
+                    className="h-9 text-[14px] bg-white"
+                  />
+                  <p className="text-[12px] text-gray-600">
+                    서버가 이 경로에 <code className="bg-white px-1 rounded">YYMMDD/인디고도수/양면|단면/</code> 구조로 PDF를 직접 저장합니다.<br/>
+                    브라우저 팝업/다운로드 대화상자 없이 완전 무인으로 동작합니다.<br/>
+                    <strong className="text-blue-700">경로가 설정되면 아래 "로컬 PC 저장"은 무시됩니다.</strong>
+                  </p>
+                </div>
+
+                <Separator />
+
                 <div className="flex items-center justify-between">
                   <div>
-                    <Label className="text-[14px] text-black font-normal">로컬 PC에 저장</Label>
+                    <Label className="text-[14px] text-black font-normal">로컬 PC에 저장 (폴백)</Label>
                     <p className="text-[12px] text-gray-500 mt-0.5">
-                      PDF 생성 후 내 PC의 폴더에 자동 다운로드합니다
+                      서버 자동 저장 경로가 비어있을 때만 적용. 브라우저 폴더 선택이 필요합니다.
                     </p>
                   </div>
                   <Switch
                     checked={saveToLocal}
                     onCheckedChange={setSaveToLocal}
+                    disabled={!!outputPath}
                   />
                 </div>
 
@@ -487,20 +508,6 @@ export default function PdfSettingsDialog({
                   </div>
                 )}
 
-                {!saveToLocal && (
-                  <div className="pl-4 space-y-1.5">
-                    <Label className="text-[14px] text-black font-normal">서버 저장 경로</Label>
-                    <Input
-                      placeholder="비워두면 기본경로 사용 (uploads/orders/.../print-pdf/)"
-                      value={outputPath}
-                      onChange={(e) => setOutputPath(e.target.value)}
-                      className="h-9 text-[14px]"
-                    />
-                    <p className="text-[12px] text-gray-500">
-                      서버에 PDF를 저장합니다. 비워두면 기본 경로를 사용합니다.
-                    </p>
-                  </div>
-                )}
               </div>
             </CardContent>
           </Card>

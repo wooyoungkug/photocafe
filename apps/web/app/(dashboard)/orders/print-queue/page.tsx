@@ -84,6 +84,8 @@ export default function PrintQueuePage() {
    * 이렇게 하면 변환 완료 후 자동 저장 시 권한 팝업/다운로드 대화상자 없이 바로 저장됨.
    */
   const ensureFolderReadyForAutoSave = async (): Promise<void> => {
+    // 서버 자동 저장 경로가 설정된 경우 브라우저 개입 불필요 (무인 저장)
+    if (pdfSettings.outputPath) return;
     if (!pdfSettings.saveToLocal) return;
     let handle = getGlobalDirHandle() || (await restoreGlobalDirHandle());
 
@@ -206,6 +208,7 @@ export default function PrintQueuePage() {
           onClose={() => setActiveJobId(null)}
           isDownloading={downloadMutation.isPending}
           saveToLocal={pdfSettings.saveToLocal}
+          serverAutoSavedPath={pdfSettings.outputPath || undefined}
         />
       )}
 

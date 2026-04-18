@@ -585,13 +585,24 @@ export class PrintPdfService implements OnModuleInit {
         return;
       }
 
-      // 출력 경로 결정
-      const outputPath = this.resolveOutputPath(
-        dto.outputPath,
-        item.order.orderNumber,
-        item.order.client?.clientName || 'unknown',
-        item.productionNumber || `item-${i + 1}`,
-      );
+      // 파일명/출력 경로 결정 (customPath 있으면 {YYMMDD}/{인디고도수}/{양면|단면}/{fileName} 구조로 저장)
+      const nupCountEarly = dto.nupOverride
+        ? (parseInt(dto.nupOverride.replace(/\D/g, ''), 10) || 1)
+        : (specData.nUpX || 1) * (specData.nUpY || 1);
+      const isSpreadEarly = String(item?.pageLayout || '').toLowerCase() === 'spread';
+      const sideEarly = isSpreadEarly ? '양면' : '단면';
+      const fileNameEarly = this.buildDownloadFileName(item, {
+        colorMode,
+        nup: `${nupCountEarly}up`,
+      });
+      const outputPath = this.resolveOutputPathV2(dto.outputPath, {
+        fileName: fileNameEarly,
+        colorMode: colorMode && colorMode !== '-' ? colorMode : undefined,
+        side: sideEarly,
+        orderNumber: item.order.orderNumber,
+        companyName: item.order.client?.clientName || 'unknown',
+        productionNumber: item.productionNumber || `item-${i + 1}`,
+      });
 
       // PDF 생성
       const indexPosition = dto.indexPosition || 'bottom';
@@ -643,14 +654,9 @@ export class PrintPdfService implements OnModuleInit {
 
       result.status = 'completed';
       result.pdfPath = outputPath;
-      const nupCount = nupLayout.nUpX * nupLayout.nUpY;
-      const isSpread = String(item?.pageLayout || '').toLowerCase() === 'spread';
-      result.side = isSpread ? '양면' : '단면';
+      result.side = sideEarly;
       result.colorMode = colorMode && colorMode !== '-' ? colorMode : undefined;
-      result.fileName = this.buildDownloadFileName(item, {
-        colorMode,
-        nup: `${nupCount}up`,
-      });
+      result.fileName = fileNameEarly;
       job.completedItems++;
 
       // DB에 pdfStatus 업데이트
@@ -903,6 +909,46 @@ export class PrintPdfService implements OnModuleInit {
 
   /**
    * PDF 출력 경로 결정
+   * customPath가 있으면: {customPath}/{YYMMDD}/{colorMode}/{side}/{fileName}
+   *                      (무인 저장 — 서버가 네트워크 드라이브 등에 직접 기록)
+   * customPath가 없으면: 기존 uploads/orders/... 구조 유지 (기본값)
+   */
+  private resolveOutputPathV2(
+    customPath: string | undefined,
+    ctx: { fileName: string; colorMode?: string; side?: string; orderNumber: string; companyName: string; productionNumber: string },
+  ): string {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const datePart = `${yy}${mm}${dd}`;
+
+    const sanitizeSeg = (s: string) => (s || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || '_';
+    const safeFileName = sanitizeSeg(ctx.fileName) || 'output.pdf';
+
+    if (customPath) {
+      const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '기타';
+      const sideSeg = ctx.side ? sanitizeSeg(ctx.side) : '기타';
+      const outputDir = path.join(customPath, datePart, colorSeg, sideSeg);
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+      }
+      return path.join(outputDir, safeFileName);
+    }
+
+    // 기본 경로: uploads/orders/{YYYY}/{MM}/{DD}/{company}/{orderNumber}/print-pdf/
+    const basePath = process.env.UPLOAD_BASE_PATH || path.join(process.cwd(), 'uploads');
+    const yyyy = now.getFullYear().toString();
+    const safeCompany = sanitizeSeg(ctx.companyName);
+    const outputDir = path.join(basePath, 'orders', yyyy, mm, dd, safeCompany, ctx.orderNumber, 'print-pdf');
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+    return path.join(outputDir, safeFileName);
+  }
+
+  /**
+   * (레거시) PDF 출력 경로 결정 - 유지용, 호출부는 V2로 이관
    */
   private resolveOutputPath(
     customPath: string | undefined,

@@ -23,6 +23,8 @@ interface PdfProgressTrackerProps {
   onClose: () => void;
   isDownloading?: boolean;
   saveToLocal?: boolean;
+  /** 서버가 이미 지정 경로에 저장했을 경우 브라우저 저장을 스킵하기 위한 플래그 */
+  serverAutoSavedPath?: string;
 }
 
 const statusIcon = {
@@ -38,6 +40,7 @@ export default function PdfProgressTracker({
   onClose,
   isDownloading,
   saveToLocal = true,
+  serverAutoSavedPath,
 }: PdfProgressTrackerProps) {
   // 페이지 단위 진행률을 우선 사용 (1% 단위). 페이지 정보가 없으면 항목 단위로 fallback.
   const progress = (() => {
@@ -90,6 +93,13 @@ export default function PdfProgressTracker({
   useEffect(() => {
     if (!isJobDone || !saveToLocal || autoSavedRef.current || !hasCompletedPdfs) return;
     autoSavedRef.current = true;
+
+    // 서버가 지정 경로에 직접 저장한 경우 브라우저 저장 스킵
+    if (serverAutoSavedPath) {
+      setLocalSaveStatus('done');
+      toast.success(`PDF가 ${serverAutoSavedPath} 경로에 자동 저장되었습니다`);
+      return;
+    }
 
     (async () => {
       // IDB에서 폴더 핸들 복원 (새로고침 후 첫 완료 시 대비)
