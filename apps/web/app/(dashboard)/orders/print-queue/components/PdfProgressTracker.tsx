@@ -95,14 +95,17 @@ export default function PdfProgressTracker({
       // IDB에서 폴더 핸들 복원 (새로고침 후 첫 완료 시 대비)
       const handle = await restoreGlobalDirHandle();
 
-      // 핸들이 있지만 권한이 없으면 사용자 클릭 필요 상태로 전환
-      if (handle) {
-        const perm = await queryHandlePermission(handle);
-        if (perm !== 'granted') {
-          setLocalSaveStatus('permission-needed');
-          toast.info('폴더 저장 권한이 필요합니다. 아래 "폴더에 저장" 버튼을 클릭해주세요.');
-          return;
-        }
+      // 핸들이 없거나 권한 미확보면 사용자 클릭 필요 상태로 전환 (브라우저 다운로드 대화상자 방지)
+      if (!handle) {
+        setLocalSaveStatus('permission-needed');
+        toast.info('저장 폴더를 선택해주세요. 아래 "폴더에 저장" 버튼을 클릭하세요.');
+        return;
+      }
+      const perm = await queryHandlePermission(handle);
+      if (perm !== 'granted') {
+        setLocalSaveStatus('permission-needed');
+        toast.info('폴더 저장 권한이 필요합니다. 아래 "폴더에 저장" 버튼을 클릭해주세요.');
+        return;
       }
 
       setLocalSaveStatus('saving');
