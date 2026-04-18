@@ -201,6 +201,31 @@ export default function ProductPage() {
     if (validFolders.length < folders.length) {
       toast({ title: '일부 폴더 제외', description: `파일이 없는 ${folders.length - validFolders.length}개 폴더가 제외되었습니다.` });
     }
+
+    // 업로드 100% 완료 + 서버 파일 정보 필수 (미완료 폴더는 결제 시 "파일 만료" 에러 유발)
+    const incompleteFolders = validFolders.filter(f =>
+      f.immediateUploadStatus !== 'completed'
+      || !f.tempFolderId
+      || !f.immediateServerFiles
+      || f.immediateServerFiles.length === 0
+    );
+    if (incompleteFolders.length > 0) {
+      const statusLabel: Record<string, string> = {
+        pending: '업로드 대기',
+        uploading: '업로드 중',
+        failed: '업로드 실패',
+        partial: '업로드 일부 실패',
+      };
+      const names = incompleteFolders
+        .map(f => `• ${f.orderTitle || f.folderName}: ${statusLabel[f.immediateUploadStatus || 'pending'] || '미완료'}`)
+        .join('\n');
+      toast({
+        title: '업로드 완료 필요',
+        description: `파일 업로드가 100% 완료된 후 장바구니에 담을 수 있습니다.\n\n${names}`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setTimeout(async () => {
       try {
         const itemIdsBefore = new Set(useCartStore.getState().items.map(i => i.id));
@@ -450,9 +475,11 @@ export default function ProductPage() {
         }
 
         // 장바구니에서 사용 중인 temp 폴더는 삭제하지 않음 (주문 생성 시 정식 경로로 이동됨)
+        // ⚠️ newItems 배열은 updateUploadStatus 호출 전 스냅샷이라 tempFolderId가 undefined.
+        //    validFolders가 원본(source of truth)이므로 여기서 수집한다.
         const activeTempIds = new Set<string>();
-        newItems.forEach(item => {
-          if (item.tempFolderId) activeTempIds.add(item.tempFolderId);
+        validFolders.forEach(folder => {
+          if (folder.tempFolderId) activeTempIds.add(folder.tempFolderId);
         });
         clearFolders(activeTempIds);
         setUploadModalState({ isOpen: true, newCartItemIds: newItems.map((i) => i.id), primaryIds });

@@ -1976,6 +1976,30 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       toast({ title: '데이터 업로드 필요', description: '파일이 업로드되지 않은 주문은 장바구니에 담을 수 없습니다.', variant: 'destructive' });
       return;
     }
+    // 업로드 100% 완료 체크 (미완료 상태로 담으면 서버 temp에 파일이 없어 결제 시 실패)
+    const incomplete = withFiles.filter(f =>
+      f.immediateUploadStatus !== 'completed'
+      || !f.tempFolderId
+      || !f.immediateServerFiles
+      || f.immediateServerFiles.length === 0
+    );
+    if (incomplete.length > 0) {
+      const statusLabel: Record<string, string> = {
+        pending: '업로드 대기',
+        uploading: '업로드 중',
+        failed: '업로드 실패',
+        partial: '업로드 일부 실패',
+      };
+      const names = incomplete
+        .map(f => `• ${f.orderTitle || f.folderName}: ${statusLabel[f.immediateUploadStatus || 'pending'] || '미완료'}`)
+        .join('\n');
+      toast({
+        title: '업로드 완료 필요',
+        description: `파일 업로드가 100% 완료된 후 장바구니에 담을 수 있습니다.\n\n${names}`,
+        variant: 'destructive',
+      });
+      return;
+    }
     onAddToCart?.(withFiles);
   };
 
