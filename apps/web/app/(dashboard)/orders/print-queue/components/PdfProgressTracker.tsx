@@ -74,8 +74,14 @@ export default function PdfProgressTracker({
 
       const blob = await response.blob();
       const fileName = resolveFileName(result);
-      // side가 있으면 양면/단면 하위폴더로 분리 저장
-      const subfolder = result.side || undefined;
+      // 저장 경로: {YYMMDD(오늘)}/{양면|단면}/
+      const today = new Date();
+      const yy = String(today.getFullYear()).slice(-2);
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const datePart = `${yy}${mm}${dd}`;
+      const sidePart = result.side || '';
+      const subfolder = sidePart ? `${datePart}/${sidePart}` : datePart;
       await saveToLocalFolder(blob, fileName, forceHandle, subfolder);
     }
   };

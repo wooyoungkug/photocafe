@@ -656,12 +656,15 @@ export async function saveToLocalFolder(
     const perm = await queryHandlePermission(handle);
     if (perm === 'granted') {
       try {
-        // subfolder 지정 시 하위 폴더 핸들 확보 (없으면 생성)
+        // subfolder: "260418/양면" 같은 계층 경로 지원 → 각 단계별로 생성
         let targetDir: FileSystemDirectoryHandle = handle;
         if (subfolder) {
-          const safeSub = subfolder.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim();
-          if (safeSub) {
-            targetDir = await (handle as any).getDirectoryHandle(safeSub, { create: true });
+          const segments = subfolder
+            .split(/[\\/]/)
+            .map((s) => s.replace(/[<>:"|?*\x00-\x1f]/g, '_').trim())
+            .filter(Boolean);
+          for (const seg of segments) {
+            targetDir = await (targetDir as any).getDirectoryHandle(seg, { create: true });
           }
         }
         const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
