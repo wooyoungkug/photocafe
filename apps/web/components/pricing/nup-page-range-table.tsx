@@ -196,7 +196,7 @@ export function NupPageRangeTable({
               }}
             >
               <span className="text-sm font-semibold text-violet-700">{nup}</span>
-              <span className="text-xs text-gray-500 truncate" title={specNames}>
+              <span className="text-xs text-gray-500 break-words whitespace-normal leading-tight py-0.5" title={specNames}>
                 {specNames}
               </span>
 

@@ -1552,8 +1552,8 @@ export function IndividualPricingTab({ clientId, clientName, groupId, groupName,
                             <span className="font-bold text-sm text-violet-700">{nup}</span>
                           </td>
                           {/* 규격 목록 */}
-                          <td className="py-1.5 px-2 text-xs text-gray-500 max-w-[200px]">
-                            <span className="truncate block" title={specNames}>{specNames}</span>
+                          <td className="py-1.5 px-2 text-xs text-gray-500 align-top">
+                            <span className="block break-words whitespace-normal leading-tight" title={specNames}>{specNames}</span>
                           </td>
                           {/* 표지가격 */}
                           <td className="py-1 px-1 text-center">

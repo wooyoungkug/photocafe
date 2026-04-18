@@ -4414,7 +4414,7 @@ export default function ProductionSettingPage() {
                                     }}
                                   />
                                   <span className="text-sm font-semibold text-violet-700">{nup}</span>
-                                  <span className="text-xs text-gray-500 truncate" title={specNames}>{specNames}</span>
+                                  <span className="text-xs text-gray-500 break-words whitespace-normal leading-tight py-0.5" title={specNames}>{specNames}</span>
 
                                   {isSelected ? (
                                     <>

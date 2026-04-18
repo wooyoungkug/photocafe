@@ -1807,7 +1807,7 @@ export default function GroupPricingPage() {
                       }}
                     >
                       <span className="text-sm font-semibold text-violet-700">{nup}</span>
-                      <span className="text-xs text-gray-500 truncate" title={specNames}>{specNames}</span>
+                      <span className="text-xs text-gray-500 break-words whitespace-normal leading-tight py-0.5" title={specNames}>{specNames}</span>
 
                       {/* 표지가격 입력 */}
                       <div className="flex flex-col items-center">
