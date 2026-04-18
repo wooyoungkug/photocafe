@@ -3077,6 +3077,55 @@ export default function ProductionSettingPage() {
                             </div>
                           </div>
 
+                          {/* Nup별 포함 규격 요약 (참고용) */}
+                          {settingForm.priceGroups.length > 0 && (() => {
+                            const filteredSpecs = getFilteredSpecifications();
+                            const firstGroup = settingForm.priceGroups[0];
+                            const upPrices = firstGroup?.upPrices || (
+                              (settingForm.printMethod === "indigoAlbum" || settingForm.printMethod === "album")
+                                ? getAlbumNupKeys(settingForm.printMethod).map((nupKey) => ({ up: NUP_TO_COUNT[nupKey] || 1, nupKey }))
+                                : INDIGO_UP_UNITS.map((up) => ({ up, nupKey: undefined as string | undefined }))
+                            );
+
+                            const rows = upPrices.map((up: any) => {
+                              const nupKey = up.nupKey || `${up.up}up`;
+                              const matching = filteredSpecs.filter((s: any) => s.nup === nupKey);
+                              return { nupKey, specs: matching };
+                            });
+
+                            const missingCount = rows.filter(r => r.specs.length === 0).length;
+
+                            return (
+                              <div className="border border-blue-200 bg-blue-50/60 rounded p-2 text-xs">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-semibold text-blue-700">Nup별 포함 규격 (대표)</span>
+                                  {missingCount > 0 ? (
+                                    <span className="text-red-600 font-medium">
+                                      ⚠ {missingCount}개 Nup에 규격 없음 — 규격정보에서 nup 값 확인 필요
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-500">총 {rows.length}개 Nup</span>
+                                  )}
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-3 gap-y-0.5">
+                                  {rows.map(({ nupKey, specs }) => (
+                                    <div key={nupKey} className="flex items-center gap-1 truncate">
+                                      <span className="font-bold text-indigo-600 min-w-[42px]">{nupKey}</span>
+                                      <span className={cn("truncate", specs.length === 0 ? "text-red-500" : "text-gray-700")}>
+                                        {specs.length === 0
+                                          ? '규격 없음'
+                                          : getNupGroupLabel(specs)}
+                                      </span>
+                                      {specs.length > 0 && (
+                                        <span className="text-gray-400 shrink-0">({specs.length})</span>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+
                           {/* 그룹별 단가 입력 */}
                           {settingForm.priceGroups.length === 0 ? (
                             <div className="border p-4 text-center text-muted-foreground text-sm">
