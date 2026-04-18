@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   GeneratePrintPdfDto,
@@ -15,10 +15,10 @@ import * as fs from 'fs';
 const sharp = require('sharp');
 
 @Injectable()
-export class PrintPdfService {
+export class PrintPdfService implements OnModuleInit {
   private readonly logger = new Logger(PrintPdfService.name);
 
-  /** 메모리 기반 Job 상태 관리 */
+  /** 메모리 기반 Job 상태 캐시 (DB와 병행) */
   private jobs = new Map<string, PdfJobProgress>();
 
   constructor(
@@ -26,6 +26,35 @@ export class PrintPdfService {
     private readonly renderer: PrintPdfRendererService,
     private readonly layout: PrintPdfLayoutService,
   ) {}
+
+  /**
+   * 서버 부팅 시 좀비 상태 회수.
+   * - 이전 실행에서 in_progress/pending 상태로 남은 PdfJob → failed로 전환
+   * - OrderItem.pdfStatus도 in_progress 상태면 failed로 회수
+   */
+  async onModuleInit() {
+    try {
+      const zombieJobs = await this.prisma.pdfJob.updateMany({
+        where: { status: { in: ['pending', 'in_progress'] } },
+        data: { status: 'failed' },
+      });
+      const zombieItems = await (this.prisma as any).pdfJobItem?.updateMany?.({
+        where: { status: { in: ['pending', 'in_progress'] } },
+        data: { status: 'failed', error: 'Server restarted' },
+      });
+      const zombieOrderItems = await this.prisma.orderItem.updateMany({
+        where: { pdfStatus: 'in_progress' },
+        data: { pdfStatus: 'failed' },
+      });
+      if (zombieJobs.count || zombieOrderItems.count) {
+        this.logger.warn(
+          `PDF Job recovery on boot: jobs=${zombieJobs.count}, items=${zombieItems?.count ?? 0}, orderItems=${zombieOrderItems.count}`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.error(`PDF Job recovery failed: ${err.message}`);
+    }
+  }
 
   /**
    * 출력대기 주문 목록 조회
@@ -203,6 +232,29 @@ export class PrintPdfService {
 
     this.jobs.set(jobId, job);
 
+    // DB에 Job 영속화 (재시작 대비)
+    try {
+      await this.prisma.pdfJob.create({
+        data: {
+          id: jobId,
+          status: 'pending',
+          totalItems: job.totalItems,
+          completedItems: 0,
+          items: {
+            create: job.results.map((r, idx) => ({
+              orderItemId: r.orderItemId,
+              orderNumber: r.orderNumber || '',
+              studioName: r.studioName || '',
+              status: 'pending',
+              sortOrder: idx,
+            })),
+          },
+        },
+      });
+    } catch (err: any) {
+      this.logger.error(`Failed to persist PdfJob ${jobId}: ${err.message}`);
+    }
+
     // 비동기로 실행 (await 하지 않음)
     this.processJob(jobId, dto).catch((err) => {
       this.logger.error(`Job ${jobId} failed: ${err.message}`, err.stack);
@@ -210,16 +262,48 @@ export class PrintPdfService {
       if (j) {
         j.status = 'failed';
       }
+      this.prisma.pdfJob
+        .update({ where: { id: jobId }, data: { status: 'failed' } })
+        .catch(() => {});
     });
 
     return job;
   }
 
   /**
-   * Job 상태 조회
+   * Job 상태 조회 (메모리 우선, 없으면 DB에서 복원)
    */
-  getJobStatus(jobId: string): PdfJobProgress | undefined {
-    return this.jobs.get(jobId);
+  async getJobStatus(jobId: string): Promise<PdfJobProgress | undefined> {
+    const cached = this.jobs.get(jobId);
+    if (cached) return cached;
+
+    try {
+      const dbJob = await this.prisma.pdfJob.findUnique({
+        where: { id: jobId },
+        include: { items: { orderBy: { sortOrder: 'asc' } } },
+      });
+      if (!dbJob) return undefined;
+
+      return {
+        jobId: dbJob.id,
+        status: dbJob.status as PdfJobProgress['status'],
+        totalItems: dbJob.totalItems,
+        completedItems: dbJob.completedItems,
+        currentItem: dbJob.currentItem ?? undefined,
+        results: dbJob.items.map((it) => ({
+          orderItemId: it.orderItemId,
+          orderNumber: it.orderNumber,
+          studioName: it.studioName,
+          status: it.status as PdfJobProgress['results'][number]['status'],
+          pdfPath: it.pdfPath ?? undefined,
+          error: it.error ?? undefined,
+        })),
+        createdAt: dbJob.createdAt,
+      };
+    } catch (err: any) {
+      this.logger.error(`getJobStatus DB lookup failed: ${err.message}`);
+      return undefined;
+    }
   }
 
   /**
@@ -228,7 +312,7 @@ export class PrintPdfService {
    * - itemId 미지정 시: job 완료 후 첫 번째 완료 PDF 반환 (하위 호환)
    */
   async getDownloadPath(jobId: string, itemId?: string): Promise<string | null> {
-    const job = this.jobs.get(jobId);
+    const job = this.jobs.get(jobId) || (await this.getJobStatus(jobId));
     if (!job) return null;
 
     if (itemId) {
@@ -255,6 +339,9 @@ export class PrintPdfService {
   private async processJob(jobId: string, dto: GeneratePrintPdfDto) {
     const job = this.jobs.get(jobId)!;
     job.status = 'in_progress';
+    await this.prisma.pdfJob
+      .update({ where: { id: jobId }, data: { status: 'in_progress' } })
+      .catch(() => {});
 
     // 고정 크기 워커 풀로 병렬 처리 (순서 보존 X, 완료 카운터만 증가)
     const total = dto.orderItemIds.length;
@@ -271,6 +358,12 @@ export class PrintPdfService {
 
     job.status = 'completed';
     job.currentItem = undefined;
+    await this.prisma.pdfJob
+      .update({
+        where: { id: jobId },
+        data: { status: 'completed', currentItem: null, completedItems: job.completedItems },
+      })
+      .catch(() => {});
   }
 
   private async processItem(jobId: string, dto: GeneratePrintPdfDto, i: number): Promise<void> {
@@ -281,10 +374,20 @@ export class PrintPdfService {
     job.currentItem = orderItemId;
 
     // DB에 진행중 상태 업데이트
-    await this.prisma.orderItem.update({
-      where: { id: orderItemId },
-      data: { pdfStatus: 'in_progress' },
-    }).catch(() => {});
+    await Promise.all([
+      this.prisma.orderItem
+        .update({ where: { id: orderItemId }, data: { pdfStatus: 'in_progress' } })
+        .catch(() => {}),
+      this.prisma.pdfJob
+        .update({ where: { id: jobId }, data: { currentItem: orderItemId } })
+        .catch(() => {}),
+      this.prisma.pdfJobItem
+        .updateMany({
+          where: { jobId, orderItemId, sortOrder: i },
+          data: { status: 'in_progress' },
+        })
+        .catch(() => {}),
+    ]);
 
     let files: Array<{ originalPath: string; sortOrder: number; isTemp?: boolean }> = [];
 
@@ -305,6 +408,12 @@ export class PrintPdfService {
       if (!item) {
         result.status = 'failed';
         result.error = '주문 항목을 찾을 수 없습니다.';
+        await this.prisma.pdfJobItem
+          .updateMany({
+            where: { jobId, orderItemId, sortOrder: i },
+            data: { status: 'failed', error: result.error },
+          })
+          .catch(() => {});
         return;
       }
 
@@ -425,10 +534,17 @@ export class PrintPdfService {
         result.status = 'failed';
         result.error = `유효한 이미지 파일이 없습니다. (총 ${totalFiles}개 파일, originalPath=${item.files?.[0]?.originalPath || 'null'}, urlType=${fileUrlSample}...)`;
         this.logger.error(`No valid files for item ${orderItemId}: total=${totalFiles}, sample originalPath=${item.files?.[0]?.originalPath}, sample fileUrl prefix=${fileUrlSample}`);
-        await this.prisma.orderItem.update({
-          where: { id: orderItemId },
-          data: { pdfStatus: 'failed' },
-        }).catch(() => {});
+        await Promise.all([
+          this.prisma.orderItem
+            .update({ where: { id: orderItemId }, data: { pdfStatus: 'failed' } })
+            .catch(() => {}),
+          this.prisma.pdfJobItem
+            .updateMany({
+              where: { jobId, orderItemId, sortOrder: i },
+              data: { status: 'failed', error: result.error },
+            })
+            .catch(() => {}),
+        ]);
         return;
       }
 
@@ -476,14 +592,28 @@ export class PrintPdfService {
       job.completedItems++;
 
       // DB에 pdfStatus 업데이트
-      await this.prisma.orderItem.update({
-        where: { id: orderItemId },
-        data: {
-          pdfStatus: 'completed',
-          pdfPath: outputPath,
-          pdfGeneratedAt: new Date(),
-        },
-      });
+      await Promise.all([
+        this.prisma.orderItem.update({
+          where: { id: orderItemId },
+          data: {
+            pdfStatus: 'completed',
+            pdfPath: outputPath,
+            pdfGeneratedAt: new Date(),
+          },
+        }),
+        this.prisma.pdfJobItem
+          .updateMany({
+            where: { jobId, orderItemId, sortOrder: i },
+            data: { status: 'completed', pdfPath: outputPath },
+          })
+          .catch(() => {}),
+        this.prisma.pdfJob
+          .update({
+            where: { id: jobId },
+            data: { completedItems: job.completedItems },
+          })
+          .catch(() => {}),
+      ]);
 
       this.logger.log(`PDF generated: ${outputPath} (${files.length} pages)`);
     } catch (err: any) {
@@ -492,10 +622,17 @@ export class PrintPdfService {
       this.logger.error(`Failed to generate PDF for item ${orderItemId}: ${err.message}`);
 
       // DB에 실패 상태 업데이트
-      await this.prisma.orderItem.update({
-        where: { id: orderItemId },
-        data: { pdfStatus: 'failed' },
-      }).catch(() => {});
+      await Promise.all([
+        this.prisma.orderItem
+          .update({ where: { id: orderItemId }, data: { pdfStatus: 'failed' } })
+          .catch(() => {}),
+        this.prisma.pdfJobItem
+          .updateMany({
+            where: { jobId, orderItemId, sortOrder: i },
+            data: { status: 'failed', error: err.message },
+          })
+          .catch(() => {}),
+      ]);
     } finally {
       // 임시 파일 정리
       for (const f of files) {

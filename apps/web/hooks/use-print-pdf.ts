@@ -144,10 +144,29 @@ export function useGeneratePrintPdf() {
 }
 
 export function usePdfJobStatus(jobId: string | null) {
-  return useQuery({
+  return useQuery<PdfJobProgress | null>({
     queryKey: ['pdf-job', jobId],
-    queryFn: () => api.get<PdfJobProgress>(`/print-pdf/jobs/${jobId}/status`),
+    queryFn: async () => {
+      try {
+        return await api.get<PdfJobProgress>(`/print-pdf/jobs/${jobId}/status`);
+      } catch (err: any) {
+        // 백엔드 재시작 등으로 Job이 사라진 경우: 실패로 간주하고 폴링 중단
+        const msg = String(err?.message || '');
+        if (msg.includes('찾을 수 없') || msg.toLowerCase().includes('not found')) {
+          return {
+            jobId: jobId!,
+            status: 'failed',
+            totalItems: 0,
+            completedItems: 0,
+            results: [],
+            createdAt: new Date().toISOString(),
+          } as unknown as PdfJobProgress;
+        }
+        throw err;
+      }
+    },
     enabled: !!jobId,
+    retry: false,
     refetchInterval: (query) => {
       const data = query.state.data as PdfJobProgress | undefined;
       // 완료/실패 시 폴링 중지

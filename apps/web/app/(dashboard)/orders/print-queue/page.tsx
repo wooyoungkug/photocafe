@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { RefreshCw, FileDown, Search, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,8 +29,20 @@ export default function PrintQueuePage() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
-  // Job 상태
-  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  // Job 상태 (sessionStorage 복원으로 새로고침 내성)
+  const [activeJobId, setActiveJobId] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem('printPdf.activeJobId');
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (activeJobId) {
+      sessionStorage.setItem('printPdf.activeJobId', activeJobId);
+    } else {
+      sessionStorage.removeItem('printPdf.activeJobId');
+    }
+  }, [activeJobId]);
 
   // API 훅
   const { data, isPending, refetch, isFetching } = usePrintQueue({
@@ -41,6 +53,14 @@ export default function PrintQueuePage() {
   const generateMutation = useGeneratePrintPdf();
   const { data: jobProgress } = usePdfJobStatus(activeJobId);
   const downloadMutation = useDownloadPdf();
+
+  // 404 등으로 Job이 유실된 경우 (failed + results 비어있음) → 자동 초기화
+  useEffect(() => {
+    if (!activeJobId || !jobProgress) return;
+    if (jobProgress.status === 'failed' && (!jobProgress.results || jobProgress.results.length === 0)) {
+      setActiveJobId(null);
+    }
+  }, [activeJobId, jobProgress]);
 
   const items = data?.items || [];
 
