@@ -244,7 +244,7 @@ export class PrintPdfService {
   // ==================== Private ====================
 
   /** 동시 처리 항목 수 (PDF 렌더링은 CPU/IO 부담이 크므로 과도한 병렬은 피함) */
-  private static readonly PROCESS_CONCURRENCY = 2;
+  private static readonly PROCESS_CONCURRENCY = 4;
 
   private async processJob(jobId: string, dto: GeneratePrintPdfDto) {
     const job = this.jobs.get(jobId)!;
