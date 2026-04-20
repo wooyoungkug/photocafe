@@ -44,6 +44,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { validateFolder } from '@/lib/order-validation';
 import { ColorGroupBadge } from './color-group-badge';
 import { FabricPickerDialog } from './fabric-picker-dialog';
 import { useCopperPlateLabels, useCopperPlatesByClient } from '@/hooks/use-copper-plates';
@@ -766,6 +767,37 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setIsEditingTitle(false);
   };
 
+  // 필수 필드 검증 (장바구니 담기 전 미리 표시)
+  const validationResult = useMemo(() => {
+    return validateFolder({
+      id: folder.id,
+      folderName: folder.orderTitle || folder.folderName,
+      specificationId: folder.specificationId,
+      bindingDirection: folder.bindingDirection ?? undefined,
+      pageLayout: folder.pageLayout ?? undefined,
+      printMethod: folder.printMethod ?? undefined,
+      colorMode: folder.colorMode ?? undefined,
+      selectedPaperName: folder.selectedPaperName ?? undefined,
+      coverSourceType: folder.coverSourceType ?? undefined,
+      selectedFabricId: folder.selectedFabricId ?? undefined,
+      quantity: folder.quantity,
+      files: folder.files,
+    });
+  }, [
+    folder.id,
+    folder.orderTitle,
+    folder.folderName,
+    folder.specificationId,
+    folder.bindingDirection,
+    folder.pageLayout,
+    folder.printMethod,
+    folder.colorMode,
+    folder.selectedPaperName,
+    folder.coverSourceType,
+    folder.selectedFabricId,
+    folder.quantity,
+    folder.files,
+  ]);
 
   return (
     <div
@@ -776,6 +808,18 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         actualStatus.bgColor
       )}
     >
+      {/* 필수 항목 누락 경고 (접수 차단 예방) */}
+      {!validationResult.isValid && validationResult.issues.length > 0 && (
+        <div className="mb-3 px-3 py-2 rounded-lg border-2 border-red-300 bg-red-50 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-bold text-red-800 mb-0.5">주문 정보 누락 - 장바구니 담기 불가</div>
+            <div className="text-[11px] text-red-700">
+              {validationResult.issues.map(i => i.label).join(', ')} 을(를) 확인해주세요.
+            </div>
+          </div>
+        </div>
+      )}
       {/* 즉시 서버 업로드 진행률 */}
       {folder.immediateUploadStatus && folder.immediateUploadStatus !== 'pending' && (
         <div className={cn(

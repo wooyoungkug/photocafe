@@ -7,6 +7,7 @@ import { ArrowLeft, ImageIcon, ChevronDown, ChevronUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCartStore, type CartShippingInfo } from '@/stores/cart-store';
+import { validateCartItems } from '@/lib/order-validation';
 import { useAuthStore } from '@/stores/auth-store';
 import { useShippingData } from '@/hooks/use-shipping-data';
 import { useSameDayShipping } from '@/hooks/use-same-day-shipping';
@@ -421,6 +422,18 @@ export default function CartPage() {
       });
       return;
     }
+
+    // L2: 선택된 아이템 필수 필드 검증
+    const { allValid, errorSummary } = validateCartItems(selectedCartItems);
+    if (!allValid) {
+      toast({
+        title: '주문 정보 누락',
+        description: errorSummary.slice(0, 5).join('\n') + (errorSummary.length > 5 ? `\n외 ${errorSummary.length - 5}건` : ''),
+        variant: 'destructive',
+      });
+      return;
+    }
+
     if (!isAuthenticated) {
       router.push('/login?redirect=/order');
       return;

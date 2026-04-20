@@ -41,6 +41,7 @@ import { retryBackgroundUpload, canRetryUpload, cancelUpload, canCancelUpload } 
 import { useCartStore } from '@/stores/cart-store';
 import { useProduct } from '@/hooks/use-products';
 import type { ProductPaper } from '@/lib/types';
+import { validateCartItem } from '@/lib/order-validation';
 
 const DELIVERY_METHODS = [
   { value: 'parcel', label: '택배' },

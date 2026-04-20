@@ -63,62 +63,37 @@ const mkInch = (w: number, h: number, group: string): ProductPreset => ({
   unit: 'inch',
   group,
 });
+// 인디고 7900 (330×482) / 7900S (315×465) 기준 실제 제작되는 한국 웨딩·포토 앨범 규격만 포함
 const PRODUCT_PRESETS: ProductPreset[] = [
-  // 정사각
-  mkInch(5, 5, '정사각'),
+  // 정사각 — 인디고 시트에 앉는 범위
   mkInch(6, 6, '정사각'),
   mkInch(8, 8, '정사각'),
   mkInch(10, 10, '정사각'),
   mkInch(11, 11, '정사각'),
   mkInch(12, 12, '정사각'),
-  mkInch(14, 14, '정사각'),
-  mkInch(16, 16, '정사각'),
-  // 세로 (W < H)
-  mkInch(4, 6, '세로'),
+  // 세로 (W < H) — 웨딩/포토 앨범 표준
   mkInch(5, 7, '세로'),
-  mkInch(5.5, 7, '세로'),
   mkInch(6, 8, '세로'),
-  mkInch(6, 9, '세로'),
   mkInch(7, 10, '세로'),
   mkInch(8, 10, '세로'),
   mkInch(8, 12, '세로'),
   mkInch(10, 12, '세로'),
   mkInch(11, 14, '세로'),
   mkInch(12, 15, '세로'),
-  mkInch(12, 18, '세로'),
-  mkInch(13, 19, '세로'),
-  mkInch(14, 17, '세로'),
-  mkInch(15, 20, '세로'),
-  mkInch(16, 20, '세로'),
   // 가로 (W > H)
-  mkInch(6, 4, '가로'),
   mkInch(7, 5, '가로'),
   mkInch(7, 5.5, '가로'),
   mkInch(8, 6, '가로'),
-  mkInch(9, 6, '가로'),
   mkInch(10, 7, '가로'),
   mkInch(10, 8, '가로'),
   mkInch(12, 8, '가로'),
   mkInch(12, 10, '가로'),
   mkInch(14, 11, '가로'),
   mkInch(15, 12, '가로'),
-  mkInch(18, 12, '가로'),
-  mkInch(19, 13, '가로'),
-  mkInch(17, 14, '가로'),
-  mkInch(20, 15, '가로'),
-  mkInch(20, 16, '가로'),
-  // A/B 규격
-  { key: 'A3', label: 'A3 (297×420)', w: 297, h: 420, unit: 'mm', group: 'A/B 규격' },
-  { key: 'A4', label: 'A4 (210×297)', w: 210, h: 297, unit: 'mm', group: 'A/B 규격' },
-  { key: 'A5', label: 'A5 (148×210)', w: 148, h: 210, unit: 'mm', group: 'A/B 규격' },
-  { key: 'A6', label: 'A6 (105×148)', w: 105, h: 148, unit: 'mm', group: 'A/B 규격' },
-  { key: 'B4', label: 'B4 (250×353)', w: 250, h: 353, unit: 'mm', group: 'A/B 규격' },
-  { key: 'B5', label: 'B5 (176×250)', w: 176, h: 250, unit: 'mm', group: 'A/B 규격' },
-  { key: 'B6', label: 'B6 (125×176)', w: 125, h: 176, unit: 'mm', group: 'A/B 규격' },
   // 커스텀
   { key: 'custom', label: '커스텀 (직접 입력)', w: 0, h: 0, unit: 'mm', group: '기타' },
 ];
-const PRODUCT_GROUPS = ['정사각', '세로', '가로', 'A/B 규격', '기타'];
+const PRODUCT_GROUPS = ['정사각', '세로', '가로', '기타'];
 
 export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: Props) {
   // ==== 상태 ====
