@@ -137,72 +137,70 @@ export class PrintPdfRendererService {
       offsetY = (pdfPageHeightPt - dimensions.pageHeightPt) / 2;
     }
 
-    return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument({
-          autoFirstPage: false,
-          compress: false,
-        });
-        const writeStream = fs.createWriteStream(outputPath);
-        writeStream.on('finish', () => resolve(outputPath));
-        writeStream.on('error', (err: any) => reject(err));
-        doc.pipe(writeStream);
-
-        for (let i = 0; i < validFiles.length; i++) {
-          const file = validFiles[i];
-
-          doc.addPage({
-            size: [pdfPageWidthPt, pdfPageHeightPt],
-            margin: 0,
-          });
-
-          // 오프셋 적용한 좌표 계산
-          const imgX = offsetX + dimensions.imageX;
-          const imgY = offsetY + dimensions.imageY;
-
-          // 1) 이미지 배치
-          doc.image(file.originalPath, imgX, imgY, {
-            width: dimensions.imageWidthPt,
-            height: dimensions.imageHeightPt,
-          });
-
-          // 오프셋 적용된 dimensions (인덱스/재단선 렌더링용)
-          const offsetDims: PageDimensions = {
-            ...dimensions,
-            pageWidthPt: pdfPageWidthPt,
-            pageHeightPt: pdfPageHeightPt,
-            imageX: imgX,
-            imageY: imgY,
-            trimLeft: offsetX + dimensions.trimLeft,
-            trimTop: offsetY + dimensions.trimTop,
-            trimRight: offsetX + dimensions.trimRight,
-            trimBottom: offsetY + dimensions.trimBottom,
-          };
-
-          // 2) 인덱스 렌더링
-          const pageIndexData: IndexData = {
-            ...indexData,
-            currentPage: i + 1,
-            totalPages,
-          };
-          this.renderIndex(doc, pageIndexData, indexOptions, offsetDims, indexOrderKeys, indexPosition);
-
-          // 3) 재단선 렌더링
-          if (includeCropMarks) {
-            this.renderCropMarks(doc, offsetDims);
-          }
-
-          // 페이지별 진행률 콜백 (이벤트 루프 양보로 폴링 응답 보장)
-          if (onPageRendered) {
-            try { onPageRendered(i + 1, totalPages); } catch { /* ignore */ }
-          }
-        }
-
-        doc.end();
-      } catch (err) {
-        reject(err);
-      }
+    const doc = new PDFDocument({
+      autoFirstPage: false,
+      compress: false,
     });
+    const writeStream = fs.createWriteStream(outputPath);
+    const finished = new Promise<string>((resolve, reject) => {
+      writeStream.on('finish', () => resolve(outputPath));
+      writeStream.on('error', (err: any) => reject(err));
+    });
+    doc.pipe(writeStream);
+
+    for (let i = 0; i < validFiles.length; i++) {
+      const file = validFiles[i];
+
+      doc.addPage({
+        size: [pdfPageWidthPt, pdfPageHeightPt],
+        margin: 0,
+      });
+
+      // 오프셋 적용한 좌표 계산
+      const imgX = offsetX + dimensions.imageX;
+      const imgY = offsetY + dimensions.imageY;
+
+      // 1) 이미지 배치
+      doc.image(file.originalPath, imgX, imgY, {
+        width: dimensions.imageWidthPt,
+        height: dimensions.imageHeightPt,
+      });
+
+      // 오프셋 적용된 dimensions (인덱스/재단선 렌더링용)
+      const offsetDims: PageDimensions = {
+        ...dimensions,
+        pageWidthPt: pdfPageWidthPt,
+        pageHeightPt: pdfPageHeightPt,
+        imageX: imgX,
+        imageY: imgY,
+        trimLeft: offsetX + dimensions.trimLeft,
+        trimTop: offsetY + dimensions.trimTop,
+        trimRight: offsetX + dimensions.trimRight,
+        trimBottom: offsetY + dimensions.trimBottom,
+      };
+
+      // 2) 인덱스 렌더링
+      const pageIndexData: IndexData = {
+        ...indexData,
+        currentPage: i + 1,
+        totalPages,
+      };
+      this.renderIndex(doc, pageIndexData, indexOptions, offsetDims, indexOrderKeys, indexPosition);
+
+      // 3) 재단선 렌더링
+      if (includeCropMarks) {
+        this.renderCropMarks(doc, offsetDims);
+      }
+
+      // 페이지별 진행률 콜백 + 이벤트 루프 양보 → 폴링 응답 가능
+      if (onPageRendered) {
+        try { onPageRendered(i + 1, totalPages); } catch { /* ignore */ }
+      }
+      await new Promise<void>(r => setImmediate(r));
+    }
+
+    doc.end();
+    return finished;
   }
 
   /**
@@ -234,65 +232,63 @@ export class PrintPdfRendererService {
     const totalPages = validFiles.length;
     const imagesPerSheet = nupLayout.nUpX * nupLayout.nUpY;
 
-    return new Promise((resolve, reject) => {
-      try {
-        const doc = new PDFDocument({
-          autoFirstPage: false,
-          compress: false,
+    const doc = new PDFDocument({
+      autoFirstPage: false,
+      compress: false,
+    });
+    const writeStream = fs.createWriteStream(outputPath);
+    const finished = new Promise<string>((resolve, reject) => {
+      writeStream.on('finish', () => resolve(outputPath));
+      writeStream.on('error', (err: any) => reject(err));
+    });
+    doc.pipe(writeStream);
+
+    for (let sheetIdx = 0; sheetIdx < Math.ceil(validFiles.length / imagesPerSheet); sheetIdx++) {
+      doc.addPage({
+        size: [nupLayout.sheetWidthPt, nupLayout.sheetHeightPt],
+        margin: 0,
+      });
+
+      for (let cellIdx = 0; cellIdx < imagesPerSheet; cellIdx++) {
+        const fileIdx = sheetIdx * imagesPerSheet + cellIdx;
+        if (fileIdx >= validFiles.length) break;
+
+        const file = validFiles[fileIdx];
+        const cell = nupLayout.cells[cellIdx];
+        const dims = nupLayout.cellPageDimensions;
+
+        // 셀 내 이미지 배치
+        const imgX = cell.x + dims.imageX;
+        const imgY = cell.y + dims.imageY;
+
+        doc.image(file.originalPath, imgX, imgY, {
+          width: dims.imageWidthPt,
+          height: dims.imageHeightPt,
         });
-        const writeStream = fs.createWriteStream(outputPath);
-        writeStream.on('finish', () => resolve(outputPath));
-        writeStream.on('error', (err: any) => reject(err));
-        doc.pipe(writeStream);
 
-        for (let sheetIdx = 0; sheetIdx < Math.ceil(validFiles.length / imagesPerSheet); sheetIdx++) {
-          doc.addPage({
-            size: [nupLayout.sheetWidthPt, nupLayout.sheetHeightPt],
-            margin: 0,
-          });
+        // 셀 내 인덱스 (첫 번째 셀에만 or 각 셀마다 - 현재: 각 셀마다)
+        const pageIndexData: IndexData = {
+          ...indexData,
+          currentPage: fileIdx + 1,
+          totalPages,
+        };
+        this.renderIndexInCell(doc, pageIndexData, indexOptions, dims, cell.x, cell.y, indexOrderKeys, indexPosition);
 
-          for (let cellIdx = 0; cellIdx < imagesPerSheet; cellIdx++) {
-            const fileIdx = sheetIdx * imagesPerSheet + cellIdx;
-            if (fileIdx >= validFiles.length) break;
-
-            const file = validFiles[fileIdx];
-            const cell = nupLayout.cells[cellIdx];
-            const dims = nupLayout.cellPageDimensions;
-
-            // 셀 내 이미지 배치
-            const imgX = cell.x + dims.imageX;
-            const imgY = cell.y + dims.imageY;
-
-            doc.image(file.originalPath, imgX, imgY, {
-              width: dims.imageWidthPt,
-              height: dims.imageHeightPt,
-            });
-
-            // 셀 내 인덱스 (첫 번째 셀에만 or 각 셀마다 - 현재: 각 셀마다)
-            const pageIndexData: IndexData = {
-              ...indexData,
-              currentPage: fileIdx + 1,
-              totalPages,
-            };
-            this.renderIndexInCell(doc, pageIndexData, indexOptions, dims, cell.x, cell.y, indexOrderKeys, indexPosition);
-
-            // 셀 내 재단선
-            if (includeCropMarks) {
-              this.renderCropMarksInCell(doc, dims, cell.x, cell.y);
-            }
-
-            // 페이지별 진행률 콜백
-            if (onPageRendered) {
-              try { onPageRendered(fileIdx + 1, totalPages); } catch { /* ignore */ }
-            }
-          }
+        // 셀 내 재단선
+        if (includeCropMarks) {
+          this.renderCropMarksInCell(doc, dims, cell.x, cell.y);
         }
 
-        doc.end();
-      } catch (err) {
-        reject(err);
+        // 페이지별 진행률 콜백 + 이벤트 루프 양보
+        if (onPageRendered) {
+          try { onPageRendered(fileIdx + 1, totalPages); } catch { /* ignore */ }
+        }
+        await new Promise<void>(r => setImmediate(r));
       }
-    });
+    }
+
+    doc.end();
+    return finished;
   }
 
   /**

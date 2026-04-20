@@ -761,9 +761,12 @@ export class PrintPdfService implements OnModuleInit {
       const isFirst = i === 0;
       const isLast = i === sorted.length - 1;
 
+      // 이미지를 1번만 읽어 버퍼로 캐시 (2번 읽기 방지)
+      let buffer: Buffer;
       let meta: any;
       try {
-        meta = await sharp(f.originalPath).metadata();
+        buffer = await fs.promises.readFile(f.originalPath);
+        meta = await sharp(buffer).metadata();
       } catch (err: any) {
         this.logger.warn(`spread split: metadata failed for ${f.originalPath}: ${err.message}`);
         out.push({ ...f, sortOrder: order++ });
@@ -777,23 +780,38 @@ export class PrintPdfService implements OnModuleInit {
       }
       const halfW = Math.floor(w / 2);
 
-      // 좌 절반
-      if (!(isFirst && dropLeftOfFirst)) {
-        const leftPath = path.join(spreadDir, `${crypto.randomUUID()}_L.jpg`);
-        await sharp(f.originalPath)
-          .extract({ left: 0, top: 0, width: halfW, height: h })
-          .jpeg({ quality: 92 })
-          .toFile(leftPath);
+      const needLeft = !(isFirst && dropLeftOfFirst);
+      const needRight = !(isLast && dropRightOfLast);
+
+      // 좌/우 분할을 병렬 실행 (버퍼 재사용으로 디스크 읽기 1회)
+      const leftPath = needLeft ? path.join(spreadDir, `${crypto.randomUUID()}_L.jpg`) : '';
+      const rightPath = needRight ? path.join(spreadDir, `${crypto.randomUUID()}_R.jpg`) : '';
+
+      const tasks: Promise<void>[] = [];
+      if (needLeft) {
+        tasks.push(
+          sharp(buffer)
+            .extract({ left: 0, top: 0, width: halfW, height: h })
+            .jpeg({ quality: 92 })
+            .toFile(leftPath)
+            .then(() => {}),
+        );
+      }
+      if (needRight) {
+        tasks.push(
+          sharp(buffer)
+            .extract({ left: halfW, top: 0, width: w - halfW, height: h })
+            .jpeg({ quality: 92 })
+            .toFile(rightPath)
+            .then(() => {}),
+        );
+      }
+      await Promise.all(tasks);
+
+      if (needLeft) {
         out.push({ originalPath: leftPath, sortOrder: order++, isTemp: true });
       }
-
-      // 우 절반
-      if (!(isLast && dropRightOfLast)) {
-        const rightPath = path.join(spreadDir, `${crypto.randomUUID()}_R.jpg`);
-        await sharp(f.originalPath)
-          .extract({ left: halfW, top: 0, width: w - halfW, height: h })
-          .jpeg({ quality: 92 })
-          .toFile(rightPath);
+      if (needRight) {
         out.push({ originalPath: rightPath, sortOrder: order++, isTemp: true });
       }
     }
