@@ -512,6 +512,12 @@ export function CartItemCard({
                           <option key={opt.value} value={opt.value}>{opt.label}</option>
                         ))}
                       </select>
+                      {item.albumOrderInfo.bindingName && (
+                        <>
+                          <Separator orientation="vertical" className="h-3 bg-purple-200" />
+                          <span className="font-medium text-purple-700">{item.albumOrderInfo.bindingName}</span>
+                        </>
+                      )}
                       <Separator orientation="vertical" className="h-3 bg-purple-200" />
                       <select
                         title="제본순서"
