@@ -133,9 +133,16 @@ export default function PrintQueueTable({
                   };
                   const s = map[status] || map.pending;
                   return (
-                    <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}`}>
-                      {s.label}
-                    </Badge>
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}`}>
+                        {s.label}
+                      </Badge>
+                      {status === 'failed' && (item as any).pdfError && (
+                        <span className="text-[10px] text-red-500 max-w-[120px] truncate" title={(item as any).pdfError}>
+                          {(item as any).pdfError}
+                        </span>
+                      )}
+                    </div>
                   );
                 })()}
               </TableCell>

@@ -162,6 +162,29 @@ export class PrintPdfService implements OnModuleInit {
         })),
     );
 
+    // 실패 항목의 에러 사유 조회 (pdf_job_items에서 최신 에러)
+    const failedItemIds = items.filter(it => it.pdfStatus === 'failed').map(it => it.id);
+    if (failedItemIds.length > 0) {
+      try {
+        const failedJobItems = await this.prisma.pdfJobItem.findMany({
+          where: { orderItemId: { in: failedItemIds }, status: 'failed', error: { not: null } },
+          select: { orderItemId: true, error: true },
+          orderBy: { sortOrder: 'desc' },
+        });
+        const errorMap = new Map<string, string>();
+        for (const ji of failedJobItems) {
+          if (!errorMap.has(ji.orderItemId)) {
+            errorMap.set(ji.orderItemId, ji.error!);
+          }
+        }
+        for (const item of items) {
+          if (item.pdfStatus === 'failed') {
+            (item as any).pdfError = errorMap.get(item.id) || '유효한 이미지 파일이 없습니다';
+          }
+        }
+      } catch { /* pdf_job_items 조회 실패 시 무시 */ }
+    }
+
     return {
       items,
       total,

@@ -111,6 +111,20 @@ export const DEFAULT_INDEX_OPTIONS: IndexOptions = {
 
 // ==================== Hooks ====================
 
+export interface PrinterInfo {
+  name: string;
+  driver: string;
+  port: string;
+}
+
+export function usePrinterList() {
+  return useQuery<PrinterInfo[]>({
+    queryKey: ['printers'],
+    queryFn: () => api.get<PrinterInfo[]>('/print-pdf/printers'),
+    staleTime: 60 * 1000, // 1분 캐시
+  });
+}
+
 export function usePrintQueue(params?: {
   dateFrom?: string;
   dateTo?: string;

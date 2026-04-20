@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import { PrintPdfService } from '../services/print-pdf.service';
 import { GeneratePrintPdfDto, PrintQueueQueryDto } from '../dto/print-pdf.dto';
 
@@ -23,6 +24,34 @@ export class PrintPdfController {
   private readonly logger = new Logger(PrintPdfController.name);
 
   constructor(private readonly printPdfService: PrintPdfService) {}
+
+  @Get('printers')
+  @ApiOperation({ summary: '설치된 프린터 목록 조회' })
+  async getPrinters() {
+    try {
+      if (process.platform === 'win32') {
+        const output = execSync(
+          'powershell -NoProfile -Command "Get-Printer | Select-Object Name,DriverName,PortName | ConvertTo-Json"',
+          { encoding: 'utf8', timeout: 5000 },
+        );
+        const printers = JSON.parse(output);
+        return (Array.isArray(printers) ? printers : [printers]).map((p: any) => ({
+          name: p.Name,
+          driver: p.DriverName,
+          port: p.PortName,
+        }));
+      }
+      // Linux/macOS: lpstat
+      const output = execSync('lpstat -a 2>/dev/null || echo ""', { encoding: 'utf8', timeout: 5000 });
+      return output.split('\n').filter(Boolean).map(line => ({
+        name: line.split(' ')[0],
+        driver: '',
+        port: '',
+      }));
+    } catch {
+      return [];
+    }
+  }
 
   @Get('queue')
   @ApiOperation({ summary: '출력대기 주문 목록 조회' })

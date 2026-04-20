@@ -28,7 +28,7 @@ import {
   useBulkUpdateSettings,
   settingsToMap,
 } from '@/hooks/use-system-settings';
-import { IndexOptions, DEFAULT_INDEX_OPTIONS } from '@/hooks/use-print-pdf';
+import { IndexOptions, DEFAULT_INDEX_OPTIONS, usePrinterList } from '@/hooks/use-print-pdf';
 
 interface PdfSettingsDialogProps {
   open: boolean;
@@ -126,6 +126,7 @@ export default function PdfSettingsDialog({
   const [imageWidth, setImageWidth] = useState('297');
   const [imageHeight, setImageHeight] = useState('420');
   const [includeColorBar, setIncludeColorBar] = useState(false);
+  const { data: printers = [] } = usePrinterList();
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
@@ -205,8 +206,8 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.INCLUDE_COLOR_BAR, value: String(includeColorBar), category: CATEGORY, label: '칼라 컨트롤 바' },
       { key: SETTING_KEYS.AUTO_PRINT_ENABLED, value: String(autoPrintEnabled), category: CATEGORY, label: '작업지시서 자동 인쇄' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME, value: autoPrintName, category: CATEGORY, label: '자동 인쇄 프린터명' },
-      { key: SETTING_KEYS.AUTO_PRINT_NAME_INDIGO, value: autoPrintNameIndigo, category: CATEGORY, label: '인디고 프린터명' },
-      { key: SETTING_KEYS.AUTO_PRINT_NAME_INKJET, value: autoPrintNameInkjet, category: CATEGORY, label: '잉크젯 프린터명' },
+      { key: SETTING_KEYS.AUTO_PRINT_NAME_INDIGO, value: autoPrintNameIndigo === '__none__' ? '' : autoPrintNameIndigo, category: CATEGORY, label: '인디고 프린터명' },
+      { key: SETTING_KEYS.AUTO_PRINT_NAME_INKJET, value: autoPrintNameInkjet === '__none__' ? '' : autoPrintNameInkjet, category: CATEGORY, label: '잉크젯 프린터명' },
     ];
 
     bulkUpdate.mutate(settings, {
@@ -622,36 +623,61 @@ export default function PdfSettingsDialog({
 
               {autoPrintEnabled && (
                 <div className="space-y-3 pl-4">
+                  {printers.length === 0 && (
+                    <p className="text-[12px] text-amber-600 bg-amber-50 px-3 py-2 rounded">
+                      설치된 프린터를 찾을 수 없습니다. 프린터를 설치한 후 새로고침 해주세요.
+                    </p>
+                  )}
                   <div className="space-y-1.5">
                     <Label className="text-[14px] text-black font-normal">인디고 프린터 (4도/6도)</Label>
-                    <Input
-                      placeholder="인디고 출력 시 사용할 프린터"
-                      value={autoPrintNameIndigo}
-                      onChange={(e) => setAutoPrintNameIndigo(e.target.value)}
-                      className="h-9 text-[14px]"
-                    />
+                    <Select value={autoPrintNameIndigo} onValueChange={setAutoPrintNameIndigo}>
+                      <SelectTrigger className="h-9 text-[14px]">
+                        <SelectValue placeholder="프린터를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">미지정 (공통 프린터 사용)</SelectItem>
+                        {printers.map((p) => (
+                          <SelectItem key={`indigo-${p.name}`} value={p.name}>
+                            {p.name} {p.driver ? `(${p.driver})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[14px] text-black font-normal">잉크젯 프린터</Label>
-                    <Input
-                      placeholder="잉크젯 출력 시 사용할 프린터"
-                      value={autoPrintNameInkjet}
-                      onChange={(e) => setAutoPrintNameInkjet(e.target.value)}
-                      className="h-9 text-[14px]"
-                    />
+                    <Select value={autoPrintNameInkjet} onValueChange={setAutoPrintNameInkjet}>
+                      <SelectTrigger className="h-9 text-[14px]">
+                        <SelectValue placeholder="프린터를 선택하세요" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">미지정 (공통 프린터 사용)</SelectItem>
+                        {printers.map((p) => (
+                          <SelectItem key={`inkjet-${p.name}`} value={p.name}>
+                            {p.name} {p.driver ? `(${p.driver})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-[14px] text-black font-normal">공통 프린터 (미지정 시 사용)</Label>
-                    <Input
-                      placeholder="비워두면 Windows 기본 프린터 사용"
-                      value={autoPrintName}
-                      onChange={(e) => setAutoPrintName(e.target.value)}
-                      className="h-9 text-[14px]"
-                    />
+                    <Select value={autoPrintName || '__default__'} onValueChange={(v) => setAutoPrintName(v === '__default__' ? '' : v)}>
+                      <SelectTrigger className="h-9 text-[14px]">
+                        <SelectValue placeholder="Windows 기본 프린터" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__default__">Windows 기본 프린터</SelectItem>
+                        {printers.map((p) => (
+                          <SelectItem key={`common-${p.name}`} value={p.name}>
+                            {p.name} {p.driver ? `(${p.driver})` : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <p className="text-[12px] text-gray-500">
-                    제어판 → 장치 및 프린터에서 확인되는 이름을 정확히 입력하세요.
-                    인디고/잉크젯 프린터가 비어있으면 공통 프린터로 출력됩니다.
+                    인디고/잉크젯 프린터가 미지정이면 공통 프린터로 출력됩니다.
                   </p>
                 </div>
               )}

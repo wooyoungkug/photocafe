@@ -1281,6 +1281,12 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           </div>
           {/* 편집 · 제본 (한 줄) */}
           <div className="flex items-center gap-2 text-xs text-gray-600 mt-1 mb-1 flex-wrap">
+            {bindingName && (
+              <>
+                <span className="text-xs text-black">제본</span>
+                <span className="bg-orange-100 text-orange-800 px-1.5 py-0.5 rounded text-[11px] font-medium">{bindingName.replace(/\s*\(구간별[^)]*\)/g, '')}</span>
+              </>
+            )}
             <span className="text-xs text-black">편집</span>
             <div className="flex border rounded overflow-hidden">
               <button
