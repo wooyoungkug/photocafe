@@ -643,6 +643,7 @@ export class PrintPdfService implements OnModuleInit {
         fileName: fileNameEarly,
         colorMode: colorMode && colorMode !== '-' ? colorMode : undefined,
         side: sideEarly,
+        printMethod: item.printMethod || undefined,
         orderNumber: item.order.orderNumber,
         companyName: item.order.client?.clientName || 'unknown',
         productionNumber: item.productionNumber || `item-${i + 1}`,
@@ -957,6 +958,11 @@ export class PrintPdfService implements OnModuleInit {
         return colorIntent.displayNameKo || colorIntent.name || '-';
       }
     }
+    // colorIntentId 없으면 printMethod로 폴백
+    if (item.printMethod) {
+      if (item.printMethod.toLowerCase().includes('inkjet')) return '잉크젯';
+      if (item.printMethod.toLowerCase().includes('indigo')) return '인디고';
+    }
     return '-';
   }
 
@@ -995,7 +1001,7 @@ export class PrintPdfService implements OnModuleInit {
    */
   private resolveOutputPathV2(
     customPath: string | undefined,
-    ctx: { fileName: string; colorMode?: string; side?: string; orderNumber: string; companyName: string; productionNumber: string },
+    ctx: { fileName: string; colorMode?: string; side?: string; printMethod?: string; orderNumber: string; companyName: string; productionNumber: string },
   ): string {
     const now = new Date();
     const yy = String(now.getFullYear()).slice(-2);
@@ -1007,8 +1013,12 @@ export class PrintPdfService implements OnModuleInit {
     const safeFileName = sanitizeSeg(ctx.fileName) || 'output.pdf';
 
     if (customPath) {
-      const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '기타';
-      const sideSeg = ctx.side ? sanitizeSeg(ctx.side) : '기타';
+      let colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '';
+      if (!colorSeg && ctx.printMethod) {
+        colorSeg = ctx.printMethod.toLowerCase().includes('inkjet') ? '잉크젯' : '인디고';
+      }
+      if (!colorSeg) colorSeg = '인디고';
+      const sideSeg = ctx.side || '단면';
       const outputDir = path.join(customPath, datePart, colorSeg, sideSeg);
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
