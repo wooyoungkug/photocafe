@@ -112,11 +112,14 @@ export class PrintPdfService implements OnModuleInit {
       this.prisma.order.count({ where }),
     ]);
 
-    // 규격별 nup 조회를 위한 Specification 캐시
+    // 규격별 nup 조회를 위한 Specification 캐시 (문자 정규화: ×→x, 인치 제거)
     const sizeSet = new Set<string>();
     orders.forEach((order) =>
       order.items.forEach((item: any) => {
-        if (item.size) sizeSet.add(item.size);
+        if (item.size) {
+          sizeSet.add(item.size);
+          sizeSet.add(this.normalizeSizeName(item.size));
+        }
       }),
     );
     const specs = await this.prisma.specification.findMany({
@@ -139,7 +142,8 @@ export class PrintPdfService implements OnModuleInit {
           if (!item.colorIntentId) warnings.push('도수(colorIntent) 미설정→기본4도');
           if (!item.paper) warnings.push('용지 미설정');
           if (!item.bindingType) warnings.push('제본 미설정');
-          if (!nupMap.get(item.size)) warnings.push('Nup 규격매칭 실패');
+          const resolvedNup = nupMap.get(item.size) || nupMap.get(this.normalizeSizeName(item.size || '')) || null;
+          if (!resolvedNup) warnings.push('Nup 규격매칭 실패');
 
           return {
             id: item.id,
@@ -158,7 +162,7 @@ export class PrintPdfService implements OnModuleInit {
             bindingType: item.bindingType,
             colorIntentId: item.colorIntentId,
             fileCount: item.files?.length || 0,
-            nup: nupMap.get(item.size) || null,
+            nup: resolvedNup,
             orderedAt: order.orderedAt,
             requestedDeliveryDate: order.requestedDeliveryDate,
             pdfStatus: item.pdfStatus || (
@@ -907,34 +911,79 @@ export class PrintPdfService implements OnModuleInit {
   }
 
   /**
+   * nup 텍스트("4up", "2up", "8up" 등)에서 X/Y 레이아웃 도출
+   * jdfNumberUpX/Y가 설정되지 않았을 때(1×1) 사용
+   */
+  private deriveNupXY(nupText: string | null | undefined): { nUpX: number; nUpY: number } | undefined {
+    if (!nupText) return undefined;
+    const m = nupText.match(/^(\d+)\+?up$/i);
+    if (!m) return undefined;
+    const n = parseInt(m[1], 10);
+    if (n <= 1) return undefined;
+    // 일반적인 Nup 배치: 2up=2×1, 4up=2×2, 6up=3×2, 8up=4×2, 9up=3×3
+    const layouts: Record<number, [number, number]> = {
+      2: [2, 1], 4: [2, 2], 6: [3, 2], 8: [4, 2], 9: [3, 3], 16: [4, 4],
+    };
+    if (layouts[n]) return { nUpX: layouts[n][0], nUpY: layouts[n][1] };
+    // 정사각에 가까운 배치
+    const sq = Math.ceil(Math.sqrt(n));
+    return { nUpX: sq, nUpY: Math.ceil(n / sq) };
+  }
+
+  /**
+   * item.size 문자열 정규화 → spec name 형식 (예: "7×5.5인치" → "7x5.5")
+   */
+  private normalizeSizeName(size: string): string {
+    return size
+      .replace(/[×✕]/g, 'x')       // 전각 곱셈기호 → 반각 x
+      .replace(/인치$/, '')           // "인치" 접미어 제거
+      .trim();
+  }
+
+  /**
+   * Specification 결과를 공통 형식으로 변환
+   */
+  private specToResult(spec: any) {
+    const nupXY = (spec.jdfNumberUpX > 1 || spec.jdfNumberUpY > 1)
+      ? { nUpX: spec.jdfNumberUpX, nUpY: spec.jdfNumberUpY }
+      : this.deriveNupXY(spec.nup);
+    return {
+      widthMm: Number(spec.widthMm),
+      heightMm: Number(spec.heightMm),
+      trimWidthMm: spec.jdfTrimWidth ? Number(spec.jdfTrimWidth) : undefined,
+      trimHeightMm: spec.jdfTrimHeight ? Number(spec.jdfTrimHeight) : undefined,
+      bleedTop: spec.jdfBleedTop ? Number(spec.jdfBleedTop) : undefined,
+      bleedBottom: spec.jdfBleedBottom ? Number(spec.jdfBleedBottom) : undefined,
+      bleedLeft: spec.jdfBleedLeft ? Number(spec.jdfBleedLeft) : undefined,
+      bleedRight: spec.jdfBleedRight ? Number(spec.jdfBleedRight) : undefined,
+      nup: spec.nup || undefined,
+      nUpX: nupXY?.nUpX || undefined,
+      nUpY: nupXY?.nUpY || undefined,
+    };
+  }
+
+  /**
    * 규격 정보 조회 (OrderItem → Specification)
    */
   private async resolveSpecification(item: any) {
-    // fileSpecId가 있으면 Specification 조회
+    // 1) fileSpecId가 있으면 Specification 조회
     if (item.fileSpecId) {
       const spec = await this.prisma.specification.findUnique({
         where: { id: item.fileSpecId },
       });
-      if (spec) {
-        return {
-          widthMm: Number(spec.widthMm),
-          heightMm: Number(spec.heightMm),
-          trimWidthMm: spec.jdfTrimWidth ? Number(spec.jdfTrimWidth) : undefined,
-          trimHeightMm: spec.jdfTrimHeight ? Number(spec.jdfTrimHeight) : undefined,
-          bleedTop: spec.jdfBleedTop ? Number(spec.jdfBleedTop) : undefined,
-          bleedBottom: spec.jdfBleedBottom ? Number(spec.jdfBleedBottom) : undefined,
-          bleedLeft: spec.jdfBleedLeft ? Number(spec.jdfBleedLeft) : undefined,
-          bleedRight: spec.jdfBleedRight ? Number(spec.jdfBleedRight) : undefined,
-          nup: spec.nup || undefined,
-          nUpX: spec.jdfNumberUpX || undefined,
-          nUpY: spec.jdfNumberUpY || undefined,
-        };
-      }
+      if (spec) return this.specToResult(spec);
     }
 
-    // size 문자열에서 파싱 (예: "10x8")
+    // 2) fileSpecId 없으면 size 이름으로 Specification 매칭 시도
     if (item.size) {
-      const match = item.size.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+      const normalized = this.normalizeSizeName(item.size);
+      const spec = await this.prisma.specification.findFirst({
+        where: { name: normalized },
+      });
+      if (spec) return this.specToResult(spec);
+
+      // 3) Specification 매칭 실패 → size 문자열에서 파싱 (예: "10x8")
+      const match = item.size.match(/(\d+(?:\.\d+)?)\s*[x×]\s*(\d+(?:\.\d+)?)/i);
       if (match) {
         const wInch = parseFloat(match[1]);
         const hInch = parseFloat(match[2]);
