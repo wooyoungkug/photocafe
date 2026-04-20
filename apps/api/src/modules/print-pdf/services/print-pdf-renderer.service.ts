@@ -315,14 +315,14 @@ export class PrintPdfRendererService {
     const pageBottom = dims.pageHeightPt;
 
     if (indexPosition === 'top') {
-      // 상단: 페이지 상단(0) ~ 이미지 상단(imgTop) 사이 중앙
+      // 상단: 이미지 바로 위, 재단선 안쪽 (이미지와 1mm 간격)
       indexX = dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = (imgTop - INDEX_FONT_SIZE) / 2;
+      indexY = imgTop - INDEX_FONT_SIZE - 1 * MM_TO_PT;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     } else {
-      // 하단: 이미지 하단(imgBottom) ~ 페이지 하단 사이 중앙
+      // 하단: 이미지 바로 아래, 재단선 안쪽 (이미지와 1mm 간격)
       indexX = dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = imgBottom + (pageBottom - imgBottom - INDEX_FONT_SIZE) / 2;
+      indexY = imgBottom + 1 * MM_TO_PT;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     }
 
@@ -366,14 +366,14 @@ export class PrintPdfRendererService {
     const cellBottom = cellY + dims.pageHeightPt;
 
     if (indexPosition === 'top') {
-      // 셀 상단 ~ 이미지 상단 사이 crop margin 영역
+      // 이미지 바로 위, 재단선 안쪽 (이미지와 1mm 간격)
       indexX = cellX + dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = cellY + (cellImgTop - cellY - INDEX_FONT_SIZE) / 2;
+      indexY = cellImgTop - INDEX_FONT_SIZE - 1 * MM_TO_PT;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     } else {
-      // 이미지 하단 ~ 셀 하단 사이 crop margin 영역
+      // 이미지 바로 아래, 재단선 안쪽 (이미지와 1mm 간격)
       indexX = cellX + dims.trimLeft + INDEX_TEXT_X_MM * MM_TO_PT;
-      indexY = cellImgBottom + (cellBottom - cellImgBottom - INDEX_FONT_SIZE) / 2;
+      indexY = cellImgBottom + 1 * MM_TO_PT;
       textWidth = (dims.trimRight - dims.trimLeft) - INDEX_TEXT_X_MM * MM_TO_PT * 2;
     }
 
