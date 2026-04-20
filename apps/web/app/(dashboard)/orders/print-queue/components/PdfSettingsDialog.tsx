@@ -54,6 +54,7 @@ const SETTING_KEYS = {
   IMAGE_WIDTH: 'print_pdf_image_width',
   IMAGE_HEIGHT: 'print_pdf_image_height',
   IMAGE_SIZE_ENABLED: 'print_pdf_image_size_enabled',
+  INCLUDE_COLOR_BAR: 'print_pdf_include_color_bar',
   AUTO_PRINT_ENABLED: 'print_pdf_auto_print_enabled',
   AUTO_PRINT_NAME: 'print_pdf_auto_print_name',
   AUTO_PRINT_NAME_INDIGO: 'print_pdf_auto_print_name_indigo',
@@ -124,6 +125,7 @@ export default function PdfSettingsDialog({
   const [imageSizeEnabled, setImageSizeEnabled] = useState(false);
   const [imageWidth, setImageWidth] = useState('297');
   const [imageHeight, setImageHeight] = useState('420');
+  const [includeColorBar, setIncludeColorBar] = useState(false);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
@@ -160,6 +162,7 @@ export default function PdfSettingsDialog({
     setImageSizeEnabled(map[SETTING_KEYS.IMAGE_SIZE_ENABLED] === 'true');
     setImageWidth(map[SETTING_KEYS.IMAGE_WIDTH] || '297');
     setImageHeight(map[SETTING_KEYS.IMAGE_HEIGHT] || '420');
+    setIncludeColorBar(map[SETTING_KEYS.INCLUDE_COLOR_BAR] === 'true');
     setAutoPrintEnabled(map[SETTING_KEYS.AUTO_PRINT_ENABLED] === 'true');
     setAutoPrintName(map[SETTING_KEYS.AUTO_PRINT_NAME] || '');
     setAutoPrintNameIndigo(map[SETTING_KEYS.AUTO_PRINT_NAME_INDIGO] || '');
@@ -199,6 +202,7 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.IMAGE_SIZE_ENABLED, value: String(imageSizeEnabled), category: CATEGORY, label: '이미지 크기 지정' },
       { key: SETTING_KEYS.IMAGE_WIDTH, value: imageWidth, category: CATEGORY, label: '이미지 너비(mm)' },
       { key: SETTING_KEYS.IMAGE_HEIGHT, value: imageHeight, category: CATEGORY, label: '이미지 높이(mm)' },
+      { key: SETTING_KEYS.INCLUDE_COLOR_BAR, value: String(includeColorBar), category: CATEGORY, label: '칼라 컨트롤 바' },
       { key: SETTING_KEYS.AUTO_PRINT_ENABLED, value: String(autoPrintEnabled), category: CATEGORY, label: '작업지시서 자동 인쇄' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME, value: autoPrintName, category: CATEGORY, label: '자동 인쇄 프린터명' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME_INDIGO, value: autoPrintNameIndigo, category: CATEGORY, label: '인디고 프린터명' },
@@ -382,6 +386,20 @@ export default function PdfSettingsDialog({
                 <Switch
                   checked={includeCropMarks}
                   onCheckedChange={setIncludeCropMarks}
+                />
+              </div>
+
+              {/* 칼라 컨트롤 바 (돔보바) */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[14px] text-black font-normal">칼라 컨트롤 바 (돔보바)</Label>
+                  <p className="text-[12px] text-gray-500 mt-0.5">
+                    CMYK 핀맞춤용 칼라 패치를 이미지 하단에 표시합니다
+                  </p>
+                </div>
+                <Switch
+                  checked={includeColorBar}
+                  onCheckedChange={setIncludeColorBar}
                 />
               </div>
 
@@ -837,6 +855,7 @@ export function usePdfSettings() {
       indexOptions: { ...DEFAULT_INDEX_OPTIONS },
       includeBleed: true,
       includeCropMarks: true,
+      includeColorBar: false,
       defaultNup: '1up',
       outputPath: '',
       bleedSize: 3,
@@ -867,6 +886,7 @@ export function usePdfSettings() {
     indexOptions,
     includeBleed: map[SETTING_KEYS.INCLUDE_BLEED] !== 'false',
     includeCropMarks: map[SETTING_KEYS.INCLUDE_CROP_MARKS] !== 'false',
+    includeColorBar: map[SETTING_KEYS.INCLUDE_COLOR_BAR] === 'true',
     defaultNup: map[SETTING_KEYS.DEFAULT_NUP] || '1up',
     outputPath: map[SETTING_KEYS.OUTPUT_PATH] || '',
     bleedSize: parseFloat(map[SETTING_KEYS.BLEED_SIZE] || '3'),

@@ -137,6 +137,7 @@ export default function PdfConvertDialog({
       indexOptions,
       includeBleed,
       includeCropMarks,
+      includeColorBar: pdfSettings.includeColorBar,
       nupOverride: pdfSettings.defaultNup !== '1up' ? pdfSettings.defaultNup : undefined,
       outputPath: pdfSettings.outputPath || undefined,
       indexOrderKeys,

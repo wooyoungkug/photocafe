@@ -686,6 +686,7 @@ export class PrintPdfService implements OnModuleInit {
           canvasSize,
           onPageRendered,
           imageSize,
+          dto.includeColorBar,
         );
       } else {
         await this.renderer.generateNupPdf(

@@ -78,6 +78,11 @@ export class GeneratePrintPdfDto {
   @IsBoolean()
   includeCropMarks: boolean = true;
 
+  @ApiProperty({ description: '칼라 컨트롤 바(돔보바) 표시 여부', default: false })
+  @IsBoolean()
+  @IsOptional()
+  includeColorBar: boolean = false;
+
   @ApiPropertyOptional({ description: 'Nup 수동 지정 (예: "2up", "4up")' })
   @IsOptional()
   @IsString()

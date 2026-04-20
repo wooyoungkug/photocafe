@@ -55,6 +55,7 @@ export interface GeneratePrintPdfRequest {
   indexOptions: IndexOptions;
   includeBleed: boolean;
   includeCropMarks: boolean;
+  includeColorBar?: boolean;
   nupOverride?: string;
   indexOrderKeys?: string[];
   indexPosition?: 'top' | 'bottom';

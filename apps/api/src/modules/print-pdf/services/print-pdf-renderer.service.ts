@@ -105,6 +105,7 @@ export class PrintPdfRendererService {
     canvasSize?: { widthMm: number; heightMm: number },
     onPageRendered?: (current: number, total: number) => void,
     imageSize?: { widthMm: number; heightMm: number },
+    includeColorBar?: boolean,
   ): Promise<string> {
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
@@ -206,6 +207,11 @@ export class PrintPdfRendererService {
       // 3) 재단선 렌더링
       if (includeCropMarks) {
         this.renderCropMarks(doc, offsetDims);
+      }
+
+      // 4) 칼라 컨트롤 바 (돔보바)
+      if (includeColorBar) {
+        this.renderColorBar(doc, offsetDims);
       }
 
       // 페이지별 진행률 콜백 + 이벤트 루프 양보 → 폴링 응답 가능
@@ -478,6 +484,68 @@ export class PrintPdfRendererService {
     // 우하
     doc.moveTo(imgRight + gap, dims.trimBottom).lineTo(imgRight + gap + markLen, dims.trimBottom).stroke();
     doc.moveTo(dims.trimRight, imgBottom + gap).lineTo(dims.trimRight, imgBottom + gap + markLen).stroke();
+
+    doc.restore();
+  }
+
+  /**
+   * 칼라 컨트롤 바(돔보바) 렌더링 - 이미지 하단 바깥, 재단선 아래에 배치
+   * CMYK + RGB 기본 패치 + 그라데이션 스텝으로 핀맞춤 확인용
+   */
+  private renderColorBar(doc: any, dims: PageDimensions): void {
+    const PATCH_SIZE = 3 * MM_TO_PT;  // 각 패치 3mm
+    const GAP = 0.5 * MM_TO_PT;       // 패치 간격
+    const BAR_OFFSET = 2 * MM_TO_PT;  // 이미지 하단에서 떨어진 거리
+
+    const imgBottom = dims.imageY + dims.imageHeightPt;
+    const imgLeft = dims.imageX;
+    const barY = imgBottom + CROP_MARK.OFFSET_MM * MM_TO_PT + CROP_MARK.LENGTH_MM * MM_TO_PT + BAR_OFFSET;
+
+    // CMYK 기본 패치 + 오버프린트 조합
+    const patches: Array<{ color: string; label?: string }> = [
+      { color: '#00FFFF', label: 'C' },     // Cyan
+      { color: '#FF00FF', label: 'M' },     // Magenta
+      { color: '#FFFF00', label: 'Y' },     // Yellow
+      { color: '#000000', label: 'K' },     // Black
+      { color: '#FF0000', label: 'R' },     // Red (M+Y)
+      { color: '#00FF00', label: 'G' },     // Green (C+Y)
+      { color: '#0000FF', label: 'B' },     // Blue (C+M)
+      // 그레이 스텝 (10% ~ 100%)
+      { color: '#E6E6E6' }, // 10%
+      { color: '#CCCCCC' }, // 20%
+      { color: '#B3B3B3' }, // 30%
+      { color: '#999999' }, // 40%
+      { color: '#808080' }, // 50%
+      { color: '#666666' }, // 60%
+      { color: '#4D4D4D' }, // 70%
+      { color: '#333333' }, // 80%
+      { color: '#1A1A1A' }, // 90%
+      { color: '#000000' }, // 100%
+    ];
+
+    doc.save();
+    let x = imgLeft;
+
+    for (const patch of patches) {
+      doc.rect(x, barY, PATCH_SIZE, PATCH_SIZE).fill(patch.color);
+      // 라벨 (CMYKRGB만)
+      if (patch.label) {
+        doc.fontSize(3).fillColor(patch.color === '#FFFF00' || patch.color === '#00FF00' ? '#000000' : '#FFFFFF')
+          .text(patch.label, x, barY + 0.3 * MM_TO_PT, { width: PATCH_SIZE, align: 'center', lineBreak: false });
+      }
+      x += PATCH_SIZE + GAP;
+    }
+
+    // 핀맞춤 십자 마크 (바 오른쪽 끝에)
+    x += 2 * MM_TO_PT;
+    const crossSize = 2.5 * MM_TO_PT;
+    const crossCenter = barY + PATCH_SIZE / 2;
+    doc.lineWidth(0.3)
+      .strokeColor('#000000')
+      .moveTo(x, crossCenter - crossSize).lineTo(x, crossCenter + crossSize).stroke()
+      .moveTo(x - crossSize, crossCenter).lineTo(x + crossSize, crossCenter).stroke();
+    // 십자 원
+    doc.circle(x, crossCenter, 1.5 * MM_TO_PT).lineWidth(0.3).strokeColor('#000000').stroke();
 
     doc.restore();
   }
