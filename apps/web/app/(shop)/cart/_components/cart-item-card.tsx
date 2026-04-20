@@ -360,6 +360,26 @@ export function CartItemCard({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
+        {/* L2: 필수 정보 누락 경고 배너 */}
+        {hasValidationIssues && itemValidation && (
+          <div className="px-3 py-2 border-b border-red-300 bg-red-100 flex items-start gap-2">
+            <AlertCircle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-bold text-red-800 mb-0.5">
+                주문 정보 누락 - 주문 진행 불가
+              </div>
+              <div className="text-[11px] text-red-700">
+                {itemValidation.issues.filter(i => i.severity === 'error').map(i => i.label).join(', ')} 을(를) 수정해주세요.
+              </div>
+            </div>
+            <Link
+              href={`/product/${item.productId}`}
+              className="text-[11px] font-semibold text-red-700 underline hover:text-red-900 shrink-0"
+            >
+              수정하기
+            </Link>
+          </div>
+        )}
         <div className="flex">
           {/* Drag Handle */}
           <div

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { ArrowLeft, CreditCard, Wallet, Building2, Smartphone, AlertTriangle, CheckCircle2, AlertCircle, Copy, Truck } from 'lucide-react';
 import { useCartStore } from '@/stores/cart-store';
+import { validateCartItems } from '@/lib/order-validation';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { useQueryClient } from '@tanstack/react-query';
@@ -576,6 +577,15 @@ export default function OrderPage() {
     if (albumItemsWithNoFiles.length > 0) {
       toast.error('파일 업로드 필요', {
         description: `${albumItemsWithNoFiles.length}건의 앨범 상품에 업로드된 파일이 없습니다. 장바구니에서 다시 업로드해주세요.`,
+      });
+      return;
+    }
+
+    // L3: 최종 필수 필드 선검증 (API 호출 전 차단)
+    const { allValid: itemsAllValid, errorSummary: itemErrors } = validateCartItems(items);
+    if (!itemsAllValid) {
+      toast.error('주문 정보 누락', {
+        description: itemErrors.slice(0, 5).join('\n') + (itemErrors.length > 5 ? `\n외 ${itemErrors.length - 5}건 - 장바구니에서 수정 후 다시 시도해주세요.` : '\n장바구니에서 수정 후 다시 시도해주세요.'),
       });
       return;
     }
