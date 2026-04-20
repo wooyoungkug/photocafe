@@ -177,7 +177,14 @@ async function bootstrap() {
     logger.log(`📚 Swagger docs: http://localhost:${port}/api/docs`);
   }
 
-  await app.listen(port, '0.0.0.0');
+  const server = await app.listen(port, '0.0.0.0');
+
+  // HTTP 서버 타임아웃 (대용량 업로드 대응)
+  // headersTimeout > keepAliveTimeout 이어야 함 (Node.js 권고)
+  server.keepAliveTimeout = 70 * 1000;            // 70초 (Nginx 기본 60초보다 크게)
+  server.headersTimeout = 10 * 60 * 1000;         // 10분 (헤더 수신 대기)
+  server.requestTimeout = 15 * 60 * 1000;         // 15분 (전체 요청 처리)
+  server.setTimeout(15 * 60 * 1000);              // 15분 (소켓 비활성 타임아웃)
 
   logger.log(`🚀 API Server running on http://localhost:${port}`);
   logger.log(`💚 Health Check: http://localhost:${port}/health`);
