@@ -692,11 +692,28 @@ export class OrderService {
           items: { create: orderItems },
           shipping: { create: shipping },
           processHistory: {
-            create: {
-              toStatus: ORDER_STATUS.PENDING_RECEIPT,
-              processType: 'order_created',
-              processedBy: userId,
-            },
+            create: [
+              {
+                toStatus: ORDER_STATUS.PENDING_RECEIPT,
+                processType: 'order_created',
+                processedBy: userId,
+              },
+              // 조정금액이 있으면 사유 이력 자동 기록
+              ...(adjustmentAmount !== 0 ? [{
+                fromStatus: ORDER_STATUS.PENDING_RECEIPT,
+                toStatus: ORDER_STATUS.PENDING_RECEIPT,
+                processType: 'admin_adjustment',
+                note: (() => {
+                  const parts: string[] = [];
+                  const origAdj = dto.adjustmentAmount ?? 0;
+                  if (origAdj > 0) parts.push(`합배송 환급 ${origAdj.toLocaleString()}원`);
+                  if (pendingAdj > 0) parts.push(`미결 크레딧 적용 ${pendingAdj.toLocaleString()}원`);
+                  if (pendingAdj < 0) parts.push(`미결 추가청구 ${Math.abs(pendingAdj).toLocaleString()}원`);
+                  return parts.length > 0 ? parts.join(' + ') : `조정금액 ${adjustmentAmount.toLocaleString()}원`;
+                })(),
+                processedBy: userId,
+              }] : []),
+            ],
           },
         },
         include: {
