@@ -22,6 +22,8 @@ import PdfSettingsDialog, {
   setGlobalDirHandle,
   getGlobalDirHandle,
 } from './components/PdfSettingsDialog';
+import ImpositionSettingsDialog from './components/ImpositionSettingsDialog';
+import type { PrintQueueItem } from '@/hooks/use-print-pdf';
 import { toast } from 'sonner';
 
 export default function PrintQueuePage() {
@@ -35,6 +37,38 @@ export default function PrintQueuePage() {
   // 다이얼로그 상태
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [impositionOpen, setImpositionOpen] = useState(false);
+  const [impositionSeed, setImpositionSeed] = useState<{
+    orderId: string;
+    orderItemId: string;
+    productWidth?: number;
+    productHeight?: number;
+    pageCount?: number;
+    bindingType?: 'compressed' | 'tack' | 'flat';
+  } | null>(null);
+
+  const openImposition = (item: PrintQueueItem) => {
+    // size 파싱 ("210x297" 또는 "210*297" 또는 "210 x 297")
+    const m = (item.size || '').match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
+    const pw = m ? parseFloat(m[1]) : undefined;
+    const ph = m ? parseFloat(m[2]) : undefined;
+    const bt = (item.bindingType || '').toLowerCase();
+    const bindingType: 'compressed' | 'tack' | 'flat' =
+      bt.includes('압축') || bt.includes('compressed')
+        ? 'compressed'
+        : bt.includes('타카') || bt.includes('tack')
+          ? 'tack'
+          : 'flat';
+    setImpositionSeed({
+      orderId: item.orderId,
+      orderItemId: item.id,
+      productWidth: pw,
+      productHeight: ph,
+      pageCount: item.pages,
+      bindingType,
+    });
+    setImpositionOpen(true);
+  };
 
   // Job 상태 (sessionStorage 복원으로 새로고침 내성)
   const [activeJobId, setActiveJobId] = useState<string | null>(() => {
@@ -218,6 +252,7 @@ export default function PrintQueuePage() {
         selectedIds={selectedIds}
         onSelectionChange={setSelectedIds}
         isLoading={isPending}
+        onImposition={openImposition}
       />
 
       {/* 페이지 정보 */}
@@ -241,6 +276,16 @@ export default function PrintQueuePage() {
       <PdfSettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
+      />
+
+      {/* 임포지션 설정 다이얼로그 */}
+      <ImpositionSettingsDialog
+        open={impositionOpen}
+        onOpenChange={(v) => {
+          setImpositionOpen(v);
+          if (!v) setImpositionSeed(null);
+        }}
+        seed={impositionSeed || undefined}
       />
     </div>
   );

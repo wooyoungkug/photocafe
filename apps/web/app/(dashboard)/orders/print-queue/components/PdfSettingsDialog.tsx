@@ -687,6 +687,16 @@ export default function PdfSettingsDialog({
         </div>
 
         <DialogFooter>
+          <Button
+            variant="link"
+            type="button"
+            className="mr-auto text-[14px] text-black font-normal"
+            onClick={() => {
+              toast.info('임포지션 프리셋은 행 [임포지션] 다이얼로그 상단에서 저장/선택할 수 있습니다.');
+            }}
+          >
+            임포지션 프리셋 관리 →
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={bulkUpdate.isPending}>
             취소
           </Button>

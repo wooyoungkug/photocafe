@@ -659,5 +659,83 @@
     "noTransactions": "해당 기간의 거래내역이 없습니다",
     "exportCSV": "CSV 다운로드",
     "total": "합 계"
+  },
+  "imposition": {
+    "title": "인디고 임포지션 설정",
+    "tabs": {
+      "compressed": "압축앨범",
+      "tack": "타카",
+      "flat": "기타"
+    },
+    "sheet": {
+      "heading": "시트 규격",
+      "7900": "7900 (330×482)",
+      "7900HD": "7900 HD (330×660)",
+      "custom": "커스텀",
+      "widthLabel": "W (mm)",
+      "heightLabel": "H (mm)",
+      "marginTop": "여백 상",
+      "marginRight": "여백 우",
+      "marginBottom": "여백 하",
+      "marginLeft": "여백 좌"
+    },
+    "product": {
+      "heading": "제품 규격",
+      "widthLabel": "W (mm)",
+      "heightLabel": "H (mm)",
+      "pages": "페이지"
+    },
+    "nup": {
+      "heading": "Nup & 회전",
+      "nupLabel": "Nup (0=자동)",
+      "gutter": "Gutter (mm)",
+      "bleed": "Bleed (mm)",
+      "rot0": "0° 고정",
+      "rot90": "90° 허용",
+      "rotAuto": "자동"
+    },
+    "binding": {
+      "heading": "제본방식",
+      "compressed": {
+        "creaseWidth": "오시 폭 (mm, 0~5)",
+        "creaseDepth": "오시 깊이 (mm)",
+        "dashed": "점선",
+        "solid": "실선"
+      },
+      "tack": {
+        "edge": "타카 위치",
+        "left": "좌",
+        "right": "우",
+        "top": "상",
+        "bottom": "하",
+        "margin": "여백 (mm, 8~20)"
+      }
+    },
+    "marks": {
+      "heading": "마크",
+      "crop": "재단선",
+      "bleed": "블리드",
+      "reg": "레지",
+      "colorBar": "컬러바",
+      "jobMeta": "JobID/스튜디오명"
+    },
+    "actions": {
+      "save": "저장",
+      "cancel": "취소",
+      "run": "JDF + PDF 생성",
+      "running": "생성 중...",
+      "savePreset": "프리셋 저장",
+      "loadPreset": "프리셋 선택"
+    },
+    "preview": {
+      "sheetOf": "시트 {current} / {total}",
+      "utilization": "활용률 {percent}%",
+      "nupBadge": "{nup}up · {cols}×{rows} · {rotation}°"
+    },
+    "warnings": {
+      "oddPages": "압축앨범 페이지 수가 홀수입니다. 마지막에 빈 페이지를 자동 삽입했습니다.",
+      "lowUtilization": "활용률이 50% 미만입니다. 시트 낭비가 큽니다.",
+      "hdSheet": "HD 시트 사용 — 인디고 7900 HD DFE 호환성 확인 필요."
+    }
   }
 }

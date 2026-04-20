@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { PrintQueueItem } from '@/hooks/use-print-pdf';
 
 interface PrintQueueTableProps {
@@ -17,6 +18,7 @@ interface PrintQueueTableProps {
   selectedIds: string[];
   onSelectionChange: (ids: string[]) => void;
   isLoading?: boolean;
+  onImposition?: (item: PrintQueueItem) => void;
 }
 
 export default function PrintQueueTable({
@@ -24,6 +26,7 @@ export default function PrintQueueTable({
   selectedIds,
   onSelectionChange,
   isLoading,
+  onImposition,
 }: PrintQueueTableProps) {
   const allSelected = items.length > 0 && selectedIds.length === items.length;
 
@@ -76,6 +79,7 @@ export default function PrintQueueTable({
             <TableHead>제본</TableHead>
             <TableHead className="text-center">Nup</TableHead>
             <TableHead className="text-center">진행상황</TableHead>
+            <TableHead className="text-center">액션</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -156,6 +160,18 @@ export default function PrintQueueTable({
                     </div>
                   );
                 })()}
+              </TableCell>
+              <TableCell className="text-center">
+                {onImposition && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-[12px] h-7 px-2"
+                    onClick={() => onImposition(item)}
+                  >
+                    임포지션
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}
