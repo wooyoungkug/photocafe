@@ -45,7 +45,7 @@ interface Props {
 
 const SHEET_PRESETS = [
   { key: '7900', label: '7900 (330×482)', w: 330, h: 482 },
-  { key: '7900S', label: '7900 (315×465)', w: 315, h: 465 },
+  { key: '7900S', label: '7900 (315×467)', w: 315, h: 467 },
   { key: '7900HD', label: '7900 HD (330×660)', w: 330, h: 660 },
   { key: 'custom', label: '커스텀', w: 0, h: 0 },
 ] as const;
@@ -63,7 +63,7 @@ const mkInch = (w: number, h: number, group: string): ProductPreset => ({
   unit: 'inch',
   group,
 });
-// 인디고 7900 (330×482) / 7900S (315×465) 기준 실제 제작되는 한국 웨딩·포토 앨범 규격만 포함
+// 인디고 7900 (330×482) / 7900S (315×467) 기준 실제 제작되는 한국 웨딩·포토 앨범 규격만 포함
 const PRODUCT_PRESETS: ProductPreset[] = [
   // 정사각 — 인디고 시트에 앉는 범위
   mkInch(6, 6, '정사각'),
@@ -239,7 +239,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
     setSheetW(Number(p.sheetWidth));
     setSheetH(Number(p.sheetHeight));
     if (Number(p.sheetWidth) === 330 && Number(p.sheetHeight) === 482) setSheetKey('7900');
-    else if (Number(p.sheetWidth) === 315 && Number(p.sheetHeight) === 465) setSheetKey('7900S');
+    else if (Number(p.sheetWidth) === 315 && Number(p.sheetHeight) === 467) setSheetKey('7900S');
     else if (Number(p.sheetWidth) === 330 && Number(p.sheetHeight) === 660) setSheetKey('7900HD');
     else setSheetKey('custom');
     setMarginT(Number(p.marginTop));
