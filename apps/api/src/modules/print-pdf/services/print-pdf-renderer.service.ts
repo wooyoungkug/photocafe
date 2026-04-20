@@ -52,6 +52,8 @@ export interface IndexData {
   binding: string;
   nup: string;
   side: string;
+  /** 이미지영역 mm 표시 (예: "305×381") */
+  imageArea?: string;
 }
 
 export interface RenderPageOptions {
@@ -435,6 +437,7 @@ export class PrintPdfRendererService {
       showBinding: () => data.binding,
       showSide: () => data.side,
       showNup: () => data.nup,
+      showImageArea: () => data.imageArea ? `영역:${data.imageArea}mm` : '',
     };
 
     // 순서 결정: indexOrderKeys가 있으면 해당 순서, 없으면 기본 순서

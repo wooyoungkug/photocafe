@@ -133,33 +133,43 @@ export class PrintPdfService implements OnModuleInit {
           if (query.paper && item.paper !== query.paper) return false;
           return true;
         })
-        .map((item: any) => ({
-          id: item.id,
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          isUrgent: order.isUrgent,
-          studioName: order.client?.clientName || '-',
-          clientId: order.client?.id,
-          productionNumber: item.productionNumber,
-          productName: item.productName,
-          folderName: item.folderName,
-          size: item.size,
-          pages: item.pages,
-          printMethod: item.printMethod,
-          paper: item.paper,
-          bindingType: item.bindingType,
-          colorIntentId: item.colorIntentId,
-          fileCount: item.files?.length || 0,
-          nup: nupMap.get(item.size) || null,
-          orderedAt: order.orderedAt,
-          requestedDeliveryDate: order.requestedDeliveryDate,
-          pdfStatus: item.pdfStatus || (
-            // 유효한 원본 파일이 없으면 실패로 표시
-            (item.files || []).every((f: any) => !f.originalPath || f.storageStatus === 'deleted' || f.storageStatus === 'missing')
-              ? 'failed'
-              : null
-          ),
-        })),
+        .map((item: any) => {
+          // 누락 정보 경고 수집
+          const warnings: string[] = [];
+          if (!item.colorIntentId) warnings.push('도수(colorIntent) 미설정→기본4도');
+          if (!item.paper) warnings.push('용지 미설정');
+          if (!item.bindingType) warnings.push('제본 미설정');
+          if (!nupMap.get(item.size)) warnings.push('Nup 규격매칭 실패');
+
+          return {
+            id: item.id,
+            orderId: order.id,
+            orderNumber: order.orderNumber,
+            isUrgent: order.isUrgent,
+            studioName: order.client?.clientName || '-',
+            clientId: order.client?.id,
+            productionNumber: item.productionNumber,
+            productName: item.productName,
+            folderName: item.folderName,
+            size: item.size,
+            pages: item.pages,
+            printMethod: item.printMethod,
+            paper: item.paper,
+            bindingType: item.bindingType,
+            colorIntentId: item.colorIntentId,
+            fileCount: item.files?.length || 0,
+            nup: nupMap.get(item.size) || null,
+            orderedAt: order.orderedAt,
+            requestedDeliveryDate: order.requestedDeliveryDate,
+            pdfStatus: item.pdfStatus || (
+              // 유효한 원본 파일이 없으면 실패로 표시
+              (item.files || []).every((f: any) => !f.originalPath || f.storageStatus === 'deleted' || f.storageStatus === 'missing')
+                ? 'failed'
+                : null
+            ),
+            warnings: warnings.length > 0 ? warnings : undefined,
+          };
+        }),
     );
 
     // 실패 항목의 에러 사유 조회 (pdf_job_items에서 최신 에러)
@@ -555,6 +565,10 @@ export class PrintPdfService implements OnModuleInit {
         dto.nupOverride,
       );
 
+      // 이미지영역(mm) 계산: imageSize 지정 시 해당 값, 아니면 레이아웃 기준
+      const imgAreaWMm = dto.imageWidthMm || (nupLayout.cellPageDimensions.imageWidthPt / (72 / 25.4));
+      const imgAreaHMm = dto.imageHeightMm || (nupLayout.cellPageDimensions.imageHeightPt / (72 / 25.4));
+
       // 인덱스 데이터
       const indexData: Omit<IndexData, 'currentPage' | 'totalPages'> = {
         orderNumber: item.order.orderNumber,
@@ -565,6 +579,7 @@ export class PrintPdfService implements OnModuleInit {
         binding: item.bindingType || '-',
         nup: specData.nup || '1up',
         side: String(item.pageLayout || '').toLowerCase() === 'spread' ? '양면' : '단면',
+        imageArea: `${Math.round(imgAreaWMm)}×${Math.round(imgAreaHMm)}`,
       };
 
       // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용

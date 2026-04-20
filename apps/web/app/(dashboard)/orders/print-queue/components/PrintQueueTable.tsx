@@ -68,8 +68,7 @@ export default function PrintQueueTable({
               <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </TableHead>
             <TableHead className="w-12">긴급</TableHead>
-            <TableHead>주문번호</TableHead>
-            <TableHead>스튜디오</TableHead>
+            <TableHead>주문번호/스튜디오</TableHead>
             <TableHead>상품/폴더</TableHead>
             <TableHead>규격</TableHead>
             <TableHead className="text-center">파일수</TableHead>
@@ -98,11 +97,9 @@ export default function PrintQueueTable({
                   </Badge>
                 )}
               </TableCell>
-              <TableCell className="text-[14px] text-black font-normal">
-                {item.orderNumber}
-              </TableCell>
-              <TableCell className="text-[14px] text-black font-normal">
-                {item.studioName}
+              <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
+                <span className="font-medium">{item.orderNumber}</span>
+                <span className="text-gray-500 ml-1.5">{item.studioName}</span>
               </TableCell>
               <TableCell className="text-[14px] text-black font-normal">
                 {item.folderName || item.productName || '-'}
@@ -114,13 +111,19 @@ export default function PrintQueueTable({
                 {item.fileCount}
               </TableCell>
               <TableCell className="text-[14px] text-black font-normal">
-                {item.paper || '-'}
+                {item.paper || <span className="text-red-400">미설정</span>}
               </TableCell>
-              <TableCell className="text-[14px] text-black font-normal">
-                {item.bindingType || '-'}
+              <TableCell className="text-[14px] text-black font-normal max-w-[120px] truncate" title={item.bindingType || '미설정'}>
+                {item.bindingType
+                  ? item.bindingType
+                      .replace(/^인디고/, '')
+                      .replace(/\s*\(.*\)$/, '')
+                      .replace(/_/g, ' ')
+                      .trim() || item.bindingType
+                  : <span className="text-red-400">미설정</span>}
               </TableCell>
               <TableCell className="text-center text-[14px] text-black font-normal">
-                {item.nup || '-'}
+                {item.nup || <span className="text-red-400">미설정</span>}
               </TableCell>
               <TableCell className="text-center">
                 {(() => {
@@ -140,6 +143,14 @@ export default function PrintQueueTable({
                       {status === 'failed' && (item as any).pdfError && (
                         <span className="text-[10px] text-red-500 max-w-[120px] truncate" title={(item as any).pdfError}>
                           {(item as any).pdfError}
+                        </span>
+                      )}
+                      {item.warnings && item.warnings.length > 0 && (
+                        <span
+                          className="text-[10px] text-amber-600 max-w-[140px] truncate cursor-help"
+                          title={item.warnings.join('\n')}
+                        >
+                          {item.warnings.length}건 누락
                         </span>
                       )}
                     </div>

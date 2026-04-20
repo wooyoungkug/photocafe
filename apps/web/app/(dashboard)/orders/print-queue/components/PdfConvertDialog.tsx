@@ -45,6 +45,7 @@ const DEFAULT_INDEX_ORDER: IndexOrderItem[] = [
   { key: 'showColorMode', label: '인디고도수', enabled: true },
   { key: 'showBinding', label: '제본방법', enabled: true },
   { key: 'showNup', label: 'Nup', enabled: true },
+  { key: 'showImageArea', label: '이미지영역(mm)', enabled: false },
 ];
 
 export default function PdfConvertDialog({

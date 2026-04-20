@@ -50,6 +50,10 @@ export class IndexOptionsDto {
   @ApiProperty({ description: 'Nup 표시', default: true })
   @IsBoolean()
   showNup: boolean = true;
+
+  @ApiProperty({ description: '이미지영역(mm) 표시', default: false })
+  @IsBoolean()
+  showImageArea: boolean = false;
 }
 
 // ==================== PDF 생성 요청 ====================

@@ -26,6 +26,7 @@ export interface PrintQueueItem {
   orderedAt: string;
   requestedDeliveryDate?: string;
   pdfStatus?: 'pending' | 'in_progress' | 'completed' | 'failed';
+  warnings?: string[];
 }
 
 export interface PrintQueueResponse {
@@ -47,6 +48,7 @@ export interface IndexOptions {
   showBinding: boolean;
   showSide: boolean;
   showNup: boolean;
+  showImageArea: boolean;
 }
 
 export interface GeneratePrintPdfRequest {
@@ -107,6 +109,7 @@ export const DEFAULT_INDEX_OPTIONS: IndexOptions = {
   showBinding: true,
   showSide: true,
   showNup: true,
+  showImageArea: false,
 };
 
 // ==================== Hooks ====================
