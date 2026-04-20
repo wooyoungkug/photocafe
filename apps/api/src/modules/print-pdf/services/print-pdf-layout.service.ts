@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { ImpositionCalcService } from '../../imposition/services/imposition-calc.service';
 
 /** mm → pt 변환 상수 (1mm = 72/25.4 pt) */
 export const MM_TO_PT = 72 / 25.4;
@@ -88,6 +89,43 @@ export interface PaperInput {
 
 @Injectable()
 export class PrintPdfLayoutService {
+  constructor(@Optional() private readonly impositionCalc?: ImpositionCalcService) {}
+
+  /**
+   * 신규 임포지션 엔진 위임 여부 판단.
+   * bindingType 이 'compressed' | 'tack' 이면 ImpositionCalcService 로 위임.
+   * 이 메서드는 Nup 수만 반환한다(기존 \d+up 파싱 로직과 호환).
+   */
+  delegateNupFromBinding(
+    bindingType: string | null | undefined,
+    spec: { widthMm: number; heightMm: number; pages?: number },
+    paper: { sheetWidthMm?: number; sheetHeightMm?: number },
+  ): { nup: number; rotation: 0 | 90; utilization: number } | null {
+    if (!bindingType) return null;
+    const s = bindingType.toLowerCase();
+    const kind: 'compressed' | 'tack' | null = s.includes('압축') || s.includes('compressed')
+      ? 'compressed'
+      : s.includes('타카') || s.includes('tack')
+        ? 'tack'
+        : null;
+    if (!kind) return null;
+    if (!this.impositionCalc) return null;
+    try {
+      const r = this.impositionCalc.calculate({
+        productWidth: spec.widthMm,
+        productHeight: spec.heightMm,
+        pageCount: spec.pages ?? 1,
+        bindingType: kind,
+        sheetWidth: paper.sheetWidthMm,
+        sheetHeight: paper.sheetHeightMm,
+        bleed: 3,
+      });
+      return { nup: r.nup, rotation: r.rotation, utilization: r.utilization };
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * 1up 페이지 크기 계산
    */

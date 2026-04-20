@@ -57,13 +57,15 @@
     "passport-kakao": "^1.0.1",
     "passport-local": "^1.0.0",
     "passport-naver-v2": "^2.0.8",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.16.0",
     "pg": "^8.17.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sharp": "^0.33.0",
     "solapi": "^5.5.4",
-    "ua-parser-js": "^2.0.9"
+    "ua-parser-js": "^2.0.9",
+    "xmlbuilder2": "^4.0.3"
   },
   "devDependencies": {
     "@fontsource/nanum-gothic": "^5.2.7",

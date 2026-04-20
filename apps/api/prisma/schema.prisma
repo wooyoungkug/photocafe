@@ -3745,3 +3745,57 @@ model PdfJobItem {
   @@index([orderItemId])
   @@map("pdf_job_items")
 }
+
+// ===== 인디고 7900 JDF 임포지션 =====
+model ImpositionPreset {
+  id             String   @id @default(cuid())
+  name           String
+  bindingType    String   // 'compressed' | 'tack' | 'flat'
+  sheetWidth     Decimal  @db.Decimal(6, 2)
+  sheetHeight    Decimal  @db.Decimal(6, 2)
+  marginTop      Decimal  @db.Decimal(5, 2) @default(5)
+  marginRight    Decimal  @db.Decimal(5, 2) @default(5)
+  marginBottom   Decimal  @db.Decimal(5, 2) @default(5)
+  marginLeft     Decimal  @db.Decimal(5, 2) @default(5)
+  creaseWidth    Decimal? @db.Decimal(4, 2)
+  tackMargin     Decimal? @db.Decimal(4, 2)
+  tackEdge       String?  // 'left'|'right'|'top'|'bottom'
+  gutter         Decimal  @db.Decimal(4, 2) @default(3)
+  bleed          Decimal  @db.Decimal(4, 2) @default(3)
+  grainDirection String   @default("short")
+  rotationPolicy String   @default("auto") // '0'|'90'|'auto'
+  isDefault      Boolean  @default(false)
+  companyId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  jobs ImpositionJob[]
+
+  @@index([bindingType])
+  @@index([isDefault])
+  @@map("imposition_presets")
+}
+
+model ImpositionJob {
+  id          String   @id @default(cuid())
+  orderId     String?
+  orderItemId String?
+  presetId    String
+  preset      ImpositionPreset @relation(fields: [presetId], references: [id])
+  pageCount   Int
+  sheetCount  Int
+  nup         Int
+  rotation    Int      // 0 | 90
+  utilization Decimal  @db.Decimal(5, 4) // 0.0000 ~ 1.0000
+  layoutJson  Json     // sheets[].placements[]
+  jdfPath     String?
+  pdfPath     String?
+  status      String   @default("pending") // pending|done|failed
+  error       String?
+  createdAt   DateTime @default(now())
+
+  @@index([orderId])
+  @@index([orderItemId])
+  @@index([status])
+  @@map("imposition_jobs")
+}
