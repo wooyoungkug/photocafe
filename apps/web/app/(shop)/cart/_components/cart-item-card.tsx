@@ -323,6 +323,12 @@ export function CartItemCard({
     }
   }, [shippingComplete]);
 
+  // L2: 필수 필드 누락 검증 (업로드 완료된 아이템만 검증 - 업로드 중엔 정보가 아직 안 모일 수 있음)
+  const itemValidation = (item.uploadStatus === 'completed' || !item.uploadStatus)
+    ? validateCartItem(item)
+    : null;
+  const hasValidationIssues = itemValidation && !itemValidation.isValid;
+
   return (
     <div ref={setNodeRef} style={style} className="relative overflow-hidden lg:overflow-visible">
       {/* Swipe delete action (mobile only) */}
@@ -343,6 +349,7 @@ export function CartItemCard({
           isSelected && 'ring-2 ring-primary/25 border-primary/20 bg-primary/[0.015]',
           !isSelected && !isDragging && 'hover:shadow-md hover:border-gray-300',
           !hasShipping && 'border-orange-300 bg-orange-50/30',
+          hasValidationIssues && 'border-red-400 bg-red-50/30',
           isDragging && 'shadow-xl scale-[1.02] z-50'
         )}
         style={{
