@@ -309,8 +309,8 @@ export class FileStorageService implements OnModuleInit {
 
   /** 상대 URL 경로 생성 (프론트엔드용) */
   toRelativeUrl(absolutePath: string): string {
-    const basePath = this.basePath.replace(/\\/g, '/');
-    const absPath = absolutePath.replace(/\\/g, '/');
+    const basePath = this.basePath.replace(/\\/g, '/').replace(/\/+/g, '/');
+    const absPath = absolutePath.replace(/\\/g, '/').replace(/\/+/g, '/');
     const relative = absPath.replace(basePath, '');
     // 비ASCII 문자(한글 등)를 포함한 경로 세그먼트를 URL 인코딩
     const encodedRelative = relative
