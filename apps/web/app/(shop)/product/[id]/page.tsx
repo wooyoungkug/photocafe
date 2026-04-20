@@ -31,6 +31,7 @@ import { useMultiFolderUploadStore, type UploadedFolder } from '@/stores/multi-f
 import { type FabricCategory } from '@/hooks/use-fabrics';
 import { useTranslations } from 'next-intl';
 import { startBackgroundUpload, type FolderUploadData } from '@/lib/background-upload';
+import { validateFolder } from '@/lib/order-validation';
 import { UploadProgressModal } from './_components/upload-progress-modal';
 import { ProductImageGallery } from './_components/product-image-gallery';
 import { OptionCard } from './_components/option-card';
@@ -226,6 +227,45 @@ export default function ProductPage() {
       });
       return;
     }
+
+    // L1 접수 차단: 폴더별 필수 필드 검증 (제본방식/용지/규격 등)
+    // 여기서 상품 옵션(bindingName/paperName)도 합쳐서 확인
+    const folderValidationIssues: string[] = [];
+    for (const folder of validFolders) {
+      const result = validateFolder({
+        id: folder.id,
+        folderName: folder.orderTitle || folder.folderName,
+        specificationId: folder.specificationId,
+        bindingDirection: folder.bindingDirection ?? undefined,
+        pageLayout: folder.pageLayout ?? undefined,
+        printMethod: folder.printMethod ?? selectedOptions.printMethod ?? undefined,
+        colorMode: folder.colorMode ?? selectedOptions.colorMode ?? undefined,
+        selectedPaperName: folder.selectedPaperName ?? getPaperFullName(selectedOptions.paper) ?? undefined,
+        coverSourceType: folder.coverSourceType ?? undefined,
+        selectedFabricId: folder.selectedFabricId ?? undefined,
+        quantity: folder.quantity,
+        files: folder.files,
+      });
+      if (!result.isValid) {
+        folderValidationIssues.push(
+          `• ${result.folderName}: ${result.issues.map(i => i.label).join(', ')}`
+        );
+      }
+    }
+    // 상품 옵션(제본방식) 미선택 시 모든 폴더 실패
+    if (!selectedOptions.binding?.name) {
+      folderValidationIssues.unshift('• 제본방식을 선택해주세요.');
+    }
+
+    if (folderValidationIssues.length > 0) {
+      toast({
+        title: '주문 정보 누락',
+        description: `장바구니에 담기 전 아래 항목을 확인해주세요:\n${folderValidationIssues.join('\n')}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setTimeout(async () => {
       try {
         const itemIdsBefore = new Set(useCartStore.getState().items.map(i => i.id));
@@ -806,6 +846,20 @@ export default function ProductPage() {
 
   // --- handleAddToCart ---
   const handleAddToCart = () => {
+    // L1 접수 차단: 일반 상품 필수 옵션 검증
+    const missing: string[] = [];
+    if (!selectedOptions.specification) missing.push('규격');
+    if (!selectedOptions.binding) missing.push('제본방식');
+    if (!selectedOptions.paper) missing.push('용지');
+    if (missing.length > 0) {
+      toast({
+        title: '필수 옵션 미선택',
+        description: `${missing.join(', ')} 을(를) 선택해주세요.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const options: CartItemOption[] = [];
     if (selectedOptions.specification) options.push({ name: t('spec'), value: selectedOptions.specification.name, price: selectedOptions.specification.price });
     if (selectedOptions.binding) options.push({ name: t('binding'), value: selectedOptions.binding.name, price: selectedOptions.binding.price });

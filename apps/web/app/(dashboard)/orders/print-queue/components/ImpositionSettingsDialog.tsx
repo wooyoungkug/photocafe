@@ -53,23 +53,72 @@ const SHEET_PRESETS = [
 type SheetKey = typeof SHEET_PRESETS[number]['key'];
 
 // 제품(앨범) 규격 프리셋 — inch 값은 UI 편의용, 내부는 mm 저장
-const PRODUCT_PRESETS: Array<{ key: string; label: string; w: number; h: number; unit: 'mm' | 'inch' }> = [
-  { key: 'sq-8', label: '정사각 8×8"', w: 8 * 25.4, h: 8 * 25.4, unit: 'inch' },
-  { key: 'sq-10', label: '정사각 10×10"', w: 10 * 25.4, h: 10 * 25.4, unit: 'inch' },
-  { key: 'sq-12', label: '정사각 12×12"', w: 12 * 25.4, h: 12 * 25.4, unit: 'inch' },
-  { key: 'por-8x10', label: '세로 8×10"', w: 8 * 25.4, h: 10 * 25.4, unit: 'inch' },
-  { key: 'por-10x12', label: '세로 10×12"', w: 10 * 25.4, h: 12 * 25.4, unit: 'inch' },
-  { key: 'por-11x14', label: '세로 11×14"', w: 11 * 25.4, h: 14 * 25.4, unit: 'inch' },
-  { key: 'lan-10x8', label: '가로 10×8"', w: 10 * 25.4, h: 8 * 25.4, unit: 'inch' },
-  { key: 'lan-12x10', label: '가로 12×10"', w: 12 * 25.4, h: 10 * 25.4, unit: 'inch' },
-  { key: 'lan-14x11', label: '가로 14×11"', w: 14 * 25.4, h: 11 * 25.4, unit: 'inch' },
-  { key: 'lan-7x5.5', label: '가로 7×5.5"', w: 7 * 25.4, h: 5.5 * 25.4, unit: 'inch' },
-  { key: 'A4', label: 'A4 (210×297)', w: 210, h: 297, unit: 'mm' },
-  { key: 'A5', label: 'A5 (148×210)', w: 148, h: 210, unit: 'mm' },
-  { key: 'A6', label: 'A6 (105×148)', w: 105, h: 148, unit: 'mm' },
-  { key: 'B5', label: 'B5 (176×250)', w: 176, h: 250, unit: 'mm' },
-  { key: 'custom', label: '커스텀', w: 0, h: 0, unit: 'mm' },
+type ProductPreset = { key: string; label: string; w: number; h: number; unit: 'mm' | 'inch'; group: string };
+const IN = 25.4;
+const mkInch = (w: number, h: number, group: string): ProductPreset => ({
+  key: `${group}-${w}x${h}`,
+  label: `${w}×${h}"`,
+  w: w * IN,
+  h: h * IN,
+  unit: 'inch',
+  group,
+});
+const PRODUCT_PRESETS: ProductPreset[] = [
+  // 정사각
+  mkInch(5, 5, '정사각'),
+  mkInch(6, 6, '정사각'),
+  mkInch(8, 8, '정사각'),
+  mkInch(10, 10, '정사각'),
+  mkInch(11, 11, '정사각'),
+  mkInch(12, 12, '정사각'),
+  mkInch(14, 14, '정사각'),
+  mkInch(16, 16, '정사각'),
+  // 세로 (W < H)
+  mkInch(4, 6, '세로'),
+  mkInch(5, 7, '세로'),
+  mkInch(5.5, 7, '세로'),
+  mkInch(6, 8, '세로'),
+  mkInch(6, 9, '세로'),
+  mkInch(7, 10, '세로'),
+  mkInch(8, 10, '세로'),
+  mkInch(8, 12, '세로'),
+  mkInch(10, 12, '세로'),
+  mkInch(11, 14, '세로'),
+  mkInch(12, 15, '세로'),
+  mkInch(12, 18, '세로'),
+  mkInch(13, 19, '세로'),
+  mkInch(14, 17, '세로'),
+  mkInch(15, 20, '세로'),
+  mkInch(16, 20, '세로'),
+  // 가로 (W > H)
+  mkInch(6, 4, '가로'),
+  mkInch(7, 5, '가로'),
+  mkInch(7, 5.5, '가로'),
+  mkInch(8, 6, '가로'),
+  mkInch(9, 6, '가로'),
+  mkInch(10, 7, '가로'),
+  mkInch(10, 8, '가로'),
+  mkInch(12, 8, '가로'),
+  mkInch(12, 10, '가로'),
+  mkInch(14, 11, '가로'),
+  mkInch(15, 12, '가로'),
+  mkInch(18, 12, '가로'),
+  mkInch(19, 13, '가로'),
+  mkInch(17, 14, '가로'),
+  mkInch(20, 15, '가로'),
+  mkInch(20, 16, '가로'),
+  // A/B 규격
+  { key: 'A3', label: 'A3 (297×420)', w: 297, h: 420, unit: 'mm', group: 'A/B 규격' },
+  { key: 'A4', label: 'A4 (210×297)', w: 210, h: 297, unit: 'mm', group: 'A/B 규격' },
+  { key: 'A5', label: 'A5 (148×210)', w: 148, h: 210, unit: 'mm', group: 'A/B 규격' },
+  { key: 'A6', label: 'A6 (105×148)', w: 105, h: 148, unit: 'mm', group: 'A/B 규격' },
+  { key: 'B4', label: 'B4 (250×353)', w: 250, h: 353, unit: 'mm', group: 'A/B 규격' },
+  { key: 'B5', label: 'B5 (176×250)', w: 176, h: 250, unit: 'mm', group: 'A/B 규격' },
+  { key: 'B6', label: 'B6 (125×176)', w: 125, h: 176, unit: 'mm', group: 'A/B 규격' },
+  // 커스텀
+  { key: 'custom', label: '커스텀 (직접 입력)', w: 0, h: 0, unit: 'mm', group: '기타' },
 ];
+const PRODUCT_GROUPS = ['정사각', '세로', '가로', 'A/B 규격', '기타'];
 
 export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: Props) {
   // ==== 상태 ====
@@ -414,8 +463,12 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
                   }}
                   className="w-full h-9 text-[14px] text-black font-normal border border-gray-300 rounded-md px-2 bg-white"
                 >
-                  {PRODUCT_PRESETS.map((p) => (
-                    <option key={p.key} value={p.key}>{p.label}</option>
+                  {PRODUCT_GROUPS.map((group) => (
+                    <optgroup key={group} label={group}>
+                      {PRODUCT_PRESETS.filter((p) => p.group === group).map((p) => (
+                        <option key={p.key} value={p.key}>{p.label}</option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
