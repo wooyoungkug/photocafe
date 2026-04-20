@@ -25,6 +25,7 @@ export interface SlipData {
   binding: string;
   nup: string;
   outputPath: string;
+  printMethod?: string; // indigo | inkjet
 }
 
 @Injectable()
@@ -39,7 +40,12 @@ export class PrintPdfSlipPrinterService {
         (await this.settings.getValue('print_pdf_auto_print_enabled', 'false')) === 'true';
       if (!enabled) return;
 
-      const printerName = (await this.settings.getValue('print_pdf_auto_print_name', '')).trim();
+      // 인디고/잉크젯별 프린터 분리: 개별 설정이 있으면 우선, 없으면 공통 프린터 사용
+      const isInkjet = (data.printMethod || '').toLowerCase().includes('inkjet');
+      const specificKey = isInkjet ? 'print_pdf_auto_print_name_inkjet' : 'print_pdf_auto_print_name_indigo';
+      const specificPrinter = (await this.settings.getValue(specificKey, '')).trim();
+      const commonPrinter = (await this.settings.getValue('print_pdf_auto_print_name', '')).trim();
+      const printerName = specificPrinter || commonPrinter;
 
       const slipText = this.buildSlipText(data);
       const tempFile = path.join(os.tmpdir(), `pdf-slip-${Date.now()}.txt`);
@@ -70,7 +76,7 @@ export class PrintPdfSlipPrinterService {
       `규격       : ${d.spec}`,
       `용지       : ${d.paper}`,
       `페이지 수  : ${d.pages}p`,
-      `인디고도수 : ${d.colorMode}`,
+      `출력방식   : ${d.printMethod === 'inkjet' ? '잉크젯' : '인디고'} ${d.colorMode}`,
       `양/단면    : ${d.side}`,
       `제본       : ${d.binding}`,
       `Nup        : ${d.nup}`,

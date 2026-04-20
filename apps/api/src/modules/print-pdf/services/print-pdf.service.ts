@@ -749,6 +749,7 @@ export class PrintPdfService implements OnModuleInit {
           binding: item.bindingType || '-',
           nup: `${nupCountEarly}up`,
           outputPath,
+          printMethod: item.printMethod || 'indigo',
         })
         .catch(() => { /* 슬립 인쇄 실패는 PDF 성공에 영향 없음 */ });
     } catch (err: any) {

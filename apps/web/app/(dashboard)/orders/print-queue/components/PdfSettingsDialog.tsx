@@ -53,6 +53,8 @@ const SETTING_KEYS = {
   CANVAS_ENABLED: 'print_pdf_canvas_enabled',
   AUTO_PRINT_ENABLED: 'print_pdf_auto_print_enabled',
   AUTO_PRINT_NAME: 'print_pdf_auto_print_name',
+  AUTO_PRINT_NAME_INDIGO: 'print_pdf_auto_print_name_indigo',
+  AUTO_PRINT_NAME_INKJET: 'print_pdf_auto_print_name_inkjet',
 } as const;
 
 const CATEGORY = 'print_pdf';
@@ -118,6 +120,8 @@ export default function PdfSettingsDialog({
   const [canvasHeight, setCanvasHeight] = useState('450');
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
+  const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
+  const [autoPrintNameInkjet, setAutoPrintNameInkjet] = useState('');
 
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
   useEffect(() => {
@@ -149,6 +153,8 @@ export default function PdfSettingsDialog({
     setCanvasHeight(map[SETTING_KEYS.CANVAS_HEIGHT] || '450');
     setAutoPrintEnabled(map[SETTING_KEYS.AUTO_PRINT_ENABLED] === 'true');
     setAutoPrintName(map[SETTING_KEYS.AUTO_PRINT_NAME] || '');
+    setAutoPrintNameIndigo(map[SETTING_KEYS.AUTO_PRINT_NAME_INDIGO] || '');
+    setAutoPrintNameInkjet(map[SETTING_KEYS.AUTO_PRINT_NAME_INKJET] || '');
 
     // 인덱스 옵션 파싱
     try {
@@ -183,6 +189,8 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.CANVAS_HEIGHT, value: canvasHeight, category: CATEGORY, label: '캔버스 높이(mm)' },
       { key: SETTING_KEYS.AUTO_PRINT_ENABLED, value: String(autoPrintEnabled), category: CATEGORY, label: '작업지시서 자동 인쇄' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME, value: autoPrintName, category: CATEGORY, label: '자동 인쇄 프린터명' },
+      { key: SETTING_KEYS.AUTO_PRINT_NAME_INDIGO, value: autoPrintNameIndigo, category: CATEGORY, label: '인디고 프린터명' },
+      { key: SETTING_KEYS.AUTO_PRINT_NAME_INKJET, value: autoPrintNameInkjet, category: CATEGORY, label: '잉크젯 프린터명' },
     ];
 
     bulkUpdate.mutate(settings, {
@@ -538,16 +546,37 @@ export default function PdfSettingsDialog({
               </div>
 
               {autoPrintEnabled && (
-                <div className="space-y-1.5 pl-4">
-                  <Label className="text-[14px] text-black font-normal">프린터 이름</Label>
-                  <Input
-                    placeholder="비워두면 Windows 기본 프린터 사용"
-                    value={autoPrintName}
-                    onChange={(e) => setAutoPrintName(e.target.value)}
-                    className="h-9 text-[14px]"
-                  />
+                <div className="space-y-3 pl-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] text-black font-normal">인디고 프린터 (4도/6도)</Label>
+                    <Input
+                      placeholder="인디고 출력 시 사용할 프린터"
+                      value={autoPrintNameIndigo}
+                      onChange={(e) => setAutoPrintNameIndigo(e.target.value)}
+                      className="h-9 text-[14px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] text-black font-normal">잉크젯 프린터</Label>
+                    <Input
+                      placeholder="잉크젯 출력 시 사용할 프린터"
+                      value={autoPrintNameInkjet}
+                      onChange={(e) => setAutoPrintNameInkjet(e.target.value)}
+                      className="h-9 text-[14px]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] text-black font-normal">공통 프린터 (미지정 시 사용)</Label>
+                    <Input
+                      placeholder="비워두면 Windows 기본 프린터 사용"
+                      value={autoPrintName}
+                      onChange={(e) => setAutoPrintName(e.target.value)}
+                      className="h-9 text-[14px]"
+                    />
+                  </div>
                   <p className="text-[12px] text-gray-500">
                     제어판 → 장치 및 프린터에서 확인되는 이름을 정확히 입력하세요.
+                    인디고/잉크젯 프린터가 비어있으면 공통 프린터로 출력됩니다.
                   </p>
                 </div>
               )}
