@@ -654,6 +654,9 @@ export class PrintPdfService implements OnModuleInit {
       const canvasSize = dto.canvasWidthMm && dto.canvasHeightMm
         ? { widthMm: dto.canvasWidthMm, heightMm: dto.canvasHeightMm }
         : undefined;
+      const imageSize = dto.imageWidthMm && dto.imageHeightMm
+        ? { widthMm: dto.imageWidthMm, heightMm: dto.imageHeightMm }
+        : undefined;
 
       // 페이지 단위 progress 콜백: 메모리 즉시 반영 + DB는 주기적으로만 write
       let lastDbWrite = 0;
@@ -682,6 +685,7 @@ export class PrintPdfService implements OnModuleInit {
           indexPosition,
           canvasSize,
           onPageRendered,
+          imageSize,
         );
       } else {
         await this.renderer.generateNupPdf(

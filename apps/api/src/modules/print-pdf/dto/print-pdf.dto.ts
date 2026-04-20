@@ -101,6 +101,14 @@ export class GeneratePrintPdfDto {
   @ApiPropertyOptional({ description: '캔버스(용지) 높이 (mm)' })
   @IsOptional()
   canvasHeightMm?: number;
+
+  @ApiPropertyOptional({ description: '이미지(출력) 너비 (mm) - 설정 시 이미지를 지정 크기로 배치' })
+  @IsOptional()
+  imageWidthMm?: number;
+
+  @ApiPropertyOptional({ description: '이미지(출력) 높이 (mm)' })
+  @IsOptional()
+  imageHeightMm?: number;
 }
 
 // ==================== 대기열 조회 쿼리 ====================

@@ -51,6 +51,9 @@ const SETTING_KEYS = {
   CANVAS_WIDTH: 'print_pdf_canvas_width',
   CANVAS_HEIGHT: 'print_pdf_canvas_height',
   CANVAS_ENABLED: 'print_pdf_canvas_enabled',
+  IMAGE_WIDTH: 'print_pdf_image_width',
+  IMAGE_HEIGHT: 'print_pdf_image_height',
+  IMAGE_SIZE_ENABLED: 'print_pdf_image_size_enabled',
   AUTO_PRINT_ENABLED: 'print_pdf_auto_print_enabled',
   AUTO_PRINT_NAME: 'print_pdf_auto_print_name',
   AUTO_PRINT_NAME_INDIGO: 'print_pdf_auto_print_name_indigo',
@@ -118,6 +121,9 @@ export default function PdfSettingsDialog({
   const [canvasEnabled, setCanvasEnabled] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState('310');
   const [canvasHeight, setCanvasHeight] = useState('450');
+  const [imageSizeEnabled, setImageSizeEnabled] = useState(false);
+  const [imageWidth, setImageWidth] = useState('297');
+  const [imageHeight, setImageHeight] = useState('420');
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
@@ -151,6 +157,9 @@ export default function PdfSettingsDialog({
     setCanvasEnabled(map[SETTING_KEYS.CANVAS_ENABLED] === 'true');
     setCanvasWidth(map[SETTING_KEYS.CANVAS_WIDTH] || '310');
     setCanvasHeight(map[SETTING_KEYS.CANVAS_HEIGHT] || '450');
+    setImageSizeEnabled(map[SETTING_KEYS.IMAGE_SIZE_ENABLED] === 'true');
+    setImageWidth(map[SETTING_KEYS.IMAGE_WIDTH] || '297');
+    setImageHeight(map[SETTING_KEYS.IMAGE_HEIGHT] || '420');
     setAutoPrintEnabled(map[SETTING_KEYS.AUTO_PRINT_ENABLED] === 'true');
     setAutoPrintName(map[SETTING_KEYS.AUTO_PRINT_NAME] || '');
     setAutoPrintNameIndigo(map[SETTING_KEYS.AUTO_PRINT_NAME_INDIGO] || '');
@@ -187,6 +196,9 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.CANVAS_ENABLED, value: String(canvasEnabled), category: CATEGORY, label: '캔버스 크기 사용' },
       { key: SETTING_KEYS.CANVAS_WIDTH, value: canvasWidth, category: CATEGORY, label: '캔버스 너비(mm)' },
       { key: SETTING_KEYS.CANVAS_HEIGHT, value: canvasHeight, category: CATEGORY, label: '캔버스 높이(mm)' },
+      { key: SETTING_KEYS.IMAGE_SIZE_ENABLED, value: String(imageSizeEnabled), category: CATEGORY, label: '이미지 크기 지정' },
+      { key: SETTING_KEYS.IMAGE_WIDTH, value: imageWidth, category: CATEGORY, label: '이미지 너비(mm)' },
+      { key: SETTING_KEYS.IMAGE_HEIGHT, value: imageHeight, category: CATEGORY, label: '이미지 높이(mm)' },
       { key: SETTING_KEYS.AUTO_PRINT_ENABLED, value: String(autoPrintEnabled), category: CATEGORY, label: '작업지시서 자동 인쇄' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME, value: autoPrintName, category: CATEGORY, label: '자동 인쇄 프린터명' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME_INDIGO, value: autoPrintNameIndigo, category: CATEGORY, label: '인디고 프린터명' },
@@ -380,7 +392,7 @@ export default function PdfSettingsDialog({
                 <div>
                   <Label className="text-[14px] text-black font-normal">캔버스 크기 (용지 크기)</Label>
                   <p className="text-[12px] text-gray-500 mt-0.5">
-                    출력 규격을 지정한 용지 중앙에 배치합니다
+                    PDF 페이지의 전체 용지 크기를 지정합니다
                   </p>
                 </div>
                 <Switch
@@ -391,7 +403,7 @@ export default function PdfSettingsDialog({
 
               {canvasEnabled && (
                 <div className="flex items-center gap-3 pl-4">
-                  <Label className="text-[14px] text-black font-normal whitespace-nowrap">크기</Label>
+                  <Label className="text-[14px] text-black font-normal whitespace-nowrap">용지</Label>
                   <div className="flex items-center gap-1.5">
                     <Input
                       type="number"
@@ -415,7 +427,52 @@ export default function PdfSettingsDialog({
                     <span className="text-[14px] text-gray-500">mm</span>
                   </div>
                   <span className="text-[12px] text-gray-400 whitespace-nowrap">
-                    ({(parseFloat(canvasWidth) / 25.4).toFixed(1)}" x {(parseFloat(canvasHeight) / 25.4).toFixed(1)}")
+                    ({(parseFloat(canvasWidth) / 25.4).toFixed(1)}&quot; x {(parseFloat(canvasHeight) / 25.4).toFixed(1)}&quot;)
+                  </span>
+                </div>
+              )}
+
+              {/* 이미지 크기 */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[14px] text-black font-normal">이미지 크기 (출력 크기)</Label>
+                  <p className="text-[12px] text-gray-500 mt-0.5">
+                    이미지를 지정한 크기로 배치합니다 (미사용 시 규격 기준)
+                  </p>
+                </div>
+                <Switch
+                  checked={imageSizeEnabled}
+                  onCheckedChange={setImageSizeEnabled}
+                />
+              </div>
+
+              {imageSizeEnabled && (
+                <div className="flex items-center gap-3 pl-4">
+                  <Label className="text-[14px] text-black font-normal whitespace-nowrap">이미지</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      type="number"
+                      value={imageWidth}
+                      onChange={(e) => setImageWidth(e.target.value)}
+                      className="h-9 w-20 text-[14px]"
+                      min="50"
+                      max="1000"
+                      placeholder="너비"
+                    />
+                    <span className="text-[14px] text-gray-500">x</span>
+                    <Input
+                      type="number"
+                      value={imageHeight}
+                      onChange={(e) => setImageHeight(e.target.value)}
+                      className="h-9 w-20 text-[14px]"
+                      min="50"
+                      max="1000"
+                      placeholder="높이"
+                    />
+                    <span className="text-[14px] text-gray-500">mm</span>
+                  </div>
+                  <span className="text-[12px] text-gray-400 whitespace-nowrap">
+                    ({(parseFloat(imageWidth) / 25.4).toFixed(1)}&quot; x {(parseFloat(imageHeight) / 25.4).toFixed(1)}&quot;)
                   </span>
                 </div>
               )}
@@ -789,6 +846,9 @@ export function usePdfSettings() {
       canvasEnabled: false,
       canvasWidth: 310,
       canvasHeight: 450,
+      imageSizeEnabled: false,
+      imageWidth: 297,
+      imageHeight: 420,
       isLoaded: false,
     };
   }
@@ -816,6 +876,9 @@ export function usePdfSettings() {
     canvasEnabled: map[SETTING_KEYS.CANVAS_ENABLED] === 'true',
     canvasWidth: parseFloat(map[SETTING_KEYS.CANVAS_WIDTH] || '310'),
     canvasHeight: parseFloat(map[SETTING_KEYS.CANVAS_HEIGHT] || '450'),
+    imageSizeEnabled: map[SETTING_KEYS.IMAGE_SIZE_ENABLED] === 'true',
+    imageWidth: parseFloat(map[SETTING_KEYS.IMAGE_WIDTH] || '297'),
+    imageHeight: parseFloat(map[SETTING_KEYS.IMAGE_HEIGHT] || '420'),
     isLoaded: true,
   };
 }

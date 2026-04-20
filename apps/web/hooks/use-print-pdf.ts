@@ -60,6 +60,8 @@ export interface GeneratePrintPdfRequest {
   indexPosition?: 'top' | 'bottom';
   canvasWidthMm?: number;
   canvasHeightMm?: number;
+  imageWidthMm?: number;
+  imageHeightMm?: number;
 }
 
 export interface PdfJobResult {

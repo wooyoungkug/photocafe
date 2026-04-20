@@ -145,6 +145,10 @@ export default function PdfConvertDialog({
         canvasWidthMm: pdfSettings.canvasWidth,
         canvasHeightMm: pdfSettings.canvasHeight,
       }),
+      ...(pdfSettings.imageSizeEnabled && {
+        imageWidthMm: pdfSettings.imageWidth,
+        imageHeightMm: pdfSettings.imageHeight,
+      }),
     });
   };
 

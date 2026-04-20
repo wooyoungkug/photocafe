@@ -104,6 +104,7 @@ export class PrintPdfRendererService {
     indexPosition: 'top' | 'bottom' = 'bottom',
     canvasSize?: { widthMm: number; heightMm: number },
     onPageRendered?: (current: number, total: number) => void,
+    imageSize?: { widthMm: number; heightMm: number },
   ): Promise<string> {
     const outputDir = path.dirname(outputPath);
     if (!fs.existsSync(outputDir)) {
@@ -125,7 +126,15 @@ export class PrintPdfRendererService {
 
     const totalPages = validFiles.length;
 
-    // 캔버스 크기가 지정되면 PDF 페이지를 캔버스 크기로, 출력물을 중앙 배치
+    // 이미지 크기: imageSize 지정 시 해당 크기, 미지정 시 규격(dimensions) 기준
+    let imgWidthPt = dimensions.imageWidthPt;
+    let imgHeightPt = dimensions.imageHeightPt;
+    if (imageSize) {
+      imgWidthPt = imageSize.widthMm * MM_TO_PT;
+      imgHeightPt = imageSize.heightMm * MM_TO_PT;
+    }
+
+    // 캔버스(용지) 크기: canvasSize 지정 시 해당 크기, 미지정 시 이미지+마진 기준
     let pdfPageWidthPt = dimensions.pageWidthPt;
     let pdfPageHeightPt = dimensions.pageHeightPt;
     let offsetX = 0;
@@ -134,8 +143,12 @@ export class PrintPdfRendererService {
     if (canvasSize) {
       pdfPageWidthPt = canvasSize.widthMm * MM_TO_PT;
       pdfPageHeightPt = canvasSize.heightMm * MM_TO_PT;
-      offsetX = (pdfPageWidthPt - dimensions.pageWidthPt) / 2;
-      offsetY = (pdfPageHeightPt - dimensions.pageHeightPt) / 2;
+    }
+
+    // 이미지를 캔버스 중앙에 배치
+    if (canvasSize || imageSize) {
+      offsetX = (pdfPageWidthPt - imgWidthPt) / 2 - dimensions.imageX;
+      offsetY = (pdfPageHeightPt - imgHeightPt) / 2 - dimensions.imageY;
     }
 
     const doc = new PDFDocument({
@@ -163,8 +176,8 @@ export class PrintPdfRendererService {
 
       // 1) 이미지 배치
       doc.image(file.originalPath, imgX, imgY, {
-        width: dimensions.imageWidthPt,
-        height: dimensions.imageHeightPt,
+        width: imgWidthPt,
+        height: imgHeightPt,
       });
 
       // 오프셋 적용된 dimensions (인덱스/재단선 렌더링용)
@@ -174,6 +187,8 @@ export class PrintPdfRendererService {
         pageHeightPt: pdfPageHeightPt,
         imageX: imgX,
         imageY: imgY,
+        imageWidthPt: imgWidthPt,
+        imageHeightPt: imgHeightPt,
         trimLeft: offsetX + dimensions.trimLeft,
         trimTop: offsetY + dimensions.trimTop,
         trimRight: offsetX + dimensions.trimRight,
