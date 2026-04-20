@@ -835,7 +835,7 @@ export class PrintPdfService implements OnModuleInit {
         tasks.push(
           sharp(buffer)
             .extract({ left: 0, top: 0, width: halfW, height: h })
-            .jpeg({ quality: 92 })
+            .jpeg({ quality: 100 })
             .toFile(leftPath)
             .then(() => {}),
         );
@@ -844,7 +844,7 @@ export class PrintPdfService implements OnModuleInit {
         tasks.push(
           sharp(buffer)
             .extract({ left: halfW, top: 0, width: w - halfW, height: h })
-            .jpeg({ quality: 92 })
+            .jpeg({ quality: 100 })
             .toFile(rightPath)
             .then(() => {}),
         );
