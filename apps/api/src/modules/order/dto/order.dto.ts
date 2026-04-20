@@ -185,10 +185,12 @@ export class CreateOrderItemDto {
 
   @ApiProperty({ description: '상품명' })
   @IsString()
+  @IsNotEmpty({ message: '상품명이 비어있습니다.' })
   productName: string;
 
   @ApiProperty({ description: '규격' })
   @IsString()
+  @IsNotEmpty({ message: '규격이 설정되지 않았습니다.' })
   size: string;
 
   @ApiProperty({ description: '페이지 수' })
@@ -198,14 +200,17 @@ export class CreateOrderItemDto {
 
   @ApiProperty({ description: '인쇄 방식' })
   @IsString()
+  @IsNotEmpty({ message: '출력기종(인쇄방식)이 설정되지 않았습니다.' })
   printMethod: string;
 
   @ApiProperty({ description: '용지' })
   @IsString()
+  @IsNotEmpty({ message: '용지가 설정되지 않았습니다.' })
   paper: string;
 
   @ApiProperty({ description: '제본 방식' })
   @IsString()
+  @IsNotEmpty({ message: '제본방식이 설정되지 않았습니다.' })
   bindingType: string;
 
   @ApiPropertyOptional({ description: '도수 코드 (예: CI-6C-2S → 6도 양면). printMethod에서 자동 도출 가능' })
