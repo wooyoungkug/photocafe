@@ -1020,8 +1020,8 @@ export class PrintPdfService implements OnModuleInit {
 
       let outputDir: string;
       if (isInkjet) {
-        // 잉크젯: 도수 구분 없이 양면/단면만
-        outputDir = path.join(customPath, datePart, methodSeg, sideSeg);
+        // 잉크젯: 날짜/잉크젯 (양면/단면 구분 없음)
+        outputDir = path.join(customPath, datePart, methodSeg);
       } else {
         // 인디고: 4도/6도 하위에 양면/단면
         const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '4도';
