@@ -1013,13 +1013,20 @@ export class PrintPdfService implements OnModuleInit {
     const safeFileName = sanitizeSeg(ctx.fileName) || 'output.pdf';
 
     if (customPath) {
-      let colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '';
-      if (!colorSeg && ctx.printMethod) {
-        colorSeg = ctx.printMethod.toLowerCase().includes('inkjet') ? '잉크젯' : '인디고';
-      }
-      if (!colorSeg) colorSeg = '인디고';
+      // 폴더 구조: {날짜}/{인디고|잉크젯}/{4도|6도}/{양면|단면}
+      const isInkjet = (ctx.printMethod || '').toLowerCase().includes('inkjet');
+      const methodSeg = isInkjet ? '잉크젯' : '인디고';
       const sideSeg = ctx.side || '단면';
-      const outputDir = path.join(customPath, datePart, colorSeg, sideSeg);
+
+      let outputDir: string;
+      if (isInkjet) {
+        // 잉크젯: 도수 구분 없이 양면/단면만
+        outputDir = path.join(customPath, datePart, methodSeg, sideSeg);
+      } else {
+        // 인디고: 4도/6도 하위에 양면/단면
+        const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '4도';
+        outputDir = path.join(customPath, datePart, methodSeg, colorSeg, sideSeg);
+      }
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
       }
