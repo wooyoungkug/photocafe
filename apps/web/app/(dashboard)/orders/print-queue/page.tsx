@@ -44,7 +44,7 @@ export default function PrintQueuePage() {
     productWidth?: number;
     productHeight?: number;
     pageCount?: number;
-    bindingType?: 'compressed' | 'tack' | 'flat';
+    bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
   } | null>(null);
 
   const openImposition = (item: PrintQueueItem) => {
@@ -53,12 +53,14 @@ export default function PrintQueuePage() {
     const pw = m ? parseFloat(m[1]) : undefined;
     const ph = m ? parseFloat(m[2]) : undefined;
     const bt = (item.bindingType || '').toLowerCase();
-    const bindingType: 'compressed' | 'tack' | 'flat' =
+    const bindingType: 'compressed' | 'tack' | 'perfect' | 'flat' =
       bt.includes('압축') || bt.includes('compressed')
         ? 'compressed'
-        : bt.includes('타카') || bt.includes('tack')
+        : bt.includes('타카') || bt.includes('tack') || bt.includes('핀')
           ? 'tack'
-          : 'flat';
+          : bt.includes('무선') || bt.includes('perfect') || bt.includes('화보')
+            ? 'perfect'
+            : 'flat';
     setImpositionSeed({
       orderId: item.orderId,
       orderItemId: item.id,

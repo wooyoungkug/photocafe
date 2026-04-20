@@ -88,6 +88,7 @@ const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "규격정보", href: "/master/specifications" },
       { name: "공용동판관리", href: "/settings/public-copper-plates" },
       { name: "JDF 표준", href: "/master/jdf" },
+      { name: "임포지션 프리셋", href: "/settings/imposition-presets" },
       { name: "가격관리", href: "/pricing/production" },
     ],
   },

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   useSystemSettings,
@@ -101,6 +102,7 @@ export default function PdfSettingsDialog({
   open,
   onOpenChange,
 }: PdfSettingsDialogProps) {
+  const router = useRouter();
   // 시스템 설정 로드
   const { data: settingsData } = useSystemSettings(CATEGORY);
   const bulkUpdate = useBulkUpdateSettings();
@@ -692,7 +694,8 @@ export default function PdfSettingsDialog({
             type="button"
             className="mr-auto text-[14px] text-black font-normal"
             onClick={() => {
-              toast.info('임포지션 프리셋은 행 [임포지션] 다이얼로그 상단에서 저장/선택할 수 있습니다.');
+              onOpenChange(false);
+              router.push('/settings/imposition-presets');
             }}
           >
             임포지션 프리셋 관리 →

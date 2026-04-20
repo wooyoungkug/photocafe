@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
 import {
   Table,
   TableBody,
@@ -12,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PrintQueueItem } from '@/hooks/use-print-pdf';
+import { useMatchImpositionBatch, MatchResult, BindingType } from '@/hooks/use-imposition';
 
 interface PrintQueueTableProps {
   items: PrintQueueItem[];
@@ -19,6 +21,36 @@ interface PrintQueueTableProps {
   onSelectionChange: (ids: string[]) => void;
   isLoading?: boolean;
   onImposition?: (item: PrintQueueItem) => void;
+}
+
+/** 아이템에서 매칭 엔진 입력으로 변환 */
+function toMatchInput(item: PrintQueueItem): {
+  productSize?: string;
+  bindingType?: BindingType;
+  pageCount?: number;
+} {
+  const m = (item.size || '').match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
+  let label: string | undefined;
+  if (m) {
+    const w = parseFloat(m[1]);
+    const h = parseFloat(m[2]);
+    const [sh, lg] = w < h ? [w, h] : [h, w];
+    const within = (a: number, b: number, t: number) => Math.abs(a - b) <= t;
+    if (within(sh, 210, 3) && within(lg, 297, 4)) label = 'A4';
+    else if (within(sh, 148, 3) && within(lg, 210, 3)) label = 'A5';
+    else if (within(sh, 105, 2) && within(lg, 148, 3)) label = 'A6';
+    else if (within(sh, 176, 3) && within(lg, 250, 4)) label = 'B5';
+    else if (within(sh, 200, 2) && within(lg, 200, 2)) label = '200x200';
+    else label = `${w}x${h}`;
+  }
+  const bt = (item.bindingType || '').toLowerCase();
+  let binding: BindingType | undefined;
+  if (bt.includes('압축') || bt.includes('compressed')) binding = 'compressed';
+  else if (bt.includes('타카') || bt.includes('tack') || bt.includes('핀')) binding = 'tack';
+  else if (bt.includes('무선') || bt.includes('perfect') || bt.includes('화보')) binding = 'perfect';
+  else if (bt) binding = 'flat';
+
+  return { productSize: label, bindingType: binding, pageCount: item.pages };
 }
 
 export default function PrintQueueTable({
@@ -29,6 +61,33 @@ export default function PrintQueueTable({
   onImposition,
 }: PrintQueueTableProps) {
   const allSelected = items.length > 0 && selectedIds.length === items.length;
+  const batchMut = useMatchImpositionBatch();
+  const [matchMap, setMatchMap] = useState<Record<string, MatchResult>>({});
+
+  // 아이템 리스트 변할 때마다 매칭 재조회 (병렬)
+  const inputsKey = useMemo(
+    () => items.map((it) => `${it.id}:${it.size}:${it.bindingType}:${it.pages}`).join('|'),
+    [items],
+  );
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setMatchMap({});
+      return;
+    }
+    const inputs = items.map(toMatchInput);
+    batchMut.mutate(inputs, {
+      onSuccess: (results) => {
+        const next: Record<string, MatchResult> = {};
+        items.forEach((it, idx) => {
+          next[it.id] = results[idx];
+        });
+        setMatchMap(next);
+      },
+      onError: () => setMatchMap({}),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inputsKey]);
 
   const toggleAll = () => {
     if (allSelected) {
@@ -48,7 +107,7 @@ export default function PrintQueueTable({
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-40 text-[14px] text-gray-400">
+      <div className="flex items-center justify-center h-40 text-[14px] text-black font-normal">
         로딩 중...
       </div>
     );
@@ -56,7 +115,7 @@ export default function PrintQueueTable({
 
   if (items.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-[14px] text-gray-400">
+      <div className="flex items-center justify-center h-40 text-[14px] text-black font-normal">
         출력대기 항목이 없습니다.
       </div>
     );
@@ -70,111 +129,145 @@ export default function PrintQueueTable({
             <TableHead className="w-10">
               <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </TableHead>
-            <TableHead className="w-12">긴급</TableHead>
-            <TableHead>주문번호/스튜디오</TableHead>
-            <TableHead>상품/폴더</TableHead>
-            <TableHead>규격</TableHead>
-            <TableHead className="text-center">파일수</TableHead>
-            <TableHead>용지</TableHead>
-            <TableHead>제본</TableHead>
-            <TableHead className="text-center">Nup</TableHead>
-            <TableHead className="text-center">진행상황</TableHead>
-            <TableHead className="text-center">액션</TableHead>
+            <TableHead className="w-12 text-[14px] text-black font-normal">긴급</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">주문번호/스튜디오</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">규격</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">파일수</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">용지</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">제본</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">Nup</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">진행상황</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">자동 임포지션</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">액션</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {items.map((item) => (
-            <TableRow
-              key={item.id}
-              className={selectedIds.includes(item.id) ? 'bg-blue-50' : ''}
-            >
-              <TableCell>
-                <Checkbox
-                  checked={selectedIds.includes(item.id)}
-                  onCheckedChange={() => toggleItem(item.id)}
-                />
-              </TableCell>
-              <TableCell>
-                {item.isUrgent && (
-                  <Badge variant="destructive" className="text-[11px] px-1.5 py-0">
-                    긴급
-                  </Badge>
-                )}
-              </TableCell>
-              <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
-                <span className="font-medium">{item.orderNumber}</span>
-                <span className="text-gray-500 ml-1.5">{item.studioName}</span>
-              </TableCell>
-              <TableCell className="text-[14px] text-black font-normal">
-                {item.folderName || item.productName || '-'}
-              </TableCell>
-              <TableCell className="text-[14px] text-black font-normal">
-                {item.size?.replace(/인치$/,'') || '-'}
-              </TableCell>
-              <TableCell className="text-center text-[14px] text-black font-normal">
-                {item.fileCount}
-              </TableCell>
-              <TableCell className="text-[14px] text-black font-normal">
-                {item.paper || <span className="text-red-400">미설정</span>}
-              </TableCell>
-              <TableCell className="text-[14px] text-black font-normal max-w-[120px] truncate" title={item.bindingType || '미설정'}>
-                {item.bindingType
-                  ? item.bindingType
-                      .replace(/^인디고/, '')
-                      .replace(/\s*\(.*\)$/, '')
-                      .replace(/_/g, ' ')
-                      .trim() || item.bindingType
-                  : <span className="text-red-400">미설정</span>}
-              </TableCell>
-              <TableCell className="text-center text-[14px] text-black font-normal">
-                {item.nup || <span className="text-red-400">미설정</span>}
-              </TableCell>
-              <TableCell className="text-center">
-                {(() => {
-                  const status = item.pdfStatus || 'pending';
-                  const map: Record<string, { label: string; className: string }> = {
-                    pending: { label: '대기', className: 'bg-gray-100 text-gray-700' },
-                    in_progress: { label: '변환중', className: 'bg-blue-100 text-blue-700' },
-                    completed: { label: '성공', className: 'bg-green-100 text-green-700' },
-                    failed: { label: '실패', className: 'bg-red-100 text-red-700' },
-                  };
-                  const s = map[status] || map.pending;
-                  return (
-                    <div className="flex flex-col items-center gap-0.5">
-                      <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}`}>
-                        {s.label}
-                      </Badge>
-                      {status === 'failed' && (item as any).pdfError && (
-                        <span className="text-[10px] text-red-500 max-w-[120px] truncate" title={(item as any).pdfError}>
-                          {(item as any).pdfError}
-                        </span>
-                      )}
-                      {item.warnings && item.warnings.length > 0 && (
-                        <span
-                          className="text-[10px] text-amber-600 max-w-[140px] truncate cursor-help"
-                          title={item.warnings.join('\n')}
-                        >
-                          {item.warnings.length}건 누락
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-              </TableCell>
-              <TableCell className="text-center">
-                {onImposition && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-[12px] h-7 px-2"
-                    onClick={() => onImposition(item)}
-                  >
-                    임포지션
-                  </Button>
-                )}
-              </TableCell>
-            </TableRow>
-          ))}
+          {items.map((item) => {
+            const match = matchMap[item.id];
+            const matched = match?.matched && match.preset;
+            return (
+              <TableRow
+                key={item.id}
+                className={selectedIds.includes(item.id) ? 'bg-blue-50' : ''}
+              >
+                <TableCell>
+                  <Checkbox
+                    checked={selectedIds.includes(item.id)}
+                    onCheckedChange={() => toggleItem(item.id)}
+                  />
+                </TableCell>
+                <TableCell>
+                  {item.isUrgent && (
+                    <Badge variant="destructive" className="text-[11px] px-1.5 py-0">
+                      긴급
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
+                  <span className="font-medium">{item.orderNumber}</span>
+                  <span className="text-black ml-1.5">{item.studioName}</span>
+                </TableCell>
+                <TableCell className="text-[14px] text-black font-normal">
+                  {item.folderName || item.productName || '-'}
+                </TableCell>
+                <TableCell className="text-[14px] text-black font-normal">
+                  {item.size?.replace(/인치$/,'') || '-'}
+                </TableCell>
+                <TableCell className="text-center text-[14px] text-black font-normal">
+                  {item.fileCount}
+                </TableCell>
+                <TableCell className="text-[14px] text-black font-normal">
+                  {item.paper || <span className="text-red-600">미설정</span>}
+                </TableCell>
+                <TableCell
+                  className="text-[14px] text-black font-normal max-w-[120px] truncate"
+                  title={item.bindingType || '미설정'}
+                >
+                  {item.bindingType
+                    ? item.bindingType
+                        .replace(/^인디고/, '')
+                        .replace(/\s*\(.*\)$/, '')
+                        .replace(/_/g, ' ')
+                        .trim() || item.bindingType
+                    : <span className="text-red-600">미설정</span>}
+                </TableCell>
+                <TableCell className="text-center text-[14px] text-black font-normal">
+                  {item.nup || <span className="text-red-600">미설정</span>}
+                </TableCell>
+                <TableCell className="text-center">
+                  {(() => {
+                    const status = item.pdfStatus || 'pending';
+                    const map: Record<string, { label: string; className: string }> = {
+                      pending: { label: '대기', className: 'bg-gray-100 text-black' },
+                      in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
+                      completed: { label: '성공', className: 'bg-green-100 text-black' },
+                      failed: { label: '실패', className: 'bg-red-100 text-red-600' },
+                    };
+                    const s = map[status] || map.pending;
+                    return (
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}`}>
+                          {s.label}
+                        </Badge>
+                        {status === 'failed' && (item as any).pdfError && (
+                          <span className="text-[10px] text-red-600 max-w-[120px] truncate" title={(item as any).pdfError}>
+                            {(item as any).pdfError}
+                          </span>
+                        )}
+                        {item.warnings && item.warnings.length > 0 && (
+                          <span
+                            className="text-[10px] text-red-600 max-w-[140px] truncate cursor-help"
+                            title={item.warnings.join('\n')}
+                          >
+                            {item.warnings.length}건 누락
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </TableCell>
+                <TableCell className="text-[14px] text-black font-normal">
+                  {!match ? (
+                    <Badge variant="outline" className="text-[12px] text-black font-normal">
+                      확인중...
+                    </Badge>
+                  ) : matched && match.preset ? (
+                    <Badge
+                      variant="outline"
+                      className="text-[12px] text-black font-normal bg-green-50 border-green-300"
+                      title={match.preset.name}
+                    >
+                      ✓ {match.preset.productSize ?? ''}
+                      {match.preset.targetNup ? `-${match.preset.targetNup}up` : ''}
+                      {match.preset.bindingType ? `-${match.preset.bindingType}` : ''}
+                    </Badge>
+                  ) : (
+                    <Badge
+                      variant="outline"
+                      className="text-[12px] text-red-600 font-normal bg-amber-50 border-amber-300 cursor-pointer"
+                      onClick={() => onImposition?.(item)}
+                    >
+                      수동 필요
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-center">
+                  {/* 매칭 실패 시에만 [임포지션] 버튼 노출 */}
+                  {onImposition && !matched && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[12px] h-7 px-2 text-black font-normal"
+                      onClick={() => onImposition(item)}
+                    >
+                      임포지션
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
