@@ -7,6 +7,7 @@ import {
   ArrayMinSize,
   IsIn,
   IsDate,
+  IsNotEmpty,
   Min,
   Max,
   ValidateNested,

@@ -504,17 +504,34 @@ export class OrderService {
       return colorIntentByCode.get(isSingle ? 'CI-4C-1S' : 'CI-4C-2S') || null;
     };
 
-    // 필수 필드 검증 (누락 시 주문 차단)
+    // L4 최종 방어선: 필수 필드 검증 (누락 시 주문 차단)
     const validationErrors: string[] = [];
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
       const label = item.folderName || item.productName || `항목 ${i + 1}`;
+
+      // 공통 필수 필드
+      if (!item.productName) validationErrors.push(`[${label}] 상품명이 없습니다`);
+      if (!item.size) validationErrors.push(`[${label}] 규격이 설정되지 않았습니다`);
       if (!item.paper) validationErrors.push(`[${label}] 용지가 설정되지 않았습니다`);
       if (!item.bindingType) validationErrors.push(`[${label}] 제본방식이 설정되지 않았습니다`);
+      if (!item.printMethod) validationErrors.push(`[${label}] 출력기종이 설정되지 않았습니다`);
+      if (!item.quantity || item.quantity < 1) validationErrors.push(`[${label}] 수량이 올바르지 않습니다`);
+      if (item.unitPrice === undefined || item.unitPrice === null || item.unitPrice < 0) {
+        validationErrors.push(`[${label}] 단가가 올바르지 않습니다`);
+      }
+
       const pm = (item.printMethod || '').toLowerCase();
       const isIndigo = pm.includes('인디고') || pm.includes('indigo');
       if (isIndigo && !resolveColorIntentId(item)) {
         validationErrors.push(`[${label}] 인디고 도수(4도/6도) 정보를 확인할 수 없습니다`);
+      }
+
+      // 앨범 주문 특유 검증 (files 존재 시 = 앨범 주문으로 간주)
+      if (item.files && item.files.length > 0) {
+        if (!item.pageLayout) validationErrors.push(`[${label}] 편집스타일(낱장/펼침면)이 설정되지 않았습니다`);
+        if (!item.bindingDirection) validationErrors.push(`[${label}] 제본방향이 설정되지 않았습니다`);
+        if (!item.pages || item.pages < 1) validationErrors.push(`[${label}] 페이지 수가 올바르지 않습니다`);
       }
     }
     if (validationErrors.length > 0) {
