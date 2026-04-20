@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { uploadAlbumFile, type AlbumFileMetadata, type UploadedFileResult } from '@/lib/file-upload';
+import { uploadAlbumFile, UploadError, type AlbumFileMetadata, type UploadedFileResult } from '@/lib/file-upload';
 import { dataUrlToFile } from '@/lib/background-upload';
 import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile } from '@/stores/multi-folder-upload-store';
 import {
@@ -73,7 +73,12 @@ export function useImmediateUpload(productId: string) {
   const { updateFolderUploadStatus } = useMultiFolderUploadStore.getState();
 
   // 폴더별 업로드 진행 상태 추적
-  const folderProgressRef = useRef<Map<string, { uploaded: number; total: number; serverFiles: UploadedFileResult[] }>>(new Map());
+  const folderProgressRef = useRef<Map<string, {
+    uploaded: number;
+    total: number;
+    serverFiles: UploadedFileResult[];
+    failedFiles: Array<{ fileName: string; sortOrder: number; errorMessage: string }>;
+  }>>(new Map());
 
   const flushProgress = useCallback((folderId: string) => {
     const now = Date.now();

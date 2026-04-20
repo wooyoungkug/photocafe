@@ -376,6 +376,12 @@ export interface UploadedFolder {
     dpi?: number;
     fileSize?: number;
   }>;
+  // 업로드 실패 파일 목록 (선택적 재업로드용)
+  immediateFailedFiles?: Array<{
+    fileName: string;
+    sortOrder: number;
+    errorMessage: string;
+  }>;
 
   // 업로드 시 계산된 가격 정보 (FolderCard에서 설정, 장바구니 담을 때 그대로 사용)
   computedPriceInfo?: {
@@ -531,7 +537,7 @@ interface MultiFolderUploadState {
 
   // 즉시 서버 업로드 상태 업데이트
   updateFolderUploadStatus: (folderId: string, updates: Partial<Pick<UploadedFolder,
-    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateServerFiles'
+    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateServerFiles' | 'immediateFailedFiles'
   >>) => void;
 
   // 개별 파일 메타데이터 업데이트 (복원 시 썸네일 비율 반영 등)

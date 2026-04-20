@@ -126,9 +126,9 @@ export class UploadController {
         const prefix = sortOrder.toString().padStart(2, '0');
         const filename = `${prefix}_${base}${ext}`;
 
-        // 메모리 버퍼를 디스크에 직접 쓰기 (Windows 호환성 개선)
+        // 메모리 버퍼를 디스크에 비동기 쓰기 (이벤트 루프 블로킹 방지)
         const filePath = join(dir, filename);
-        writeFileSync(filePath, file.buffer);
+        await fsWriteFile(filePath, file.buffer);
 
         // multer 호환 속성 설정
         file.path = filePath;
@@ -136,13 +136,14 @@ export class UploadController {
 
         const fileUrl = this.fileStorage.toRelativeUrl(file.path);
 
-        // 썸네일 생성을 await하여 응답 전에 파일이 준비되도록 함
+        // 썸네일은 fire-and-forget 백그라운드 처리 - 응답 지연 방지
+        // 썸네일 URL은 예측 경로를 반환하고, 클라이언트가 재시도/fallback 처리
         const thumbDir = this.fileStorage.getTempThumbnailDir(body.tempFolderId);
-        try {
-            await this.thumbnailService.generateThumbnail(file.path, thumbDir, file.filename);
-        } catch {
-            // 썸네일 실패해도 원본은 정상
-        }
+        setImmediate(() => {
+            this.thumbnailService
+                .generateThumbnail(file.path, thumbDir, file.filename)
+                .catch(() => {});
+        });
 
         // 썸네일 URL을 예측 가능한 경로로 즉시 반환 (파일명 규칙: {base}_thumb.jpg)
         const thumbExt = extname(file.filename);
