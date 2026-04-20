@@ -589,6 +589,15 @@ export default function OrderPage() {
 
       if (item.productType === 'album-order' && item.albumOrderInfo) {
         const albumInfo = item.albumOrderInfo;
+
+        // colorMode → colorIntentCode 매핑
+        const isSpread = albumInfo.pageLayout === 'spread';
+        const colorIntentCode = albumInfo.printMethod === 'indigo'
+          ? (albumInfo.colorMode === '6c'
+            ? (isSpread ? 'CI-6C-2S' : 'CI-6C-1S')
+            : (isSpread ? 'CI-4C-2S' : 'CI-4C-1S'))
+          : undefined; // 잉크젯은 colorIntent 불필요
+
         orderItem = {
           productId: item.productId || 'default-product',
           productName: item.name,
@@ -599,6 +608,8 @@ export default function OrderPage() {
             : '잉크젯',
           paper: albumInfo.paperName || item.options.find(o => o.name === '용지')?.value || '스노우화이트',
           bindingType: albumInfo.bindingName || item.options.find(o => o.name === '제본')?.value || '',
+          colorIntentCode,
+          printSide: albumInfo.printSide || (isSpread ? 'double' : 'single'),
           coverMaterial: albumInfo.coverMaterial || undefined,
           quantity: item.quantity,
           unitPrice: item.basePrice,

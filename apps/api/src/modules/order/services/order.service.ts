@@ -9,6 +9,7 @@ import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import {
   CreateOrderDto,
+  CreateOrderItemDto,
   UpdateOrderDto,
   UpdateOrderStatusDto,
   UpdateShippingDto,
@@ -481,6 +482,47 @@ export class OrderService {
       }
     }
 
+    // colorIntentCode → colorIntentId 자동 매핑 (트랜잭션 밖에서 1회 조회)
+    const colorIntents = await this.prisma.colorIntent.findMany();
+    const colorIntentByCode = new Map(colorIntents.map(ci => [ci.code, ci.id]));
+
+    // printMethod에서 colorIntentCode 자동 도출 (프론트엔드가 보내지 않은 경우)
+    const resolveColorIntentId = (item: CreateOrderItemDto): string | null => {
+      // 1) colorIntentCode 직접 전달된 경우
+      if (item.colorIntentCode) {
+        return colorIntentByCode.get(item.colorIntentCode) || null;
+      }
+      // 2) printMethod에서 자동 도출 (인디고6도→6도, 인디고4도→4도 등)
+      const pm = (item.printMethod || '').toLowerCase();
+      if (pm.includes('잉크젯') || pm.includes('inkjet')) return null; // 잉크젯은 불필요
+      const is6c = pm.includes('6도') || pm.includes('6c');
+      const isSingle = item.printSide === 'single' || (item.pageLayout !== 'spread');
+      if (is6c) {
+        return colorIntentByCode.get(isSingle ? 'CI-6C-1S' : 'CI-6C-2S') || null;
+      }
+      // 기본: 4도
+      return colorIntentByCode.get(isSingle ? 'CI-4C-1S' : 'CI-4C-2S') || null;
+    };
+
+    // 필수 필드 검증 (누락 시 주문 차단)
+    const validationErrors: string[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const label = item.folderName || item.productName || `항목 ${i + 1}`;
+      if (!item.paper) validationErrors.push(`[${label}] 용지가 설정되지 않았습니다`);
+      if (!item.bindingType) validationErrors.push(`[${label}] 제본방식이 설정되지 않았습니다`);
+      const pm = (item.printMethod || '').toLowerCase();
+      const isIndigo = pm.includes('인디고') || pm.includes('indigo');
+      if (isIndigo && !resolveColorIntentId(item)) {
+        validationErrors.push(`[${label}] 인디고 도수(4도/6도) 정보를 확인할 수 없습니다`);
+      }
+    }
+    if (validationErrors.length > 0) {
+      throw new BadRequestException(
+        `주문 정보가 누락되어 주문을 생성할 수 없습니다:\n${validationErrors.join('\n')}`,
+      );
+    }
+
     // 트랜잭션 내에서 주문번호 생성 + 주문 생성 (advisory lock으로 직렬화)
     const order = await this.prisma.$transaction(async (tx) => {
       const orderNumber = await this.generateOrderNumber(tx);
@@ -508,6 +550,7 @@ export class OrderService {
           printMethod: item.printMethod,
           paper: item.paper,
           bindingType: item.bindingType,
+          colorIntentId: resolveColorIntentId(item),
           coverMaterial: item.coverMaterial,
           foilName: item.foilName,
           foilColor: item.foilColor,

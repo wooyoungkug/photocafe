@@ -207,6 +207,16 @@ export class CreateOrderItemDto {
   @IsString()
   bindingType: string;
 
+  @ApiPropertyOptional({ description: '도수 코드 (예: CI-6C-2S → 6도 양면). printMethod에서 자동 도출 가능' })
+  @IsOptional()
+  @IsString()
+  colorIntentCode?: string;
+
+  @ApiPropertyOptional({ description: '인쇄면 (single/double). 단면/양면 출력 구분' })
+  @IsOptional()
+  @IsString()
+  printSide?: string;
+
   @ApiPropertyOptional({ description: '커버 재질' })
   @IsOptional()
   @IsString()
