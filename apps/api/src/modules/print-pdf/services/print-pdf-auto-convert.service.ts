@@ -189,3 +189,38 @@ export class PrintPdfAutoConvertService {
     } as GeneratePrintPdfDto;
   }
 }
+
+/**
+ * OrderItem.size 문자열을 표준 규격 라벨로 정규화.
+ * 예: '210x297' → 'A4', '148x210' → 'A5', '175x250' → 'B5' (근사치 허용).
+ * 매칭되는 것이 없으면 원본을 소문자로 반환 (Matcher가 정확매칭 실패 시 null 을 낼 것).
+ */
+function normalizeSizeLabel(size: string): string | undefined {
+  if (!size) return undefined;
+  const m = size.match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
+  if (!m) return size.trim();
+  const w = parseFloat(m[1]);
+  const h = parseFloat(m[2]);
+  // 가로세로 어느 방향이든 매칭되게 정렬
+  const [sh, lg] = w < h ? [w, h] : [h, w];
+  const within = (a: number, b: number, tol: number) => Math.abs(a - b) <= tol;
+  if (within(sh, 210, 3) && within(lg, 297, 4)) return 'A4';
+  if (within(sh, 148, 3) && within(lg, 210, 3)) return 'A5';
+  if (within(sh, 105, 2) && within(lg, 148, 3)) return 'A6';
+  if (within(sh, 176, 3) && within(lg, 250, 4)) return 'B5';
+  if (within(sh, 200, 2) && within(lg, 200, 2)) return '200x200';
+  // 정확한 수치 라벨 (w x h) 반환 (매처가 exact 라벨 형태로 받을 수 있음)
+  return `${w}x${h}`;
+}
+
+/** OrderItem.bindingType 문자열을 imposition 도메인 4가지로 정규화 */
+function normalizeBindingType(
+  s: string,
+): 'compressed' | 'tack' | 'perfect' | 'flat' | undefined {
+  if (!s) return undefined;
+  const x = s.toLowerCase();
+  if (x.includes('압축') || x.includes('compressed')) return 'compressed';
+  if (x.includes('타카') || x.includes('tack') || x.includes('핀')) return 'tack';
+  if (x.includes('무선') || x.includes('perfect') || x.includes('화보')) return 'perfect';
+  return 'flat';
+}
