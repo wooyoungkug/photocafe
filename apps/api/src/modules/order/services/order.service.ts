@@ -724,7 +724,7 @@ export class OrderService {
           adjustmentAmount,
           totalAmount: totalAmount + totalShippingFee,
           finalAmount: totalAmount + totalShippingFee - adjustmentAmount,
-          paymentMethod: dto.paymentMethod || 'postpaid',
+          paymentMethod: dto.paymentMethod,
           isUrgent: dto.isUrgent || false,
           isDuplicateOverride: dto.isDuplicateOverride || false,
           requestedDeliveryDate: dto.requestedDeliveryDate,

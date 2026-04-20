@@ -413,10 +413,12 @@ export class CreateOrderDto {
   @IsString()
   clientId: string;
 
-  @ApiPropertyOptional({ description: '결제 방식', enum: ['prepaid', 'postpaid', 'card', 'transfer'] })
-  @IsOptional()
-  @IsIn(['prepaid', 'postpaid', 'card', 'transfer', 'mobile'])
-  paymentMethod?: string;
+  @ApiProperty({ description: '결제 방식', enum: ['prepaid', 'postpaid', 'card', 'transfer', 'mobile'] })
+  @IsString()
+  @IsIn(['prepaid', 'postpaid', 'card', 'transfer', 'mobile'], {
+    message: 'paymentMethod는 prepaid, postpaid, card, transfer, mobile 중 하나여야 합니다.',
+  })
+  paymentMethod: string;
 
   @ApiPropertyOptional({ description: '긴급 여부' })
   @IsOptional()

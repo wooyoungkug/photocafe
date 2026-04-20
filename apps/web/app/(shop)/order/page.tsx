@@ -112,7 +112,7 @@ export default function OrderPage() {
   const { items, getTotal, clearCart } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
 
-  const [paymentMethod, setPaymentMethod] = useState('postpaid');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [memo, setMemo] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -561,6 +561,14 @@ export default function OrderPage() {
       return;
     }
 
+    const validPaymentMethods = ['prepaid', 'postpaid', 'card', 'transfer', 'mobile'];
+    if (!paymentMethod || !validPaymentMethods.includes(paymentMethod)) {
+      toast.error('결제 방법 선택 필요', { description: '결제 방법을 선택해주세요.' });
+      const el = document.getElementById('payment-method-section');
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
     // 앨범 상품의 업로드 파일 유효성 검증
     const albumItemsWithNoFiles = items.filter(
       item => item.productType === 'album-order' && (!item.serverFiles || item.serverFiles.length === 0)
@@ -1000,9 +1008,9 @@ export default function OrderPage() {
               </Card>
 
               {/* Payment Method */}
-              <Card>
+              <Card id="payment-method-section">
                 <CardHeader>
-                  <CardTitle>결제 방법</CardTitle>
+                  <CardTitle>결제 방법 <span className="text-red-500">*</span></CardTitle>
                 </CardHeader>
                 <CardContent>
                   <RadioGroup

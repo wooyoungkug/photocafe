@@ -119,6 +119,7 @@ export function useImmediateUpload(productId: string) {
       }
 
       let success = false;
+      let lastError: UploadError | Error | null = null;
       const maxRetries = 3;
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -145,10 +146,15 @@ export function useImmediateUpload(productId: string) {
           success = true;
           break;
         } catch (err: any) {
+          lastError = err;
           console.error('[ImmediateUpload] upload error:', err?.message || err, { fileName: item.metadata.fileName, attempt });
           if (err?.name === 'AbortError') break;
+          // 재시도 불가 에러면 즉시 중단
+          if (err instanceof UploadError && !err.retriable) break;
           if (attempt < maxRetries - 1) {
-            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+            const base = 1000 * Math.pow(2, attempt);
+            const jitter = Math.floor(Math.random() * 300);
+            await new Promise(r => setTimeout(r, base + jitter));
           }
         }
       }
@@ -156,26 +162,37 @@ export function useImmediateUpload(productId: string) {
       queueRef.current.shift();
 
       if (!success && !controller.signal.aborted) {
-        // 해당 폴더 업로드 실패 처리
+        // 실패한 개별 파일 기록 - 폴더 전체를 중단시키지 않고 나머지 파일 계속 처리
         const progress = folderProgressRef.current.get(item.folderId);
+        if (progress) {
+          progress.failedFiles.push({
+            fileName: item.metadata.fileName,
+            sortOrder: item.metadata.sortOrder,
+            errorMessage: lastError?.message || '알 수 없는 오류',
+          });
+        }
+      }
+
+      // 폴더 업로드 완료 체크 (남은 큐 아이템이 없을 때)
+      const progress = folderProgressRef.current.get(item.folderId);
+      const hasMoreForFolder = queueRef.current.some(q => q.folderId === item.folderId);
+
+      if (progress && !hasMoreForFolder && progress.failedFiles.length > 0) {
+        // 모두 처리했으나 일부 실패 → partial
         updateFolderUploadStatus(item.folderId, {
           immediateUploadStatus: 'partial',
-          immediateUploadProgress: progress
-            ? Math.round((progress.uploaded / progress.total) * 100) : 0,
-          immediateUploadedCount: progress?.uploaded ?? 0,
+          immediateUploadProgress: Math.round((progress.uploaded / progress.total) * 100),
+          immediateUploadedCount: progress.uploaded,
+          immediateFailedFiles: progress.failedFiles,
         });
         updateSessionFolder(productId, item.folderId, {
           uploadStatus: 'partial',
-          uploadedFileCount: progress?.uploaded ?? 0,
+          uploadedFileCount: progress.uploaded,
         });
-        // 이 폴더의 나머지 파일도 큐에서 제거
-        queueRef.current = queueRef.current.filter(q => q.folderId !== item.folderId);
         continue;
       }
 
-      // 폴더 업로드 완료 체크
-      const progress = folderProgressRef.current.get(item.folderId);
-      if (progress && progress.uploaded === progress.total) {
+      if (progress && progress.uploaded === progress.total && progress.failedFiles.length === 0) {
         // folder의 파일 메타데이터를 매칭하여 포함
         const { folders } = useMultiFolderUploadStore.getState();
         const currentFolder = folders.find(f => f.id === item.folderId);
@@ -253,6 +270,7 @@ export function useImmediateUpload(productId: string) {
       uploaded: 0,
       total: folder.files.length,
       serverFiles: [],
+      failedFiles: [],
     });
 
     // 세션에 저장
@@ -333,6 +351,84 @@ export function useImmediateUpload(productId: string) {
     // 다시 시작
     enqueueFolder(folder);
   }, [cancelFolderUpload, enqueueFolder]);
+
+  // 실패한 파일만 선택적으로 재업로드
+  const retryFailedFiles = useCallback((folder: UploadedFolder) => {
+    const failedList = folder.immediateFailedFiles;
+    const tempFolderId = folder.tempFolderId;
+    if (!failedList || failedList.length === 0 || !tempFolderId) {
+      console.warn('[ImmediateUpload] retryFailedFiles: no failed files or no tempFolderId');
+      return;
+    }
+
+    // 기존 AbortController 재사용 또는 새로 생성
+    let controller = abortControllersRef.current.get(folder.id);
+    if (!controller || controller.signal.aborted) {
+      controller = new AbortController();
+      abortControllersRef.current.set(folder.id, controller);
+    }
+
+    // 진행 상태 유지 - 실패 리스트만 초기화
+    const progress = folderProgressRef.current.get(folder.id);
+    if (progress) {
+      progress.failedFiles = [];
+    } else {
+      folderProgressRef.current.set(folder.id, {
+        uploaded: folder.immediateUploadedCount || 0,
+        total: folder.files.length,
+        serverFiles: [],
+        failedFiles: [],
+      });
+    }
+
+    // 상태를 uploading으로 전환
+    updateFolderUploadStatus(folder.id, {
+      immediateUploadStatus: 'uploading',
+      immediateFailedFiles: [],
+    });
+
+    // 실패한 파일만 큐에 추가
+    const failedSortOrders = new Set(failedList.map(f => f.sortOrder));
+    folder.files.forEach((uploadedFile: UploadedFile, idx: number) => {
+      if (!failedSortOrders.has(uploadedFile.pageNumber)) return;
+
+      let file: File | null = null;
+      if (uploadedFile.file) {
+        file = uploadedFile.file;
+      } else if (uploadedFile.canvasDataUrl) {
+        file = dataUrlToFile(uploadedFile.canvasDataUrl, uploadedFile.fileName);
+      }
+
+      if (!file) {
+        console.warn('[ImmediateUpload] retryFailedFiles: no File for', uploadedFile.fileName);
+        return;
+      }
+
+      const metadata: AlbumFileMetadata = {
+        tempFolderId,
+        folderName: folder.folderName,
+        sortOrder: uploadedFile.pageNumber,
+        fileName: uploadedFile.fileName,
+        width: uploadedFile.widthPx,
+        height: uploadedFile.heightPx,
+        widthInch: uploadedFile.widthInch,
+        heightInch: uploadedFile.heightInch,
+        dpi: uploadedFile.dpi,
+        fileSize: uploadedFile.fileSize,
+      };
+
+      queueRef.current.push({
+        folderId: folder.id,
+        tempFolderId,
+        file,
+        metadata,
+        fileIndex: idx,
+        totalFiles: folder.files.length,
+      });
+    });
+
+    processQueue();
+  }, [processQueue, updateFolderUploadStatus]);
 
   const restoreSession = useCallback(async (): Promise<boolean> => {
     const session = loadUploadSession(productId);
@@ -501,5 +597,5 @@ export function useImmediateUpload(productId: string) {
     return restored;
   }, [productId]);
 
-  return { enqueueFolder, cancelFolderUpload, retryFolder, restoreSession };
+  return { enqueueFolder, cancelFolderUpload, retryFolder, retryFailedFiles, restoreSession };
 }
