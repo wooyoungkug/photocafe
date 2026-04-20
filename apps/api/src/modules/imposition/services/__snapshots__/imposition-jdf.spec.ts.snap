@@ -1,0 +1,17 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`ImpositionJdfService 스냅샷: 간단 시나리오 JDF 구조 1`] = `
+"<JDF xmlns="http://www.CIP4.org/JDFSchema_1_1" ID="JDF_SNAP" Type="Product" Status="Waiting" JobID="SNAP" DescriptiveName="snap" Version="1.4">
+  <ResourcePool>
+    <Media ID="Media_Sheet" Class="Consumable" Status="Available" MediaType="Paper" Weight="128" Grain="ShortEdge"/>
+    <LayoutPreparationParams ID="LPP_1" Class="Parameter" Status="Available" NumberUp="2 2" Sides="OneSidedFront" PresentationDirection="Top2BottomLeft2Right" RotatePolicy="Rotate90"/>
+    <Layout ID="Layout_1" Class="Parameter" Status="Available">
+      <Signature Name="Sig_1">
+        <Sheet Name="Sheet_1">
+          <Surface Side="Front">
+    <CuttingParams ID="Cut_1" Class="Parameter" Status="Available">
+    <FoldingParams ID="Fold_1" Class="Parameter" Status="Available" FoldCatalog="F2-1"/>
+    <RunList ID="RL_1" Class="Parameter" Status="Available" NPage="2">
+      <LayoutElement>
+  <ResourceLinkPool>"
+`;

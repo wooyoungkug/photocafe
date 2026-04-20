@@ -1,0 +1,313 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+} from '@nestjs/common';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
+import * as fs from 'fs';
+import * as path from 'path';
+import { PrismaService } from '@/common/prisma/prisma.service';
+import {
+  ImpositionCalcService,
+  ImpositionInput,
+} from '../services/imposition-calc.service';
+import { ImpositionJdfService } from '../services/imposition-jdf.service';
+import { ImpositionPdfService } from '../services/imposition-pdf.service';
+import { ImpositionPresetService } from '../services/imposition-preset.service';
+import { ImpositionRuleService } from '../services/imposition-rule.service';
+import { ImpositionMatcherService } from '../services/imposition-matcher.service';
+import { CalculateImpositionDto } from '../dto/calculate-imposition.dto';
+import { CreatePresetDto, UpdatePresetDto } from '../dto/preset.dto';
+import { RunImpositionDto } from '../dto/run-imposition.dto';
+import {
+  CreateRuleDto,
+  UpdateRuleDto,
+  MatchImpositionDto,
+} from '../dto/rule.dto';
+import { PrismaClient } from '@prisma/client';
+import { seedImposition } from '../seed-imposition';
+
+const IMPOSITION_OUTPUT_DIR = path.join(process.cwd(), 'uploads', 'imposition');
+
+@ApiTags('imposition')
+@Controller('imposition')
+export class ImpositionController {
+  constructor(
+    private readonly calc: ImpositionCalcService,
+    private readonly jdf: ImpositionJdfService,
+    private readonly pdf: ImpositionPdfService,
+    private readonly presets: ImpositionPresetService,
+    private readonly rules: ImpositionRuleService,
+    private readonly matcher: ImpositionMatcherService,
+    private readonly prisma: PrismaService,
+  ) {
+    if (!fs.existsSync(IMPOSITION_OUTPUT_DIR)) {
+      fs.mkdirSync(IMPOSITION_OUTPUT_DIR, { recursive: true });
+    }
+  }
+
+  // ==================== Calculate (미저장 시뮬) ====================
+  @Post('calculate')
+  @ApiOperation({ summary: '임포지션 시뮬레이션 (미저장 프리뷰용)' })
+  calculate(@Body() dto: CalculateImpositionDto) {
+    const input: ImpositionInput = {
+      productWidth: dto.productWidth,
+      productHeight: dto.productHeight,
+      pageCount: dto.pageCount,
+      bindingType: dto.bindingType as any,
+      sheetWidth: dto.sheetWidth,
+      sheetHeight: dto.sheetHeight,
+      marginTop: dto.marginTop,
+      marginRight: dto.marginRight,
+      marginBottom: dto.marginBottom,
+      marginLeft: dto.marginLeft,
+      bleed: dto.bleed,
+      gutter: dto.gutter,
+      creaseWidth: dto.creaseWidth,
+      tackMargin: dto.tackMargin,
+      tackEdge: dto.tackEdge as any,
+      rotationPolicy: dto.rotationPolicy as any,
+      grainDirection: dto.grainDirection as any,
+      manualNup: dto.manualNup,
+    };
+    return this.calc.calculate(input);
+  }
+
+  // ==================== Presets ====================
+  @Get('presets')
+  listPresets(@Query('bindingType') bindingType?: string) {
+    return this.presets.list(bindingType);
+  }
+
+  @Post('presets')
+  createPreset(@Body() dto: CreatePresetDto) {
+    return this.presets.create(dto);
+  }
+
+  @Patch('presets/:id')
+  updatePreset(@Param('id') id: string, @Body() dto: UpdatePresetDto) {
+    return this.presets.update(id, dto);
+  }
+
+  @Delete('presets/:id')
+  deletePreset(@Param('id') id: string) {
+    return this.presets.delete(id);
+  }
+
+  // ==================== Rules (매칭 규칙) ====================
+  @Get('rules')
+  @ApiOperation({ summary: '매칭 규칙 리스트 (priority desc)' })
+  listRules() {
+    return this.rules.list();
+  }
+
+  @Post('rules')
+  @ApiOperation({ summary: '매칭 규칙 생성' })
+  createRule(@Body() dto: CreateRuleDto) {
+    return this.rules.create(dto);
+  }
+
+  @Patch('rules/:id')
+  @ApiOperation({ summary: '매칭 규칙 수정' })
+  updateRule(@Param('id') id: string, @Body() dto: UpdateRuleDto) {
+    return this.rules.update(id, dto);
+  }
+
+  @Delete('rules/:id')
+  @ApiOperation({ summary: '매칭 규칙 삭제' })
+  deleteRule(@Param('id') id: string) {
+    return this.rules.delete(id);
+  }
+
+  // ==================== Match (프리뷰) ====================
+  @Post('match')
+  @ApiOperation({ summary: '주문 특성 → 매칭 프리셋 조회' })
+  async match(@Body() dto: MatchImpositionDto) {
+    const result = await this.matcher.findPreset({
+      productSize: dto.productSize ?? null,
+      bindingType: (dto.bindingType as any) ?? null,
+      pageCount: dto.pageCount ?? null,
+    });
+    if (!result) return { matched: false, preset: null, rule: null };
+    return { matched: true, preset: result.preset, rule: result.rule };
+  }
+
+  // ==================== Seed (관리자 전용 재등록) ====================
+  @Post('seed')
+  @ApiOperation({ summary: '임포지션 프리셋+규칙 시드 재등록' })
+  async seed() {
+    const client = new PrismaClient();
+    try {
+      const count = await seedImposition(client);
+      return { ok: true, count };
+    } finally {
+      await client.$disconnect();
+    }
+  }
+
+  // ==================== Run: JDF+PDF 생성 ====================
+  @Post('/orders/:orderId/items/:itemId/imposition')
+  async run(
+    @Param('orderId') orderId: string,
+    @Param('itemId') itemId: string,
+    @Body() dto: RunImpositionDto,
+  ) {
+    const preset = await this.presets.get(dto.presetId);
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: itemId },
+      include: { order: true },
+    });
+    if (!item) throw new NotFoundException(`OrderItem ${itemId} not found`);
+    if (item.orderId !== orderId) {
+      throw new BadRequestException('orderId / itemId mismatch');
+    }
+
+    // product width/height 추출 (size 필드 "210x297" 가정)
+    const { w, h } = parseSize(item.size);
+    if (!w || !h) {
+      throw new BadRequestException(`OrderItem.size 파싱 실패: ${item.size}`);
+    }
+
+    const bindingType = mapBindingType(item.bindingType);
+
+    const input: ImpositionInput = {
+      productWidth: w,
+      productHeight: h,
+      pageCount: item.pages,
+      bindingType,
+      sheetWidth: Number(preset.sheetWidth),
+      sheetHeight: Number(preset.sheetHeight),
+      marginTop: Number(preset.marginTop),
+      marginRight: Number(preset.marginRight),
+      marginBottom: Number(preset.marginBottom),
+      marginLeft: Number(preset.marginLeft),
+      bleed: Number(preset.bleed),
+      gutter: Number(preset.gutter),
+      creaseWidth: preset.creaseWidth ? Number(preset.creaseWidth) : undefined,
+      tackMargin: preset.tackMargin ? Number(preset.tackMargin) : undefined,
+      tackEdge: preset.tackEdge as any,
+      rotationPolicy: preset.rotationPolicy as any,
+      grainDirection: preset.grainDirection as any,
+      manualNup: dto.manualNup,
+    };
+
+    // 계산
+    const result = this.calc.calculate(input);
+
+    // 출력 경로
+    const jobRecord = await this.prisma.impositionJob.create({
+      data: {
+        orderId,
+        orderItemId: itemId,
+        presetId: preset.id,
+        pageCount: result.pageCount,
+        sheetCount: result.sheetCount,
+        nup: result.nup,
+        rotation: result.rotation,
+        utilization: result.utilization,
+        layoutJson: result as any,
+        status: 'pending',
+      },
+    });
+
+    try {
+      const base = `imposition_${jobRecord.id}`;
+      const jdfPath = path.join(IMPOSITION_OUTPUT_DIR, `${base}.jdf`);
+      const pdfPath = path.join(IMPOSITION_OUTPUT_DIR, `${base}.pdf`);
+
+      const sourcePdfPath = dto.sourcePdfPath
+        || (item.pdfPath ? path.isAbsolute(item.pdfPath) ? item.pdfPath : path.join(process.cwd(), item.pdfPath) : null);
+
+      // JDF
+      const jdfXml = this.jdf.build(result, {
+        jobId: jobRecord.id,
+        jobName: `${item.order.orderNumber}_${item.productName}`,
+        sourcePdfFileName: sourcePdfPath ? path.basename(sourcePdfPath) : `${base}_source.pdf`,
+        sourcePdfTotalPages: item.pages,
+        bindingType,
+      });
+      fs.writeFileSync(jdfPath, jdfXml, 'utf-8');
+
+      // PDF
+      await this.pdf.build(result, {
+        sourcePdfPath,
+        outputPath: pdfPath,
+      });
+
+      await this.prisma.impositionJob.update({
+        where: { id: jobRecord.id },
+        data: {
+          status: 'done',
+          jdfPath,
+          pdfPath,
+        },
+      });
+
+      return {
+        ...jobRecord,
+        status: 'done',
+        jdfPath,
+        pdfPath,
+        warnings: result.warnings,
+      };
+    } catch (err: any) {
+      await this.prisma.impositionJob.update({
+        where: { id: jobRecord.id },
+        data: { status: 'failed', error: err?.message || String(err) },
+      });
+      throw err;
+    }
+  }
+
+  @Get('jobs/:jobId/jdf')
+  async downloadJdf(@Param('jobId') jobId: string, @Res({ passthrough: true }) res: Response) {
+    const job = await this.prisma.impositionJob.findUnique({ where: { id: jobId } });
+    if (!job || !job.jdfPath) throw new NotFoundException('JDF not found');
+    if (!fs.existsSync(job.jdfPath)) throw new NotFoundException('JDF file missing on disk');
+    res.set({
+      'Content-Type': 'application/vnd.cip4-jdf+xml',
+      'Content-Disposition': `attachment; filename="imposition_${jobId}.jdf"`,
+    });
+    return new StreamableFile(fs.createReadStream(job.jdfPath));
+  }
+
+  @Get('jobs/:jobId/pdf')
+  async downloadPdf(@Param('jobId') jobId: string, @Res({ passthrough: true }) res: Response) {
+    const job = await this.prisma.impositionJob.findUnique({ where: { id: jobId } });
+    if (!job || !job.pdfPath) throw new NotFoundException('PDF not found');
+    if (!fs.existsSync(job.pdfPath)) throw new NotFoundException('PDF file missing on disk');
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="imposition_${jobId}.pdf"`,
+    });
+    return new StreamableFile(fs.createReadStream(job.pdfPath));
+  }
+}
+
+function parseSize(size: string): { w: number; h: number } {
+  if (!size) return { w: 0, h: 0 };
+  // "210x297", "210*297", "210 x 297", "210mm x 297mm"
+  const m = size.match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
+  if (m) return { w: parseFloat(m[1]), h: parseFloat(m[2]) };
+  return { w: 0, h: 0 };
+}
+
+function mapBindingType(binding: string): 'compressed' | 'tack' | 'perfect' | 'flat' {
+  if (!binding) return 'flat';
+  const s = binding.toLowerCase();
+  if (s.includes('압축') || s.includes('compressed')) return 'compressed';
+  if (s.includes('타카') || s.includes('tack')) return 'tack';
+  // 무선제본 = perfect bound = 화보앨범
+  if (s.includes('무선') || s.includes('perfect') || s.includes('화보')) return 'perfect';
+  return 'flat';
+}
