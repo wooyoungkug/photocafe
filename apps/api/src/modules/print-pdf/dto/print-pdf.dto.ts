@@ -43,6 +43,10 @@ export class IndexOptionsDto {
   @IsBoolean()
   showBinding: boolean = true;
 
+  @ApiProperty({ description: '양면/단면 표시', default: true })
+  @IsBoolean()
+  showSide: boolean = true;
+
   @ApiProperty({ description: 'Nup 표시', default: true })
   @IsBoolean()
   showNup: boolean = true;

@@ -51,6 +51,7 @@ export interface IndexData {
   colorMode: string;
   binding: string;
   nup: string;
+  side: string;
 }
 
 export interface RenderPageOptions {
@@ -411,6 +412,7 @@ export class PrintPdfRendererService {
       showPageInfo: () => `${data.currentPage}/${data.totalPages}P`,
       showColorMode: () => data.colorMode,
       showBinding: () => data.binding,
+      showSide: () => data.side,
       showNup: () => data.nup,
     };
 

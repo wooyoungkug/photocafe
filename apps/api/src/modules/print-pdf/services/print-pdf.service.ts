@@ -541,6 +541,7 @@ export class PrintPdfService implements OnModuleInit {
         colorMode: colorMode,
         binding: item.bindingType || '-',
         nup: specData.nup || '1up',
+        side: String(item.pageLayout || '').toLowerCase() === 'spread' ? '양면' : '단면',
       };
 
       // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용

@@ -45,6 +45,7 @@ export interface IndexOptions {
   showPageInfo: boolean;
   showColorMode: boolean;
   showBinding: boolean;
+  showSide: boolean;
   showNup: boolean;
 }
 
@@ -101,6 +102,7 @@ export const DEFAULT_INDEX_OPTIONS: IndexOptions = {
   showPageInfo: true,
   showColorMode: true,
   showBinding: true,
+  showSide: true,
   showNup: true,
 };
 

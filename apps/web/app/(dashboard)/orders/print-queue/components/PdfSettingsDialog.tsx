@@ -66,6 +66,7 @@ const INDEX_OPTION_LABELS: { key: keyof IndexOptions; label: string }[] = [
   { key: 'showPageInfo', label: '페이지 정보 (현재/총)' },
   { key: 'showColorMode', label: '인디고도수 (4도/6도)' },
   { key: 'showBinding', label: '제본방법' },
+  { key: 'showSide', label: '양면/단면' },
   { key: 'showNup', label: 'Nup' },
 ];
 
