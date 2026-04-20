@@ -6,11 +6,11 @@ export const MM_TO_PT = 72 / 25.4;
 /** 인덱스 바 높이 (mm) */
 export const INDEX_HEIGHT_MM = 8;
 
-/** 재단선 기본값 */
+/** 재단선 기본값 (ISO 12647 준수) */
 export const CROP_MARK = {
-  LENGTH_MM: 5,      // 재단선 길이 (mm)
-  OFFSET_MM: 1,      // trim edge에서 떨어진 거리 (mm)
-  LINE_WIDTH: 0.25,  // pt (ISO 12647 헤어라인)
+  LENGTH_MM: 5,      // 재단선 길이 (mm) — ISO 12647: 5mm
+  OFFSET_MM: 3,      // trim edge에서 떨어진 거리 (mm) — ISO 12647: 3mm
+  LINE_WIDTH: 0.5,   // pt — ISO 12647: 0.5pt
 };
 
 /** 기본 재단여백 (mm) */
