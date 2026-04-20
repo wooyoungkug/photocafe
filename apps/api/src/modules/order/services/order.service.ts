@@ -2381,10 +2381,15 @@ export class OrderService {
 
       this.logger.log(`DB 업데이트 완료 (주문: ${order.orderNumber}): ${updates.length}건`);
 
-      // DB 업데이트 성공 후에만 temp 폴더 삭제
+      // DB 업데이트 성공 후 temp 폴더 삭제 (모든 파일이 이동된 경우에만)
       if (updates.length > 0) {
-        this.fileStorage.cleanupTempFolder(tempFolderId);
-        this.logger.log(`temp 폴더 삭제 (주문: ${order.orderNumber}, temp: ${tempFolderId})`);
+        const totalDbFiles = item.files.length;
+        if (updates.length >= totalDbFiles) {
+          this.fileStorage.cleanupTempFolder(tempFolderId);
+          this.logger.log(`temp 폴더 삭제 (주문: ${order.orderNumber}, temp: ${tempFolderId}) - 전체 ${totalDbFiles}건 이동 완료`);
+        } else {
+          this.logger.warn(`temp 폴더 보존 (주문: ${order.orderNumber}, temp: ${tempFolderId}) - ${updates.length}/${totalDbFiles}건만 이동됨, 미이동 파일 존재`);
+        }
       }
     }
   }
@@ -2624,8 +2629,40 @@ export class OrderService {
         const tempOrigDir = join(getUploadBasePath(), 'temp', tempFolderId, 'originals');
 
         if (!existsSync(tempOrigDir)) {
-          // temp 폴더 삭제됨 → DB의 fileUrl/thumbnailUrl을 빈 값으로 정리
-          for (const f of files) {
+          // temp 폴더 삭제됨 → orders 디렉토리에서 복구 시도
+          const orderItem = await this.prisma.orderItem.findUnique({
+            where: { id: orderItemId },
+            select: {
+              id: true,
+              order: { select: { orderNumber: true, client: { select: { clientName: true } } } },
+              files: { select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, storageStatus: true } },
+            },
+          });
+          if (orderItem?.order?.client?.clientName) {
+            try {
+              await this.recoverFromOrderDir(
+                { orderNumber: orderItem.order.orderNumber, client: orderItem.order.client },
+                orderItem,
+                orderItem.order.client.clientName,
+              );
+              // 복구 성공한 파일 수 계산
+              const recoveredCount = await this.prisma.orderFile.count({
+                where: { orderItemId, storageStatus: 'uploaded' },
+              });
+              if (recoveredCount > 0) {
+                repaired += recoveredCount;
+                this.logger.log(`[복구] orders 디렉토리에서 ${recoveredCount}건 복구 (orderItem: ${orderItemId})`);
+              }
+            } catch (recoverErr) {
+              this.logger.warn(`[복구] orders 디렉토리 복구 실패: ${(recoverErr as Error).message}`);
+            }
+          }
+          // 복구되지 못한 파일만 missing 처리
+          const stillTempFiles = await this.prisma.orderFile.findMany({
+            where: { orderItemId, fileUrl: { contains: '/temp/' } },
+            select: { id: true },
+          });
+          for (const f of stillTempFiles) {
             await this.prisma.orderFile.update({
               where: { id: f.id },
               data: { storageStatus: 'missing' },
