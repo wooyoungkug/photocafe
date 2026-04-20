@@ -2423,7 +2423,20 @@ export class OrderService {
       const originalPath = join(originalsDir, diskFileName);
       const thumbName = this.fileStorage.getThumbName(diskFileName);
       const thumbPath = join(thumbnailsDir, thumbName);
-      const hasThumb = existsSync(thumbPath);
+      let hasThumb = existsSync(thumbPath);
+
+      // 썸네일 없으면 원본에서 재생성 시도
+      if (!hasThumb) {
+        try {
+          await this.thumbnailService.generateThumbnail(originalPath, thumbnailsDir, diskFileName);
+          hasThumb = existsSync(thumbPath);
+          if (hasThumb) {
+            this.logger.log(`[복구] 썸네일 재생성 성공: ${diskFileName}`);
+          }
+        } catch (thumbErr) {
+          this.logger.warn(`[복구] 썸네일 재생성 실패: ${diskFileName} - ${(thumbErr as Error).message}`);
+        }
+      }
 
       // DB 파일과 매칭
       const matchingFile = item.files.find((f: any) => {
@@ -2441,7 +2454,7 @@ export class OrderService {
           id: matchingFile.id,
           fileUrl: this.fileStorage.toRelativeUrl(originalPath),
           originalPath,
-          thumbnailUrl: hasThumb ? this.fileStorage.toRelativeUrl(thumbPath) : matchingFile.thumbnailUrl,
+          thumbnailUrl: hasThumb ? this.fileStorage.toRelativeUrl(thumbPath) : '',
           thumbnailPath: hasThumb ? thumbPath : null,
         });
       }
@@ -2707,7 +2720,56 @@ export class OrderService {
       }
     }
 
-    return { total: brokenThumbFiles.length + tempUrlFiles.length, repaired, failed, cleaned };
+    // Case 3: storageStatus가 'missing'인 파일 → orders 디렉토리에서 복구 시도
+    const missingFiles = await this.prisma.orderFile.findMany({
+      where: { storageStatus: 'missing' },
+      select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, orderItemId: true },
+    });
+
+    if (missingFiles.length > 0) {
+      const byItemMissing = new Map<string, typeof missingFiles>();
+      for (const f of missingFiles) {
+        const list = byItemMissing.get(f.orderItemId) || [];
+        list.push(f);
+        byItemMissing.set(f.orderItemId, list);
+      }
+
+      for (const [orderItemId, files] of byItemMissing) {
+        const orderItem = await this.prisma.orderItem.findUnique({
+          where: { id: orderItemId },
+          select: {
+            id: true,
+            order: { select: { orderNumber: true, client: { select: { clientName: true } } } },
+            files: { select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, storageStatus: true } },
+          },
+        });
+        if (!orderItem?.order?.client?.clientName) continue;
+
+        try {
+          const beforeCount = await this.prisma.orderFile.count({
+            where: { orderItemId, storageStatus: 'uploaded' },
+          });
+          await this.recoverFromOrderDir(
+            { orderNumber: orderItem.order.orderNumber, client: orderItem.order.client },
+            orderItem,
+            orderItem.order.client.clientName,
+          );
+          const afterCount = await this.prisma.orderFile.count({
+            where: { orderItemId, storageStatus: 'uploaded' },
+          });
+          const recovered = afterCount - beforeCount;
+          if (recovered > 0) {
+            repaired += recovered;
+            this.logger.log(`[복구] missing → uploaded ${recovered}건 (주문: ${orderItem.order.orderNumber})`);
+          }
+        } catch (err) {
+          this.logger.warn(`[복구] missing 복구 실패 (${orderItem.order.orderNumber}): ${(err as Error).message}`);
+          failed += files.length;
+        }
+      }
+    }
+
+    return { total: brokenThumbFiles.length + tempUrlFiles.length + missingFiles.length, repaired, failed, cleaned };
   }
 
   /**
