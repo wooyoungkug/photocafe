@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { seedProcessTemplates } from './seed-process-templates';
+import { seedImposition } from './seed-imposition';
 
 const prisma = new PrismaClient();
 
@@ -521,6 +522,7 @@ async function main() {
   await seedPlatePositions();
   await seedJdfIntents();
   await seedProcessTemplates(prisma);
+  await seedImposition(prisma);
 
   console.log('Seed completed');
 }

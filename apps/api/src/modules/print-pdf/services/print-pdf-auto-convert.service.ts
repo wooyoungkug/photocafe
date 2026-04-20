@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { PrintPdfService } from './print-pdf.service';
+import { ImpositionMatcherService } from '../../imposition/services/imposition-matcher.service';
 import type { GeneratePrintPdfDto } from '../dto/print-pdf.dto';
 
 /**
@@ -23,7 +24,30 @@ export class PrintPdfAutoConvertService {
     private readonly prisma: PrismaService,
     private readonly settings: SystemSettingsService,
     private readonly printPdf: PrintPdfService,
+    private readonly matcher: ImpositionMatcherService,
   ) {}
+
+  /**
+   * 매칭 엔진을 이용해 orderItem 에 적합한 프리셋을 조회.
+   * 매칭 O → 해당 프리셋 기반으로 임포지션 JDF+PDF 생성 경로로 위임 가능하도록 반환.
+   * 매칭 X → null 반환 → 기존 Nup 파싱 경로 fallback.
+   */
+  async resolvePresetForItem(itemId: string) {
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: itemId },
+      select: { size: true, bindingType: true, pages: true },
+    });
+    if (!item) return null;
+
+    // 규격 정규화: '210x297' 에서 'A4' 매칭도 가능하도록 표준 라벨로 환산.
+    const label = normalizeSizeLabel(item.size || '');
+    const bindingType = normalizeBindingType(item.bindingType || '');
+    return this.matcher.findPreset({
+      productSize: label,
+      bindingType,
+      pageCount: item.pages,
+    });
+  }
 
   @Cron('0 * * * * *', { timeZone: 'Asia/Seoul' })
   async tick() {

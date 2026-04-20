@@ -3750,7 +3750,11 @@ model PdfJobItem {
 model ImpositionPreset {
   id             String   @id @default(cuid())
   name           String
-  bindingType    String   // 'compressed' | 'tack' | 'flat'
+  bindingType    String   // 'compressed' | 'tack' | 'perfect' | 'flat'
+  /// 'A4'|'A5'|'A6'|'B5'|'210x297' 등 (매칭용 메타)
+  productSize    String?
+  /// 시트당 Nup 고정값 (1/2/4/6/8…). null 이면 자동 계산. compressed 에선 "페어 개수"
+  targetNup      Int?
   sheetWidth     Decimal  @db.Decimal(6, 2)
   sheetHeight    Decimal  @db.Decimal(6, 2)
   marginTop      Decimal  @db.Decimal(5, 2) @default(5)
@@ -3769,11 +3773,39 @@ model ImpositionPreset {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  jobs ImpositionJob[]
+  jobs  ImpositionJob[]
+  rules ImpositionRule[]
 
   @@index([bindingType])
   @@index([isDefault])
+  @@index([productSize, bindingType])
   @@map("imposition_presets")
+}
+
+/// 주문 특성(규격·제본방식·페이지수)을 프리셋과 자동 매칭하는 규칙.
+/// priority 내림차순 + 조건 매칭 첫 히트가 선택됨.
+model ImpositionRule {
+  id           String   @id @default(cuid())
+  /// 매칭 조건: 제품 규격 라벨. 'A4'|'A5'|'A6'|'B5'|'210x297' 등. null=any
+  productSize  String?
+  /// 매칭 조건: 제본방식. 'compressed'|'tack'|'perfect'|'flat'. null=any
+  bindingType  String?
+  /// 매칭 조건: 페이지 수 범위 (포함). null=무제한
+  minPages     Int?
+  maxPages     Int?
+  /// 큰 값 우선
+  priority     Int      @default(0)
+  presetId     String
+  preset       ImpositionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([priority])
+  @@index([productSize, bindingType])
+  @@index([presetId])
+  @@map("imposition_rules")
 }
 
 model ImpositionJob {
