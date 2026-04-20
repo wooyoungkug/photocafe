@@ -45,15 +45,33 @@ export class PrintPdfAutoConvertService {
       return;
     }
 
-    // 4) 이미 진행중인 Job이 있으면 스킵 (생성요청은 즉시 반환하지만 실제 처리는 비동기라
-    //    여러 cron tick이 중복 스케줄되는 것을 방지)
+    // 4) 이미 진행중인 Job이 있으면 스킵 (단, 30분 이상 멈춘 Job은 failed 처리)
+    const STUCK_THRESHOLD_MS = 30 * 60 * 1000; // 30분
     const activeJob = await this.prisma.pdfJob.findFirst({
       where: { status: { in: ['pending', 'in_progress'] } },
-      select: { id: true },
+      select: { id: true, status: true, updatedAt: true, currentItem: true },
     });
     if (activeJob) {
-      this.logger.debug(`auto-convert skipped: job ${activeJob.id} still active`);
-      return;
+      const elapsed = Date.now() - new Date(activeJob.updatedAt).getTime();
+      if (elapsed > STUCK_THRESHOLD_MS) {
+        this.logger.warn(`stuck job detected: ${activeJob.id} (${Math.round(elapsed / 60000)}min idle) → marking as failed`);
+        await this.prisma.pdfJob.update({
+          where: { id: activeJob.id },
+          data: { status: 'failed', currentItem: null },
+        }).catch(() => {});
+        // 해당 Job의 in_progress 항목도 failed 처리
+        if (activeJob.currentItem) {
+          await this.prisma.orderItem.update({
+            where: { id: activeJob.currentItem },
+            data: { pdfStatus: 'failed' },
+          }).catch(() => {});
+        }
+        // 메모리 Map에서도 제거
+        this.printPdf.clearStuckJob(activeJob.id);
+      } else {
+        this.logger.debug(`auto-convert skipped: job ${activeJob.id} still active (${Math.round(elapsed / 60000)}min)`);
+        return;
+      }
     }
 
     // 5) 대상 항목 조회

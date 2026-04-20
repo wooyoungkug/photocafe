@@ -358,6 +358,17 @@ export class PrintPdfService implements OnModuleInit {
     return completedResults[0].pdfPath!;
   }
 
+  /** 멈춘 Job을 메모리에서 제거 (auto-convert에서 호출) */
+  clearStuckJob(jobId: string) {
+    const job = this.jobs.get(jobId);
+    if (job) {
+      job.status = 'failed';
+      job.currentItem = undefined;
+      this.jobs.delete(jobId);
+      this.logger.warn(`Stuck job cleared from memory: ${jobId}`);
+    }
+  }
+
   // ==================== Private ====================
 
   /** 동시 처리 항목 수. 1=순차 처리 (세밀한 페이지 단위 진행률 제공) */
@@ -405,7 +416,37 @@ export class PrintPdfService implements OnModuleInit {
       .catch(() => {});
   }
 
+  /** 개별 아이템 처리 (10분 타임아웃) */
+  private static readonly ITEM_TIMEOUT_MS = 10 * 60 * 1000;
+
   private async processItem(jobId: string, dto: GeneratePrintPdfDto, i: number): Promise<void> {
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`PDF 변환 타임아웃 (${PrintPdfService.ITEM_TIMEOUT_MS / 60000}분 초과)`)), PrintPdfService.ITEM_TIMEOUT_MS),
+    );
+
+    try {
+      await Promise.race([
+        this._processItemCore(jobId, dto, i),
+        timeoutPromise,
+      ]);
+    } catch (err: any) {
+      const job = this.jobs.get(jobId);
+      if (job) {
+        const result = job.results[i];
+        if (result.status !== 'completed') {
+          result.status = 'failed';
+          result.error = err.message || 'Unknown error';
+          this.logger.error(`Item ${i} failed: ${err.message}`);
+          await Promise.all([
+            this.prisma.orderItem.update({ where: { id: dto.orderItemIds[i] }, data: { pdfStatus: 'failed' } }).catch(() => {}),
+            this.prisma.pdfJobItem.updateMany({ where: { jobId, orderItemId: dto.orderItemIds[i], sortOrder: i }, data: { status: 'failed', error: err.message } }).catch(() => {}),
+          ]);
+        }
+      }
+    }
+  }
+
+  private async _processItemCore(jobId: string, dto: GeneratePrintPdfDto, i: number): Promise<void> {
     const job = this.jobs.get(jobId)!;
     const orderItemId = dto.orderItemIds[i];
     const result = job.results[i];

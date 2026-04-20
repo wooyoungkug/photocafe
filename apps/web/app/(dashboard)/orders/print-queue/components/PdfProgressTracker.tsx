@@ -290,6 +290,23 @@ export default function PdfProgressTracker({
                 </Button>
               </>
             )}
+            {job.status === 'in_progress' && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    await fetch(`${API_URL}/print-pdf/jobs/${job.jobId}/cancel`, { method: 'POST' });
+                    toast.info('변환이 취소되었습니다');
+                    onClose();
+                  } catch { toast.error('취소 실패'); }
+                }}
+                className="gap-1.5"
+              >
+                <XCircle className="h-4 w-4" />
+                강제 취소
+              </Button>
+            )}
             <Button variant="outline" onClick={onClose}>
               닫기
             </Button>

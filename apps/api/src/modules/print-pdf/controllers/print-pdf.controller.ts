@@ -52,6 +52,32 @@ export class PrintPdfController {
     return job;
   }
 
+  @Post('jobs/:jobId/cancel')
+  @ApiOperation({ summary: '멈춘 PDF 변환 Job 강제 취소' })
+  async cancelJob(@Param('jobId') jobId: string) {
+    this.printPdfService.clearStuckJob(jobId);
+    await this.printPdfService['prisma'].pdfJob
+      .update({ where: { id: jobId }, data: { status: 'failed', currentItem: null } })
+      .catch(() => {});
+    return { message: `Job ${jobId} cancelled` };
+  }
+
+  @Post('jobs/cancel-all')
+  @ApiOperation({ summary: '모든 멈춘 PDF Job 강제 취소' })
+  async cancelAllStuckJobs() {
+    const stuckJobs = await this.printPdfService['prisma'].pdfJob.findMany({
+      where: { status: { in: ['pending', 'in_progress'] } },
+      select: { id: true },
+    });
+    for (const job of stuckJobs) {
+      this.printPdfService.clearStuckJob(job.id);
+      await this.printPdfService['prisma'].pdfJob
+        .update({ where: { id: job.id }, data: { status: 'failed', currentItem: null } })
+        .catch(() => {});
+    }
+    return { message: `${stuckJobs.length} jobs cancelled` };
+  }
+
   @Get('jobs/:jobId/download')
   @ApiOperation({ summary: '생성된 PDF 다운로드 (itemId 지정 시 해당 항목의 PDF만 반환)' })
   async downloadPdf(
