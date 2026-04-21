@@ -38,6 +38,8 @@ interface Props {
     orderItemId: string;
     productWidth?: number;
     productHeight?: number;
+    /** 표시 단위 힌트 (mm | inch). 앨범 주문은 보통 inch. 미지정 시 mm */
+    productUnit?: 'mm' | 'inch';
     pageCount?: number;
     bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
   };
@@ -124,6 +126,8 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const [gutter, setGutter] = useState(3);
   const [rotationPolicy, setRotationPolicy] = useState<'0' | '90' | 'auto'>('auto');
   const [manualNup, setManualNup] = useState<number | ''>('');
+  const [centerAlign, setCenterAlign] = useState(false);
+  const [noGutter, setNoGutter] = useState(false);
 
   // 압축앨범
   const [creaseWidth, setCreaseWidth] = useState(0);
@@ -161,11 +165,14 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
     if (!open) return;
     if (seed?.productWidth) setProductW(seed.productWidth);
     if (seed?.productHeight) setProductH(seed.productHeight);
+    if (seed?.productUnit === 'inch' || seed?.productUnit === 'mm') {
+      setProductUnit(seed.productUnit);
+    }
     if (seed?.pageCount) setPageCount(seed.pageCount);
     if (seed?.bindingType === 'tack' || seed?.bindingType === 'compressed' || seed?.bindingType === 'perfect') {
       setBindingTab(seed.bindingType);
     }
-  }, [open, seed?.productWidth, seed?.productHeight, seed?.pageCount, seed?.bindingType]);
+  }, [open, seed?.productWidth, seed?.productHeight, seed?.productUnit, seed?.pageCount, seed?.bindingType]);
 
   // ==== 요청 payload ====
   const payload: CalculateImpositionRequest = useMemo(() => ({
@@ -187,11 +194,14 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
     tackMargin: bindingTab === 'tack' ? tackMargin : undefined,
     tackEdge: bindingTab === 'tack' ? tackEdge : undefined,
     manualNup: manualNup === '' ? undefined : Number(manualNup),
+    centerAlign,
+    noGutter,
   }), [
     productW, productH, pageCount, bindingTab, sheetW, sheetH,
     marginT, marginR, marginB, marginL,
     bleed, gutter, rotationPolicy,
     creaseWidth, tackMargin, tackEdge, manualNup,
+    centerAlign, noGutter,
   ]);
 
   // ==== debounce 150ms 자동 재계산 ====

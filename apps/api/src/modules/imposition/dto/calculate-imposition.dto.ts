@@ -118,4 +118,18 @@ export class CalculateImpositionDto {
   @IsNumber()
   @Min(0)
   manualNup?: number;
+
+  @ApiPropertyOptional({
+    description: '중앙정렬: 유효 인쇄영역을 cols×rows 셀로 나눠 각 셀 중앙에 페이지 배치 (4up=2×2, 8up=4×2 등).',
+    example: false,
+  })
+  @IsOptional()
+  centerAlign?: boolean;
+
+  @ApiPropertyOptional({
+    description: '여백없음: gutter=0 강제 (페이지 사이 간격 제거하여 붙여서 출력).',
+    example: false,
+  })
+  @IsOptional()
+  noGutter?: boolean;
 }

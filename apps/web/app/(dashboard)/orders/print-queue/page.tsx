@@ -43,15 +43,27 @@ export default function PrintQueuePage() {
     orderItemId: string;
     productWidth?: number;
     productHeight?: number;
+    productUnit?: 'mm' | 'inch';
     pageCount?: number;
     bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
   } | null>(null);
 
   const openImposition = (item: PrintQueueItem) => {
-    // size 파싱 ("210x297" 또는 "210*297" 또는 "210 x 297")
+    // size 파싱 ("9x12" 또는 "210x297" 또는 "9 x 12" 등)
     const m = (item.size || '').match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
-    const pw = m ? parseFloat(m[1]) : undefined;
-    const ph = m ? parseFloat(m[2]) : undefined;
+    const rawW = m ? parseFloat(m[1]) : undefined;
+    const rawH = m ? parseFloat(m[2]) : undefined;
+
+    // 단위 추정: 두 값 모두 30 이하면 인치(앨범 표준), 그 외는 mm
+    // 인쇄업 앨범 규격 표준이 인치(5×7, 6×8, 8×10, 9×12, 10×12 등)이고,
+    // mm 단위 규격은 보통 100mm 이상이라 30을 경계로 안전하게 분기.
+    const isInch =
+      rawW !== undefined && rawH !== undefined && rawW <= 30 && rawH <= 30;
+    const productUnit: 'mm' | 'inch' = isInch ? 'inch' : 'mm';
+    const MM_PER_INCH = 25.4;
+    const pw = rawW !== undefined ? (isInch ? rawW * MM_PER_INCH : rawW) : undefined;
+    const ph = rawH !== undefined ? (isInch ? rawH * MM_PER_INCH : rawH) : undefined;
+
     const bt = (item.bindingType || '').toLowerCase();
     const bindingType: 'compressed' | 'tack' | 'perfect' | 'flat' =
       bt.includes('압축') || bt.includes('compressed')
@@ -66,6 +78,7 @@ export default function PrintQueuePage() {
       orderItemId: item.id,
       productWidth: pw,
       productHeight: ph,
+      productUnit,
       pageCount: item.pages,
       bindingType,
     });

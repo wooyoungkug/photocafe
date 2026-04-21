@@ -70,6 +70,8 @@ export interface CalculateImpositionRequest {
   rotationPolicy?: '0' | '90' | 'auto';
   grainDirection?: 'short' | 'long';
   manualNup?: number;
+  centerAlign?: boolean;
+  noGutter?: boolean;
 }
 
 export interface ImpositionPreset {

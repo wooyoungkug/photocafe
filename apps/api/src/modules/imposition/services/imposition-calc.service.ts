@@ -30,6 +30,15 @@ export interface ImpositionInput {
    * - tack/flat:  시트당 단위박스 수
    */
   manualNup?: number;
+  /**
+   * 중앙정렬: 유효 인쇄영역을 cols×rows 동일 셀로 나누고 각 셀 중앙에 단위박스 배치.
+   * 기본(false)은 좌상단에서 tight-pack.
+   */
+  centerAlign?: boolean;
+  /**
+   * 여백없음: gutter=0 강제 (단위박스 간격 제거하여 붙여서 출력).
+   */
+  noGutter?: boolean;
 }
 
 export interface Placement {
@@ -121,7 +130,8 @@ export class ImpositionCalcService {
     const marginB = input.marginBottom ?? 5;
     const marginL = input.marginLeft ?? 5;
     const bleed = input.bleed ?? 3;
-    const gutter = input.gutter ?? 3;
+    // noGutter 옵션: gutter=0 강제 (붙여서 출력)
+    const gutter = input.noGutter ? 0 : (input.gutter ?? 3);
     const creaseWidth = input.creaseWidth ?? 0;
     const tackMargin = input.tackMargin ?? 12;
     const tackEdge = input.tackEdge ?? 'left';
@@ -319,6 +329,11 @@ export class ImpositionCalcService {
 
     // 배치 좌표 생성
     const sheets: SheetLayout[] = [];
+    // 중앙정렬 모드: 유효 인쇄영역을 cols×rows 동일 셀로 분할, 각 셀 중앙에 단위박스 배치
+    // 일반(tight-pack): 좌상단부터 gutter 간격으로 붙여 배치 (전체 그리드 중앙 정렬)
+    const useCenter = input.centerAlign === true;
+    const cellW = useCenter ? usableW / best.cols : 0;
+    const cellH = useCenter ? usableH / best.rows : 0;
     const totalGridW = best.cols * selUnitW + (best.cols - 1) * gutter;
     const totalGridH = best.rows * selUnitH + (best.rows - 1) * gutter;
     const originX = marginL + (usableW - totalGridW) / 2;
@@ -337,8 +352,12 @@ export class ImpositionCalcService {
           const slotIndex = s * nup + r * best.cols + c;
           if (slotIndex >= pagePairs.length) break;
           const pages = pagePairs[slotIndex];
-          const x = originX + c * (selUnitW + gutter);
-          const y = originY + r * (selUnitH + gutter);
+          const x = useCenter
+            ? marginL + c * cellW + (cellW - selUnitW) / 2
+            : originX + c * (selUnitW + gutter);
+          const y = useCenter
+            ? marginT + r * cellH + (cellH - selUnitH) / 2
+            : originY + r * (selUnitH + gutter);
 
           const placement: Placement = {
             x,
