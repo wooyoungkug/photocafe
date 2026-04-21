@@ -286,6 +286,71 @@ describe('ImpositionCalcService', () => {
     });
   });
 
+  describe('v1.1 compressed 자동 폴백 (2up 안 들어가면 1up)', () => {
+    it('9×12" (228.6×304.8mm) 압축앨범은 7900에 페어가 안 들어가서 자동 1up 폴백', () => {
+      const r = svc.calculate({
+        // 9×12 inch = 228.6 × 304.8 mm
+        productWidth: 228.6,
+        productHeight: 304.8,
+        pageCount: 27,
+        bindingType: 'compressed',
+        bleed: 0,
+        creaseWidth: 0,
+        gutter: 3,
+        sheetWidth: 315,
+        sheetHeight: 467,
+        marginTop: 7,
+        marginRight: 2.5,
+        marginBottom: 7,
+        marginLeft: 2.5,
+      });
+      // 1up 으로 폴백되어 단위박스 = 228.6 × 304.8 → 시트당 1장
+      expect(r.nup).toBe(1);
+      expect(r.sheets[0].placements[0].pages).toHaveLength(1);
+      expect(r.sheets[0].placements[0].isPair).toBeUndefined();
+      expect(r.sheets[0].placements[0].needsTaping).toBe(true);
+      // 폴백 안내 경고 + 테이핑 경고 (단면 모드 진입으로)
+      expect(r.warnings.some((w) => w.includes('자동으로 1up'))).toBe(true);
+      // 1up 단면 모드는 홀수 페이지 보정 안 함 → 27P × 1up = 27시트
+      expect(r.pageCount).toBe(27);
+      expect(r.sheetCount).toBe(27);
+    });
+
+    it('manualNup 명시 시 폴백하지 않음 (사용자 의도 존중)', () => {
+      // manualNup=2 인데 페어가 안 들어가는 경우 → autoMax=0 이므로 wanted>autoMax → 자동값 유지
+      // 결과: nup=0 으로 BadRequest 던져야 함
+      expect(() =>
+        svc.calculate({
+          productWidth: 228.6,
+          productHeight: 304.8,
+          pageCount: 10,
+          bindingType: 'compressed',
+          bleed: 0,
+          creaseWidth: 0,
+          manualNup: 2,
+          sheetWidth: 315,
+          sheetHeight: 467,
+        }),
+      ).toThrow(/Nup=0/);
+    });
+
+    it('페어가 잘 들어가는 경우는 폴백하지 않고 페어링 유지', () => {
+      const r = svc.calculate({
+        productWidth: 148,
+        productHeight: 210, // A5
+        pageCount: 20,
+        bindingType: 'compressed',
+        bleed: 3,
+        creaseWidth: 0,
+        sheetWidth: 330,
+        sheetHeight: 482,
+      });
+      // 페어 단위 = 296+6=302 × 216 → 7900에 들어감
+      expect(r.sheets[0].placements[0].isPair).toBe(true);
+      expect(r.warnings.some((w) => w.includes('자동으로 1up'))).toBe(false);
+    });
+  });
+
   describe('v1.1 manualNup=0 (자동 Nup)', () => {
     it('manualNup 없으면 스프레드 자동 선택', () => {
       const r = svc.calculate({

@@ -141,35 +141,43 @@ export class ImpositionCalcService {
     // manualNup===1 → 단면/테이핑 모드 (스프레드 아님, 1 페이지/단위박스)
     // manualNup===undefined/0 → 기본 스프레드 페어링 (Nup>=2 자동)
     // manualNup===2,4,6,8 → 페어링 N쌍 (compressed 에서는 pair count 로 해석)
-    const compressedSingleMode =
+    let compressedSingleMode =
       bindingType === 'compressed' && input.manualNup === 1;
-    const isPairingMode = bindingType === 'compressed' && !compressedSingleMode;
+    let isPairingMode = bindingType === 'compressed' && !compressedSingleMode;
 
-    // 단위 박스 계산 (모드별)
+    // 단위 박스 계산기 (모드별 함수로 분리 — 폴백 재계산 용이)
+    const pairingUnit = () => ({
+      // 스프레드 페어: 좌우 2페이지 나란히 + 중앙 오시 1개
+      uW: input.productWidth * 2 + creaseWidth + bleed * 2,
+      uH: input.productHeight + bleed * 2,
+    });
+    const singleUnit = () => ({
+      // 단면 1페이지/단위박스
+      uW: input.productWidth + bleed * 2,
+      uH: input.productHeight + bleed * 2,
+    });
+    const tackUnit = () => {
+      const isHorizontalEdge = tackEdge === 'left' || tackEdge === 'right';
+      return {
+        uW: input.productWidth + bleed * 2 + (isHorizontalEdge ? tackMargin : 0),
+        uH: input.productHeight + bleed * 2 + (!isHorizontalEdge ? tackMargin : 0),
+      };
+    };
+
     let unitW: number;
     let unitH: number;
     if (isPairingMode) {
-      // 스프레드 페어: 좌우 2페이지 나란히 + 중앙 오시 1개
-      unitW = input.productWidth * 2 + creaseWidth + bleed * 2;
-      unitH = input.productHeight + bleed * 2;
+      ({ uW: unitW, uH: unitH } = pairingUnit());
     } else if (compressedSingleMode) {
-      // compressed Nup=1: 단면 출력 (1페이지/단위박스), 테이핑 경고
-      unitW = input.productWidth + bleed * 2;
-      unitH = input.productHeight + bleed * 2;
+      ({ uW: unitW, uH: unitH } = singleUnit());
     } else if (bindingType === 'tack') {
-      // 타카는 콘텐츠 한쪽(제본변)에 여백 추가
-      const isHorizontalEdge = tackEdge === 'left' || tackEdge === 'right';
-      unitW = input.productWidth + bleed * 2 + (isHorizontalEdge ? tackMargin : 0);
-      unitH = input.productHeight + bleed * 2 + (!isHorizontalEdge ? tackMargin : 0);
+      ({ uW: unitW, uH: unitH } = tackUnit());
     } else {
       // perfect (무선제본 화보) / flat: 단순 1페이지/단위박스
-      unitW = input.productWidth + bleed * 2;
-      unitH = input.productHeight + bleed * 2;
+      ({ uW: unitW, uH: unitH } = singleUnit());
     }
 
-    // 회전 후보 계산
-    const candidates: Array<{ rotation: 0 | 90; cols: number; rows: number; score: number }> = [];
-
+    // 회전 후보 계산기 — 폴백 시 재실행 가능
     const computeGrid = (uW: number, uH: number) => {
       // gutter 포함: cols*uW + (cols-1)*gutter <= usableW
       const cols = Math.max(0, Math.floor((usableW + gutter) / (uW + gutter)));
@@ -177,53 +185,59 @@ export class ImpositionCalcService {
       return { cols, rows };
     };
 
-    // 0°
-    const rot0 = computeGrid(unitW, unitH);
-    // 90° (단위박스 회전)
-    const rot90 = computeGrid(unitH, unitW);
-
-    const grainScore = (rotation: 0 | 90) => {
+    const grainScoreFor = (rotation: 0 | 90, uW: number, uH: number) => {
       // short-grain 우선: 단위박스의 긴변이 sheet의 짧은변과 평행이면 페널티 없음
-      // 간단 휴리스틱: rotation 0 은 unitW 기준, rotation 90 은 unitH 기준
-      const shorterSheet = Math.min(sheetW, sheetH);
-      const longerSide = rotation === 0
-        ? Math.max(unitW, unitH)
-        : Math.max(unitH, unitW);
-      // longer side 가 짧은변과 평행이면 short-grain 부합
       const aligned = rotation === 0
-        ? (unitH >= unitW ? sheetH <= sheetW : sheetW <= sheetH)
-        : (unitW >= unitH ? sheetH <= sheetW : sheetW <= sheetH);
-      // grainDirection==short 인데 aligned 가 false 면 -10%
+        ? (uH >= uW ? sheetH <= sheetW : sheetW <= sheetH)
+        : (uW >= uH ? sheetH <= sheetW : sheetW <= sheetH);
       if (grainDirection === 'short' && !aligned) return -0.1;
       return 0;
     };
 
-    candidates.push({
-      rotation: 0,
-      cols: rot0.cols,
-      rows: rot0.rows,
-      score: rot0.cols * rot0.rows * (1 + grainScore(0)),
-    });
-    candidates.push({
-      rotation: 90,
-      cols: rot90.cols,
-      rows: rot90.rows,
-      score: rot90.cols * rot90.rows * (1 + grainScore(90)),
-    });
+    const pickBest = (uW: number, uH: number) => {
+      const rot0 = computeGrid(uW, uH);
+      const rot90 = computeGrid(uH, uW);
+      const cands = [
+        {
+          rotation: 0 as 0 | 90,
+          cols: rot0.cols,
+          rows: rot0.rows,
+          score: rot0.cols * rot0.rows * (1 + grainScoreFor(0, uW, uH)),
+        },
+        {
+          rotation: 90 as 0 | 90,
+          cols: rot90.cols,
+          rows: rot90.rows,
+          score: rot90.cols * rot90.rows * (1 + grainScoreFor(90, uW, uH)),
+        },
+      ];
+      let filt = cands;
+      if (rotationPolicy === '0') filt = [cands[0]];
+      else if (rotationPolicy === '90') filt = [cands[1]];
+      filt.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return grainScoreFor(b.rotation, uW, uH) - grainScoreFor(a.rotation, uW, uH);
+      });
+      return filt[0];
+    };
 
-    // rotationPolicy 필터
-    let filtered = candidates;
-    if (rotationPolicy === '0') filtered = [candidates[0]];
-    else if (rotationPolicy === '90') filtered = [candidates[1]];
+    let best = pickBest(unitW, unitH);
 
-    // 최고 점수 선택. 동점(정확) 시 short-grain 우선 (score 가 동일하더라도 rotation 결정)
-    filtered.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      // 동점 → grain 일치하는 쪽 (grainScore 0 인 쪽) 우선
-      return grainScore(b.rotation) - grainScore(a.rotation);
-    });
-
-    let best = filtered[0];
+    // ===== 압축앨범 자동 폴백: 2up(페어링) 안 들어가면 1up(단면)으로 전환 =====
+    // 인쇄 현장 정의: 1up=시트당 페이지 1장, 2up=2장 좌우 무여백 페어
+    // 사용자가 manualNup 으로 명시 지정한 경우는 폴백하지 않음 (사용자 의도 존중)
+    let autoFellBackToSingle = false;
+    if (
+      isPairingMode &&
+      best.cols * best.rows === 0 &&
+      !input.manualNup
+    ) {
+      autoFellBackToSingle = true;
+      isPairingMode = false;
+      compressedSingleMode = true;
+      ({ uW: unitW, uH: unitH } = singleUnit());
+      best = pickBest(unitW, unitH);
+    }
 
     // ===== manualNup 강제 적용 =====
     // compressed 페어링: manualNup 은 "페어 개수" (2,4,6,8)
@@ -269,6 +283,11 @@ export class ImpositionCalcService {
 
     // 페어링/페이지 배열 구성
     const warnings: string[] = [];
+    if (autoFellBackToSingle) {
+      warnings.push(
+        '압축앨범 2up(스프레드 페어)가 시트에 들어가지 않아 자동으로 1up(단면)으로 전환되었습니다. 인쇄 후 테이핑 작업이 필요합니다.',
+      );
+    }
     let correctedPageCount = input.pageCount;
     let pagePairs: number[][]; // 각 원소 = 단위박스 1개에 들어갈 페이지 배열
     if (isPairingMode) {
