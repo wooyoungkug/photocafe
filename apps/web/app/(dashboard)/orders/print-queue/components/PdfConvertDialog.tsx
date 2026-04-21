@@ -161,7 +161,7 @@ export default function PdfConvertDialog({
       <DialogContent className="sm:max-w-[520px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[18px] text-black font-bold">
-            PDF 변환
+            JDF+PDF 변환
           </DialogTitle>
         </DialogHeader>
 

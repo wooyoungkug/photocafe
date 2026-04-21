@@ -183,9 +183,9 @@ export default function PrintQueuePage() {
       {/* 헤더 */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[24px] text-black font-normal">출력대기 PDF 변환</h1>
+          <h1 className="text-[24px] text-black font-normal">출력대기 JDF+PDF 변환</h1>
           <p className="text-[14px] text-gray-500 mt-0.5">
-            출력대기 주문의 이미지를 인쇄용 PDF로 변환합니다 · 30초 자동 갱신
+            출력대기 주문의 이미지를 인쇄용 JDF+PDF로 변환합니다 · 30초 자동 갱신
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ export default function PrintQueuePage() {
               className="gap-1.5"
             >
               <FileDown className="h-4 w-4" />
-              PDF 변환
+              JDF+PDF 변환
             </Button>
           </div>
         </CardContent>

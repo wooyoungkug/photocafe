@@ -189,7 +189,7 @@ export default function PdfProgressTracker({
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-[18px] text-black font-bold">
-          PDF 변환 {isJobDone ? '완료' : '진행 중'}
+          JDF+PDF 변환 {isJobDone ? '완료' : '진행 중'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
