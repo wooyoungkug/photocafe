@@ -57,6 +57,7 @@ import {
   type BindingDirection,
   useMultiFolderUploadStore,
   calculateUploadedFolderPrice,
+  detectBindingFromName,
   type DbPriceInfo,
 } from '@/stores/multi-folder-upload-store';
 import Link from 'next/link';
@@ -764,6 +765,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
 
   const handleSaveTitle = () => {
     setFolderTitle(folder.id, editTitle);
+    const detected = detectBindingFromName(editTitle);
+    if (detected && detected !== folder.bindingDirection) {
+      setFolderBindingDirection(folder.id, detected);
+    }
     setIsEditingTitle(false);
   };
 

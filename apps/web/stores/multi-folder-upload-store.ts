@@ -632,7 +632,7 @@ export function calculateAlbumSize(
 
 /**
  * 폴더명/파일명에서 제본 방향 키워드를 감지
- * 좌시작, Left, 왼쪽, 우시작, Right, 오른쪽, 왼왼, LL, 우우, RR 등
+ * 좌시작(왼시작/왼쪽시작/좌측시작/Left/왼쪽), 우시작(오른시작/오른쪽시작/우측시작/Right/오른쪽), 왼왼/LL, 우우/RR 등
  */
 export function detectBindingFromName(name: string): BindingDirection | null {
   const lower = name.toLowerCase();
@@ -640,8 +640,8 @@ export function detectBindingFromName(name: string): BindingDirection | null {
   if (/왼왼|좌좌|ll(?![a-z])/.test(lower)) return 'LEFT_START_LEFT_END';
   if (/우우|rr(?![a-z])/.test(lower)) return 'RIGHT_START_RIGHT_END';
   // 단방향 (좌시작 = Left start, 우시작 = Right start)
-  if (/좌시작|left|왼쪽/.test(lower)) return 'LEFT_START_RIGHT_END';
-  if (/우시작|right|오른쪽/.test(lower)) return 'RIGHT_START_LEFT_END';
+  if (/좌시작|왼시작|왼쪽시작|좌측시작|좌측|왼쪽|left/.test(lower)) return 'LEFT_START_RIGHT_END';
+  if (/우시작|오른시작|오른쪽시작|우측시작|우측|오른쪽|right/.test(lower)) return 'RIGHT_START_LEFT_END';
   return null;
 }
 
