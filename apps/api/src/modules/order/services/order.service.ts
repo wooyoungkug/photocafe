@@ -189,11 +189,19 @@ export class OrderService {
       }
     }
 
+    // status 는 단일값 또는 쉼표구분 다중값 허용 (예: "in_production,print_waiting")
+    let statusCondition: any = undefined;
+    if (status) {
+      const parts = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (parts.length === 1) statusCondition = parts[0];
+      else if (parts.length > 1) statusCondition = { in: parts };
+    }
+
     const where: Prisma.OrderWhereInput = {
       ...searchCondition,
       ...(clientId && { clientId }),
       ...(createdByUserId && { createdByUserId }),
-      ...(status && { status }),
+      ...(statusCondition !== undefined && { status: statusCondition }),
       ...(isUrgent !== undefined && { isUrgent }),
       ...(adjustedStartDate || adjustedEndDate
         ? {

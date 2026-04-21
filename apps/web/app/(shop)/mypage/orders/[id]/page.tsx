@@ -225,7 +225,7 @@ function formatFileSize(bytes?: number): string {
 }
 
 import { getSpreadPageLabel, pairSinglePagesForSpread } from '@/lib/page-utils';
-import { normalizeImageUrl } from '@/lib/utils';
+import { cn, normalizeImageUrl } from '@/lib/utils';
 
 export default function OrderDetailPage() {
   const router = useRouter();
@@ -683,103 +683,155 @@ export default function OrderDetailPage() {
                                   </p>
                                 )}
                                 {(() => {
-                                  const renderThumb = (file: typeof thumbnailFiles[number], pageNumber: number, globalIdx: number) => (
-                                    <div
-                                      key={file.id}
-                                      className="relative flex-1 min-w-0 rounded-sm overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 hover:shadow-md transition-all group"
-                                      onClick={() => openPreview(thumbnailFiles, globalIdx, item.productName)}
-                                    >
-                                      <img
-                                        src={normalizeImageUrl(file.thumbnailUrl)}
-                                        alt={`p${pageNumber}`}
-                                        className="w-full h-auto block"
-                                        loading="lazy"
-                                        onError={(e) => {
-                                          const img = e.currentTarget;
-                                          img.style.display = 'none';
-                                          const parent = img.parentElement!;
-                                          parent.style.aspectRatio = '3/4';
-                                          parent.style.backgroundColor = '#f3f4f6';
-                                          if (!parent.querySelector('.thumb-error')) {
-                                            const icon = document.createElement('div');
-                                            icon.className = 'thumb-error absolute inset-0 flex items-center justify-center';
-                                            icon.innerHTML = '<svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"></path></svg>';
-                                            parent.appendChild(icon);
-                                          }
-                                        }}
-                                      />
-                                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
-                                        <span className="text-white text-[10px] font-normal">{pageNumber}</span>
-                                      </div>
-                                      {file.storageStatus === 'deleted' && (
-                                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                          <span className="text-white text-[10px] font-normal">삭제됨</span>
+                                  // 업로드창 썸네일 양식과 동일 (folder-card.tsx 참조)
+                                  const fmtInch = (px: number, dpi: number) => {
+                                    if (!px || !dpi) return null;
+                                    const v = px / dpi;
+                                    return Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
+                                  };
+                                  const renderThumb = (file: typeof thumbnailFiles[number], pageLabel: string, globalIdx: number) => {
+                                    const aspectPct = file.width > 0 && file.height > 0
+                                      ? (file.height / file.width) * 100
+                                      : 133;
+                                    const wIn = fmtInch(file.width, file.dpi);
+                                    const hIn = fmtInch(file.height, file.dpi);
+                                    return (
+                                      <div key={file.id} className="flex flex-col">
+                                        <div
+                                          className="relative rounded-t-md overflow-hidden border-2 border-gray-200 cursor-pointer hover:border-blue-400 hover:shadow-md transition-all group"
+                                          style={{ paddingTop: `${aspectPct}%` }}
+                                          onClick={() => openPreview(thumbnailFiles, globalIdx, item.productName)}
+                                        >
+                                          <img
+                                            src={normalizeImageUrl(file.thumbnailUrl)}
+                                            alt={file.fileName}
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                            loading="lazy"
+                                            onError={(e) => {
+                                              const img = e.currentTarget;
+                                              img.style.display = 'none';
+                                              const fallback = img.parentElement?.querySelector('.thumb-fallback');
+                                              if (fallback) (fallback as HTMLElement).style.display = 'flex';
+                                            }}
+                                          />
+                                          <div className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center" style={{ display: 'none' }}>
+                                            <span className="text-[10px] text-gray-400 px-1 text-center truncate max-w-full">{file.fileName}</span>
+                                          </div>
+                                          <div className="absolute top-1 left-1 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center text-white text-[10px] font-medium bg-red-600">
+                                            {pageLabel}
+                                          </div>
+                                          {file.storageStatus === 'deleted' && (
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                              <span className="text-white text-[10px] font-medium">삭제됨</span>
+                                            </div>
+                                          )}
+                                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                            <ImageIcon className="w-5 h-5 text-white" />
+                                          </div>
                                         </div>
-                                      )}
+                                        <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md bg-white border-gray-200">
+                                          <div className="truncate font-medium" title={file.fileName}>{file.fileName}</div>
+                                          {wIn && hIn && (
+                                            <div className="text-gray-500 truncate">{wIn}×{hIn}&quot;</div>
+                                          )}
+                                          {file.dpi > 0 && (
+                                            <div className="text-gray-500">{file.dpi}dpi</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  };
+
+                                  const renderBlankSlot = (key: string, aspectPct: number) => (
+                                    <div key={key} className="flex flex-col">
+                                      <div
+                                        className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20"
+                                        style={{ paddingTop: `${aspectPct}%` }}
+                                      />
                                     </div>
-                                  );
-                                  const renderEmpty = (key: string) => (
-                                    <div key={key} className="flex-1 min-w-0 border border-dashed border-gray-200 bg-gray-50 rounded-sm" style={{ aspectRatio: '3/4' }} />
                                   );
 
                                   if (item.pageLayout === 'spread') {
-                                    // 펼침면: 기존처럼 파일 1개 = 펼침면 1개 (좌우 합쳐진 이미지)
+                                    // 펼침면: 파일 1개 = 스프레드 1개
                                     return (
-                                      <div className="grid grid-cols-4 gap-1">
-                                        {thumbnailFiles.map((file, idx) => (
-                                          <div
-                                            key={file.id}
-                                            className="relative rounded-md overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 hover:shadow-md transition-all group"
-                                            onClick={() => openPreview(thumbnailFiles, idx, item.productName)}
-                                          >
-                                            <img
-                                              src={normalizeImageUrl(file.thumbnailUrl)}
-                                              alt={`p${idx + 1}`}
-                                              className="w-full h-auto block"
-                                              loading="lazy"
-                                              onError={(e) => {
-                                                const img = e.currentTarget;
-                                                img.style.display = 'none';
-                                                const parent = img.parentElement!;
-                                                parent.style.aspectRatio = '3/4';
-                                                parent.style.backgroundColor = '#f3f4f6';
-                                                if (!parent.querySelector('.thumb-error')) {
-                                                  const icon = document.createElement('div');
-                                                  icon.className = 'thumb-error absolute inset-0 flex items-center justify-center';
-                                                  icon.innerHTML = '<svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"></path></svg>';
-                                                  parent.appendChild(icon);
-                                                }
-                                              }}
-                                            />
-                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
-                                              <span className="text-white text-[10px] font-normal">
-                                                {getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection)}
-                                              </span>
-                                            </div>
-                                            {file.storageStatus === 'deleted' && (
-                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                                                <span className="text-white text-[10px] font-normal">삭제됨</span>
+                                      <div className="grid grid-cols-6 gap-3 p-2 bg-gray-50 rounded-lg border">
+                                        {thumbnailFiles.map((file, idx) => {
+                                          const pageLabel = getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection);
+                                          return (
+                                            <div
+                                              key={file.id}
+                                              className="border-2 border-dashed rounded-lg p-1 border-orange-300 bg-orange-50/20"
+                                            >
+                                              <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
+                                                S{idx + 1} (p{pageLabel})
                                               </div>
-                                            )}
-                                          </div>
-                                        ))}
+                                              {renderThumb(file, pageLabel, idx)}
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     );
                                   }
 
-                                  // 낱장(single): 제본방향에 맞춰 2장씩 묶어 펼침면처럼 표시
-                                  const indexed = thumbnailFiles.map((f, i) => ({ file: f, globalIdx: i }));
-                                  const pairs = pairSinglePagesForSpread(indexed, item.bindingDirection);
+                                  // 낱장(single): 2p씩 묶어 스프레드 그룹 (업로드창과 동일)
+                                  const dir = item.bindingDirection || 'LEFT_START_RIGHT_END';
+                                  const startsRight = dir.startsWith('RIGHT');
+                                  const totalFiles = thumbnailFiles.length;
+                                  const defaultAspect = thumbnailFiles[0] && thumbnailFiles[0].width > 0
+                                    ? (thumbnailFiles[0].height / thumbnailFiles[0].width) * 100
+                                    : 133;
+
+                                  type SpreadSlot = { type: 'page'; fileIndex: number } | { type: 'blank' };
+                                  const spreads: Array<{ left: SpreadSlot; right: SpreadSlot }> = [];
+                                  let i = 0;
+                                  if (startsRight && totalFiles > 0) {
+                                    spreads.push({ left: { type: 'blank' }, right: { type: 'page', fileIndex: 0 } });
+                                    i = 1;
+                                  }
+                                  while (i < totalFiles) {
+                                    if (i + 1 < totalFiles) {
+                                      spreads.push({ left: { type: 'page', fileIndex: i }, right: { type: 'page', fileIndex: i + 1 } });
+                                      i += 2;
+                                    } else {
+                                      spreads.push({ left: { type: 'page', fileIndex: i }, right: { type: 'blank' } });
+                                      i++;
+                                    }
+                                  }
+
                                   return (
-                                    <div className="grid grid-cols-4 gap-2">
-                                      {pairs.map((pair, pairIdx) => {
-                                        const [left, right] = pair;
-                                        const leftPageNum = left ? left.globalIdx + 1 : null;
-                                        const rightPageNum = right ? right.globalIdx + 1 : null;
+                                    <div className="grid grid-cols-6 gap-3 p-2 bg-gray-50 rounded-lg border">
+                                      {spreads.map((spread, spreadIdx) => {
+                                        const leftFile = spread.left.type === 'page' ? thumbnailFiles[spread.left.fileIndex] : null;
+                                        const rightFile = spread.right.type === 'page' ? thumbnailFiles[spread.right.fileIndex] : null;
+                                        const leftPage = spread.left.type === 'page' ? spread.left.fileIndex + 1 : null;
+                                        const rightPage = spread.right.type === 'page' ? spread.right.fileIndex + 1 : null;
+                                        const hasBoth = !!leftFile && !!rightFile;
+                                        const label = hasBoth
+                                          ? `S${spreadIdx + 1} (p${leftPage}-${rightPage})`
+                                          : leftFile
+                                            ? `p${leftPage}`
+                                            : rightFile
+                                              ? `p${rightPage}`
+                                              : '';
                                         return (
-                                          <div key={`pair-${pairIdx}`} className="flex gap-0">
-                                            {left ? renderThumb(left.file, leftPageNum!, left.globalIdx) : renderEmpty(`pair-${pairIdx}-l`)}
-                                            {right ? renderThumb(right.file, rightPageNum!, right.globalIdx) : renderEmpty(`pair-${pairIdx}-r`)}
+                                          <div
+                                            key={spreadIdx}
+                                            className={cn(
+                                              'border-2 border-dashed rounded-lg p-1',
+                                              !hasBoth ? 'border-yellow-400 bg-yellow-50/30' : 'border-orange-300 bg-orange-50/20'
+                                            )}
+                                          >
+                                            <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
+                                              {label}
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-1">
+                                              {spread.left.type === 'page' && leftFile
+                                                ? renderThumb(leftFile, String(leftPage), spread.left.fileIndex)
+                                                : renderBlankSlot(`s${spreadIdx}-l`, defaultAspect)}
+                                              {spread.right.type === 'page' && rightFile
+                                                ? renderThumb(rightFile, String(rightPage), spread.right.fileIndex)
+                                                : renderBlankSlot(`s${spreadIdx}-r`, defaultAspect)}
+                                            </div>
                                           </div>
                                         );
                                       })}

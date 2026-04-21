@@ -77,10 +77,12 @@ const STAGE_ITEMS = [
 ];
 
 // 진행상황 뱃지 스타일
+// 고객 관점에선 '출력대기(print_waiting)'는 내부 공정 용어이므로 '생산진행'으로 묶어 표기
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
   pending_receipt: { label: '접수대기', className: 'bg-orange-100 text-orange-700' },
   receipt_completed: { label: '접수완료', className: 'bg-blue-100 text-blue-700' },
   in_production: { label: '생산진행', className: 'bg-purple-100 text-purple-700' },
+  print_waiting: { label: '생산진행', className: 'bg-purple-100 text-purple-700' },
   ready_for_shipping: { label: '제작완료', className: 'bg-indigo-100 text-indigo-700' },
   shipped: { label: '거래완료', className: 'bg-green-100 text-green-700' },
   cancelled: { label: '취소', className: 'bg-gray-100 text-gray-500 line-through' },
@@ -211,7 +213,10 @@ export default function MyOrdersPage() {
         clientId: user?.clientId || '',
         page: String(page),
         limit: String(limit),
-        ...(statusFilter !== 'all' && { status: statusFilter }),
+        // 고객 관점: '생산진행' 선택 시 출력대기(print_waiting)도 함께 조회
+        ...(statusFilter !== 'all' && {
+          status: statusFilter === 'in_production' ? 'in_production,print_waiting' : statusFilter,
+        }),
         ...(appliedSearch && { search: appliedSearch, searchType: appliedSearchType }),
         ...(appliedStartDate && { startDate: appliedStartDate }),
         ...(appliedEndDate && { endDate: appliedEndDate }),
@@ -238,6 +243,8 @@ export default function MyOrdersPage() {
   const getCount = (key: string) => {
     if (!statusCounts) return 0;
     if (key === 'all') return Object.values(statusCounts).reduce((sum, c) => sum + c, 0);
+    // 고객 관점: 'in_production' 스테이지는 print_waiting(출력대기)까지 포함
+    if (key === 'in_production') return (statusCounts['in_production'] || 0) + (statusCounts['print_waiting'] || 0);
     return statusCounts[key] || 0;
   };
 
