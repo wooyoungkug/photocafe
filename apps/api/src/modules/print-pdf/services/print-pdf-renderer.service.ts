@@ -165,6 +165,17 @@ export class PrintPdfRendererService {
     });
     doc.pipe(writeStream);
 
+    // 진단 로그: 실제 addPage 호출 횟수 추적
+    this.logger.log(
+      `generate1upPdf start: validFiles=${validFiles.length}, pdfPage=${pdfPageWidthPt.toFixed(1)}x${pdfPageHeightPt.toFixed(1)}pt, output=${path.basename(outputPath)}`,
+    );
+    let addPageCount = 0;
+
+    // 방어: PDFKit은 autoFirstPage:false여도 font()/text() 호출이 "선행"되면
+    // 내부적으로 currentPage를 요구하여 기본 Letter 페이지를 생성할 수 있다.
+    // 따라서 어떤 렌더링도 addPage 이전에 일어나지 않아야 한다.
+    // (renderIndex/renderCropMarks는 이미 루프 내 addPage 이후이므로 정상)
+
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i];
 
@@ -172,6 +183,7 @@ export class PrintPdfRendererService {
         size: [pdfPageWidthPt, pdfPageHeightPt],
         margin: 0,
       });
+      addPageCount++;
 
       // 오프셋 적용한 좌표 계산
       const imgX = offsetX + dimensions.imageX;
@@ -221,6 +233,17 @@ export class PrintPdfRendererService {
         try { onPageRendered(i + 1, totalPages); } catch { /* ignore */ }
       }
       await new Promise<void>(r => setImmediate(r));
+    }
+
+    // 진단 로그: 실제 호출된 addPage 횟수 vs validFiles 수 비교
+    // (concurrent write 교란 시 예상치와 크게 달라질 수 있음)
+    this.logger.log(
+      `generate1upPdf end: addPage called ${addPageCount}x (expected ${validFiles.length}), output=${path.basename(outputPath)}`,
+    );
+    if (addPageCount !== validFiles.length) {
+      this.logger.warn(
+        `generate1upPdf addPage mismatch: called=${addPageCount} expected=${validFiles.length} file=${outputPath}`,
+      );
     }
 
     doc.end();

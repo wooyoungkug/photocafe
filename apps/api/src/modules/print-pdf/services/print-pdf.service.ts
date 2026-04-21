@@ -22,6 +22,13 @@ export class PrintPdfService implements OnModuleInit {
   /** 메모리 기반 Job 상태 캐시 (DB와 병행) */
   private jobs = new Map<string, PdfJobProgress>();
 
+  /**
+   * 동일 outputPath 동시 쓰기 차단용 락 Set.
+   * 2개 concurrent job이 같은 PDF 파일에 doc.pipe(writeStream)하여
+   * blank 페이지가 삽입되는 현상을 방어한다.
+   */
+  private activeOutputs = new Set<string>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly renderer: PrintPdfRendererService,
@@ -233,9 +240,44 @@ export class PrintPdfService implements OnModuleInit {
 
   /**
    * PDF 생성 요청 (비동기 Job 방식)
+   *
+   * 중복 Job 방지: 이미 pending/in_progress 상태인 orderItemId는 제외하여
+   * 동일 outputPath에 두 Job이 동시에 쓰는 race condition을 차단한다.
    */
   async generatePdf(dto: GeneratePrintPdfDto): Promise<PdfJobProgress> {
     const jobId = crypto.randomUUID();
+
+    // ─── 중복 Job 차단: 이미 처리중(pending/in_progress)인 orderItemId 제외 ───
+    if (!dto.orderItemIds || dto.orderItemIds.length === 0) {
+      throw new BadRequestException('처리할 주문 항목이 없습니다.');
+    }
+    try {
+      const activeItems = await this.prisma.pdfJobItem.findMany({
+        where: {
+          orderItemId: { in: dto.orderItemIds },
+          status: { in: ['pending', 'in_progress'] },
+        },
+        select: { orderItemId: true, jobId: true, status: true },
+      });
+      if (activeItems.length > 0) {
+        const activeSet = new Set(activeItems.map((i) => i.orderItemId));
+        const filtered = dto.orderItemIds.filter((id) => !activeSet.has(id));
+        const excludedCount = dto.orderItemIds.length - filtered.length;
+        if (filtered.length === 0) {
+          this.logger.warn(
+            `중복 PDF Job 차단: 모든 항목이 이미 처리중입니다. orderItemIds=${dto.orderItemIds.join(',')}`,
+          );
+          throw new BadRequestException('이미 처리 중인 주문 항목입니다.');
+        }
+        this.logger.warn(
+          `중복 PDF Job 제외: ${excludedCount}건 (이미 처리중) / ${dto.orderItemIds.length}건 중 ${filtered.length}건만 진행`,
+        );
+        dto = { ...dto, orderItemIds: filtered };
+      }
+    } catch (err: any) {
+      if (err instanceof BadRequestException) throw err;
+      this.logger.error(`중복 Job 체크 실패 (계속 진행): ${err.message}`);
+    }
 
     // 대기 항목의 메타(주문번호/스튜디오/페이지레이아웃/파일수)를 한 번에 조회
     const metas = await this.prisma.orderItem.findMany({
@@ -727,33 +769,44 @@ export class PrintPdfService implements OnModuleInit {
         }
       };
 
-      if (nupLayout.nUpX === 1 && nupLayout.nUpY === 1) {
-        await this.renderer.generate1upPdf(
-          files,
-          outputPath,
-          nupLayout.cellPageDimensions,
-          indexData,
-          dto.indexOptions,
-          dto.includeCropMarks,
-          dto.indexOrderKeys,
-          indexPosition,
-          canvasSize,
-          onPageRendered,
-          imageSize,
-          dto.includeColorBar,
-        );
-      } else {
-        await this.renderer.generateNupPdf(
-          files,
-          outputPath,
-          nupLayout,
-          indexData,
-          dto.indexOptions,
-          dto.includeCropMarks,
-          dto.indexOrderKeys,
-          indexPosition,
-          onPageRendered as any,
-        );
+      // ─── 동일 outputPath 동시 쓰기 차단 락 ───
+      // 만약 다른 Job이 동일 경로에 쓰고 있다면 즉시 예외를 던져
+      // writeStream 교란으로 인한 blank 페이지 삽입을 방지한다.
+      if (this.activeOutputs.has(outputPath)) {
+        throw new Error(`동일 경로 동시 쓰기 차단: ${outputPath}`);
+      }
+      this.activeOutputs.add(outputPath);
+      try {
+        if (nupLayout.nUpX === 1 && nupLayout.nUpY === 1) {
+          await this.renderer.generate1upPdf(
+            files,
+            outputPath,
+            nupLayout.cellPageDimensions,
+            indexData,
+            dto.indexOptions,
+            dto.includeCropMarks,
+            dto.indexOrderKeys,
+            indexPosition,
+            canvasSize,
+            onPageRendered,
+            imageSize,
+            dto.includeColorBar,
+          );
+        } else {
+          await this.renderer.generateNupPdf(
+            files,
+            outputPath,
+            nupLayout,
+            indexData,
+            dto.indexOptions,
+            dto.includeCropMarks,
+            dto.indexOrderKeys,
+            indexPosition,
+            onPageRendered as any,
+          );
+        }
+      } finally {
+        this.activeOutputs.delete(outputPath);
       }
 
       result.status = 'completed';
