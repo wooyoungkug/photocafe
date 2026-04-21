@@ -28,15 +28,25 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
   const sh = result.sheetHeight;
   const margin = result.echo.margin;
 
+  // 실제 인쇄가능영역 (시트 - 4방 여백)
+  const usableX = margin.left;
+  const usableY = margin.top;
+  const usableW = sw - margin.left - margin.right;
+  const usableH = sh - margin.top - margin.bottom;
+
   // 활용률 색
   const util = result.utilization;
   const utilColor = util < 0.5 ? 'text-red-600' : 'text-black';
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 text-[14px] text-black font-normal">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3 text-[14px] text-black font-normal flex-wrap">
           <span>시트: {sw}×{sh} mm</span>
+          <span>·</span>
+          <span className="text-blue-600">
+            인쇄영역: {usableW}×{usableH} mm
+          </span>
           <span>·</span>
           <span>Nup: {result.nup} ({result.cols}×{result.rows})</span>
           <span>·</span>
@@ -58,19 +68,29 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
           style={{ maxHeight: 500 }}
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* 시트 배경 */}
-          <rect x={0} y={0} width={sw} height={sh} fill="#ffffff" stroke="#cbd5e1" strokeWidth={0.5} />
-          {/* 여백(유효인쇄영역 외곽) */}
+          {/* 시트 전체 (외곽 = 비인쇄 여백 영역, 옅은 회색) */}
+          <rect x={0} y={0} width={sw} height={sh} fill="#f3f4f6" stroke="#94a3b8" strokeWidth={0.6} />
+          {/* 실제 인쇄가능영역 (시트 - 4방 여백) — 흰 배경 + 파랑 테두리로 명확히 강조 */}
           <rect
-            x={margin.left}
-            y={margin.top}
-            width={sw - margin.left - margin.right}
-            height={sh - margin.top - margin.bottom}
-            fill="none"
-            stroke="#e5e7eb"
-            strokeDasharray="2 2"
-            strokeWidth={0.3}
+            x={usableX}
+            y={usableY}
+            width={usableW}
+            height={usableH}
+            fill="#ffffff"
+            stroke="#2563eb"
+            strokeWidth={0.6}
+            strokeDasharray="3 1.5"
           />
+          {/* 인쇄영역 치수 라벨 (좌상단 안쪽) */}
+          <text
+            x={usableX + 1.5}
+            y={usableY + 4.5}
+            fontSize={3}
+            fill="#2563eb"
+            fontFamily="monospace"
+          >
+            인쇄영역 {usableW}×{usableH}mm
+          </text>
           {/* 단위 박스들 */}
           {sheet.placements.map((p, i) => (
             <g key={i}>
