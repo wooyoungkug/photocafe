@@ -27,6 +27,7 @@ import {
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
+import { usePdfSettings } from './PdfSettingsDialog';
 
 interface Props {
   open: boolean;
@@ -193,13 +194,26 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const [tackMargin, setTackMargin] = useState(12);
   const [tackEdge, setTackEdge] = useState<'left' | 'right' | 'top' | 'bottom'>('left');
 
-  // 마크
+  // 마크 — 초기값은 시스템 설정의 "임포지션 기본 마크"를 사용. 설정 로드 전엔 true.
+  const pdfSettings = usePdfSettings();
   const [showCrop, setShowCrop] = useState(true);
   const [showBleed, setShowBleed] = useState(true);
   const [showReg, setShowReg] = useState(true);
   const [showColorBar, setShowColorBar] = useState(true);
   const [showJobMeta, setShowJobMeta] = useState(true);
   const [showFold, setShowFold] = useState(true);
+
+  // 설정 로드 완료 시 마크 기본값 반영 (다이얼로그 오픈 때만 한 번씩)
+  useEffect(() => {
+    if (!open || !pdfSettings.isLoaded) return;
+    setShowCrop(pdfSettings.markCrop);
+    setShowBleed(pdfSettings.markBleed);
+    setShowReg(pdfSettings.markRegistration);
+    setShowColorBar(pdfSettings.markColorBar);
+    setShowFold(pdfSettings.markFold);
+    setShowJobMeta(pdfSettings.markJobMeta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pdfSettings.isLoaded]);
 
   // 자동설정 적용 여부 (사용자가 이후 수정해도 표시 유지)
   const [autoApplied, setAutoApplied] = useState(false);

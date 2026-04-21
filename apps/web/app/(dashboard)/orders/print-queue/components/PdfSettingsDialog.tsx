@@ -60,6 +60,13 @@ const SETTING_KEYS = {
   AUTO_PRINT_NAME: 'print_pdf_auto_print_name',
   AUTO_PRINT_NAME_INDIGO: 'print_pdf_auto_print_name_indigo',
   AUTO_PRINT_NAME_INKJET: 'print_pdf_auto_print_name_inkjet',
+  // 임포지션 기본 마크 (JDF+PDF 변환 시 초기값)
+  MARK_CROP: 'imposition_mark_crop',
+  MARK_BLEED: 'imposition_mark_bleed',
+  MARK_REGISTRATION: 'imposition_mark_registration',
+  MARK_COLOR_BAR: 'imposition_mark_color_bar',
+  MARK_FOLD: 'imposition_mark_fold',
+  MARK_JOB_META: 'imposition_mark_job_meta',
 } as const;
 
 const CATEGORY = 'print_pdf';
@@ -128,6 +135,13 @@ export default function PdfSettingsDialog({
   const [imageWidth, setImageWidth] = useState('297');
   const [imageHeight, setImageHeight] = useState('420');
   const [includeColorBar, setIncludeColorBar] = useState(false);
+  // 임포지션 기본 마크 ON/OFF (JDF+PDF 변환 다이얼로그의 초기값으로 사용)
+  const [markCrop, setMarkCrop] = useState(true);
+  const [markBleed, setMarkBleed] = useState(true);
+  const [markRegistration, setMarkRegistration] = useState(true);
+  const [markColorBar, setMarkColorBar] = useState(true);
+  const [markFold, setMarkFold] = useState(true);
+  const [markJobMeta, setMarkJobMeta] = useState(true);
   const { data: printers = [] } = usePrinterList();
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
@@ -170,6 +184,13 @@ export default function PdfSettingsDialog({
     setAutoPrintName(map[SETTING_KEYS.AUTO_PRINT_NAME] || '');
     setAutoPrintNameIndigo(map[SETTING_KEYS.AUTO_PRINT_NAME_INDIGO] || '');
     setAutoPrintNameInkjet(map[SETTING_KEYS.AUTO_PRINT_NAME_INKJET] || '');
+    // 마크 기본값 (미설정 시 true)
+    setMarkCrop(map[SETTING_KEYS.MARK_CROP] !== 'false');
+    setMarkBleed(map[SETTING_KEYS.MARK_BLEED] !== 'false');
+    setMarkRegistration(map[SETTING_KEYS.MARK_REGISTRATION] !== 'false');
+    setMarkColorBar(map[SETTING_KEYS.MARK_COLOR_BAR] !== 'false');
+    setMarkFold(map[SETTING_KEYS.MARK_FOLD] !== 'false');
+    setMarkJobMeta(map[SETTING_KEYS.MARK_JOB_META] !== 'false');
 
     // 인덱스 옵션 파싱
     try {
@@ -210,6 +231,13 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.AUTO_PRINT_NAME, value: autoPrintName, category: CATEGORY, label: '자동 인쇄 프린터명' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME_INDIGO, value: autoPrintNameIndigo === '__none__' ? '' : autoPrintNameIndigo, category: CATEGORY, label: '인디고 프린터명' },
       { key: SETTING_KEYS.AUTO_PRINT_NAME_INKJET, value: autoPrintNameInkjet === '__none__' ? '' : autoPrintNameInkjet, category: CATEGORY, label: '잉크젯 프린터명' },
+      // 임포지션 기본 마크
+      { key: SETTING_KEYS.MARK_CROP, value: String(markCrop), category: CATEGORY, label: '임포지션 기본 마크: 재단선' },
+      { key: SETTING_KEYS.MARK_BLEED, value: String(markBleed), category: CATEGORY, label: '임포지션 기본 마크: 블리드' },
+      { key: SETTING_KEYS.MARK_REGISTRATION, value: String(markRegistration), category: CATEGORY, label: '임포지션 기본 마크: 레지' },
+      { key: SETTING_KEYS.MARK_COLOR_BAR, value: String(markColorBar), category: CATEGORY, label: '임포지션 기본 마크: 컬러바' },
+      { key: SETTING_KEYS.MARK_FOLD, value: String(markFold), category: CATEGORY, label: '임포지션 기본 마크: 중간재단선' },
+      { key: SETTING_KEYS.MARK_JOB_META, value: String(markJobMeta), category: CATEGORY, label: '임포지션 기본 마크: JobID/스튜디오명' },
     ];
 
     bulkUpdate.mutate(settings, {
@@ -225,7 +253,7 @@ export default function PdfSettingsDialog({
       <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-[18px] text-black font-bold">
-            PDF 출력 설정
+            JDF+PDF 출력 설정
           </DialogTitle>
         </DialogHeader>
 
@@ -241,7 +269,7 @@ export default function PdfSettingsDialog({
                 <div>
                   <Label className="text-[14px] text-black font-normal">자동변환 사용</Label>
                   <p className="text-[12px] text-gray-500 mt-0.5">
-                    출력대기 주문이 들어오면 자동으로 PDF를 생성합니다
+                    출력대기 주문이 들어오면 자동으로 JDF+PDF를 생성합니다
                   </p>
                 </div>
                 <Switch
@@ -273,258 +301,62 @@ export default function PdfSettingsDialog({
             </CardContent>
           </Card>
 
-          {/* ===== 2. 인덱스 표기 항목 설정 ===== */}
+          {/* ===== 2. 임포지션 기본 마크 ===== */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-[14px] text-black font-bold">인덱스 표기 항목</CardTitle>
+              <CardTitle className="text-[14px] text-black font-bold">임포지션 기본 마크</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-[12px] text-gray-500">
-                PDF 페이지에 표시할 작업 정보를 선택합니다
+                JDF+PDF 변환 다이얼로그가 열릴 때 기본으로 체크되는 마크를 지정합니다. 개별 변환 시 변경 가능합니다.
               </p>
               <div className="grid grid-cols-2 gap-2.5">
-                {INDEX_OPTION_LABELS.map(({ key, label }) => (
-                  <div key={key} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`setting-${key}`}
-                      checked={indexOptions[key]}
-                      onCheckedChange={() => toggleIndexOption(key)}
-                    />
-                    <Label
-                      htmlFor={`setting-${key}`}
-                      className="text-[14px] text-black font-normal cursor-pointer"
-                    >
-                      {label}
-                    </Label>
-                  </div>
+                {[
+                  { checked: markCrop, set: setMarkCrop, label: '재단선' },
+                  { checked: markBleed, set: setMarkBleed, label: '블리드' },
+                  { checked: markRegistration, set: setMarkRegistration, label: '레지스트레이션' },
+                  { checked: markColorBar, set: setMarkColorBar, label: '컬러바 (CMYK/RGB)' },
+                  { checked: markFold, set: setMarkFold, label: '중간 재단선 (Nup≥2)' },
+                  { checked: markJobMeta, set: setMarkJobMeta, label: 'JobID/스튜디오명' },
+                ].map((m) => (
+                  <label key={m.label} className="flex items-center gap-2 text-[14px] text-black font-normal cursor-pointer">
+                    <Checkbox checked={m.checked} onCheckedChange={(v) => m.set(!!v)} />
+                    {m.label}
+                  </label>
                 ))}
               </div>
 
               <Separator />
 
-              {/* 인덱스 세부 설정 */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[14px] text-black font-normal">폰트 크기</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="number"
-                      value={indexFontSize}
-                      onChange={(e) => setIndexFontSize(e.target.value)}
-                      className="h-9 w-20 text-[14px]"
-                      min="4"
-                      max="12"
-                    />
-                    <span className="text-[14px] text-gray-500">pt</span>
-                  </div>
+              <div className="flex items-center gap-3">
+                <Label className="text-[14px] text-black font-normal whitespace-nowrap">
+                  기본 블리드 크기
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    value={bleedSize}
+                    onChange={(e) => setBleedSize(e.target.value)}
+                    className="h-9 w-20 text-[14px]"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                  />
+                  <span className="text-[14px] text-gray-500">mm</span>
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[14px] text-black font-normal">인덱스 위치</Label>
-                  <Select value={indexPosition} onValueChange={setIndexPosition}>
-                    <SelectTrigger className="h-9 text-[14px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {INDEX_POSITION_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <span className="text-[12px] text-gray-400">
+                  임포지션 프리셋의 bleed 값이 우선 적용됩니다.
+                </span>
               </div>
             </CardContent>
           </Card>
 
-          {/* ===== 3. PDF 옵션 설정 ===== */}
+          {/* ===== 3. 저장 위치 ===== */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-[14px] text-black font-bold">PDF 옵션</CardTitle>
+              <CardTitle className="text-[14px] text-black font-bold">저장 위치</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {/* 재단여백 */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[14px] text-black font-normal">재단여백 포함</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">
-                    이미지 주변에 재단여백(bleed)을 추가합니다
-                  </p>
-                </div>
-                <Switch
-                  checked={includeBleed}
-                  onCheckedChange={setIncludeBleed}
-                />
-              </div>
-
-              {includeBleed && (
-                <div className="flex items-center gap-3 pl-4">
-                  <Label className="text-[14px] text-black font-normal whitespace-nowrap">
-                    여백 크기
-                  </Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="number"
-                      value={bleedSize}
-                      onChange={(e) => setBleedSize(e.target.value)}
-                      className="h-9 w-20 text-[14px]"
-                      min="1"
-                      max="10"
-                    />
-                    <span className="text-[14px] text-gray-500">mm</span>
-                  </div>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* 재단선 */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[14px] text-black font-normal">재단선 (Crop Mark)</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">
-                    ISO 12647 표준 재단선을 네 모서리에 표시합니다
-                  </p>
-                </div>
-                <Switch
-                  checked={includeCropMarks}
-                  onCheckedChange={setIncludeCropMarks}
-                />
-              </div>
-
-              {/* 칼라 컨트롤 바 (돔보바) */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[14px] text-black font-normal">칼라 컨트롤 바 (돔보바)</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">
-                    CMYK 핀맞춤용 칼라 패치를 이미지 하단에 표시합니다
-                  </p>
-                </div>
-                <Switch
-                  checked={includeColorBar}
-                  onCheckedChange={setIncludeColorBar}
-                />
-              </div>
-
-              <Separator />
-
-              {/* 캔버스(용지) 크기 */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[14px] text-black font-normal">캔버스 크기 (용지 크기)</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">
-                    PDF 페이지의 전체 용지 크기를 지정합니다
-                  </p>
-                </div>
-                <Switch
-                  checked={canvasEnabled}
-                  onCheckedChange={setCanvasEnabled}
-                />
-              </div>
-
-              {canvasEnabled && (
-                <div className="flex items-center gap-3 pl-4">
-                  <Label className="text-[14px] text-black font-normal whitespace-nowrap">용지</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="number"
-                      value={canvasWidth}
-                      onChange={(e) => setCanvasWidth(e.target.value)}
-                      className="h-9 w-20 text-[14px]"
-                      min="100"
-                      max="1000"
-                      placeholder="너비"
-                    />
-                    <span className="text-[14px] text-gray-500">x</span>
-                    <Input
-                      type="number"
-                      value={canvasHeight}
-                      onChange={(e) => setCanvasHeight(e.target.value)}
-                      className="h-9 w-20 text-[14px]"
-                      min="100"
-                      max="1000"
-                      placeholder="높이"
-                    />
-                    <span className="text-[14px] text-gray-500">mm</span>
-                  </div>
-                  <span className="text-[12px] text-gray-400 whitespace-nowrap">
-                    ({(parseFloat(canvasWidth) / 25.4).toFixed(1)}&quot; x {(parseFloat(canvasHeight) / 25.4).toFixed(1)}&quot;)
-                  </span>
-                </div>
-              )}
-
-              {/* 이미지 크기 */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[14px] text-black font-normal">이미지 크기 (출력 크기)</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">
-                    이미지를 지정한 크기로 배치합니다 (미사용 시 규격 기준)
-                  </p>
-                </div>
-                <Switch
-                  checked={imageSizeEnabled}
-                  onCheckedChange={setImageSizeEnabled}
-                />
-              </div>
-
-              {imageSizeEnabled && (
-                <div className="flex items-center gap-3 pl-4">
-                  <Label className="text-[14px] text-black font-normal whitespace-nowrap">이미지</Label>
-                  <div className="flex items-center gap-1.5">
-                    <Input
-                      type="number"
-                      value={imageWidth}
-                      onChange={(e) => setImageWidth(e.target.value)}
-                      className="h-9 w-20 text-[14px]"
-                      min="50"
-                      max="1000"
-                      placeholder="너비"
-                    />
-                    <span className="text-[14px] text-gray-500">x</span>
-                    <Input
-                      type="number"
-                      value={imageHeight}
-                      onChange={(e) => setImageHeight(e.target.value)}
-                      className="h-9 w-20 text-[14px]"
-                      min="50"
-                      max="1000"
-                      placeholder="높이"
-                    />
-                    <span className="text-[14px] text-gray-500">mm</span>
-                  </div>
-                  <span className="text-[12px] text-gray-400 whitespace-nowrap">
-                    ({(parseFloat(imageWidth) / 25.4).toFixed(1)}&quot; x {(parseFloat(imageHeight) / 25.4).toFixed(1)}&quot;)
-                  </span>
-                </div>
-              )}
-
-              <Separator />
-
-              {/* 기본 Nup */}
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <Label className="text-[14px] text-black font-normal">기본 Nup 배치</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">
-                    한 용지에 배치할 이미지 수 (규격별 자동 설정 우선)
-                  </p>
-                </div>
-                <Select value={defaultNup} onValueChange={setDefaultNup}>
-                  <SelectTrigger className="w-[140px] h-9 text-[14px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {NUP_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              {/* 저장 위치 */}
               <div className="space-y-3">
                 {/* 서버 자동 저장 경로 (무인 모드) */}
                 <div className="space-y-1.5 p-3 bg-blue-50 border border-blue-200 rounded">
@@ -907,6 +739,12 @@ export function usePdfSettings() {
       imageSizeEnabled: false,
       imageWidth: 297,
       imageHeight: 420,
+      markCrop: true,
+      markBleed: true,
+      markRegistration: true,
+      markColorBar: true,
+      markFold: true,
+      markJobMeta: true,
       isLoaded: false,
     };
   }
@@ -938,6 +776,12 @@ export function usePdfSettings() {
     imageSizeEnabled: map[SETTING_KEYS.IMAGE_SIZE_ENABLED] === 'true',
     imageWidth: parseFloat(map[SETTING_KEYS.IMAGE_WIDTH] || '297'),
     imageHeight: parseFloat(map[SETTING_KEYS.IMAGE_HEIGHT] || '420'),
+    markCrop: map[SETTING_KEYS.MARK_CROP] !== 'false',
+    markBleed: map[SETTING_KEYS.MARK_BLEED] !== 'false',
+    markRegistration: map[SETTING_KEYS.MARK_REGISTRATION] !== 'false',
+    markColorBar: map[SETTING_KEYS.MARK_COLOR_BAR] !== 'false',
+    markFold: map[SETTING_KEYS.MARK_FOLD] !== 'false',
+    markJobMeta: map[SETTING_KEYS.MARK_JOB_META] !== 'false',
     isLoaded: true,
   };
 }
