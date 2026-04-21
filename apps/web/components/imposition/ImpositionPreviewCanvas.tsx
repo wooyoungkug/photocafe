@@ -365,63 +365,33 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
     <g key={i}>
       <rect x={p.x} y={p.y} width={p.width} height={p.height} fill="#f1f5f9" stroke="#64748b" strokeWidth={0.4} />
 
-      {/* 페이지 번호 라벨 — rotation=90 이면 숫자도 함께 -90° 회전 (인쇄물 실제 방향 시뮬레이션) */}
+      {/* 페이지 번호 라벨 — 페어는 읽기 순서(왼쪽 페이지 | 오른쪽 페이지)로 표시,
+          셀 물리 회전과 무관하게 항상 좌/우 분할 */}
       {isPair ? (
-        isRotated ? (
-          // 90° 회전 페어: 위/아래로 분할 + 각 숫자 -90° 회전
-          <>
-            <text
-              x={p.x + p.width / 2}
-              y={p.y + p.height * 0.25}
-              fontSize={labelFontSize}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="#334155"
-              fontFamily="monospace"
-              transform={`rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height * 0.25})`}
-            >
-              {p.pages[0]}
-            </text>
-            <text
-              x={p.x + p.width / 2}
-              y={p.y + p.height * 0.75}
-              fontSize={labelFontSize}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="#334155"
-              fontFamily="monospace"
-              transform={`rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height * 0.75})`}
-            >
-              {p.pages[1]}
-            </text>
-          </>
-        ) : (
-          // 0° 페어: 좌/우로 분할 (회전 없음)
-          <>
-            <text
-              x={p.x + p.width * 0.25}
-              y={p.y + p.height / 2}
-              fontSize={labelFontSize}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="#334155"
-              fontFamily="monospace"
-            >
-              {p.pages[0]}
-            </text>
-            <text
-              x={p.x + p.width * 0.75}
-              y={p.y + p.height / 2}
-              fontSize={labelFontSize}
-              textAnchor="middle"
-              dominantBaseline="central"
-              fill="#334155"
-              fontFamily="monospace"
-            >
-              {p.pages[1]}
-            </text>
-          </>
-        )
+        <>
+          <text
+            x={p.x + p.width * 0.25}
+            y={p.y + p.height / 2}
+            fontSize={labelFontSize}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="#334155"
+            fontFamily="monospace"
+          >
+            {p.pages[0]}
+          </text>
+          <text
+            x={p.x + p.width * 0.75}
+            y={p.y + p.height / 2}
+            fontSize={labelFontSize}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="#334155"
+            fontFamily="monospace"
+          >
+            {p.pages[1]}
+          </text>
+        </>
       ) : (
         // 단일(또는 3+)페이지: 중앙에 합친 라벨 (rotation=90이면 함께 회전)
         <text
@@ -462,29 +432,17 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
         ↕ {hStr}mm
       </text>
 
-      {/* 압축앨범 crease — rotation에 따라 수직/수평 선택 */}
+      {/* 압축앨범 crease — 페어 라벨 좌/우 분할에 맞춰 항상 수직 (셀 가로 중앙) */}
       {p.creaseX !== undefined && (
-        isRotated ? (
-          <line
-            x1={p.x}
-            y1={p.y + p.height / 2}
-            x2={p.x + p.width}
-            y2={p.y + p.height / 2}
-            stroke="#2563eb"
-            strokeWidth={0.5}
-            strokeDasharray="1.5 1"
-          />
-        ) : (
-          <line
-            x1={p.creaseX}
-            y1={p.y}
-            x2={p.creaseX}
-            y2={p.y + p.height}
-            stroke="#2563eb"
-            strokeWidth={0.5}
-            strokeDasharray="1.5 1"
-          />
-        )
+        <line
+          x1={p.x + p.width / 2}
+          y1={p.y}
+          x2={p.x + p.width / 2}
+          y2={p.y + p.height}
+          stroke="#2563eb"
+          strokeWidth={0.5}
+          strokeDasharray="1.5 1"
+        />
       )}
 
       {/* 타카 여백 음영 */}
