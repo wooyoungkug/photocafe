@@ -113,6 +113,7 @@ export interface ImpositionJob {
   utilization: number;
   jdfPath?: string | null;
   pdfPath?: string | null;
+  imagePdfPath?: string | null;
   status: 'pending' | 'done' | 'failed';
   error?: string | null;
   warnings?: string[];
@@ -186,6 +187,13 @@ export function useDownloadImpositionPdf() {
   return useMutation<void, Error, string>({
     mutationFn: (jobId) =>
       api.downloadBlob(`/imposition/jobs/${jobId}/pdf`, `imposition_${jobId}.pdf`),
+  });
+}
+
+export function useDownloadImpositionImagePdf() {
+  return useMutation<void, Error, string>({
+    mutationFn: (jobId) =>
+      api.downloadBlob(`/imposition/jobs/${jobId}/image-pdf`, `imposition_image_${jobId}.pdf`),
   });
 }
 

@@ -23,6 +23,7 @@ import {
   useRunImposition,
   useDownloadImpositionJdf,
   useDownloadImpositionPdf,
+  useDownloadImpositionImagePdf,
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
@@ -251,6 +252,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const runMut = useRunImposition();
   const dlJdf = useDownloadImpositionJdf();
   const dlPdf = useDownloadImpositionPdf();
+  const dlImagePdf = useDownloadImpositionImagePdf();
 
   // 자동 임포지션 적용: seed(제본/규격/페이지)로부터 시트·여백·Nup·오시·타카까지 규칙 기반 자동 산출.
   // 다이얼로그 오픈 또는 대상 항목 변경 시에만 실행 → 사용자의 이후 미세조정은 덮어쓰지 않음.
@@ -437,6 +439,9 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
           toast.success('JDF + PDF 생성 완료');
           dlJdf.mutate(job.id);
           setTimeout(() => dlPdf.mutate(job.id), 500);
+          if (job.imagePdfPath) {
+            setTimeout(() => dlImagePdf.mutate(job.id), 1000);
+          }
         },
         onError: (e) => toast.error(`생성 실패: ${e.message}`),
       },

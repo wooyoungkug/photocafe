@@ -608,7 +608,8 @@ export class PrintPdfService implements OnModuleInit {
 
       // 임포지션 프리셋 매칭: JDF 옵션(시트크기·블리드) 적용
       const impositionBinding = this.resolveImpositionBinding(item.bindingType);
-      let resolvedNupOverride = dto.nupOverride;
+      const resolvedNupOverride = dto.nupOverride;
+      let presetSheetSize: { widthMm: number; heightMm: number } | null = null;
       if (this.matcher && impositionBinding && impositionBinding !== 'flat') {
         try {
           const matched = await this.matcher.findPreset({
@@ -621,6 +622,7 @@ export class PrintPdfService implements OnModuleInit {
             if (p.sheetWidth && p.sheetHeight) {
               paperInput.sheetWidthMm = Number(p.sheetWidth);
               paperInput.sheetHeightMm = Number(p.sheetHeight);
+              presetSheetSize = { widthMm: Number(p.sheetWidth), heightMm: Number(p.sheetHeight) };
             }
             const pb = p.bleed != null ? Number(p.bleed) : null;
             if (pb != null && pb >= 0) {
@@ -632,23 +634,6 @@ export class PrintPdfService implements OnModuleInit {
           }
         } catch (err: any) {
           this.logger.warn(`Imposition preset lookup failed: ${err.message}`);
-        }
-      }
-
-      // delegateNupFromBinding: 압축/타카 제본은 임포지션 엔진으로 최적 Nup 계산
-      if (!resolvedNupOverride && impositionBinding && impositionBinding !== 'flat') {
-        const imposed = this.layout.delegateNupFromBinding(
-          item.bindingType,
-          {
-            widthMm: specData.widthMm,
-            heightMm: specData.heightMm,
-            pages: item.pages || 1,
-            bleed: specInput.bleedTop ?? 3,  // 프리셋 적용 후의 실제 bleed 전달
-          },
-          { sheetWidthMm: paperInput.sheetWidthMm, sheetHeightMm: paperInput.sheetHeightMm },
-        );
-        if (imposed && imposed.nup > 1) {
-          resolvedNupOverride = `${imposed.nup}up`;
         }
       }
 
@@ -802,7 +787,9 @@ export class PrintPdfService implements OnModuleInit {
       const indexPosition = dto.indexPosition || 'bottom';
       const canvasSize = dto.canvasWidthMm && dto.canvasHeightMm
         ? { widthMm: dto.canvasWidthMm, heightMm: dto.canvasHeightMm }
-        : undefined;
+        : (presetSheetSize
+          ? { widthMm: presetSheetSize.widthMm, heightMm: presetSheetSize.heightMm }
+          : undefined);
       const imageSize = dto.imageWidthMm && dto.imageHeightMm
         ? { widthMm: dto.imageWidthMm, heightMm: dto.imageHeightMm }
         : undefined;
