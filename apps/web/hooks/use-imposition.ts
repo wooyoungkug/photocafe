@@ -162,11 +162,25 @@ export function useDeleteImpositionPreset() {
   });
 }
 
+export interface ImpositionMarks {
+  crop?: boolean;
+  bleed?: boolean;
+  registration?: boolean;
+  colorBar?: boolean;
+  jobMeta?: boolean;
+}
+
 export function useRunImposition() {
   return useMutation<
     ImpositionJob,
     Error,
-    { orderId: string; orderItemId: string; presetId: string; manualNup?: number }
+    {
+      orderId: string;
+      orderItemId: string;
+      presetId: string;
+      manualNup?: number;
+      marks?: ImpositionMarks;
+    }
   >({
     mutationFn: ({ orderId, orderItemId, ...body }) =>
       api.post<ImpositionJob>(

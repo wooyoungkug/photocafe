@@ -168,7 +168,7 @@ export class ImpositionController {
     const item = await this.prisma.orderItem.findUnique({
       where: { id: itemId },
       include: {
-        order: true,
+        order: { include: { client: { select: { clientName: true } } } },
         files: { orderBy: { sortOrder: 'asc' } },
       },
     });
@@ -243,10 +243,21 @@ export class ImpositionController {
       });
       fs.writeFileSync(jdfPath, jdfXml, 'utf-8');
 
+      // 마크 옵션 (dto.marks 누락 시 전부 default=true 로 취급)
+      const marks = dto.marks ?? {};
+      const jobMetaText = marks.jobMeta !== false
+        ? `${item.order.orderNumber} | ${item.order.client?.clientName ?? ''} | Job ${jobRecord.id.slice(0, 8)}`
+        : null;
+
       // PDF (시뮬레이션 — 빈 박스 레이아웃)
       await this.pdf.build(result, {
         sourcePdfPath,
         outputPath: pdfPath,
+        drawCropMarks: marks.crop !== false,
+        drawBleedLines: marks.bleed !== false,
+        drawRegistrationMarks: marks.registration !== false,
+        drawColorBar: marks.colorBar !== false,
+        jobMetaText,
       });
 
       // 이미지 배치 인쇄용 PDF (OrderItem.files JPG 실제 배치)
@@ -267,6 +278,11 @@ export class ImpositionController {
           await this.imagePdf.build(result, {
             images,
             outputPath: imagePdfFilePath,
+            drawCropMarks: marks.crop !== false,
+            drawBleedLines: marks.bleed !== false,
+            drawRegistrationMarks: marks.registration !== false,
+            drawColorBar: marks.colorBar !== false,
+            jobMetaText,
           });
           imagePdfPath = imagePdfFilePath;
         }

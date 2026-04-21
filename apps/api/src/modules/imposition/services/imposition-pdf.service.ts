@@ -10,6 +10,14 @@ export interface PdfBuildOptions {
   drawCropMarks?: boolean;
   drawCreaseMarks?: boolean;
   drawTackMargin?: boolean;
+  /** 블리드 경계선(재단 안쪽) 표시 */
+  drawBleedLines?: boolean;
+  /** 시트 모서리 레지스트레이션 마크 표시 */
+  drawRegistrationMarks?: boolean;
+  /** CMYK 컬러바 표시 */
+  drawColorBar?: boolean;
+  /** JobID/스튜디오명 메타 텍스트 */
+  jobMetaText?: string | null;
   /** 임포지션 PDF 저장 경로 (선택) */
   outputPath?: string;
 }
@@ -41,6 +49,7 @@ export class ImpositionPdfService {
     const toPt = (mm: number) => mm * MM_TO_PT;
     const sheetWpt = toPt(result.sheetWidth);
     const sheetHpt = toPt(result.sheetHeight);
+    const bleedPt = toPt(result.echo.bleed ?? 0);
 
     for (const sheet of result.sheets) {
       const page = out.addPage([sheetWpt, sheetHpt]);
@@ -100,6 +109,11 @@ export class ImpositionPdfService {
           drawCropMarks(page, xPt, yPt, wPt, hPt);
         }
 
+        // 블리드 경계선 (단위박스 안쪽 bleed 만큼 들여쓴 사각형)
+        if (options.drawBleedLines !== false && bleedPt > 0) {
+          drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
+        }
+
         // 압축앨범 crease (중앙 점선) — Nup>=2 스프레드 페어일 때만
         // Nup=1 (compressed single) / perfect / tack / flat 은 오시 없음
         if (options.drawCreaseMarks !== false && p.isPair && p.creaseXs && p.creaseXs.length > 0) {
@@ -117,6 +131,17 @@ export class ImpositionPdfService {
         if (options.drawTackMargin !== false && p.tackEdge) {
           drawTackMarginOverlay(page, xPt, yPt, wPt, hPt, p.tackEdge, result.echo.tackMargin ?? 12);
         }
+      }
+
+      // 시트 단위 마크
+      if (options.drawRegistrationMarks !== false) {
+        drawRegistrationMarks(page, sheetWpt, sheetHpt);
+      }
+      if (options.drawColorBar !== false) {
+        drawColorBar(page, sheetWpt, sheetHpt);
+      }
+      if (options.jobMetaText) {
+        drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount);
       }
     }
 
@@ -225,4 +250,107 @@ export function drawTackMarginOverlay(
   else if (edge === 'top') rect = { x, y: y + h - m, width: w, height: m };
   else rect = { x, y, width: w, height: m };
   page.drawRectangle({ ...rect, color: col, opacity: 0.35 });
+}
+
+/**
+ * 블리드 경계선 — 단위박스 안쪽으로 bleed(pt) 만큼 들여쓴 사각형.
+ * 재단선(crop mark)은 외부 모서리, 블리드 라인은 내부 trim box 경계.
+ */
+export function drawBleedBox(
+  page: PDFPage,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  bleedPt: number,
+) {
+  if (bleedPt <= 0) return;
+  page.drawRectangle({
+    x: x + bleedPt,
+    y: y + bleedPt,
+    width: w - bleedPt * 2,
+    height: h - bleedPt * 2,
+    borderColor: rgb(0, 0.5, 0.3),
+    borderWidth: 0.3,
+    opacity: 0,
+    borderOpacity: 0.9,
+  });
+}
+
+/**
+ * 레지스트레이션 마크 — 시트 4 모서리 외곽 여백에 십자 원형 타깃.
+ * 인쇄기 판 맞춤(register)용.
+ */
+export function drawRegistrationMarks(page: PDFPage, sheetW: number, sheetH: number) {
+  const r = 3; // 반지름(pt)
+  const off = 5; // 시트 가장자리에서의 오프셋(pt)
+  const positions = [
+    { x: off + r, y: off + r },                       // 좌하
+    { x: sheetW - off - r, y: off + r },              // 우하
+    { x: off + r, y: sheetH - off - r },              // 좌상
+    { x: sheetW - off - r, y: sheetH - off - r },    // 우상
+  ];
+  const col = rgb(0, 0, 0);
+  for (const pos of positions) {
+    // 원형 근사 (정사각형 + 십자)
+    page.drawCircle({ x: pos.x, y: pos.y, size: r, borderColor: col, borderWidth: 0.4 });
+    // 십자
+    page.drawLine({ start: { x: pos.x - r - 2, y: pos.y }, end: { x: pos.x + r + 2, y: pos.y }, color: col, thickness: 0.4 });
+    page.drawLine({ start: { x: pos.x, y: pos.y - r - 2 }, end: { x: pos.x, y: pos.y + r + 2 }, color: col, thickness: 0.4 });
+  }
+}
+
+/**
+ * 컬러바 — 시트 하단 중앙에 CMYK + RGB + 그레이 스텝.
+ * 각 패치 약 8x6pt, 좌→우 순서.
+ */
+export function drawColorBar(page: PDFPage, sheetW: number, sheetH: number) {
+  const patchW = 8;
+  const patchH = 6;
+  const swatches: Array<[number, number, number]> = [
+    [0, 1, 1],    // C
+    [1, 0, 1],    // M
+    [1, 1, 0],    // Y
+    [0, 0, 0],    // K
+    [1, 0, 0],    // R
+    [0, 1, 0],    // G
+    [0, 0, 1],    // B
+    [0.25, 0.25, 0.25],
+    [0.5, 0.5, 0.5],
+    [0.75, 0.75, 0.75],
+  ];
+  const totalW = patchW * swatches.length;
+  const startX = (sheetW - totalW) / 2;
+  const y = 2; // 시트 하단 2pt 여백
+  for (let i = 0; i < swatches.length; i++) {
+    const [r, g, b] = swatches[i];
+    page.drawRectangle({
+      x: startX + i * patchW,
+      y,
+      width: patchW,
+      height: patchH,
+      color: rgb(r, g, b),
+    });
+  }
+}
+
+/**
+ * JobID/스튜디오명 — 시트 상단 좌측에 작은 텍스트.
+ * 시트 번호(1/N) 자동 부착.
+ */
+export function drawJobMeta(
+  page: PDFPage,
+  sheetW: number,
+  sheetH: number,
+  text: string,
+  sheetNum: number,
+  sheetTotal: number,
+) {
+  const label = `${text} | 시트 ${sheetNum}/${sheetTotal}`;
+  page.drawText(label, {
+    x: 12,
+    y: sheetH - 10,
+    size: 7,
+    color: rgb(0.1, 0.1, 0.1),
+  });
 }

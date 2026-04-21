@@ -433,6 +433,13 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
         orderItemId: seed.orderItemId,
         presetId: presetIdToUse,
         manualNup: manualNup === '' ? undefined : Number(manualNup),
+        marks: {
+          crop: showCrop,
+          bleed: showBleed,
+          registration: showReg,
+          colorBar: showColorBar,
+          jobMeta: showJobMeta,
+        },
       },
       {
         onSuccess: (job) => {

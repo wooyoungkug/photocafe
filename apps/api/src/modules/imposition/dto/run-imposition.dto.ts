@@ -1,5 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsNumber, IsBoolean, Min } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsBoolean, Min, IsObject, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class ImpositionMarksDto {
+  @ApiPropertyOptional({ description: '재단선 표시 (default: true)' })
+  @IsOptional()
+  @IsBoolean()
+  crop?: boolean;
+
+  @ApiPropertyOptional({ description: '블리드 경계선 표시 (default: true)' })
+  @IsOptional()
+  @IsBoolean()
+  bleed?: boolean;
+
+  @ApiPropertyOptional({ description: '레지스트레이션 마크 표시 (default: true)' })
+  @IsOptional()
+  @IsBoolean()
+  registration?: boolean;
+
+  @ApiPropertyOptional({ description: '컬러바 표시 (default: true)' })
+  @IsOptional()
+  @IsBoolean()
+  colorBar?: boolean;
+
+  @ApiPropertyOptional({ description: 'JobID/스튜디오명 표시 (default: true)' })
+  @IsOptional()
+  @IsBoolean()
+  jobMeta?: boolean;
+}
 
 /**
  * 주문 항목에 대해 JDF + 임포지션 PDF 산출 요청
@@ -25,4 +53,11 @@ export class RunImpositionDto {
   @IsOptional()
   @IsBoolean()
   generateImagePdf?: boolean;
+
+  @ApiPropertyOptional({ description: '마크 표시 옵션 (crop/bleed/registration/colorBar/jobMeta)', type: ImpositionMarksDto })
+  @IsOptional()
+  @IsObject()
+  @ValidateNested()
+  @Type(() => ImpositionMarksDto)
+  marks?: ImpositionMarksDto;
 }
