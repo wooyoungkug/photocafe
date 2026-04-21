@@ -630,28 +630,23 @@ export class PrintPdfRendererService {
     const imgRight = dims.imageX + dims.imageWidthPt;
     const imgBottom = dims.imageY + dims.imageHeightPt;
 
-    // 수평 재단선은 이미지 위/아래 바깥(gap만큼 떨어진 곳)에 배치
-    // → 블리드 유무와 무관하게 이미지 영역 안으로 들어오지 않음
-    const hTop    = imgTop    - gap;  // 이미지 상단에서 gap 위
-    const hBottom = imgBottom + gap;  // 이미지 하단에서 gap 아래
-
     doc.save();
     doc.lineWidth(CROP_MARK.LINE_WIDTH).strokeColor('#000000');
 
     // 좌상
-    doc.moveTo(imgLeft - gap - markLen, hTop).lineTo(imgLeft - gap, hTop).stroke();
+    doc.moveTo(imgLeft - gap - markLen, dims.trimTop).lineTo(imgLeft - gap, dims.trimTop).stroke();
     doc.moveTo(dims.trimLeft, imgTop - gap - markLen).lineTo(dims.trimLeft, imgTop - gap).stroke();
 
     // 우상
-    doc.moveTo(imgRight + gap, hTop).lineTo(imgRight + gap + markLen, hTop).stroke();
+    doc.moveTo(imgRight + gap, dims.trimTop).lineTo(imgRight + gap + markLen, dims.trimTop).stroke();
     doc.moveTo(dims.trimRight, imgTop - gap - markLen).lineTo(dims.trimRight, imgTop - gap).stroke();
 
     // 좌하
-    doc.moveTo(imgLeft - gap - markLen, hBottom).lineTo(imgLeft - gap, hBottom).stroke();
+    doc.moveTo(imgLeft - gap - markLen, dims.trimBottom).lineTo(imgLeft - gap, dims.trimBottom).stroke();
     doc.moveTo(dims.trimLeft, imgBottom + gap).lineTo(dims.trimLeft, imgBottom + gap + markLen).stroke();
 
     // 우하
-    doc.moveTo(imgRight + gap, hBottom).lineTo(imgRight + gap + markLen, hBottom).stroke();
+    doc.moveTo(imgRight + gap, dims.trimBottom).lineTo(imgRight + gap + markLen, dims.trimBottom).stroke();
     doc.moveTo(dims.trimRight, imgBottom + gap).lineTo(dims.trimRight, imgBottom + gap + markLen).stroke();
 
     doc.restore();
