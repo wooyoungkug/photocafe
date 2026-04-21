@@ -208,6 +208,7 @@ export class ImpositionCalcService {
      * 오리엔테이션 매칭 보너스.
      * 제품과 시트의 긴축 방향이 같으면(둘 다 세로형, 둘 다 가로형, 또는 제품이 정사각형)
      * rotation=0(회전 없음)을 우선한다. 사용자 직관(세로 시트에 세로/정사각 제품은 그대로 표시)에 맞추기 위함.
+     * 보너스값 0.15 > grain 페널티 0.1 이어야 grain 보다 우선됨.
      */
     const orientationBonusFor = (rotation: 0 | 90, uW: number, uH: number): number => {
       const sheetPortrait = sheetH >= sheetW;
@@ -217,10 +218,10 @@ export class ImpositionCalcService {
       const unitPortrait = effH > effW;
       const unitSquare = Math.abs(effH - effW) < 0.01;
       // 정사각형: rotation=0을 선호 (둘 중 뭘 택해도 동일하지만 의미상 회전 없음이 자연스러움)
-      if (unitSquare) return rotation === 0 ? 0.05 : 0;
+      if (unitSquare) return rotation === 0 ? 0.15 : 0;
       // 방향 일치: 매칭되는 회전에 보너스
       const matches = unitPortrait === sheetPortrait;
-      return matches ? 0.05 : 0;
+      return matches ? 0.15 : 0;
     };
 
     const pickBest = (uW: number, uH: number) => {
