@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ImpositionResult } from '@/hooks/use-imposition';
 import { ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react';
 
@@ -30,6 +30,47 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
     setZoom(next);
   };
   const resetZoom = () => setZoom(1);
+
+  // 손바닥 드래그 팬(pan) 핸들링
+  const inlinePanRef = useRef<HTMLDivElement>(null);
+  const fullscreenPanRef = useRef<HTMLDivElement>(null);
+  const panState = useRef<{ active: boolean; startX: number; startY: number; scrollL: number; scrollT: number }>({
+    active: false, startX: 0, startY: 0, scrollL: 0, scrollT: 0,
+  });
+
+  const onPanStart = (ref: React.RefObject<HTMLDivElement | null>) => (e: React.MouseEvent) => {
+    const el = ref.current;
+    if (!el) return;
+    // 스크롤 가능한 경우에만 팬 활성화
+    if (el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight) return;
+    panState.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      scrollL: el.scrollLeft,
+      scrollT: el.scrollTop,
+    };
+    el.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+
+  const onPanMove = (ref: React.RefObject<HTMLDivElement | null>) => (e: React.MouseEvent) => {
+    if (!panState.current.active) return;
+    const el = ref.current;
+    if (!el) return;
+    el.scrollLeft = panState.current.scrollL - (e.clientX - panState.current.startX);
+    el.scrollTop = panState.current.scrollT - (e.clientY - panState.current.startY);
+  };
+
+  const onPanEnd = (ref: React.RefObject<HTMLDivElement | null>) => () => {
+    panState.current.active = false;
+    const el = ref.current;
+    if (el) {
+      // 스크롤 가능하면 grab, 아니면 default
+      const canScroll = el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight;
+      el.style.cursor = canScroll ? 'grab' : 'default';
+    }
+  };
 
   // Esc 키로 전체화면 닫기
   useEffect(() => {
@@ -128,7 +169,15 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
         </button>
       </div>
 
-      <div className="border rounded-lg bg-white p-4 overflow-auto" style={{ maxHeight: 560 }}>
+      <div
+        ref={inlinePanRef}
+        className="border rounded-lg bg-white p-4 overflow-auto select-none"
+        style={{ maxHeight: 560, cursor: zoom > 1 ? 'grab' : 'default' }}
+        onMouseDown={onPanStart(inlinePanRef)}
+        onMouseMove={onPanMove(inlinePanRef)}
+        onMouseUp={onPanEnd(inlinePanRef)}
+        onMouseLeave={onPanEnd(inlinePanRef)}
+      >
         <svg
           viewBox={`0 0 ${sw} ${sh}`}
           style={{
@@ -137,6 +186,7 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
             maxHeight: zoom === 1 ? 500 : undefined,
             display: 'block',
             margin: '0 auto',
+            pointerEvents: 'none',
           }}
           preserveAspectRatio="xMidYMid meet"
         >
@@ -277,8 +327,14 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
           onClick={() => setFullscreen(false)}
         >
           <div
-            className="relative bg-white rounded-lg shadow-2xl w-full h-full max-w-[95vw] max-h-[95vh] p-6 overflow-auto"
+            ref={fullscreenPanRef}
+            className="relative bg-white rounded-lg shadow-2xl w-full h-full max-w-[95vw] max-h-[95vh] p-6 overflow-auto select-none"
+            style={{ cursor: 'grab' }}
             onClick={(e) => e.stopPropagation()}
+            onMouseDown={onPanStart(fullscreenPanRef)}
+            onMouseMove={onPanMove(fullscreenPanRef)}
+            onMouseUp={onPanEnd(fullscreenPanRef)}
+            onMouseLeave={onPanEnd(fullscreenPanRef)}
           >
             <button
               type="button"
