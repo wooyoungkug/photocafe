@@ -488,6 +488,22 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
             {/* 시트 규격 */}
             <section className="space-y-2">
               <h3 className="text-[18px] text-black font-bold">시트 규격</h3>
+              <div className="flex flex-wrap gap-4">
+                {SHEET_PRESETS.map((p) => (
+                  <label
+                    key={p.key}
+                    className="flex items-center gap-1.5 text-[14px] text-black font-normal cursor-pointer"
+                  >
+                    <input
+                      type="radio"
+                      name="sheetKey"
+                      checked={sheetKey === p.key}
+                      onChange={() => onSheetKeyChange(p.key)}
+                    />
+                    {p.key === 'custom' ? '커스텀' : p.label}
+                  </label>
+                ))}
+              </div>
               <div className="flex gap-3">
                 <div className="flex-1">
                   <Label className="text-[14px] text-black font-normal">W (mm)</Label>
