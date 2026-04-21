@@ -533,6 +533,7 @@ export default function OrderDetailPage() {
 
                     const hasFabric = !!item.fabricName;
                     const hasFoil = !!(item.foilColor || item.foilName || item.foilPosition);
+                    const displayThumbUrl = thumbnailFiles[0]?.thumbnailUrl || item.thumbnailUrl;
 
                     return (
                       <div key={item.id} className="border border-green-500 bg-green-50/30 rounded-lg p-3 last:mb-0 mb-3">
@@ -541,18 +542,27 @@ export default function OrderDetailPage() {
                           <Folder className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
                           <span className="font-normal text-black text-[13px] flex-1 leading-relaxed">{item.productName}</span>
                           {/* 썸네일 클릭 */}
-                          {item.thumbnailUrl && (
+                          {displayThumbUrl && (
                             <div
                               className="w-10 h-10 shrink-0 bg-gray-100 rounded overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
                               onClick={() => {
                                 if (thumbnailFiles.length > 0) {
                                   openPreview(thumbnailFiles, 0, item.productName);
                                 } else {
-                                  openPreview([{ id: item.id, fileName: '', fileUrl: item.thumbnailUrl!, thumbnailUrl: item.thumbnailUrl!, storageStatus: 'uploaded', pageRange: '1', pageStart: 1, pageEnd: 1, width: 0, height: 0, dpi: 0, fileSize: 0, sortOrder: 0 }], 0, item.productName);
+                                  openPreview([{ id: item.id, fileName: '', fileUrl: displayThumbUrl!, thumbnailUrl: displayThumbUrl!, storageStatus: 'uploaded', pageRange: '1', pageStart: 1, pageEnd: 1, width: 0, height: 0, dpi: 0, fileSize: 0, sortOrder: 0 }], 0, item.productName);
                                 }
                               }}
                             >
-                              <img src={normalizeImageUrl(item.thumbnailUrl)} alt={item.productName} className="object-cover w-full h-full" />
+                              <img
+                                src={normalizeImageUrl(displayThumbUrl)}
+                                alt=""
+                                className="object-cover w-full h-full"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  const parent = img.parentElement;
+                                  if (parent) parent.style.display = 'none';
+                                }}
+                              />
                             </div>
                           )}
                         </div>

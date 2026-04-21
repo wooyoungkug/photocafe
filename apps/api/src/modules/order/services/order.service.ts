@@ -2458,6 +2458,24 @@ export class OrderService {
 
       this.logger.log(`DB 업데이트 완료 (주문: ${order.orderNumber}): ${updates.length}건`);
 
+      if (updates.length > 0) {
+        const firstUpdate = [...updates].sort((a, b) => {
+          const af = item.files.find((f: any) => f.id === a.id);
+          const bf = item.files.find((f: any) => f.id === b.id);
+          return (af?.sortOrder ?? 0) - (bf?.sortOrder ?? 0);
+        })[0];
+        if (firstUpdate?.thumbnailUrl) {
+          try {
+            await this.prisma.orderItem.update({
+              where: { id: item.id },
+              data: { thumbnailUrl: firstUpdate.thumbnailUrl },
+            });
+          } catch (err) {
+            this.logger.warn(`OrderItem 썸네일 동기화 실패 (item: ${item.id}): ${(err as Error).message}`);
+          }
+        }
+      }
+
       // DB 업데이트 성공 후 temp 폴더 삭제 (모든 파일이 이동된 경우에만)
       if (updates.length > 0) {
         const totalDbFiles = item.files.length;
