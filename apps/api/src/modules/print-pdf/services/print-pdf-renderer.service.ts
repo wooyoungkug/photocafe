@@ -423,14 +423,43 @@ export class PrintPdfRendererService {
     if (this.fontsAvailable) {
       doc.font(FONT_REGULAR);
     }
-    doc
-      .fontSize(INDEX_FONT_SIZE)
-      .fillColor('#333333')
-      .text(indexText, indexX, indexY, {
-        width: textWidth,
-        lineBreak: false,
-      });
+    // PDFKit 자동 페이지 분할 방지: text() 의 y 가 page.maxY() 초과 시
+    // addPage() 가 자동 호출되어 블랭크 페이지가 삽입되는 현상 차단.
+    const restoreMargins = this.disableAutoPaginate(doc);
+    try {
+      doc
+        .fontSize(INDEX_FONT_SIZE)
+        .fillColor('#333333')
+        .text(indexText, indexX, indexY, {
+          width: textWidth,
+          lineBreak: false,
+        });
+    } finally {
+      restoreMargins();
+    }
     doc.restore();
+  }
+
+  /**
+   * PDFKit 자동 페이지 분할 방지 헬퍼.
+   * doc.text() 는 y + 텍스트 높이 > page.maxY() 이면 addPage() 를 자동 호출하는데,
+   * 이미지 하단 바깥 영역(인덱스/컬러바)에 절대좌표로 그릴 때 경계 계산 오차로
+   * 실수로 트리거되어 블랭크 페이지가 누적되는 사고가 발생함(20p → 160p).
+   * 마진을 대형 음수로 임시 덮어써서 maxY 를 사실상 무한대로 만든다.
+   */
+  private disableAutoPaginate(doc: any): () => void {
+    const origBottom = doc.page?.margins?.bottom;
+    const origTop = doc.page?.margins?.top;
+    if (doc.page?.margins) {
+      doc.page.margins.bottom = -1e9;
+      doc.page.margins.top = -1e9;
+    }
+    return () => {
+      if (doc.page?.margins) {
+        doc.page.margins.bottom = origBottom;
+        doc.page.margins.top = origTop;
+      }
+    };
   }
 
   /**
@@ -474,13 +503,18 @@ export class PrintPdfRendererService {
     if (this.fontsAvailable) {
       doc.font(FONT_REGULAR);
     }
-    doc
-      .fontSize(INDEX_FONT_SIZE)
-      .fillColor('#333333')
-      .text(indexText, indexX, indexY, {
-        width: textWidth,
-        lineBreak: false,
-      });
+    const restoreMargins = this.disableAutoPaginate(doc);
+    try {
+      doc
+        .fontSize(INDEX_FONT_SIZE)
+        .fillColor('#333333')
+        .text(indexText, indexX, indexY, {
+          width: textWidth,
+          lineBreak: false,
+        });
+    } finally {
+      restoreMargins();
+    }
     doc.restore();
   }
 
@@ -573,6 +607,17 @@ export class PrintPdfRendererService {
     const imgLeft = dims.imageX;
     const barY = imgBottom + CROP_MARK.OFFSET_MM * MM_TO_PT + CROP_MARK.LENGTH_MM * MM_TO_PT + BAR_OFFSET;
 
+    // 페이지 경계 검증: barY + PATCH_SIZE 가 페이지 하단을 넘어가면 스킵.
+    // doc.text() 는 y가 maxY를 초과하면 자동으로 addPage() 를 호출하여
+    // 페이지마다 블랭크 페이지가 1개씩 누적되는 버그 방지.
+    if (barY + PATCH_SIZE > dims.pageHeightPt) {
+      this.logger.warn(
+        `renderColorBar 스킵: barY(${barY.toFixed(1)}) + PATCH_SIZE(${PATCH_SIZE.toFixed(1)}) > pageHeight(${dims.pageHeightPt.toFixed(1)}). ` +
+        `캔버스 크기/이미지 배치를 확인하세요.`,
+      );
+      return;
+    }
+
     // CMYK 기본 패치 + 오버프린트 조합
     const patches: Array<{ color: string; label?: string }> = [
       { color: '#00FFFF', label: 'C' },     // Cyan
@@ -596,16 +641,24 @@ export class PrintPdfRendererService {
     ];
 
     doc.save();
+    // 색상 바의 라벨 7개(C/M/Y/K/R/G/B)가 각각 doc.text() 로 렌더링되는데,
+    // y가 페이지 경계 근처면 text() 가 addPage() 를 트리거해 블랭크 페이지가
+    // 1개씩 누적됨(20p → 160p 버그의 주원인). disableAutoPaginate로 차단.
+    const restoreMargins = this.disableAutoPaginate(doc);
     let x = imgLeft;
 
-    for (const patch of patches) {
-      doc.rect(x, barY, PATCH_SIZE, PATCH_SIZE).fill(patch.color);
-      // 라벨 (CMYKRGB만)
-      if (patch.label) {
-        doc.fontSize(3).fillColor(patch.color === '#FFFF00' || patch.color === '#00FF00' ? '#000000' : '#FFFFFF')
-          .text(patch.label, x, barY + 0.3 * MM_TO_PT, { width: PATCH_SIZE, align: 'center', lineBreak: false });
+    try {
+      for (const patch of patches) {
+        doc.rect(x, barY, PATCH_SIZE, PATCH_SIZE).fill(patch.color);
+        // 라벨 (CMYKRGB만)
+        if (patch.label) {
+          doc.fontSize(3).fillColor(patch.color === '#FFFF00' || patch.color === '#00FF00' ? '#000000' : '#FFFFFF')
+            .text(patch.label, x, barY + 0.3 * MM_TO_PT, { width: PATCH_SIZE, align: 'center', lineBreak: false });
+        }
+        x += PATCH_SIZE + GAP;
       }
-      x += PATCH_SIZE + GAP;
+    } finally {
+      restoreMargins();
     }
 
     // 핀맞춤 십자 마크 (바 오른쪽 끝에)
