@@ -214,75 +214,7 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
             인쇄영역 {usableW}×{usableH}mm
           </text>
           {/* 단위 박스들 */}
-          {sheet.placements.map((p, i) => {
-            const wStr = Number.isInteger(p.width) ? `${p.width}` : p.width.toFixed(1);
-            const hStr = Number.isInteger(p.height) ? `${p.height}` : p.height.toFixed(1);
-            const dimFontSize = Math.min(Math.min(p.width, p.height) * 0.055, 4);
-            return (
-            <g key={i}>
-              <rect
-                x={p.x}
-                y={p.y}
-                width={p.width}
-                height={p.height}
-                fill="#f1f5f9"
-                stroke="#64748b"
-                strokeWidth={0.4}
-              />
-              {/* 페이지 번호 라벨 */}
-              <text
-                x={p.x + p.width / 2}
-                y={p.y + p.height / 2}
-                fontSize={Math.min(p.width, p.height) * 0.18}
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill="#334155"
-                fontFamily="monospace"
-              >
-                {p.pages.join(' / ')}
-              </text>
-              {/* 가로(W) 치수 라벨 - 상단 중앙 안쪽 */}
-              <text
-                x={p.x + p.width / 2}
-                y={p.y + dimFontSize + 0.8}
-                fontSize={dimFontSize}
-                textAnchor="middle"
-                fill="#475569"
-                fontFamily="monospace"
-              >
-                ↔ {wStr}mm
-              </text>
-              {/* 세로(H) 치수 라벨 - 좌측 중앙 안쪽 (90° 회전) */}
-              <text
-                x={p.x + dimFontSize + 0.8}
-                y={p.y + p.height / 2}
-                fontSize={dimFontSize}
-                textAnchor="middle"
-                fill="#475569"
-                fontFamily="monospace"
-                transform={`rotate(-90, ${p.x + dimFontSize + 0.8}, ${p.y + p.height / 2})`}
-              >
-                ↕ {hStr}mm
-              </text>
-              {/* 압축앨범 crease (중앙 점선) */}
-              {p.creaseX !== undefined && (
-                <line
-                  x1={p.creaseX}
-                  y1={p.y}
-                  x2={p.creaseX}
-                  y2={p.y + p.height}
-                  stroke="#2563eb"
-                  strokeWidth={0.5}
-                  strokeDasharray="1.5 1"
-                />
-              )}
-              {/* 타카 여백 음영 */}
-              {p.tackEdge && result.echo.tackMargin !== undefined && (
-                <TackOverlay p={p} margin={result.echo.tackMargin} />
-              )}
-            </g>
-            );
-          })}
+          {sheet.placements.map((p, i) => renderPlacement(p, i, result))}
           {/* 시트 전체 치수 (외곽 상단/좌측 캘리퍼) */}
           <text
             x={sw / 2}
@@ -375,47 +307,7 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
               <text x={usableX + 1.5} y={usableY + 4.5} fontSize={3} fill="#2563eb" fontFamily="monospace">
                 인쇄영역 {usableW}×{usableH}mm
               </text>
-              {sheet.placements.map((p, i) => {
-                const wStr = Number.isInteger(p.width) ? `${p.width}` : p.width.toFixed(1);
-                const hStr = Number.isInteger(p.height) ? `${p.height}` : p.height.toFixed(1);
-                const dimFontSize = Math.min(Math.min(p.width, p.height) * 0.055, 4);
-                return (
-                  <g key={i}>
-                    <rect x={p.x} y={p.y} width={p.width} height={p.height} fill="#f1f5f9" stroke="#64748b" strokeWidth={0.4} />
-                    <text
-                      x={p.x + p.width / 2}
-                      y={p.y + p.height / 2}
-                      fontSize={Math.min(p.width, p.height) * 0.18}
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      fill="#334155"
-                      fontFamily="monospace"
-                    >
-                      {p.pages.join(' / ')}
-                    </text>
-                    <text x={p.x + p.width / 2} y={p.y + dimFontSize + 0.8} fontSize={dimFontSize} textAnchor="middle" fill="#475569" fontFamily="monospace">
-                      ↔ {wStr}mm
-                    </text>
-                    <text
-                      x={p.x + dimFontSize + 0.8}
-                      y={p.y + p.height / 2}
-                      fontSize={dimFontSize}
-                      textAnchor="middle"
-                      fill="#475569"
-                      fontFamily="monospace"
-                      transform={`rotate(-90, ${p.x + dimFontSize + 0.8}, ${p.y + p.height / 2})`}
-                    >
-                      ↕ {hStr}mm
-                    </text>
-                    {p.creaseX !== undefined && (
-                      <line x1={p.creaseX} y1={p.y} x2={p.creaseX} y2={p.y + p.height} stroke="#2563eb" strokeWidth={0.5} strokeDasharray="1.5 1" />
-                    )}
-                    {p.tackEdge && result.echo.tackMargin !== undefined && (
-                      <TackOverlay p={p} margin={result.echo.tackMargin} />
-                    )}
-                  </g>
-                );
-              })}
+              {sheet.placements.map((p, i) => renderPlacement(p, i, result))}
               <text x={sw / 2} y={3.5} fontSize={3.5} textAnchor="middle" fill="#1e293b" fontFamily="monospace" fontWeight="bold">
                 ↔ 시트 {sw}mm
               </text>
@@ -454,4 +346,148 @@ function TackOverlay({
   else if (edge === 'top') rect = { x: p.x, y: p.y, width: p.width, height: margin };
   else rect = { x: p.x, y: p.y + p.height - margin, width: p.width, height: margin };
   return <rect {...rect} fill="#fde68a" fillOpacity={0.5} />;
+}
+
+/**
+ * 단위박스(placement) 렌더링 — rotation에 따라 페이지 라벨과 crease 방향 자동 조정.
+ * - rotation=0: 페어가 가로(좌/우) 배치 → crease 수직, 라벨 좌우 분할
+ * - rotation=90: 페어가 세로(위/아래) 배치 → crease 수평, 라벨 상하 분할 (위=1, 아래=2)
+ */
+function renderPlacement(p: any, i: number, result: ImpositionResult) {
+  const wStr = Number.isInteger(p.width) ? `${p.width}` : p.width.toFixed(1);
+  const hStr = Number.isInteger(p.height) ? `${p.height}` : p.height.toFixed(1);
+  const dimFontSize = Math.min(Math.min(p.width, p.height) * 0.055, 4);
+  const isRotated = p.rotation === 90;
+  const isPair = p.isPair === true && p.pages.length === 2;
+  const labelFontSize = Math.min(p.width, p.height) * 0.18;
+
+  return (
+    <g key={i}>
+      <rect x={p.x} y={p.y} width={p.width} height={p.height} fill="#f1f5f9" stroke="#64748b" strokeWidth={0.4} />
+
+      {/* 페이지 번호 라벨 */}
+      {isPair ? (
+        isRotated ? (
+          // 90° 회전 페어: 위/아래로 분할 표시 (위=페이지[0], 아래=페이지[1])
+          <>
+            <text
+              x={p.x + p.width / 2}
+              y={p.y + p.height * 0.25}
+              fontSize={labelFontSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#334155"
+              fontFamily="monospace"
+            >
+              {p.pages[0]}
+            </text>
+            <text
+              x={p.x + p.width / 2}
+              y={p.y + p.height * 0.75}
+              fontSize={labelFontSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#334155"
+              fontFamily="monospace"
+            >
+              {p.pages[1]}
+            </text>
+          </>
+        ) : (
+          // 0° 페어: 좌/우로 분할 표시
+          <>
+            <text
+              x={p.x + p.width * 0.25}
+              y={p.y + p.height / 2}
+              fontSize={labelFontSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#334155"
+              fontFamily="monospace"
+            >
+              {p.pages[0]}
+            </text>
+            <text
+              x={p.x + p.width * 0.75}
+              y={p.y + p.height / 2}
+              fontSize={labelFontSize}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fill="#334155"
+              fontFamily="monospace"
+            >
+              {p.pages[1]}
+            </text>
+          </>
+        )
+      ) : (
+        // 단일(또는 3+)페이지: 중앙에 합친 라벨
+        <text
+          x={p.x + p.width / 2}
+          y={p.y + p.height / 2}
+          fontSize={labelFontSize}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fill="#334155"
+          fontFamily="monospace"
+        >
+          {p.pages.join(' / ')}
+        </text>
+      )}
+
+      {/* 가로(W) 치수 라벨 */}
+      <text
+        x={p.x + p.width / 2}
+        y={p.y + dimFontSize + 0.8}
+        fontSize={dimFontSize}
+        textAnchor="middle"
+        fill="#475569"
+        fontFamily="monospace"
+      >
+        ↔ {wStr}mm
+      </text>
+      {/* 세로(H) 치수 라벨 */}
+      <text
+        x={p.x + dimFontSize + 0.8}
+        y={p.y + p.height / 2}
+        fontSize={dimFontSize}
+        textAnchor="middle"
+        fill="#475569"
+        fontFamily="monospace"
+        transform={`rotate(-90, ${p.x + dimFontSize + 0.8}, ${p.y + p.height / 2})`}
+      >
+        ↕ {hStr}mm
+      </text>
+
+      {/* 압축앨범 crease — rotation에 따라 수직/수평 선택 */}
+      {p.creaseX !== undefined && (
+        isRotated ? (
+          <line
+            x1={p.x}
+            y1={p.y + p.height / 2}
+            x2={p.x + p.width}
+            y2={p.y + p.height / 2}
+            stroke="#2563eb"
+            strokeWidth={0.5}
+            strokeDasharray="1.5 1"
+          />
+        ) : (
+          <line
+            x1={p.creaseX}
+            y1={p.y}
+            x2={p.creaseX}
+            y2={p.y + p.height}
+            stroke="#2563eb"
+            strokeWidth={0.5}
+            strokeDasharray="1.5 1"
+          />
+        )
+      )}
+
+      {/* 타카 여백 음영 */}
+      {p.tackEdge && result.echo.tackMargin !== undefined && (
+        <TackOverlay p={p} margin={result.echo.tackMargin} />
+      )}
+    </g>
+  );
 }
