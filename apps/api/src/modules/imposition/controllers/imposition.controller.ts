@@ -257,6 +257,7 @@ export class ImpositionController {
         drawBleedLines: marks.bleed !== false,
         drawRegistrationMarks: marks.registration !== false,
         drawColorBar: marks.colorBar !== false,
+        drawFoldLines: marks.fold !== false,
         jobMetaText,
       });
 
@@ -282,6 +283,7 @@ export class ImpositionController {
             drawBleedLines: marks.bleed !== false,
             drawRegistrationMarks: marks.registration !== false,
             drawColorBar: marks.colorBar !== false,
+            drawFoldLines: marks.fold !== false,
             jobMetaText,
           });
           imagePdfPath = imagePdfFilePath;

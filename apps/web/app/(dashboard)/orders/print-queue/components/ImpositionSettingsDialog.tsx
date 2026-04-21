@@ -199,6 +199,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const [showReg, setShowReg] = useState(true);
   const [showColorBar, setShowColorBar] = useState(true);
   const [showJobMeta, setShowJobMeta] = useState(true);
+  const [showFold, setShowFold] = useState(true);
 
   // 자동설정 적용 여부 (사용자가 이후 수정해도 표시 유지)
   const [autoApplied, setAutoApplied] = useState(false);
@@ -401,6 +402,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
           registration: showReg,
           colorBar: showColorBar,
           jobMeta: showJobMeta,
+          fold: showFold,
         },
       },
       {
@@ -791,6 +793,10 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
                 <label className="flex items-center gap-2 text-[14px] text-black font-normal">
                   <Checkbox checked={showColorBar} onCheckedChange={(v) => setShowColorBar(!!v)} />
                   컬러바
+                </label>
+                <label className="flex items-center gap-2 text-[14px] text-black font-normal">
+                  <Checkbox checked={showFold} onCheckedChange={(v) => setShowFold(!!v)} />
+                  중간 재단선 <span className="text-gray-500 text-[12px]">(Nup≥2)</span>
                 </label>
                 <label className="col-span-2 flex items-center gap-2 text-[14px] text-black font-normal">
                   <Checkbox checked={showJobMeta} onCheckedChange={(v) => setShowJobMeta(!!v)} />

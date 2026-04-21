@@ -27,6 +27,11 @@ export class ImpositionMarksDto {
   @IsOptional()
   @IsBoolean()
   jobMeta?: boolean;
+
+  @ApiPropertyOptional({ description: '중간 재단/접지선 표시 (Nup>=2 일 때 적용, default: true)' })
+  @IsOptional()
+  @IsBoolean()
+  fold?: boolean;
 }
 
 /**

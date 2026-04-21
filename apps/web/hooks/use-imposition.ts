@@ -168,6 +168,7 @@ export interface ImpositionMarks {
   registration?: boolean;
   colorBar?: boolean;
   jobMeta?: boolean;
+  fold?: boolean;
 }
 
 export function useRunImposition() {

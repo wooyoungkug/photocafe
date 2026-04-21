@@ -54,6 +54,8 @@ export interface PdfBuildOptions {
   drawRegistrationMarks?: boolean;
   /** CMYK 컬러바 표시 */
   drawColorBar?: boolean;
+  /** Nup>=2 일 때 셀 사이 중간 재단/접지선 표시 */
+  drawFoldLines?: boolean;
   /** JobID/스튜디오명 메타 텍스트 */
   jobMetaText?: string | null;
   /** 임포지션 PDF 저장 경로 (선택) */
@@ -180,6 +182,9 @@ export class ImpositionPdfService {
       }
       if (options.drawColorBar !== false) {
         drawColorBar(page, sheetWpt, sheetHpt);
+      }
+      if (options.drawFoldLines !== false && result.nup >= 2) {
+        drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
       }
       if (options.jobMetaText && meta) {
         drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
@@ -379,6 +384,60 @@ export function drawColorBar(page: PDFPage, sheetW: number, sheetH: number) {
  * JobID/스튜디오명 — 시트 상단 좌측에 작은 텍스트.
  * 시트 번호(1/N) 자동 부착.
  */
+/**
+ * 셀 사이 중간 재단/접지선 — Nup >= 2 일 때만 의미.
+ * 시트의 placements 를 스캔해서
+ *   - 인접한 컬럼 사이 세로선 (col N 우측 ↔ col N+1 좌측 중간)
+ *   - 인접한 행 사이 가로선 (row N 하단 ↔ row N+1 상단 중간)
+ * 을 시트 전체(마진 포함 영역)를 가로지르도록 그린다.
+ * 재단 작업자의 가이드 — 스티커를 붙인 상태에서 한 번에 자를 수 있게.
+ */
+export function drawFoldLines(
+  page: PDFPage,
+  placements: Array<{ x: number; y: number; width: number; height: number }>,
+  sheetWMm: number,
+  sheetHMm: number,
+) {
+  if (placements.length < 2) return;
+
+  // 컬럼 경계: 각 placement 의 우측 x 값과 다음 placement 의 좌측 x 값이 다르면
+  // 그 사이 gutter 의 중점이 재단선. 동일 우측 x 가 여러 개 → set 으로 중복 제거.
+  const colEdges = new Map<number, number>(); // rightX → leftX_of_next
+  const rightXs = Array.from(new Set(placements.map((p) => p.x + p.width))).sort((a, b) => a - b);
+  const leftXs = Array.from(new Set(placements.map((p) => p.x))).sort((a, b) => a - b);
+  for (const rx of rightXs) {
+    // 이 rx 보다 큰 leftX 중 최소값이 "다음 컬럼 좌측"
+    const nextLx = leftXs.find((lx) => lx > rx + 0.1);
+    if (nextLx !== undefined) colEdges.set(rx, nextLx);
+  }
+
+  // 행 경계 (y 축 — placements 는 top-left 원점 mm)
+  const rowEdges = new Map<number, number>();
+  const bottomYs = Array.from(new Set(placements.map((p) => p.y + p.height))).sort((a, b) => a - b);
+  const topYs = Array.from(new Set(placements.map((p) => p.y))).sort((a, b) => a - b);
+  for (const by of bottomYs) {
+    const nextTy = topYs.find((ty) => ty > by + 0.1);
+    if (nextTy !== undefined) rowEdges.set(by, nextTy);
+  }
+
+  const sheetWpt = sheetWMm * MM_TO_PT;
+  const sheetHpt = sheetHMm * MM_TO_PT;
+
+  // 세로 중간선 (컬럼 사이) — 시트 상하 전체 관통
+  for (const [rx, lx] of colEdges) {
+    const midMm = (rx + lx) / 2;
+    const xPt = midMm * MM_TO_PT;
+    drawDashedLine(page, xPt, 0, xPt, sheetHpt);
+  }
+
+  // 가로 중간선 (행 사이) — 시트 좌우 전체 관통. y 는 bottom-left 원점 변환 필요.
+  for (const [by, ty] of rowEdges) {
+    const midMmFromTop = (by + ty) / 2;
+    const yPt = sheetHpt - midMmFromTop * MM_TO_PT;
+    drawDashedLine(page, 0, yPt, sheetWpt, yPt);
+  }
+}
+
 export function drawJobMeta(
   page: PDFPage,
   sheetW: number,
