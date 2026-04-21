@@ -366,10 +366,11 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
       <rect x={p.x} y={p.y} width={p.width} height={p.height} fill="#f1f5f9" stroke="#64748b" strokeWidth={0.4} />
 
       {/* 페이지 번호 라벨 — rotation에 따라 페어 분할 방향 + 숫자 회전 모두 반영
-          (실제 인쇄물의 물리적 방향을 그대로 시각화) */}
+          (실제 인쇄물의 물리적 방향을 그대로 시각화)
+          rotation=90 CW: 원래 [1|2] 가 [2위/1아래]로 회전 */}
       {isPair ? (
         isRotated ? (
-          // rotation=90 페어: 세로 분할 (위=페이지[0], 아래=페이지[1]) + 숫자 -90° 회전
+          // rotation=90 페어: 세로 분할, 위=페이지[1], 아래=페이지[0] (CW 회전) + 숫자 -90° 회전
           <>
             <text
               x={p.x + p.width / 2}
@@ -381,7 +382,7 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
               fontFamily="monospace"
               transform={`rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height * 0.25})`}
             >
-              {p.pages[0]}
+              {p.pages[1]}
             </text>
             <text
               x={p.x + p.width / 2}
@@ -393,7 +394,7 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
               fontFamily="monospace"
               transform={`rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height * 0.75})`}
             >
-              {p.pages[1]}
+              {p.pages[0]}
             </text>
           </>
         ) : (
