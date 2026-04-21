@@ -683,7 +683,7 @@ export default function OrderDetailPage() {
                                   </p>
                                 )}
                                 <div className={item.pageLayout === 'spread' ? 'grid grid-cols-4 gap-1' : 'flex flex-wrap gap-2'}>
-                                  {(item.pageLayout === 'spread' ? thumbnailFiles : thumbnailFiles.slice(0, 8)).map((file, idx) => {
+                                  {thumbnailFiles.map((file, idx) => {
                                     const isSpread = file.width > 0 && file.height > 0 && file.width > file.height;
                                     return (
                                     <div
