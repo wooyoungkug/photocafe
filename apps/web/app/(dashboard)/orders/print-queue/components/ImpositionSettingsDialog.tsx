@@ -115,30 +115,6 @@ interface AutoSettings {
   tackEdge: 'left' | 'right' | 'top' | 'bottom';
 }
 
-function evalSheetNup(
-  sw: number,
-  sh: number,
-  pw_mm: number,
-  ph_mm: number,
-  bleed: number,
-  gutter: number,
-  marginT: number,
-  marginR: number,
-  marginB: number,
-  marginL: number,
-): number {
-  const pw = pw_mm + 2 * bleed;
-  const ph = ph_mm + 2 * bleed;
-  const printW = sw - marginL - marginR;
-  const printH = sh - marginT - marginB;
-  const nupAt = (w: number, h: number) => {
-    const cols = Math.floor((printW + gutter) / (w + gutter));
-    const rows = Math.floor((printH + gutter) / (h + gutter));
-    return Math.max(0, cols) * Math.max(0, rows);
-  };
-  return Math.max(nupAt(pw, ph), nupAt(ph, pw));
-}
-
 function computeAutoImposition(seed?: Props['seed']): AutoSettings {
   const bindingTab: AutoSettings['bindingTab'] =
     seed?.bindingType === 'tack' ? 'tack'
@@ -150,25 +126,11 @@ function computeAutoImposition(seed?: Props['seed']): AutoSettings {
   const gutter = 3;
   const bleed = 0;
 
-  const productW = seed?.productWidth ?? 210;
-  const productH = seed?.productHeight ?? 297;
-  const defaultCreaseWidth = 3; // 압축앨범 오시 기본값
-
-  // 압축앨범: 스프레드 페어(2페이지 + 오시) 단위로 평가해야 올바른 시트 선택 가능.
-  // 단일 페이지 폭으로 계산하면 2배 낙관적 추정 → 소형 시트 오선택 버그 발생.
-  const evalW = bindingTab === 'compressed'
-    ? productW * 2 + defaultCreaseWidth
-    : productW;
-
-  const nupS = evalSheetNup(315, 467, evalW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
-  const nupL = evalSheetNup(330, 482, evalW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
-  const useLarge = nupL > nupS;
-
   return {
     bindingTab,
-    sheetKey: useLarge ? '7900' : '7900S',
-    sheetW: useLarge ? 330 : 315,
-    sheetH: useLarge ? 482 : 467,
+    sheetKey: '7900S',
+    sheetW: 315,
+    sheetH: 467,
     marginT, marginR, marginB, marginL,
     gutter, bleed,
     rotationPolicy: 'auto',
@@ -489,20 +451,28 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
             <section className="space-y-2">
               <h3 className="text-[18px] text-black font-bold">시트 규격</h3>
               <div className="flex flex-wrap gap-4">
-                {SHEET_PRESETS.map((p) => (
-                  <label
-                    key={p.key}
-                    className="flex items-center gap-1.5 text-[14px] text-black font-normal cursor-pointer"
-                  >
-                    <input
-                      type="radio"
-                      name="sheetKey"
-                      checked={sheetKey === p.key}
-                      onChange={() => onSheetKeyChange(p.key)}
-                    />
-                    {p.key === 'custom' ? '커스텀' : p.label}
-                  </label>
-                ))}
+                {SHEET_PRESETS.map((p) => {
+                  const disabled = p.key !== '7900S';
+                  return (
+                    <label
+                      key={p.key}
+                      className={`flex items-center gap-1.5 text-[14px] font-normal ${
+                        disabled
+                          ? 'text-gray-300 cursor-not-allowed opacity-50'
+                          : 'text-black cursor-pointer'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="sheetKey"
+                        checked={sheetKey === p.key}
+                        onChange={() => !disabled && onSheetKeyChange(p.key)}
+                        disabled={disabled}
+                      />
+                      {p.key === 'custom' ? '커스텀' : p.label}
+                    </label>
+                  );
+                })}
               </div>
               <div className="flex gap-3">
                 <div className="flex-1">
