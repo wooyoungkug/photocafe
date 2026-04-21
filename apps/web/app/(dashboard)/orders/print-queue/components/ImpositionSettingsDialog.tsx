@@ -102,14 +102,14 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
       : seed?.bindingType === 'perfect' ? 'perfect'
       : 'compressed',
   );
-  const [sheetKey, setSheetKey] = useState<SheetKey>('7900');
-  const [sheetW, setSheetW] = useState<number>(330);
-  const [sheetH, setSheetH] = useState<number>(482);
+  const [sheetKey, setSheetKey] = useState<SheetKey>('7900S');
+  const [sheetW, setSheetW] = useState<number>(315);
+  const [sheetH, setSheetH] = useState<number>(467);
 
   const [productW, setProductW] = useState<number>(seed?.productWidth ?? 210);
   const [productH, setProductH] = useState<number>(seed?.productHeight ?? 297);
   const [pageCount, setPageCount] = useState<number>(seed?.pageCount ?? 20);
-  const [productUnit, setProductUnit] = useState<'mm' | 'inch'>('mm');
+  const [productUnit, setProductUnit] = useState<'mm' | 'inch'>('inch');
   const [productPresetKey, setProductPresetKey] = useState<string>('custom');
   const MM_PER_INCH = 25.4;
   const toDisplay = (mm: number) =>
