@@ -116,10 +116,10 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
     productUnit === 'inch' ? Math.round((mm / MM_PER_INCH) * 100) / 100 : Math.round(mm * 100) / 100;
   const fromDisplay = (val: number) => (productUnit === 'inch' ? val * MM_PER_INCH : val);
 
-  const [marginT, setMarginT] = useState(5);
-  const [marginR, setMarginR] = useState(5);
-  const [marginB, setMarginB] = useState(5);
-  const [marginL, setMarginL] = useState(5);
+  const [marginT, setMarginT] = useState(8.5);
+  const [marginR, setMarginR] = useState(2.5);
+  const [marginB, setMarginB] = useState(8.5);
+  const [marginL, setMarginL] = useState(2.5);
 
   const [bleed, setBleed] = useState(3);
   const [gutter, setGutter] = useState(3);
