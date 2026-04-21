@@ -92,7 +92,11 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
             인쇄영역 {usableW}×{usableH}mm
           </text>
           {/* 단위 박스들 */}
-          {sheet.placements.map((p, i) => (
+          {sheet.placements.map((p, i) => {
+            const wStr = Number.isInteger(p.width) ? `${p.width}` : p.width.toFixed(1);
+            const hStr = Number.isInteger(p.height) ? `${p.height}` : p.height.toFixed(1);
+            const dimFontSize = Math.min(Math.min(p.width, p.height) * 0.055, 4);
+            return (
             <g key={i}>
               <rect
                 x={p.x}
@@ -115,6 +119,29 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
               >
                 {p.pages.join(' / ')}
               </text>
+              {/* 가로(W) 치수 라벨 - 상단 중앙 안쪽 */}
+              <text
+                x={p.x + p.width / 2}
+                y={p.y + dimFontSize + 0.8}
+                fontSize={dimFontSize}
+                textAnchor="middle"
+                fill="#475569"
+                fontFamily="monospace"
+              >
+                ↔ {wStr}mm
+              </text>
+              {/* 세로(H) 치수 라벨 - 좌측 중앙 안쪽 (90° 회전) */}
+              <text
+                x={p.x + dimFontSize + 0.8}
+                y={p.y + p.height / 2}
+                fontSize={dimFontSize}
+                textAnchor="middle"
+                fill="#475569"
+                fontFamily="monospace"
+                transform={`rotate(-90, ${p.x + dimFontSize + 0.8}, ${p.y + p.height / 2})`}
+              >
+                ↕ {hStr}mm
+              </text>
               {/* 압축앨범 crease (중앙 점선) */}
               {p.creaseX !== undefined && (
                 <line
@@ -132,7 +159,32 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
                 <TackOverlay p={p} margin={result.echo.tackMargin} />
               )}
             </g>
-          ))}
+            );
+          })}
+          {/* 시트 전체 치수 (외곽 상단/좌측 캘리퍼) */}
+          <text
+            x={sw / 2}
+            y={3.5}
+            fontSize={3.5}
+            textAnchor="middle"
+            fill="#1e293b"
+            fontFamily="monospace"
+            fontWeight="bold"
+          >
+            ↔ 시트 {sw}mm
+          </text>
+          <text
+            x={3.5}
+            y={sh / 2}
+            fontSize={3.5}
+            textAnchor="middle"
+            fill="#1e293b"
+            fontFamily="monospace"
+            fontWeight="bold"
+            transform={`rotate(-90, 3.5, ${sh / 2})`}
+          >
+            ↕ 시트 {sh}mm
+          </text>
         </svg>
       </div>
 
