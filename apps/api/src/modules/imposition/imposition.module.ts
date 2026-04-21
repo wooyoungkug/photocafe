@@ -7,6 +7,7 @@ import { ImpositionPdfService } from './services/imposition-pdf.service';
 import { ImpositionPresetService } from './services/imposition-preset.service';
 import { ImpositionRuleService } from './services/imposition-rule.service';
 import { ImpositionMatcherService } from './services/imposition-matcher.service';
+import { ImpositionImagePdfService } from './services/imposition-image-pdf.service';
 
 @Module({
   imports: [PrismaModule],
@@ -15,6 +16,7 @@ import { ImpositionMatcherService } from './services/imposition-matcher.service'
     ImpositionCalcService,
     ImpositionJdfService,
     ImpositionPdfService,
+    ImpositionImagePdfService,
     ImpositionPresetService,
     ImpositionRuleService,
     ImpositionMatcherService,

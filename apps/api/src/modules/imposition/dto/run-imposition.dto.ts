@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsString, IsNumber, Min } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsBoolean, Min } from 'class-validator';
 
 /**
  * 주문 항목에 대해 JDF + 임포지션 PDF 산출 요청
@@ -20,4 +20,9 @@ export class RunImpositionDto {
   @IsOptional()
   @IsString()
   sourcePdfPath?: string;
+
+  @ApiPropertyOptional({ description: '이미지 임포지션 PDF 생성 여부 (기본 true). OrderItem.files JPG를 배치한 인쇄용 PDF를 함께 생성한다.' })
+  @IsOptional()
+  @IsBoolean()
+  generateImagePdf?: boolean;
 }

@@ -162,7 +162,7 @@ function drawEmbedded(
   }
 }
 
-function drawCropMarks(page: PDFPage, x: number, y: number, w: number, h: number) {
+export function drawCropMarks(page: PDFPage, x: number, y: number, w: number, h: number) {
   const len = 5 * MM_TO_PT;
   const off = 2 * MM_TO_PT;
   const col = rgb(0, 0, 0);
@@ -181,7 +181,7 @@ function drawCropMarks(page: PDFPage, x: number, y: number, w: number, h: number
   page.drawLine({ start: { x: x + w, y: y - off }, end: { x: x + w, y: y - off - len }, color: col, thickness: lw });
 }
 
-function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number) {
+export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number) {
   // pdf-lib 는 dashPattern 지원 제한 → 짧은 세그먼트 반복
   const dashLen = 3;
   const gapLen = 2;
@@ -204,7 +204,7 @@ function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: n
   }
 }
 
-function drawTackMarginOverlay(
+export function drawTackMarginOverlay(
   page: PDFPage,
   x: number,
   y: number,

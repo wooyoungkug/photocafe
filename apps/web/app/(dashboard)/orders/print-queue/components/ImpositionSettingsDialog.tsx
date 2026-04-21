@@ -152,9 +152,16 @@ function computeAutoImposition(seed?: Props['seed']): AutoSettings {
 
   const productW = seed?.productWidth ?? 210;
   const productH = seed?.productHeight ?? 297;
+  const defaultCreaseWidth = 3; // 압축앨범 오시 기본값
 
-  const nupS = evalSheetNup(315, 467, productW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
-  const nupL = evalSheetNup(330, 482, productW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
+  // 압축앨범: 스프레드 페어(2페이지 + 오시) 단위로 평가해야 올바른 시트 선택 가능.
+  // 단일 페이지 폭으로 계산하면 2배 낙관적 추정 → 소형 시트 오선택 버그 발생.
+  const evalW = bindingTab === 'compressed'
+    ? productW * 2 + defaultCreaseWidth
+    : productW;
+
+  const nupS = evalSheetNup(315, 467, evalW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
+  const nupL = evalSheetNup(330, 482, evalW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
   const useLarge = nupL > nupS;
 
   return {

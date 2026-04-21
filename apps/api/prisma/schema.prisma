@@ -3820,9 +3820,10 @@ model ImpositionJob {
   rotation    Int      // 0 | 90
   utilization Decimal  @db.Decimal(5, 4) // 0.0000 ~ 1.0000
   layoutJson  Json     // sheets[].placements[]
-  jdfPath     String?
-  pdfPath     String?
-  status      String   @default("pending") // pending|done|failed
+  jdfPath      String?
+  pdfPath      String?
+  imagePdfPath String?
+  status       String   @default("pending") // pending|done|failed
   error       String?
   createdAt   DateTime @default(now())
 

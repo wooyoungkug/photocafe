@@ -26,6 +26,7 @@ import { ImpositionPdfService } from '../services/imposition-pdf.service';
 import { ImpositionPresetService } from '../services/imposition-preset.service';
 import { ImpositionRuleService } from '../services/imposition-rule.service';
 import { ImpositionMatcherService } from '../services/imposition-matcher.service';
+import { ImpositionImagePdfService } from '../services/imposition-image-pdf.service';
 import { CalculateImpositionDto } from '../dto/calculate-imposition.dto';
 import { CreatePresetDto, UpdatePresetDto } from '../dto/preset.dto';
 import { RunImpositionDto } from '../dto/run-imposition.dto';
@@ -46,6 +47,7 @@ export class ImpositionController {
     private readonly calc: ImpositionCalcService,
     private readonly jdf: ImpositionJdfService,
     private readonly pdf: ImpositionPdfService,
+    private readonly imagePdf: ImpositionImagePdfService,
     private readonly presets: ImpositionPresetService,
     private readonly rules: ImpositionRuleService,
     private readonly matcher: ImpositionMatcherService,
@@ -165,7 +167,10 @@ export class ImpositionController {
     const preset = await this.presets.get(dto.presetId);
     const item = await this.prisma.orderItem.findUnique({
       where: { id: itemId },
-      include: { order: true },
+      include: {
+        order: true,
+        files: { orderBy: { sortOrder: 'asc' } },
+      },
     });
     if (!item) throw new NotFoundException(`OrderItem ${itemId} not found`);
     if (item.orderId !== orderId) {
@@ -238,11 +243,30 @@ export class ImpositionController {
       });
       fs.writeFileSync(jdfPath, jdfXml, 'utf-8');
 
-      // PDF
+      // PDF (시뮬레이션 — 빈 박스 레이아웃)
       await this.pdf.build(result, {
         sourcePdfPath,
         outputPath: pdfPath,
       });
+
+      // 이미지 배치 인쇄용 PDF (OrderItem.files JPG 실제 배치)
+      let imagePdfPath: string | undefined;
+      if (dto.generateImagePdf !== false) {
+        const validFiles = (item.files ?? []).filter(
+          (f) => f.originalPath && fs.existsSync(f.originalPath),
+        );
+        if (validFiles.length > 0) {
+          const imagePdfFilePath = path.join(IMPOSITION_OUTPUT_DIR, `${base}_image.pdf`);
+          await this.imagePdf.build(result, {
+            images: validFiles.map((f, idx) => ({
+              pageNumber: idx + 1,
+              filePath: f.originalPath!,
+            })),
+            outputPath: imagePdfFilePath,
+          });
+          imagePdfPath = imagePdfFilePath;
+        }
+      }
 
       await this.prisma.impositionJob.update({
         where: { id: jobRecord.id },
@@ -250,6 +274,7 @@ export class ImpositionController {
           status: 'done',
           jdfPath,
           pdfPath,
+          imagePdfPath,
         },
       });
 
@@ -258,6 +283,7 @@ export class ImpositionController {
         status: 'done',
         jdfPath,
         pdfPath,
+        imagePdfPath,
         warnings: result.warnings,
       };
     } catch (err: any) {
@@ -291,6 +317,19 @@ export class ImpositionController {
       'Content-Disposition': `attachment; filename="imposition_${jobId}.pdf"`,
     });
     return new StreamableFile(fs.createReadStream(job.pdfPath));
+  }
+
+  @Get('jobs/:jobId/image-pdf')
+  @ApiOperation({ summary: '이미지 배치 인쇄용 임포지션 PDF 다운로드' })
+  async downloadImagePdf(@Param('jobId') jobId: string, @Res({ passthrough: true }) res: Response) {
+    const job = await this.prisma.impositionJob.findUnique({ where: { id: jobId } });
+    if (!job || !job.imagePdfPath) throw new NotFoundException('Image PDF not found');
+    if (!fs.existsSync(job.imagePdfPath)) throw new NotFoundException('Image PDF file missing on disk');
+    res.set({
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="imposition_image_${jobId}.pdf"`,
+    });
+    return new StreamableFile(fs.createReadStream(job.imagePdfPath));
   }
 }
 
