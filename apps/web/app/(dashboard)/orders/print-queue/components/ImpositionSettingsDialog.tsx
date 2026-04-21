@@ -299,20 +299,53 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   };
 
   // ==== 실행 (JDF+PDF 생성) ====
-  const onRun = () => {
+  // 프리셋이 선택되어 있으면 그대로 사용, 없으면 현재 폼 설정으로 임시 프리셋을 자동 생성한 뒤 실행.
+  // 임시 프리셋은 이름 prefix `_즉시_` 로 저장되어 필요 시 사용자가 식별/삭제 가능.
+  const onRun = async () => {
     if (!seed?.orderId || !seed?.orderItemId) {
       toast.error('주문/항목 정보가 없습니다. 행에서 [임포지션]을 눌러주세요.');
       return;
     }
-    if (!selectedPresetId) {
-      toast.error('프리셋을 먼저 선택하거나 저장한 후 실행해주세요.');
-      return;
+
+    let presetIdToUse = selectedPresetId;
+
+    // 프리셋 미선택 시: 현재 폼 설정으로 임시 프리셋 자동 생성
+    if (!presetIdToUse) {
+      try {
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const created = await createPresetMut.mutateAsync({
+          name: `_즉시_${bindingTab}_${sheetW}x${sheetH}_${ts}`,
+          bindingType: bindingTab,
+          sheetWidth: sheetW,
+          sheetHeight: sheetH,
+          marginTop: marginT,
+          marginRight: marginR,
+          marginBottom: marginB,
+          marginLeft: marginL,
+          gutter,
+          bleed,
+          creaseWidth: bindingTab === 'compressed' ? creaseWidth : null,
+          tackMargin: bindingTab === 'tack' ? tackMargin : null,
+          tackEdge: bindingTab === 'tack' ? tackEdge : null,
+          grainDirection: 'short',
+          rotationPolicy,
+          isDefault: false,
+        } as any);
+        presetIdToUse = created.id;
+        toast.message('현재 설정으로 임시 프리셋이 자동 저장되었습니다.', {
+          description: `이름: ${created.name}`,
+        });
+      } catch (e: any) {
+        toast.error(`임시 프리셋 생성 실패: ${e.message}`);
+        return;
+      }
     }
+
     runMut.mutate(
       {
         orderId: seed.orderId,
         orderItemId: seed.orderItemId,
-        presetId: selectedPresetId,
+        presetId: presetIdToUse,
         manualNup: manualNup === '' ? undefined : Number(manualNup),
       },
       {
@@ -762,9 +795,13 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
           </Button>
           <Button
             onClick={onRun}
-            disabled={runMut.isPending || !seed?.orderItemId || !selectedPresetId}
+            disabled={runMut.isPending || createPresetMut.isPending || !seed?.orderItemId}
           >
-            {runMut.isPending ? '생성 중...' : 'JDF + PDF 생성'}
+            {runMut.isPending
+              ? '생성 중...'
+              : createPresetMut.isPending
+                ? '임시 프리셋 저장 중...'
+                : 'JDF + PDF 생성'}
           </Button>
         </DialogFooter>
       </DialogContent>
