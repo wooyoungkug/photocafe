@@ -147,8 +147,7 @@ function computeAutoImposition(seed?: Props['seed']): AutoSettings {
   // Indigo 7900 기본 여백 (물림/비물림쪽 8.5/2.5mm)
   const marginT = 8.5, marginR = 2.5, marginB = 8.5, marginL = 2.5;
   const gutter = 3;
-  // 화보(무선제본)는 블리드 불필요, 압축/타카는 3mm 블리드
-  const bleed = bindingTab === 'perfect' ? 0 : 3;
+  const bleed = 0;
 
   const productW = seed?.productWidth ?? 210;
   const productH = seed?.productHeight ?? 297;
