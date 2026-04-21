@@ -121,7 +121,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const [marginB, setMarginB] = useState(8.5);
   const [marginL, setMarginL] = useState(2.5);
 
-  const [bleed, setBleed] = useState(3);
+  const [bleed, setBleed] = useState(0);
   const [gutter, setGutter] = useState(3);
   const [rotationPolicy, setRotationPolicy] = useState<'0' | '90' | 'auto'>('auto');
   const [manualNup, setManualNup] = useState<number | ''>('');
