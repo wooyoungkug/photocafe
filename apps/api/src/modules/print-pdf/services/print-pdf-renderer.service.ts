@@ -198,11 +198,8 @@ export class PrintPdfRendererService {
       const imgX = offsetX + dimensions.imageX;
       const imgY = offsetY + dimensions.imageY;
 
-      // 1) 이미지 배치
-      doc.image(file.originalPath, imgX, imgY, {
-        width: imgWidthPt,
-        height: imgHeightPt,
-      });
+      // 1) 이미지 배치 (cover 모드: 비율 보존, 비율 불일치 시 중앙 클리핑)
+      await this.placeImageCover(doc, file.originalPath, imgX, imgY, imgWidthPt, imgHeightPt);
 
       // 오프셋 적용된 dimensions (인덱스/재단선 렌더링용)
       const offsetDims: PageDimensions = {
@@ -633,23 +630,28 @@ export class PrintPdfRendererService {
     const imgRight = dims.imageX + dims.imageWidthPt;
     const imgBottom = dims.imageY + dims.imageHeightPt;
 
+    // 수평 재단선은 이미지 위/아래 바깥(gap만큼 떨어진 곳)에 배치
+    // → 블리드 유무와 무관하게 이미지 영역 안으로 들어오지 않음
+    const hTop    = imgTop    - gap;  // 이미지 상단에서 gap 위
+    const hBottom = imgBottom + gap;  // 이미지 하단에서 gap 아래
+
     doc.save();
     doc.lineWidth(CROP_MARK.LINE_WIDTH).strokeColor('#000000');
 
     // 좌상
-    doc.moveTo(imgLeft - gap - markLen, dims.trimTop).lineTo(imgLeft - gap, dims.trimTop).stroke();
+    doc.moveTo(imgLeft - gap - markLen, hTop).lineTo(imgLeft - gap, hTop).stroke();
     doc.moveTo(dims.trimLeft, imgTop - gap - markLen).lineTo(dims.trimLeft, imgTop - gap).stroke();
 
     // 우상
-    doc.moveTo(imgRight + gap, dims.trimTop).lineTo(imgRight + gap + markLen, dims.trimTop).stroke();
+    doc.moveTo(imgRight + gap, hTop).lineTo(imgRight + gap + markLen, hTop).stroke();
     doc.moveTo(dims.trimRight, imgTop - gap - markLen).lineTo(dims.trimRight, imgTop - gap).stroke();
 
     // 좌하
-    doc.moveTo(imgLeft - gap - markLen, dims.trimBottom).lineTo(imgLeft - gap, dims.trimBottom).stroke();
+    doc.moveTo(imgLeft - gap - markLen, hBottom).lineTo(imgLeft - gap, hBottom).stroke();
     doc.moveTo(dims.trimLeft, imgBottom + gap).lineTo(dims.trimLeft, imgBottom + gap + markLen).stroke();
 
     // 우하
-    doc.moveTo(imgRight + gap, dims.trimBottom).lineTo(imgRight + gap + markLen, dims.trimBottom).stroke();
+    doc.moveTo(imgRight + gap, hBottom).lineTo(imgRight + gap + markLen, hBottom).stroke();
     doc.moveTo(dims.trimRight, imgBottom + gap).lineTo(dims.trimRight, imgBottom + gap + markLen).stroke();
 
     doc.restore();
@@ -772,23 +774,27 @@ export class PrintPdfRendererService {
     const drawBottomLeft = !supB && !supL;
     const drawBottomRight = !supB && !supR;
 
+    // 수평선도 이미지 바깥에 배치 (1up renderCropMarks와 동일 정책)
+    const hTop    = imgTop    - gap;
+    const hBottom = imgBottom + gap;
+
     doc.save();
     doc.lineWidth(CROP_MARK.LINE_WIDTH).strokeColor('#000000');
 
     if (drawTopLeft) {
-      doc.moveTo(imgLeft - gap - markLen, tTop).lineTo(imgLeft - gap, tTop).stroke();
+      doc.moveTo(imgLeft - gap - markLen, hTop).lineTo(imgLeft - gap, hTop).stroke();
       doc.moveTo(tLeft, imgTop - gap - markLen).lineTo(tLeft, imgTop - gap).stroke();
     }
     if (drawTopRight) {
-      doc.moveTo(imgRight + gap, tTop).lineTo(imgRight + gap + markLen, tTop).stroke();
+      doc.moveTo(imgRight + gap, hTop).lineTo(imgRight + gap + markLen, hTop).stroke();
       doc.moveTo(tRight, imgTop - gap - markLen).lineTo(tRight, imgTop - gap).stroke();
     }
     if (drawBottomLeft) {
-      doc.moveTo(imgLeft - gap - markLen, tBottom).lineTo(imgLeft - gap, tBottom).stroke();
+      doc.moveTo(imgLeft - gap - markLen, hBottom).lineTo(imgLeft - gap, hBottom).stroke();
       doc.moveTo(tLeft, imgBottom + gap).lineTo(tLeft, imgBottom + gap + markLen).stroke();
     }
     if (drawBottomRight) {
-      doc.moveTo(imgRight + gap, tBottom).lineTo(imgRight + gap + markLen, tBottom).stroke();
+      doc.moveTo(imgRight + gap, hBottom).lineTo(imgRight + gap + markLen, hBottom).stroke();
       doc.moveTo(tRight, imgBottom + gap).lineTo(tRight, imgBottom + gap + markLen).stroke();
     }
 
