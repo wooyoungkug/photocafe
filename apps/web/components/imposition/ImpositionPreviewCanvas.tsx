@@ -365,10 +365,10 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
     <g key={i}>
       <rect x={p.x} y={p.y} width={p.width} height={p.height} fill="#f1f5f9" stroke="#64748b" strokeWidth={0.4} />
 
-      {/* 페이지 번호 라벨 */}
+      {/* 페이지 번호 라벨 — rotation=90 이면 숫자도 함께 -90° 회전 (인쇄물 실제 방향 시뮬레이션) */}
       {isPair ? (
         isRotated ? (
-          // 90° 회전 페어: 위/아래로 분할 표시 (위=페이지[0], 아래=페이지[1])
+          // 90° 회전 페어: 위/아래로 분할 + 각 숫자 -90° 회전
           <>
             <text
               x={p.x + p.width / 2}
@@ -378,6 +378,7 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
               dominantBaseline="central"
               fill="#334155"
               fontFamily="monospace"
+              transform={`rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height * 0.25})`}
             >
               {p.pages[0]}
             </text>
@@ -389,12 +390,13 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
               dominantBaseline="central"
               fill="#334155"
               fontFamily="monospace"
+              transform={`rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height * 0.75})`}
             >
               {p.pages[1]}
             </text>
           </>
         ) : (
-          // 0° 페어: 좌/우로 분할 표시
+          // 0° 페어: 좌/우로 분할 (회전 없음)
           <>
             <text
               x={p.x + p.width * 0.25}
@@ -421,7 +423,7 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
           </>
         )
       ) : (
-        // 단일(또는 3+)페이지: 중앙에 합친 라벨
+        // 단일(또는 3+)페이지: 중앙에 합친 라벨 (rotation=90이면 함께 회전)
         <text
           x={p.x + p.width / 2}
           y={p.y + p.height / 2}
@@ -430,6 +432,7 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
           dominantBaseline="central"
           fill="#334155"
           fontFamily="monospace"
+          transform={isRotated ? `rotate(-90, ${p.x + p.width / 2}, ${p.y + p.height / 2})` : undefined}
         >
           {p.pages.join(' / ')}
         </text>
