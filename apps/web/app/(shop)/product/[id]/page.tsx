@@ -250,9 +250,24 @@ export default function ProductPage() {
         );
       }
     }
-    // 상품 옵션(제본방식) 미선택 시 모든 폴더 실패
+    // 상품 옵션(제본방식) 미선택 검사
+    // 단, 폴더카드에 이미 제본 뱃지가 표시되고 있으면(store.bindingName 세팅) 통과 —
+    // race condition/마이상품 로드 등으로 selectedOptions.binding만 누락된 상황 방어
     if (!selectedOptions.binding?.name) {
-      folderValidationIssues.unshift('• 제본방식을 선택해주세요.');
+      const storeBindingName = useMultiFolderUploadStore.getState().bindingName;
+      if (!storeBindingName) {
+        folderValidationIssues.unshift('• 제본방식을 선택해주세요.');
+      } else {
+        // store에 binding이 남아있으면 product.bindings에서 복원 시도
+        const recovered = product?.bindings?.find(b => b.name === storeBindingName)
+          || product?.bindings?.find(b => b.isDefault)
+          || product?.bindings?.[0];
+        if (recovered) {
+          setSelectedOptions(prev => ({ ...prev, binding: recovered }));
+        } else {
+          folderValidationIssues.unshift('• 제본방식을 선택해주세요.');
+        }
+      }
     }
 
     if (folderValidationIssues.length > 0) {
@@ -729,7 +744,11 @@ export default function ProductPage() {
         ? (product.specifications?.find(s => s.specificationId === opts.specificationId || s.id === opts.specificationId)
           || product.specifications?.find(s => s.name === opts.specificationName))
         : (product.specifications?.find(s => s.isDefault) || product.specifications?.[0]),
-      binding: product.bindings?.find(b => b.id === opts.bindingId),
+      // 마이상품의 bindingId가 현재 상품에 없으면 기본값으로 fallback (binding 누락 방지)
+      binding: product.bindings?.find(b => b.id === opts.bindingId)
+        || product.bindings?.find(b => b.name === opts.bindingName)
+        || product.bindings?.find(b => b.isDefault)
+        || product.bindings?.[0],
       paper: product.papers?.find(p => p.id === opts.paperId),
       cover: product.covers?.find(c => c.id === opts.coverId),
       finishings: (opts.finishingIds || []).map((fId, idx) => {
@@ -946,7 +965,11 @@ export default function ProductPage() {
         ? (product?.specifications?.find(s => s.specificationId === opts.specificationId || s.id === opts.specificationId)
           || product?.specifications?.find(s => s.name === opts.specificationName))
         : (product?.specifications?.find(s => s.isDefault) || product?.specifications?.[0]),
-      binding: product?.bindings?.find(b => b.id === opts.bindingId),
+      // 마이상품의 bindingId가 현재 상품에 없으면 기본값으로 fallback (binding 누락 방지)
+      binding: product?.bindings?.find(b => b.id === opts.bindingId)
+        || product?.bindings?.find(b => b.name === opts.bindingName)
+        || product?.bindings?.find(b => b.isDefault)
+        || product?.bindings?.[0],
       paper: product?.papers?.find(p => p.id === opts.paperId),
       cover: product?.covers?.find(c => c.id === opts.coverId),
       finishings: (opts.finishingIds || []).map((fId, idx) => {
