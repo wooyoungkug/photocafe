@@ -147,6 +147,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
 
   // 프리뷰
   const [result, setResult] = useState<ImpositionResult | null>(null);
+  const [calcError, setCalcError] = useState<string | null>(null);
   const [sheetIndex, setSheetIndex] = useState(0);
 
   // ==== 훅 ====
@@ -203,9 +204,14 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
       calcMut.mutate(payload, {
         onSuccess: (r) => {
           setResult(r);
+          setCalcError(null);
           if (sheetIndex >= r.sheets.length) setSheetIndex(0);
         },
-        onError: () => setResult(null),
+        onError: (e: any) => {
+          setResult(null);
+          const msg = e?.response?.data?.message || e?.message || '계산 실패';
+          setCalcError(Array.isArray(msg) ? msg.join(', ') : String(msg));
+        },
       });
     }, 150);
     return () => {
@@ -683,6 +689,12 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
                 </>
               )}
             </div>
+
+            {calcError && (
+              <div className="border border-red-300 bg-red-50 text-red-700 rounded-md p-3 text-[14px]">
+                계산 오류: {calcError}
+              </div>
+            )}
 
             <ImpositionPreviewCanvas result={result} sheetIndex={sheetIndex} />
 
