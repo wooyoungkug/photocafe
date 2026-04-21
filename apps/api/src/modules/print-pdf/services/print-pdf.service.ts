@@ -622,8 +622,8 @@ export class PrintPdfService implements OnModuleInit {
               paperInput.sheetWidthMm = Number(p.sheetWidth);
               paperInput.sheetHeightMm = Number(p.sheetHeight);
             }
-            const pb = Number(p.bleed);
-            if (pb > 0) {
+            const pb = p.bleed != null ? Number(p.bleed) : null;
+            if (pb != null && pb >= 0) {
               specInput.bleedTop = pb;
               specInput.bleedBottom = pb;
               specInput.bleedLeft = pb;
@@ -639,7 +639,12 @@ export class PrintPdfService implements OnModuleInit {
       if (!resolvedNupOverride && impositionBinding && impositionBinding !== 'flat') {
         const imposed = this.layout.delegateNupFromBinding(
           item.bindingType,
-          { widthMm: specData.widthMm, heightMm: specData.heightMm, pages: item.pages || 1 },
+          {
+            widthMm: specData.widthMm,
+            heightMm: specData.heightMm,
+            pages: item.pages || 1,
+            bleed: specInput.bleedTop ?? 3,  // 프리셋 적용 후의 실제 bleed 전달
+          },
           { sheetWidthMm: paperInput.sheetWidthMm, sheetHeightMm: paperInput.sheetHeightMm },
         );
         if (imposed && imposed.nup > 1) {

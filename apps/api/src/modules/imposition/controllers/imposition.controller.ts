@@ -252,16 +252,20 @@ export class ImpositionController {
       // 이미지 배치 인쇄용 PDF (OrderItem.files JPG 실제 배치)
       let imagePdfPath: string | undefined;
       if (dto.generateImagePdf !== false) {
-        const validFiles = (item.files ?? []).filter(
-          (f) => f.originalPath && fs.existsSync(f.originalPath),
-        );
-        if (validFiles.length > 0) {
+        // 원본 파일 인덱스(1-based)를 그대로 pageNumber에 매핑해야
+        // ImpositionCalcService가 할당한 Placement.pages 번호와 일치.
+        // validFiles 필터 후 idx+1 재매핑은 누락 파일 발생 시 번호가 틀어짐.
+        const allFiles = item.files ?? [];
+        const images = allFiles
+          .map((f, idx) => ({
+            pageNumber: idx + 1,
+            filePath: f.originalPath ?? '',
+          }))
+          .filter((e) => e.filePath && fs.existsSync(e.filePath));
+        if (images.length > 0) {
           const imagePdfFilePath = path.join(IMPOSITION_OUTPUT_DIR, `${base}_image.pdf`);
           await this.imagePdf.build(result, {
-            images: validFiles.map((f, idx) => ({
-              pageNumber: idx + 1,
-              filePath: f.originalPath!,
-            })),
+            images,
             outputPath: imagePdfFilePath,
           });
           imagePdfPath = imagePdfFilePath;

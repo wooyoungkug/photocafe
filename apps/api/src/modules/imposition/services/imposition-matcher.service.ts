@@ -51,7 +51,7 @@ export class ImpositionMatcherService {
     if (rule.productSize) {
       if (!input.productSize) return false;
       if (
-        rule.productSize.toLowerCase() !== input.productSize.toLowerCase()
+        this.normalizeSize(rule.productSize) !== this.normalizeSize(input.productSize)
       ) {
         return false;
       }
@@ -67,5 +67,15 @@ export class ImpositionMatcherService {
       return false;
     }
     return true;
+  }
+
+  /** "7×5.5인치", "7x5.5", "210*297" 등 다양한 표기를 "7x5.5" 형태로 정규화 */
+  private normalizeSize(size: string): string {
+    return size
+      .replace(/[×✕*]/g, 'x')
+      .replace(/\s+/g, '')
+      .replace(/인치$|inch$|\bin\b/i, '')
+      .toLowerCase()
+      .trim();
   }
 }

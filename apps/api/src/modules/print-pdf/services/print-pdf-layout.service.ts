@@ -108,7 +108,7 @@ export class PrintPdfLayoutService {
    */
   delegateNupFromBinding(
     bindingType: string | null | undefined,
-    spec: { widthMm: number; heightMm: number; pages?: number },
+    spec: { widthMm: number; heightMm: number; pages?: number; bleed?: number },
     paper: { sheetWidthMm?: number; sheetHeightMm?: number },
   ): { nup: number; rotation: 0 | 90; utilization: number } | null {
     if (!bindingType) return null;
@@ -128,7 +128,7 @@ export class PrintPdfLayoutService {
         bindingType: kind,
         sheetWidth: paper.sheetWidthMm,
         sheetHeight: paper.sheetHeightMm,
-        bleed: 3,
+        bleed: spec.bleed ?? 3,
       });
       return { nup: r.nup, rotation: r.rotation, utilization: r.utilization };
     } catch {

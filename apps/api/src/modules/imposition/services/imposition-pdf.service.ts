@@ -144,9 +144,13 @@ function drawEmbedded(
   const natH = pg.height;
   if (rotation === 90) {
     const scale = Math.min(h / natW, w / natH);
+    const drawW = natW * scale;
+    const drawH = natH * scale;
+    // pdf-lib rotate: (x,y) pivot 반시계 90°. 회전 후 bbox=(x-drawH~x, y~y+drawW).
+    // 슬롯 중앙 정렬: anchorX = x+(w+drawH)/2, anchorY = y+(h-drawW)/2
     page.drawPage(pg, {
-      x: x + w / 2,
-      y: y + h / 2,
+      x: x + (w + drawH) / 2,
+      y: y + (h - drawW) / 2,
       xScale: scale,
       yScale: scale,
       rotate: degrees(90),
