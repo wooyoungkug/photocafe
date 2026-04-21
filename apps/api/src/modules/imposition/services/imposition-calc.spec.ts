@@ -351,6 +351,103 @@ describe('ImpositionCalcService', () => {
     });
   });
 
+  describe('centerAlign 검증 (캡처 화면 케이스)', () => {
+    // 캡처 화면 입력값:
+    // 6×4 inch (152.4×101.6mm), 46P, 시트 7900S(315×467), 여백 8.5/2.5/8.5/2.5
+    // bleed=0, gutter=3, centerAlign=true, bindingType=flat (단면 1page/단위박스)
+    // → 자동 Nup = 2×4 = 8up, rotation=0
+    // → cellW = 310/2 = 155, cellH = 450/4 = 112.5
+    // → selUnitW=152.4, selUnitH=101.6
+    // → x padding = (155-152.4)/2 = 1.3mm
+    // → y padding = (112.5-101.6)/2 = 5.45mm
+
+    it('가로 중앙정렬: x 좌표 = marginL + c*cellW + 1.3', () => {
+      const r = svc.calculate({
+        productWidth: 152.4,
+        productHeight: 101.6,
+        pageCount: 46,
+        bindingType: 'flat',
+        bleed: 0,
+        gutter: 3,
+        sheetWidth: 315,
+        sheetHeight: 467,
+        marginTop: 8.5,
+        marginRight: 2.5,
+        marginBottom: 8.5,
+        marginLeft: 2.5,
+        centerAlign: true,
+      });
+      expect(r.nup).toBe(8);
+      expect(r.cols).toBe(2);
+      expect(r.rows).toBe(4);
+      // 첫 셀 (col=0, row=0) 의 x 좌표
+      const p0 = r.sheets[0].placements[0];
+      expect(p0.x).toBeCloseTo(8.5 + 0 + (155 - 152.4) / 2, 1); // 8.5 + 1.3 = 9.8
+      // 둘째 셀 (col=1, row=0) 의 x 좌표
+      const p1 = r.sheets[0].placements[1];
+      expect(p1.x).toBeCloseTo(8.5 + 155 + (155 - 152.4) / 2, 1); // 8.5 + 156.3 = 164.8
+    });
+
+    it('세로 중앙정렬: y 좌표 = marginT + r*cellH + 5.45', () => {
+      const r = svc.calculate({
+        productWidth: 152.4,
+        productHeight: 101.6,
+        pageCount: 46,
+        bindingType: 'flat',
+        bleed: 0,
+        gutter: 3,
+        sheetWidth: 315,
+        sheetHeight: 467,
+        marginTop: 8.5,
+        marginRight: 2.5,
+        marginBottom: 8.5,
+        marginLeft: 2.5,
+        centerAlign: true,
+      });
+      const p0 = r.sheets[0].placements[0]; // row=0
+      const p2 = r.sheets[0].placements[2]; // row=1
+      const p4 = r.sheets[0].placements[4]; // row=2
+      const p6 = r.sheets[0].placements[6]; // row=3
+      // y0 = 8.5 + 0 + (112.5-101.6)/2 = 8.5 + 5.45 = 13.95
+      expect(p0.y).toBeCloseTo(13.95, 1);
+      // y1 = 8.5 + 112.5 + 5.45 = 126.45
+      expect(p2.y).toBeCloseTo(126.45, 1);
+      // y2 = 8.5 + 225 + 5.45 = 238.95
+      expect(p4.y).toBeCloseTo(238.95, 1);
+      // y3 = 8.5 + 337.5 + 5.45 = 351.45
+      expect(p6.y).toBeCloseTo(351.45, 1);
+      // 검증: 행간 거리 = 112.5mm (cellH)
+      expect(p2.y - p0.y).toBeCloseTo(112.5, 1);
+      expect(p4.y - p2.y).toBeCloseTo(112.5, 1);
+      expect(p6.y - p4.y).toBeCloseTo(112.5, 1);
+    });
+
+    it('상하 외부 여백 vs 행간 여백 비율 = 1:2 (셀-중앙정렬 특성)', () => {
+      const r = svc.calculate({
+        productWidth: 152.4,
+        productHeight: 101.6,
+        pageCount: 46,
+        bindingType: 'flat',
+        bleed: 0,
+        gutter: 3,
+        sheetWidth: 315,
+        sheetHeight: 467,
+        marginTop: 8.5,
+        marginRight: 2.5,
+        marginBottom: 8.5,
+        marginLeft: 2.5,
+        centerAlign: true,
+      });
+      const p0 = r.sheets[0].placements[0]; // 첫 행
+      const p2 = r.sheets[0].placements[2]; // 둘째 행
+      const topGap = p0.y - 8.5; // 인쇄영역 상단 ~ 첫 행 상단
+      const interGap = p2.y - (p0.y + p0.height); // 첫 행 하단 ~ 둘째 행 상단
+      // 셀-중앙정렬 모드: interGap = 2 × topGap (외부 여백의 2배가 내부 여백)
+      expect(topGap).toBeCloseTo(5.45, 1);
+      expect(interGap).toBeCloseTo(10.9, 1);
+    });
+  });
+
   describe('v1.1 manualNup=0 (자동 Nup)', () => {
     it('manualNup 없으면 스프레드 자동 선택', () => {
       const r = svc.calculate({
