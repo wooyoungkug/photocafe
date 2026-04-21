@@ -319,14 +319,11 @@ export class PrintPdfRendererService {
         const cell = nupLayout.cells[cellIdx];
         const dims = nupLayout.cellPageDimensions;
 
-        // 셀 내 이미지 배치
+        // 셀 내 이미지 배치 (비율 보존 커버 모드)
         const imgX = cell.x + dims.imageX;
         const imgY = cell.y + dims.imageY;
 
-        doc.image(file.originalPath, imgX, imgY, {
-          width: dims.imageWidthPt,
-          height: dims.imageHeightPt,
-        });
+        await this.placeImageCover(doc, file.originalPath, imgX, imgY, dims.imageWidthPt, dims.imageHeightPt);
 
         // 셀 내 인덱스 (첫 번째 셀에만 or 각 셀마다 - 현재: 각 셀마다)
         const pageIndexData: IndexData = {
@@ -352,6 +349,70 @@ export class PrintPdfRendererService {
     doc.end();
     await this.finalizeTempFile(finished, tempPath, outputPath);
     return outputPath;
+  }
+
+  /**
+   * 이미지를 지정 영역에 비율 보존 커버(cover) 모드로 배치.
+   * - 이미지 비율과 타깃 영역 비율이 일치하면 기존과 동일하게 exact 크기로 배치.
+   * - 비율 불일치(> 0.5%) 시: 타깃 영역을 꽉 채우도록 스케일하고 초과 영역을 클리핑.
+   *   스프레드 이미지를 splitSpreads()로 절반으로 자른 결과물이 스펙 치수와
+   *   종횡비가 다를 때 doc.image()에 width+height를 모두 지정하면 찌그러지는 문제 방지.
+   */
+  private async placeImageCover(
+    doc: any,
+    imagePath: string,
+    x: number,
+    y: number,
+    targetW: number,
+    targetH: number,
+  ): Promise<void> {
+    let placedW = targetW;
+    let placedH = targetH;
+    let offsetX = 0;
+    let offsetY = 0;
+    let needClip = false;
+
+    try {
+      const meta = await sharp(imagePath).metadata();
+      const srcW = meta.width ?? 0;
+      const srcH = meta.height ?? 0;
+
+      if (srcW > 0 && srcH > 0) {
+        const srcAspect = srcW / srcH;
+        const tgtAspect = targetW / targetH;
+
+        if (Math.abs(srcAspect / tgtAspect - 1) > 0.005) {
+          // 비율 불일치 → 커버 모드: 타깃을 꽉 채우되 중앙 배치 후 클리핑
+          this.logger.warn(
+            `placeImageCover: aspect mismatch src=${srcW}x${srcH}(${srcAspect.toFixed(3)}) ` +
+            `tgt=${targetW.toFixed(1)}x${targetH.toFixed(1)}pt(${tgtAspect.toFixed(3)}) → cover mode`,
+          );
+          if (srcAspect > tgtAspect) {
+            // 이미지가 더 넓음 → 높이에 맞춰 스케일, 좌우 클리핑
+            placedH = targetH;
+            placedW = targetH * srcAspect;
+            offsetX = -(placedW - targetW) / 2;
+          } else {
+            // 이미지가 더 높음 → 너비에 맞춰 스케일, 상하 클리핑
+            placedW = targetW;
+            placedH = targetW / srcAspect;
+            offsetY = -(placedH - targetH) / 2;
+          }
+          needClip = true;
+        }
+      }
+    } catch {
+      // 메타데이터 읽기 실패 시 스펙 치수 그대로 사용
+    }
+
+    if (needClip) {
+      doc.save();
+      doc.rect(x, y, targetW, targetH).clip();
+      doc.image(imagePath, x + offsetX, y + offsetY, { width: placedW, height: placedH });
+      doc.restore();
+    } else {
+      doc.image(imagePath, x, y, { width: placedW, height: placedH });
+    }
   }
 
   /**

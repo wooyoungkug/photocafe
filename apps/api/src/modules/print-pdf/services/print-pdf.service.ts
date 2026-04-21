@@ -632,7 +632,12 @@ export class PrintPdfService implements OnModuleInit {
         orderNumber: item.order.orderNumber,
         studioName: item.order.client?.clientName || '-',
         spec: item.size || `${specData.widthMm}x${specData.heightMm}`,
-        paper: item.paper || paperData.name || '-',
+        paper: (() => {
+          const name = item.paper || paperData.name || '-';
+          if (paperData.grammageDisplay) return `${name} ${paperData.grammageDisplay}`;
+          if (paperData.grammage) return `${name} ${paperData.grammage}g`;
+          return name;
+        })(),
         colorMode: colorMode,
         binding: item.bindingType || '-',
         nup: specData.nup || '1up',
@@ -1097,10 +1102,12 @@ export class PrintPdfService implements OnModuleInit {
           name: paper.name,
           sheetWidthMm: paper.sheetWidthMm ? Number(paper.sheetWidthMm) : undefined,
           sheetHeightMm: paper.sheetHeightMm ? Number(paper.sheetHeightMm) : undefined,
+          grammage: paper.grammage ?? undefined,
+          grammageDisplay: (paper as any).grammageDisplay ?? undefined,
         };
       }
     }
-    return { name: item.paper || '-', sheetWidthMm: undefined, sheetHeightMm: undefined };
+    return { name: item.paper || '-', sheetWidthMm: undefined, sheetHeightMm: undefined, grammage: undefined, grammageDisplay: undefined };
   }
 
   /**
