@@ -154,9 +154,14 @@ export class PrintPdfRendererService {
       offsetY = (pdfPageHeightPt - imgHeightPt) / 2 - dimensions.imageY;
     }
 
+    // CRITICAL: margin: 0 지정하지 않으면 PDFKit 기본 72pt 여백이 적용되어
+    // doc.text() 호출 시 y가 pageHeight - 72pt 를 넘으면 자동으로 새 페이지(기본 Letter)를 생성함.
+    // 컬러바/인덱스 렌더링에서 이 오버플로가 발생해 Letter 페이지가 섞여 들어가는 버그 방지.
     const doc = new PDFDocument({
       autoFirstPage: false,
       compress: false,
+      margin: 0,
+      size: [pdfPageWidthPt, pdfPageHeightPt],
     });
     const writeStream = fs.createWriteStream(outputPath);
     const finished = new Promise<string>((resolve, reject) => {
@@ -279,9 +284,12 @@ export class PrintPdfRendererService {
     const totalPages = validFiles.length;
     const imagesPerSheet = nupLayout.nUpX * nupLayout.nUpY;
 
+    // CRITICAL: margin: 0 으로 기본 72pt 여백 제거 (Letter 자동 페이지 생성 방지)
     const doc = new PDFDocument({
       autoFirstPage: false,
       compress: false,
+      margin: 0,
+      size: [nupLayout.sheetWidthPt, nupLayout.sheetHeightPt],
     });
     const writeStream = fs.createWriteStream(outputPath);
     const finished = new Promise<string>((resolve, reject) => {
