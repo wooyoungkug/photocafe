@@ -380,12 +380,12 @@ describe('ImpositionCalcService', () => {
       expect(r.nup).toBe(8);
       expect(r.cols).toBe(2);
       expect(r.rows).toBe(4);
-      // 첫 셀 (col=0, row=0) 의 x 좌표
+      // 첫 셀 (col=0, row=0) 의 x 좌표 (marginL=2.5)
       const p0 = r.sheets[0].placements[0];
-      expect(p0.x).toBeCloseTo(8.5 + 0 + (155 - 152.4) / 2, 1); // 8.5 + 1.3 = 9.8
+      expect(p0.x).toBeCloseTo(2.5 + 0 + (155 - 152.4) / 2, 1); // 2.5 + 1.3 = 3.8
       // 둘째 셀 (col=1, row=0) 의 x 좌표
       const p1 = r.sheets[0].placements[1];
-      expect(p1.x).toBeCloseTo(8.5 + 155 + (155 - 152.4) / 2, 1); // 8.5 + 156.3 = 164.8
+      expect(p1.x).toBeCloseTo(2.5 + 155 + (155 - 152.4) / 2, 1); // 2.5 + 156.3 = 158.8
     });
 
     it('세로 중앙정렬: y 좌표 = marginT + r*cellH + 5.45', () => {

@@ -301,14 +301,21 @@ function parseSize(size: string): { w: number; h: number } {
   if (!m) return { w: 0, h: 0 };
   let w = parseFloat(m[1]);
   let h = parseFloat(m[2]);
-  // 단위 판별: "인치"/"inch"/"in" 명시 시 inch → mm 변환 (×25.4)
-  // 명시 없으면 mm 로 가정 (기존 동작 유지)
+  // 단위 판별 우선순위:
+  // 1) "인치"/"inch"/"in"/"\""/"″" 명시 → inch (×25.4)
+  // 2) "cm"/"센치"/"센티" 명시 → cm (×10)
+  // 3) 명시 없으면 두 값 모두 30 이하면 inch 로 추정 (앨범 표준이 인치)
+  // 4) 그 외는 mm 로 처리
   if (/인치|inch|"|″|\bin\b/i.test(size)) {
     w *= 25.4;
     h *= 25.4;
   } else if (/cm|센치|센티/i.test(size)) {
     w *= 10;
     h *= 10;
+  } else if (w <= 30 && h <= 30) {
+    // 휴리스틱: 30mm 이하 앨범은 비현실적, 인치로 간주 (5x7, 6x8, 9x12 등)
+    w *= 25.4;
+    h *= 25.4;
   }
   return { w, h };
 }
