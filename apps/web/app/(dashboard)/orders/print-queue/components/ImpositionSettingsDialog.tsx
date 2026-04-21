@@ -17,14 +17,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import ImpositionPreviewCanvas from '@/components/imposition/ImpositionPreviewCanvas';
-import PresetSelector from '@/components/imposition/PresetSelector';
 import {
   useImpositionCalculate,
   useCreateImpositionPreset,
   useRunImposition,
   useDownloadImpositionJdf,
   useDownloadImpositionPdf,
-  ImpositionPreset,
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
@@ -96,6 +94,94 @@ const PRODUCT_PRESETS: ProductPreset[] = [
 ];
 const PRODUCT_GROUPS = ['정사각', '세로', '가로', '기타'];
 
+// ==== 자동 임포지션 규칙 ====
+// 제본방식 + 제품규격(mm) 기반으로 시트/여백/갭/오시/타카 등 전체 설정을 규칙 기반으로 산출.
+// 시트 선택: 7900S(315×467)와 7900(330×482) 중 Nup yield가 더 큰 쪽 선택 (동률이면 7900S 선호 — 시트비 낮음).
+interface AutoSettings {
+  bindingTab: 'compressed' | 'tack' | 'perfect';
+  sheetKey: SheetKey;
+  sheetW: number;
+  sheetH: number;
+  marginT: number;
+  marginR: number;
+  marginB: number;
+  marginL: number;
+  gutter: number;
+  bleed: number;
+  rotationPolicy: '0' | '90' | 'auto';
+  creaseWidth: number;
+  tackMargin: number;
+  tackEdge: 'left' | 'right' | 'top' | 'bottom';
+}
+
+function evalSheetNup(
+  sw: number,
+  sh: number,
+  pw_mm: number,
+  ph_mm: number,
+  bleed: number,
+  gutter: number,
+  marginT: number,
+  marginR: number,
+  marginB: number,
+  marginL: number,
+): number {
+  const pw = pw_mm + 2 * bleed;
+  const ph = ph_mm + 2 * bleed;
+  const printW = sw - marginL - marginR;
+  const printH = sh - marginT - marginB;
+  const nupAt = (w: number, h: number) => {
+    const cols = Math.floor((printW + gutter) / (w + gutter));
+    const rows = Math.floor((printH + gutter) / (h + gutter));
+    return Math.max(0, cols) * Math.max(0, rows);
+  };
+  return Math.max(nupAt(pw, ph), nupAt(ph, pw));
+}
+
+function computeAutoImposition(seed?: Props['seed']): AutoSettings {
+  const bindingTab: AutoSettings['bindingTab'] =
+    seed?.bindingType === 'tack' ? 'tack'
+      : seed?.bindingType === 'perfect' ? 'perfect'
+      : 'compressed';
+
+  // Indigo 7900 기본 여백 (물림/비물림쪽 8.5/2.5mm)
+  const marginT = 8.5, marginR = 2.5, marginB = 8.5, marginL = 2.5;
+  const gutter = 3;
+  // 화보(무선제본)는 블리드 불필요, 압축/타카는 3mm 블리드
+  const bleed = bindingTab === 'perfect' ? 0 : 3;
+
+  const productW = seed?.productWidth ?? 210;
+  const productH = seed?.productHeight ?? 297;
+
+  const nupS = evalSheetNup(315, 467, productW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
+  const nupL = evalSheetNup(330, 482, productW, productH, bleed, gutter, marginT, marginR, marginB, marginL);
+  const useLarge = nupL > nupS;
+
+  return {
+    bindingTab,
+    sheetKey: useLarge ? '7900' : '7900S',
+    sheetW: useLarge ? 330 : 315,
+    sheetH: useLarge ? 482 : 467,
+    marginT, marginR, marginB, marginL,
+    gutter, bleed,
+    rotationPolicy: 'auto',
+    creaseWidth: bindingTab === 'compressed' ? 3 : 0,
+    tackMargin: 12,
+    tackEdge: 'left',
+  };
+}
+
+// 제품 규격(mm)이 PRODUCT_PRESETS 항목과 1mm 오차 이내로 매칭되면 해당 키 반환, 아니면 'custom'
+function findProductPresetKey(productW_mm: number, productH_mm: number): string {
+  const found = PRODUCT_PRESETS.find(
+    (p) =>
+      p.key !== 'custom' &&
+      Math.abs(p.w - productW_mm) < 1 &&
+      Math.abs(p.h - productH_mm) < 1,
+  );
+  return found?.key ?? 'custom';
+}
+
 export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: Props) {
   // ==== 상태 ====
   const [bindingTab, setBindingTab] = useState<'compressed' | 'tack' | 'perfect'>(
@@ -145,8 +231,8 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const [showColorBar, setShowColorBar] = useState(true);
   const [showJobMeta, setShowJobMeta] = useState(true);
 
-  // 프리셋 선택 상태
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  // 자동설정 적용 여부 (사용자가 이후 수정해도 표시 유지)
+  const [autoApplied, setAutoApplied] = useState(false);
 
   // 프리뷰
   const [result, setResult] = useState<ImpositionResult | null>(null);
@@ -160,19 +246,47 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   const dlJdf = useDownloadImpositionJdf();
   const dlPdf = useDownloadImpositionPdf();
 
-  // seed 변경 시 동기화
-  useEffect(() => {
-    if (!open) return;
-    if (seed?.productWidth) setProductW(seed.productWidth);
-    if (seed?.productHeight) setProductH(seed.productHeight);
+  // 자동 임포지션 적용: seed(제본/규격/페이지)로부터 시트·여백·Nup·오시·타카까지 규칙 기반 자동 산출.
+  // 다이얼로그 오픈 또는 대상 항목 변경 시에만 실행 → 사용자의 이후 미세조정은 덮어쓰지 않음.
+  const applyAuto = () => {
+    const pW = seed?.productWidth;
+    const pH = seed?.productHeight;
+    if (pW) setProductW(pW);
+    if (pH) setProductH(pH);
     if (seed?.productUnit === 'inch' || seed?.productUnit === 'mm') {
       setProductUnit(seed.productUnit);
     }
     if (seed?.pageCount) setPageCount(seed.pageCount);
-    if (seed?.bindingType === 'tack' || seed?.bindingType === 'compressed' || seed?.bindingType === 'perfect') {
-      setBindingTab(seed.bindingType);
+
+    // 규격 프리셋 키 매칭 (있으면 드롭다운도 해당 항목으로)
+    if (pW && pH) {
+      setProductPresetKey(findProductPresetKey(pW, pH));
     }
-  }, [open, seed?.productWidth, seed?.productHeight, seed?.productUnit, seed?.pageCount, seed?.bindingType]);
+
+    const auto = computeAutoImposition(seed);
+    setBindingTab(auto.bindingTab);
+    setSheetKey(auto.sheetKey);
+    setSheetW(auto.sheetW);
+    setSheetH(auto.sheetH);
+    setMarginT(auto.marginT);
+    setMarginR(auto.marginR);
+    setMarginB(auto.marginB);
+    setMarginL(auto.marginL);
+    setGutter(auto.gutter);
+    setBleed(auto.bleed);
+    setRotationPolicy(auto.rotationPolicy);
+    setCreaseWidth(auto.creaseWidth);
+    setTackMargin(auto.tackMargin);
+    setTackEdge(auto.tackEdge);
+    setManualNup('');
+    setAutoApplied(true);
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    applyAuto();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, seed?.orderItemId, seed?.productWidth, seed?.productHeight, seed?.productUnit, seed?.pageCount, seed?.bindingType]);
 
   // ==== 요청 payload ====
   const payload: CalculateImpositionRequest = useMemo(() => ({
@@ -239,35 +353,6 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
     }
   };
 
-  // ==== 프리셋 선택 → 폼 채우기 ====
-  const onPresetPick = (p: ImpositionPreset | null) => {
-    if (!p) {
-      setSelectedPresetId(null);
-      return;
-    }
-    setSelectedPresetId(p.id);
-    setBindingTab(
-      p.bindingType === 'tack' ? 'tack'
-      : p.bindingType === 'perfect' ? 'perfect'
-      : 'compressed',
-    );
-    setSheetW(Number(p.sheetWidth));
-    setSheetH(Number(p.sheetHeight));
-    if (Number(p.sheetWidth) === 330 && Number(p.sheetHeight) === 482) setSheetKey('7900');
-    else if (Number(p.sheetWidth) === 315 && Number(p.sheetHeight) === 467) setSheetKey('7900S');
-    else setSheetKey('custom');
-    setMarginT(Number(p.marginTop));
-    setMarginR(Number(p.marginRight));
-    setMarginB(Number(p.marginBottom));
-    setMarginL(Number(p.marginLeft));
-    setGutter(Number(p.gutter));
-    setBleed(Number(p.bleed));
-    if (p.creaseWidth !== null && p.creaseWidth !== undefined) setCreaseWidth(Number(p.creaseWidth));
-    if (p.tackMargin !== null && p.tackMargin !== undefined) setTackMargin(Number(p.tackMargin));
-    if (p.tackEdge) setTackEdge(p.tackEdge);
-    setRotationPolicy(p.rotationPolicy);
-  };
-
   // ==== 프리셋 저장 ====
   const onSavePreset = () => {
     const name = window.prompt('프리셋 이름을 입력하세요', `${bindingTab} ${sheetW}×${sheetH}`);
@@ -299,46 +384,39 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   };
 
   // ==== 실행 (JDF+PDF 생성) ====
-  // 프리셋이 선택되어 있으면 그대로 사용, 없으면 현재 폼 설정으로 임시 프리셋을 자동 생성한 뒤 실행.
-  // 임시 프리셋은 이름 prefix `_즉시_` 로 저장되어 필요 시 사용자가 식별/삭제 가능.
+  // 현재 폼(자동 산출값 + 사용자 미세조정 반영) 으로 임시 프리셋을 생성한 뒤 실행.
+  // 임시 프리셋은 이름 prefix `_즉시_` 로 저장되어 필요 시 식별/삭제 가능.
   const onRun = async () => {
     if (!seed?.orderId || !seed?.orderItemId) {
       toast.error('주문/항목 정보가 없습니다. 행에서 [임포지션]을 눌러주세요.');
       return;
     }
 
-    let presetIdToUse = selectedPresetId;
-
-    // 프리셋 미선택 시: 현재 폼 설정으로 임시 프리셋 자동 생성
-    if (!presetIdToUse) {
-      try {
-        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        const created = await createPresetMut.mutateAsync({
-          name: `_즉시_${bindingTab}_${sheetW}x${sheetH}_${ts}`,
-          bindingType: bindingTab,
-          sheetWidth: sheetW,
-          sheetHeight: sheetH,
-          marginTop: marginT,
-          marginRight: marginR,
-          marginBottom: marginB,
-          marginLeft: marginL,
-          gutter,
-          bleed,
-          creaseWidth: bindingTab === 'compressed' ? creaseWidth : null,
-          tackMargin: bindingTab === 'tack' ? tackMargin : null,
-          tackEdge: bindingTab === 'tack' ? tackEdge : null,
-          grainDirection: 'short',
-          rotationPolicy,
-          isDefault: false,
-        } as any);
-        presetIdToUse = created.id;
-        toast.message('현재 설정으로 임시 프리셋이 자동 저장되었습니다.', {
-          description: `이름: ${created.name}`,
-        });
-      } catch (e: any) {
-        toast.error(`임시 프리셋 생성 실패: ${e.message}`);
-        return;
-      }
+    let presetIdToUse: string;
+    try {
+      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      const created = await createPresetMut.mutateAsync({
+        name: `_즉시_${bindingTab}_${sheetW}x${sheetH}_${ts}`,
+        bindingType: bindingTab,
+        sheetWidth: sheetW,
+        sheetHeight: sheetH,
+        marginTop: marginT,
+        marginRight: marginR,
+        marginBottom: marginB,
+        marginLeft: marginL,
+        gutter,
+        bleed,
+        creaseWidth: bindingTab === 'compressed' ? creaseWidth : null,
+        tackMargin: bindingTab === 'tack' ? tackMargin : null,
+        tackEdge: bindingTab === 'tack' ? tackEdge : null,
+        grainDirection: 'short',
+        rotationPolicy,
+        isDefault: false,
+      } as any);
+      presetIdToUse = created.id;
+    } catch (e: any) {
+      toast.error(`임시 프리셋 생성 실패: ${e.message}`);
+      return;
     }
 
     runMut.mutate(
@@ -371,15 +449,16 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
               인디고 임포지션 설정
             </DialogTitle>
             <div className="flex items-center gap-2 mr-8">
-              <div className="w-[260px]">
-                <PresetSelector
-                  value={selectedPresetId}
-                  onChange={onPresetPick}
-                  bindingType={bindingTab}
-                />
-              </div>
+              {autoApplied && (
+                <Badge variant="outline" className="text-[14px] text-black font-normal">
+                  자동 설정 적용됨
+                </Badge>
+              )}
+              <Button variant="outline" size="sm" onClick={applyAuto}>
+                자동 재적용
+              </Button>
               <Button variant="outline" size="sm" onClick={onSavePreset}>
-                저장
+                프리셋 저장
               </Button>
             </div>
           </div>
