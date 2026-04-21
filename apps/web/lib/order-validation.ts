@@ -207,7 +207,7 @@ export function validateFolder(folder: FolderLike): FolderValidationResult {
     issues.push({
       field: 'specificationId',
       label: '규격',
-      message: '규격이 매칭되지 않았습니다.',
+      message: '업로드된 파일의 규격이 시스템에 등록되어 있지 않습니다. 관리자에게 규격 등록을 요청해주세요.',
     });
   }
 

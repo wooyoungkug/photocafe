@@ -124,7 +124,6 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<SelectedOptions>({ finishings: [] });
   const [isSpecExpanded, setIsSpecExpanded] = useState(false);
-  const specManuallyChangedRef = useRef(false);
   const [showSaveMyProductModal, setShowSaveMyProductModal] = useState(false);
   const [showLoadMyProductModal, setShowLoadMyProductModal] = useState(false);
   const [myProductName, setMyProductName] = useState('');
@@ -135,7 +134,6 @@ export default function ProductPage() {
     folders: uploadFolders, clearFolders,
     applyGlobalCoverSource, setFolderFabric, setAllFoldersFoil,
     setAvailablePapers, setProductColorType, setDefaultColorMode, setDefaultBindingPrice, setBindingName, setPrintType, updateFolder: updateUploadFolder,
-    changeFolderSpec, indigoSpecs,
   } = useMultiFolderUploadStore();
 
   const [selectedFabricCategory, setSelectedFabricCategory] = useState<FabricCategory | null>(null);
@@ -582,8 +580,13 @@ export default function ProductPage() {
       const defaultPaper = filteredPapers.find(p => p.isDefault) || filteredPapers[0];
 
       setDefaultColorMode(defaultColorMode);
+      // 앨범 상품: 상품 기본규격 무시 (업로드 파일 규격을 우선 사용 - 2026-04-21)
+      // 일반 상품: 기존대로 기본규격 자동 선택
+      const isAlbumProd = isAlbumProduct(product.bindings, product.category?.name);
       setSelectedOptions({
-        specification: product.specifications?.find(s => s.isDefault) || product.specifications?.[0],
+        specification: isAlbumProd
+          ? undefined
+          : (product.specifications?.find(s => s.isDefault) || product.specifications?.[0]),
         binding: defaultBinding,
         paper: defaultPaper, printMethod: defaultPrintMethod, colorMode: defaultColorMode,
         cover: product.covers?.find(c => c.isDefault) || product.covers?.[0],
@@ -654,27 +657,9 @@ export default function ProductPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uploadFolders.length, selectedOptions.printMethod, selectedOptions.colorMode, selectedOptions.paper?.id]);
 
-  // 상단 규격 선택 변경 시 모든 폴더에 규격 동기화 (사용자가 직접 변경한 경우에만)
-  useEffect(() => {
-    if (!specManuallyChangedRef.current) return; // 초기 로딩/자동 설정은 무시, 자동감지 결과 존중
-    specManuallyChangedRef.current = false;
-    const spec = selectedOptions.specification;
-    if (!spec?.specificationId || uploadFolders.length === 0 || indigoSpecs.length === 0) return;
-    // indigoSpecs(인치 단위)에서 선택된 규격 찾기
-    const matchedStdSize = indigoSpecs.find(s => s.id === spec.specificationId);
-    if (!matchedStdSize) return;
-    uploadFolders.forEach(f => {
-      if (f.specificationId !== matchedStdSize.id) {
-        changeFolderSpec(f.id, {
-          id: matchedStdSize.id,
-          width: matchedStdSize.width,
-          height: matchedStdSize.height,
-          label: matchedStdSize.label,
-        });
-      }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedOptions.specification?.specificationId, uploadFolders.length]);
+  // 상단 규격 → 폴더 동기화 제거 (2026-04-21)
+  // 정책: 앨범 업로드 시 상품 기본규격/상단 규격은 무시하고 업로드 파일의 실제 규격을 우선 사용한다.
+  // 업로드 규격이 DB에 등록되지 않은 경우 장바구니 담기 단계에서 에러로 차단됨.
 
   // ===== 최근 주문 옵션 자동 적용 =====
   const [lastOptionsApplied, setLastOptionsApplied] = useState(false);
@@ -781,7 +766,7 @@ export default function ProductPage() {
         setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null);
       });
     }
-    if (opts.specificationId) specManuallyChangedRef.current = true; // 마이상품 규격 → 폴더 동기화
+    // 앨범 상품은 업로드 규격 우선 정책으로 마이상품 규격을 폴더에 동기화하지 않음 (2026-04-21)
     if (myProductFromParam.defaultQuantity) setQuantity(myProductFromParam.defaultQuantity);
     setMyProductApplied(true);
     recordMyProductUsage.mutate(myProductFromParam.id);
@@ -996,7 +981,7 @@ export default function ProductPage() {
       uploadFolders.forEach(f => setFolderFabric(f.id, opts.fabricId!, opts.fabricName!, opts.fabricThumbnail || null, 0, '', null, null));
       setSelectedFabricCategory(null);
     }
-    if (opts.specificationId) specManuallyChangedRef.current = true; // 마이상품 규격 → 폴더 동기화
+    // 앨범 상품은 업로드 규격 우선 정책으로 마이상품 규격을 폴더에 동기화하지 않음 (2026-04-21)
     setQuantity(myProduct.defaultQuantity);
     setShowLoadMyProductModal(false);
     toast({ title: t('myProductLoaded'), description: t('myProductLoadedDesc', { name: myProduct.name }) });
@@ -1306,7 +1291,6 @@ export default function ProductPage() {
                 const renderSpecGroup = (specs: typeof sortedSpecs) => (
                   <RadioGroup value={selectedOptions.specification?.id}
                     onValueChange={(value) => {
-                      specManuallyChangedRef.current = true;
                       setSelectedOptions(prev => ({ ...prev, specification: product.specifications?.find(s => s.id === value) }));
                     }}
                     className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">

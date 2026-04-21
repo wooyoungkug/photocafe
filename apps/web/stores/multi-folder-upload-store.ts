@@ -1039,11 +1039,12 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
         const isLandscape = rawAlbumWidth >= rawAlbumHeight; // 가로형 여부
         const availableSizes = findAvailableSizes(specs, albumRatio, isLandscape);
 
-        // 앨범 크기를 가장 가까운 표준 규격으로 스냅 (오차 0.5 이내만 스냅)
+        // 앨범 크기를 가장 가까운 표준 규격으로 스냅 (오차 0.15 이내, 사실상 정확히 일치한 경우만)
+        // 실제 업로드 규격을 그대로 유지하기 위해 허용치를 최소화함 (2026-04-21)
         const layoutSnapDiff = closestSize
           ? Math.abs(rawAlbumWidth - closestSize.width) + Math.abs(rawAlbumHeight - closestSize.height)
           : Infinity;
-        const isLayoutSnapped = layoutSnapDiff < 0.5;
+        const isLayoutSnapped = layoutSnapDiff < 0.15;
         const albumWidth = isLayoutSnapped ? closestSize!.width : rawAlbumWidth;
         const albumHeight = isLayoutSnapped ? closestSize!.height : rawAlbumHeight;
 
@@ -1327,11 +1328,12 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
     const closestSize = findClosestStandardSize(specs, representativeWidth, representativeHeight);
 
     // 앨범 크기를 가장 가까운 표준 규격으로 스냅 (소수점 오차 보정)
-    // 스냅 조건: 가로+세로 차이 합이 0.5 이내일 때만 DB 규격으로 스냅
+    // 스냅 조건: 가로+세로 차이 합이 0.15 이내일 때만 DB 규격으로 스냅
+    // (실제 업로드 규격을 우선, DB 미등록 사이즈는 에러 처리 - 2026-04-21)
     const snapDiff = closestSize
       ? Math.abs(representativeWidth - closestSize.width) + Math.abs(representativeHeight - closestSize.height)
       : Infinity;
-    const isSnapped = snapDiff < 0.5; // DB 규격에 정확히 매칭됨
+    const isSnapped = snapDiff < 0.15; // DB 규격에 정확히 매칭됨
     console.log('[규격감지] 대표규격:', { representativeWidth, representativeHeight, representativeRatio });
     console.log('[규격감지] DB 최근접 규격:', closestSize ? { width: closestSize.width, height: closestSize.height, label: closestSize.label } : 'none');
     console.log('[규격감지] snapDiff:', snapDiff, '| isSnapped:', isSnapped, '| 기준: 0.5');

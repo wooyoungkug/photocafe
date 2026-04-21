@@ -947,6 +947,25 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
       )}
 
+      {/* DB 미등록 규격 경고 (접수 차단) */}
+      {folder.specFoundInDB === false && hasValidStatus && (
+        <div className="mt-3 p-3 bg-red-50 border border-red-300 rounded-lg">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <div className="text-red-700 text-sm font-medium">
+                등록되지 않은 규격입니다
+              </div>
+              <p className="text-xs text-red-600 mt-1 leading-relaxed">
+                업로드된 파일의 규격(<strong>{folder.albumLabel}</strong>)은 시스템에 등록되지 않아 주문할 수 없습니다.
+                <br />
+                관리자에게 해당 규격 등록을 요청해주세요. 등록 후 다시 업로드하시면 주문이 가능합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 출력방식 비호환 경고 */}
       {folder.specFoundInDB && !specCompatibility.compatible && (
         <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
