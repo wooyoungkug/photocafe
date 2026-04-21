@@ -163,9 +163,13 @@ export class PrintPdfRendererService {
       margin: 0,
       size: [pdfPageWidthPt, pdfPageHeightPt],
     });
-    const writeStream = fs.createWriteStream(outputPath);
-    const finished = new Promise<string>((resolve, reject) => {
-      writeStream.on('finish', () => resolve(outputPath));
+    // 원자적 쓰기: 고유 temp 파일에 쓴 뒤 rename 으로 교체.
+    // 동일 outputPath로 2개 이상의 프로세스/Job이 동시에 써도 서로의 스트림이
+    // 간섭하지 않도록(= blank/중복 페이지 삽입 방지) 한다.
+    const tempPath = this.makeTempPath(outputPath);
+    const writeStream = fs.createWriteStream(tempPath);
+    const finished = new Promise<void>((resolve, reject) => {
+      writeStream.on('finish', () => resolve());
       writeStream.on('error', (err: any) => reject(err));
     });
     doc.pipe(writeStream);
@@ -252,7 +256,8 @@ export class PrintPdfRendererService {
     }
 
     doc.end();
-    return finished;
+    await this.finalizeTempFile(finished, tempPath, outputPath);
+    return outputPath;
   }
 
   /**
@@ -291,9 +296,11 @@ export class PrintPdfRendererService {
       margin: 0,
       size: [nupLayout.sheetWidthPt, nupLayout.sheetHeightPt],
     });
-    const writeStream = fs.createWriteStream(outputPath);
-    const finished = new Promise<string>((resolve, reject) => {
-      writeStream.on('finish', () => resolve(outputPath));
+    // 원자적 쓰기: 고유 temp 파일에 쓴 뒤 rename 으로 교체
+    const tempPath = this.makeTempPath(outputPath);
+    const writeStream = fs.createWriteStream(tempPath);
+    const finished = new Promise<void>((resolve, reject) => {
+      writeStream.on('finish', () => resolve());
       writeStream.on('error', (err: any) => reject(err));
     });
     doc.pipe(writeStream);
@@ -343,7 +350,38 @@ export class PrintPdfRendererService {
     }
 
     doc.end();
-    return finished;
+    await this.finalizeTempFile(finished, tempPath, outputPath);
+    return outputPath;
+  }
+
+  /**
+   * 원자적 쓰기 헬퍼: 고유 temp 경로 생성.
+   * 동일 outputPath에 대해 동시에 여러 Job/프로세스가 써도 서로의 temp 파일은 겹치지 않게
+   * (pid + 시각 + 난수) 조합을 꼬리에 붙인다.
+   */
+  private makeTempPath(outputPath: string): string {
+    const rand = Math.random().toString(36).slice(2, 10);
+    return `${outputPath}.tmp-${process.pid}-${Date.now()}-${rand}`;
+  }
+
+  /**
+   * 원자적 쓰기 헬퍼: writeStream 완료를 기다린 후 temp → outputPath 로 rename.
+   * 성공: 기존 파일이 있으면 원자적으로 교체 (fs.promises.rename 은 overwrite 지원).
+   * 실패: temp 파일을 정리(best-effort)하고 예외 재전파.
+   */
+  private async finalizeTempFile(
+    finished: Promise<void>,
+    tempPath: string,
+    outputPath: string,
+  ): Promise<void> {
+    try {
+      await finished;
+      await fs.promises.rename(tempPath, outputPath);
+    } catch (err) {
+      // 실패 시 temp 파일 정리 (존재하지 않거나 이미 rename 된 경우 무시)
+      await fs.promises.unlink(tempPath).catch(() => { /* ignore */ });
+      throw err;
+    }
   }
 
   /**
