@@ -300,7 +300,7 @@ export class PrintPdfRendererService {
 
         // 셀 내 재단선
         if (includeCropMarks) {
-          this.renderCropMarksInCell(doc, dims, cell.x, cell.y);
+          this.renderCropMarksInCell(doc, dims, cell.x, cell.y, cell.suppressCropMarks);
         }
 
         // 페이지별 진행률 콜백 + 이벤트 루프 양보
@@ -555,12 +555,16 @@ export class PrintPdfRendererService {
 
   /**
    * 셀 내 재단선 렌더링 (Nup용) - 이미지 영역 바깥에만 그림
+   *
+   * suppress: 인접 셀과 맞닿은 방향의 corner 마크 전체(H+V)를 억제.
+   * 예) suppress.right=true → 우상/우하 코너의 crop mark 전부 제거 (인접 셀 이미지 침범 방지)
    */
   private renderCropMarksInCell(
     doc: any,
     dims: PageDimensions,
     cellX: number,
     cellY: number,
+    suppress?: { left?: boolean; right?: boolean; top?: boolean; bottom?: boolean },
   ): void {
     const markLen = CROP_MARK.LENGTH_MM * MM_TO_PT;
     const gap = CROP_MARK.OFFSET_MM * MM_TO_PT;
@@ -574,21 +578,36 @@ export class PrintPdfRendererService {
     const tTop = cellY + dims.trimTop;
     const tBottom = cellY + dims.trimBottom;
 
+    const supL = suppress?.left === true;
+    const supR = suppress?.right === true;
+    const supT = suppress?.top === true;
+    const supB = suppress?.bottom === true;
+
+    // 코너별로 그릴지 판단: 해당 코너에 접한 두 변 중 어느 쪽도 suppress 되지 않은 경우에만 그림
+    const drawTopLeft = !supT && !supL;
+    const drawTopRight = !supT && !supR;
+    const drawBottomLeft = !supB && !supL;
+    const drawBottomRight = !supB && !supR;
+
     doc.save();
     doc.lineWidth(CROP_MARK.LINE_WIDTH).strokeColor('#000000');
 
-    // 좌상
-    doc.moveTo(imgLeft - gap - markLen, tTop).lineTo(imgLeft - gap, tTop).stroke();
-    doc.moveTo(tLeft, imgTop - gap - markLen).lineTo(tLeft, imgTop - gap).stroke();
-    // 우상
-    doc.moveTo(imgRight + gap, tTop).lineTo(imgRight + gap + markLen, tTop).stroke();
-    doc.moveTo(tRight, imgTop - gap - markLen).lineTo(tRight, imgTop - gap).stroke();
-    // 좌하
-    doc.moveTo(imgLeft - gap - markLen, tBottom).lineTo(imgLeft - gap, tBottom).stroke();
-    doc.moveTo(tLeft, imgBottom + gap).lineTo(tLeft, imgBottom + gap + markLen).stroke();
-    // 우하
-    doc.moveTo(imgRight + gap, tBottom).lineTo(imgRight + gap + markLen, tBottom).stroke();
-    doc.moveTo(tRight, imgBottom + gap).lineTo(tRight, imgBottom + gap + markLen).stroke();
+    if (drawTopLeft) {
+      doc.moveTo(imgLeft - gap - markLen, tTop).lineTo(imgLeft - gap, tTop).stroke();
+      doc.moveTo(tLeft, imgTop - gap - markLen).lineTo(tLeft, imgTop - gap).stroke();
+    }
+    if (drawTopRight) {
+      doc.moveTo(imgRight + gap, tTop).lineTo(imgRight + gap + markLen, tTop).stroke();
+      doc.moveTo(tRight, imgTop - gap - markLen).lineTo(tRight, imgTop - gap).stroke();
+    }
+    if (drawBottomLeft) {
+      doc.moveTo(imgLeft - gap - markLen, tBottom).lineTo(imgLeft - gap, tBottom).stroke();
+      doc.moveTo(tLeft, imgBottom + gap).lineTo(tLeft, imgBottom + gap + markLen).stroke();
+    }
+    if (drawBottomRight) {
+      doc.moveTo(imgRight + gap, tBottom).lineTo(imgRight + gap + markLen, tBottom).stroke();
+      doc.moveTo(tRight, imgBottom + gap).lineTo(tRight, imgBottom + gap + markLen).stroke();
+    }
 
     doc.restore();
   }

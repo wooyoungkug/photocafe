@@ -53,6 +53,16 @@ export interface NupCell {
   y: number;  // 셀 시작 Y (pt)
   width: number;  // 셀 너비 (pt)
   height: number; // 셀 높이 (pt)
+  /**
+   * 해당 방향의 crop mark 억제.
+   * preserveSpread 로 좌우 셀을 붙여 배치할 때 내부(접합)경계 crop mark 제거용.
+   */
+  suppressCropMarks?: {
+    left?: boolean;
+    right?: boolean;
+    top?: boolean;
+    bottom?: boolean;
+  };
 }
 
 export interface NupLayout {
@@ -180,12 +190,18 @@ export class PrintPdfLayoutService {
 
   /**
    * Nup 레이아웃 계산
+   *
+   * @param options.preserveSpread
+   *   2x2 (4up) 배치에서 좌우 셀을 서로 붙여(내부 크롭마진 제거) 좌우 페이지가
+   *   seam 없이 이어지도록 배치. 상/하 행 사이에는 정상 크롭마진을 유지.
+   *   양면(spread) 입력 + 4up 케이스용.
    */
   calculateNupLayout(
     spec: SpecInput,
     paper: PaperInput,
     includeBleed: boolean,
     nupOverride?: string,
+    options?: { preserveSpread?: boolean },
   ): NupLayout {
     // Nup 결정
     let nUpX = spec.nUpX ?? 1;
@@ -225,6 +241,11 @@ export class PrintPdfLayoutService {
       };
     }
 
+    // preserveSpread: 2x2(4up) 에서 좌우 셀을 붙여 배치 (내부 크롭마진 제거)
+    if (options?.preserveSpread && nUpX === 2 && nUpY === 2) {
+      return this.calculatePreserveSpread2x2Layout(spec, includeBleed);
+    }
+
     // Nup > 1: 용지 원판 크기 기준
     const sheetW = paper.sheetWidthMm ?? (spec.widthMm * nUpX + 20);
     const sheetH = paper.sheetHeightMm ?? (spec.heightMm * nUpY + 20);
@@ -255,6 +276,48 @@ export class PrintPdfLayoutService {
       nUpY,
       cells,
       cellPageDimensions,
+    };
+  }
+
+  /**
+   * preserveSpread 전용 2x2 레이아웃.
+   *
+   * 일반 2x2:
+   *   sheetW = 2 × pageW,  L/R 셀 사이에 크롭마진 × 2 (= 18mm) 틈새 존재
+   *
+   * preserveSpread 2x2:
+   *   sheetW = 2 × pageW - 2 × crop_margin  (내부 크롭마진 제거)
+   *   L 셀: x=0, 우측 crop mark 억제 (우측이 R 셀과 맞닿음)
+   *   R 셀: x=pageW - 2*crop_margin, 좌측 crop mark 억제 (좌측이 L 셀과 맞닿음)
+   *   상하 행은 정상 2 × pageH 로 유지 → 각 spread 사이엔 크롭마진 존재
+   */
+  private calculatePreserveSpread2x2Layout(spec: SpecInput, includeBleed: boolean): NupLayout {
+    const dims = this.calculate1upDimensions(spec, includeBleed);
+    const cmPt = CROP_MARGIN_MM * MM_TO_PT;
+
+    const sheetWidthPt = 2 * dims.pageWidthPt - 2 * cmPt;
+    const sheetHeightPt = 2 * dims.pageHeightPt;
+
+    // R 셀 x좌표: pageW(=imageX+imageW+imageX) - 2*cm = imageX + imageW - cm
+    // 결과적으로 R 이미지 시작 = col1X + imageX = (pageW - 2cm) + cm = pageW - cm = imageX + imageW
+    // (= L 이미지 끝과 정확히 일치 → seam 0)
+    const col1X = dims.pageWidthPt - 2 * cmPt;
+    const row1Y = dims.pageHeightPt;
+
+    const cells: NupCell[] = [
+      { x: 0,      y: 0,     width: dims.pageWidthPt, height: dims.pageHeightPt, suppressCropMarks: { right: true } },
+      { x: col1X,  y: 0,     width: dims.pageWidthPt, height: dims.pageHeightPt, suppressCropMarks: { left: true } },
+      { x: 0,      y: row1Y, width: dims.pageWidthPt, height: dims.pageHeightPt, suppressCropMarks: { right: true } },
+      { x: col1X,  y: row1Y, width: dims.pageWidthPt, height: dims.pageHeightPt, suppressCropMarks: { left: true } },
+    ];
+
+    return {
+      sheetWidthPt,
+      sheetHeightPt,
+      nUpX: 2,
+      nUpY: 2,
+      cells,
+      cellPageDimensions: dims,
     };
   }
 }

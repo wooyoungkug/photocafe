@@ -562,11 +562,23 @@ export class PrintPdfService implements OnModuleInit {
         sheetHeightMm: paperData.sheetHeightMm,
       };
 
+      // preserveSpread: 양면(spread) 입력 + 4up 인 경우 좌우 셀 내부 틈새(크롭마진)를 제거하여
+      // 좌우 페이지가 seam 없이 붙어보이도록 배치.
+      const isSpreadInput = String(item.pageLayout || '').toLowerCase() === 'spread';
+      const resolvedNupText = (dto.nupOverride || specData.nup || '').toLowerCase();
+      const resolvedNupCount = (() => {
+        const m = resolvedNupText.match(/^(\d+)up$/);
+        if (m) return parseInt(m[1], 10);
+        return (specData.nUpX || 1) * (specData.nUpY || 1);
+      })();
+      const preserveSpread = isSpreadInput && resolvedNupCount === 4;
+
       const nupLayout = this.layout.calculateNupLayout(
         specInput,
         paperInput,
         dto.includeBleed,
         dto.nupOverride,
+        { preserveSpread },
       );
 
       // 이미지영역(mm) 계산: imageSize 지정 시 해당 값, 아니면 레이아웃 기준
