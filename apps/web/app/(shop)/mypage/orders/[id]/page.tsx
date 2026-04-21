@@ -754,7 +754,7 @@ export default function OrderDetailPage() {
                                   if (item.pageLayout === 'spread') {
                                     // 펼침면: 파일 1개 = 스프레드 1개
                                     return (
-                                      <div className="grid grid-cols-6 gap-3 p-2 bg-gray-50 rounded-lg border">
+                                      <div className="grid grid-cols-4 gap-3 p-2 bg-gray-50 rounded-lg border">
                                         {thumbnailFiles.map((file, idx) => {
                                           const pageLabel = getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection);
                                           return (
@@ -799,7 +799,7 @@ export default function OrderDetailPage() {
                                   }
 
                                   return (
-                                    <div className="grid grid-cols-6 gap-3 p-2 bg-gray-50 rounded-lg border">
+                                    <div className="grid grid-cols-4 gap-3 p-2 bg-gray-50 rounded-lg border">
                                       {spreads.map((spread, spreadIdx) => {
                                         const leftFile = spread.left.type === 'page' ? thumbnailFiles[spread.left.fileIndex] : null;
                                         const rightFile = spread.right.type === 'page' ? thumbnailFiles[spread.right.fileIndex] : null;
