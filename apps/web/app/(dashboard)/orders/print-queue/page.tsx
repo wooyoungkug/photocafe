@@ -238,7 +238,18 @@ export default function PrintQueuePage() {
               </span>
             )}
             <Button
-              onClick={() => setConvertDialogOpen(true)}
+              onClick={() => {
+                if (selectedIds.length === 0) return;
+                const first = items.find((it) => it.id === selectedIds[0]);
+                if (!first) {
+                  toast.error('선택 항목을 찾을 수 없습니다.');
+                  return;
+                }
+                if (selectedIds.length > 1) {
+                  toast.info(`${selectedIds.length}건 중 첫 항목(${first.orderNumber})의 임포지션 설정을 엽니다. 나머지는 행의 [임포지션] 버튼으로 개별 처리하세요.`);
+                }
+                openImposition(first);
+              }}
               disabled={selectedIds.length === 0}
               className="gap-1.5"
             >
