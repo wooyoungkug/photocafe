@@ -224,7 +224,7 @@ function formatFileSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)}GB`;
 }
 
-import { getSpreadPageLabel } from '@/lib/page-utils';
+import { getSpreadPageLabel, pairSinglePagesForSpread } from '@/lib/page-utils';
 import { normalizeImageUrl } from '@/lib/utils';
 
 export default function OrderDetailPage() {
@@ -682,19 +682,16 @@ export default function OrderDetailPage() {
                                     * 원본 파일 삭제됨 - 썸네일만 표시됩니다
                                   </p>
                                 )}
-                                <div className={item.pageLayout === 'spread' ? 'grid grid-cols-4 gap-1' : 'flex flex-wrap gap-2'}>
-                                  {thumbnailFiles.map((file, idx) => {
-                                    const isSpread = file.width > 0 && file.height > 0 && file.width > file.height;
-                                    return (
+                                {(() => {
+                                  const renderThumb = (file: typeof thumbnailFiles[number], pageNumber: number, globalIdx: number) => (
                                     <div
                                       key={file.id}
-                                      className="relative rounded-md overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 hover:shadow-md transition-all group"
-                                      style={item.pageLayout !== 'spread' ? { width: isSpread ? 'calc(25% - 6px)' : 'calc(12.5% - 7px)' } : undefined}
-                                      onClick={() => openPreview(thumbnailFiles, idx, item.productName)}
+                                      className="relative flex-1 min-w-0 rounded-sm overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 hover:shadow-md transition-all group"
+                                      onClick={() => openPreview(thumbnailFiles, globalIdx, item.productName)}
                                     >
                                       <img
                                         src={normalizeImageUrl(file.thumbnailUrl)}
-                                        alt={`p${idx + 1}`}
+                                        alt={`p${pageNumber}`}
                                         className="w-full h-auto block"
                                         loading="lazy"
                                         onError={(e) => {
@@ -703,7 +700,6 @@ export default function OrderDetailPage() {
                                           const parent = img.parentElement!;
                                           parent.style.aspectRatio = '3/4';
                                           parent.style.backgroundColor = '#f3f4f6';
-                                          // 아이콘 추가
                                           if (!parent.querySelector('.thumb-error')) {
                                             const icon = document.createElement('div');
                                             icon.className = 'thumb-error absolute inset-0 flex items-center justify-center';
@@ -713,9 +709,7 @@ export default function OrderDetailPage() {
                                         }}
                                       />
                                       <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
-                                        <span className="text-white text-[10px] font-normal">
-                                          {getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection)}
-                                        </span>
+                                        <span className="text-white text-[10px] font-normal">{pageNumber}</span>
                                       </div>
                                       {file.storageStatus === 'deleted' && (
                                         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
@@ -723,9 +717,75 @@ export default function OrderDetailPage() {
                                         </div>
                                       )}
                                     </div>
+                                  );
+                                  const renderEmpty = (key: string) => (
+                                    <div key={key} className="flex-1 min-w-0 border border-dashed border-gray-200 bg-gray-50 rounded-sm" style={{ aspectRatio: '3/4' }} />
+                                  );
+
+                                  if (item.pageLayout === 'spread') {
+                                    // 펼침면: 기존처럼 파일 1개 = 펼침면 1개 (좌우 합쳐진 이미지)
+                                    return (
+                                      <div className="grid grid-cols-4 gap-1">
+                                        {thumbnailFiles.map((file, idx) => (
+                                          <div
+                                            key={file.id}
+                                            className="relative rounded-md overflow-hidden border border-gray-200 bg-white cursor-pointer hover:ring-2 hover:ring-primary/50 hover:shadow-md transition-all group"
+                                            onClick={() => openPreview(thumbnailFiles, idx, item.productName)}
+                                          >
+                                            <img
+                                              src={normalizeImageUrl(file.thumbnailUrl)}
+                                              alt={`p${idx + 1}`}
+                                              className="w-full h-auto block"
+                                              loading="lazy"
+                                              onError={(e) => {
+                                                const img = e.currentTarget;
+                                                img.style.display = 'none';
+                                                const parent = img.parentElement!;
+                                                parent.style.aspectRatio = '3/4';
+                                                parent.style.backgroundColor = '#f3f4f6';
+                                                if (!parent.querySelector('.thumb-error')) {
+                                                  const icon = document.createElement('div');
+                                                  icon.className = 'thumb-error absolute inset-0 flex items-center justify-center';
+                                                  icon.innerHTML = '<svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"></path></svg>';
+                                                  parent.appendChild(icon);
+                                                }
+                                              }}
+                                            />
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 pb-0.5 pt-3">
+                                              <span className="text-white text-[10px] font-normal">
+                                                {getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection)}
+                                              </span>
+                                            </div>
+                                            {file.storageStatus === 'deleted' && (
+                                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                                <span className="text-white text-[10px] font-normal">삭제됨</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
                                     );
-                                  })}
-                                </div>
+                                  }
+
+                                  // 낱장(single): 제본방향에 맞춰 2장씩 묶어 펼침면처럼 표시
+                                  const indexed = thumbnailFiles.map((f, i) => ({ file: f, globalIdx: i }));
+                                  const pairs = pairSinglePagesForSpread(indexed, item.bindingDirection);
+                                  return (
+                                    <div className="grid grid-cols-4 gap-2">
+                                      {pairs.map((pair, pairIdx) => {
+                                        const [left, right] = pair;
+                                        const leftPageNum = left ? left.globalIdx + 1 : null;
+                                        const rightPageNum = right ? right.globalIdx + 1 : null;
+                                        return (
+                                          <div key={`pair-${pairIdx}`} className="flex gap-0">
+                                            {left ? renderThumb(left.file, leftPageNum!, left.globalIdx) : renderEmpty(`pair-${pairIdx}-l`)}
+                                            {right ? renderThumb(right.file, rightPageNum!, right.globalIdx) : renderEmpty(`pair-${pairIdx}-r`)}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                })()}
                                 <div className="flex items-center gap-4 mt-2 text-[11px] text-gray-400">
                                   <span>총 {item.pages || thumbnailFiles.length}페이지</span>
                                   {thumbnailFiles[0] && (

@@ -52,6 +52,37 @@ export function getPagePairForSheet(pageNumber: number): [number, number] {
 }
 
 /**
+ * 낱장(single) 파일을 제본방향에 맞춰 좌/우 펼침면으로 페어링.
+ * 각 요소는 [left, right] 쌍이며 빈 칸은 null.
+ * - RIGHT_START_*: 첫 페이지가 우측 단독 (좌 빈칸)
+ * - LEFT_END 로 끝나고 쌍이 맞지 않으면 마지막 페이지는 좌측 단독
+ * - LEFT_START_RIGHT_END (기본): 단순히 앞에서부터 두 장씩
+ */
+export function pairSinglePagesForSpread<T>(
+  files: T[],
+  bindingDirection: string | null | undefined,
+): Array<[T | null, T | null]> {
+  const dir = bindingDirection || 'LEFT_START_RIGHT_END';
+  const rightStart = dir.startsWith('RIGHT_START');
+  const pairs: Array<[T | null, T | null]> = [];
+
+  let i = 0;
+  // RIGHT_START: 첫 페이지는 우측 단독
+  if (rightStart && files.length > 0) {
+    pairs.push([null, files[0]]);
+    i = 1;
+  }
+  // 중간: 좌/우 쌍
+  while (i < files.length) {
+    const left = files[i] ?? null;
+    const right = i + 1 < files.length ? files[i + 1] : null;
+    pairs.push([left, right]);
+    i += 2;
+  }
+  return pairs;
+}
+
+/**
  * 페이지 번호로 해당 OrderFile 찾기
  */
 export function getFileForPageNumber(
