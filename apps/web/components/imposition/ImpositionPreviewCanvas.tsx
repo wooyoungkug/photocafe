@@ -1,17 +1,46 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { ImpositionResult } from '@/hooks/use-imposition';
+import { ZoomIn, ZoomOut, Maximize2, X } from 'lucide-react';
 
 interface Props {
   result: ImpositionResult | null;
   sheetIndex?: number;
 }
 
+const ZOOM_LEVELS = [0.5, 0.75, 1, 1.5, 2, 3, 4];
+
 /**
  * SVG 기반 임포지션 프리뷰.
  * debounce 150ms 은 호출 측(ImpositionSettingsDialog)에서 적용.
  */
 export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Props) {
+  const [zoom, setZoom] = useState(1);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const zoomIn = () => {
+    const idx = ZOOM_LEVELS.findIndex((z) => z >= zoom);
+    const next = idx < ZOOM_LEVELS.length - 1 ? ZOOM_LEVELS[idx + 1] : ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+    setZoom(next);
+  };
+  const zoomOut = () => {
+    const idx = ZOOM_LEVELS.findIndex((z) => z >= zoom);
+    const next = idx > 0 ? ZOOM_LEVELS[idx - 1] : ZOOM_LEVELS[0];
+    setZoom(next);
+  };
+  const resetZoom = () => setZoom(1);
+
+  // Esc 키로 전체화면 닫기
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFullscreen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [fullscreen]);
+
   if (!result) {
     return (
       <div className="flex items-center justify-center h-[500px] border border-dashed border-gray-300 rounded-lg bg-gray-50">
@@ -61,11 +90,54 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
         </div>
       </div>
 
-      <div className="border rounded-lg bg-white p-4 overflow-hidden">
+      {/* 확대/축소 컨트롤 */}
+      <div className="flex items-center justify-end gap-1.5">
+        <button
+          type="button"
+          onClick={zoomOut}
+          disabled={zoom <= ZOOM_LEVELS[0]}
+          className="h-7 w-7 flex items-center justify-center rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="축소"
+        >
+          <ZoomOut className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={resetZoom}
+          className="h-7 px-2 min-w-[52px] text-[12px] font-medium rounded border border-gray-300 bg-white hover:bg-gray-50"
+          title="100%로 재설정"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          onClick={zoomIn}
+          disabled={zoom >= ZOOM_LEVELS[ZOOM_LEVELS.length - 1]}
+          className="h-7 w-7 flex items-center justify-center rounded border border-gray-300 bg-white hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="확대"
+        >
+          <ZoomIn className="h-3.5 w-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setFullscreen(true)}
+          className="h-7 w-7 flex items-center justify-center rounded border border-gray-300 bg-white hover:bg-gray-50"
+          title="전체화면"
+        >
+          <Maximize2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="border rounded-lg bg-white p-4 overflow-auto" style={{ maxHeight: 560 }}>
         <svg
           viewBox={`0 0 ${sw} ${sh}`}
-          className="w-full h-auto"
-          style={{ maxHeight: 500 }}
+          style={{
+            width: `${100 * zoom}%`,
+            height: 'auto',
+            maxHeight: zoom === 1 ? 500 : undefined,
+            display: 'block',
+            margin: '0 auto',
+          }}
           preserveAspectRatio="xMidYMid meet"
         >
           {/* 시트 전체 (외곽 = 비인쇄 여백 영역, 옅은 회색) */}
@@ -196,6 +268,116 @@ export default function ImpositionPreviewCanvas({ result, sheetIndex = 0 }: Prop
             </li>
           ))}
         </ul>
+      )}
+
+      {/* 전체화면 오버레이 */}
+      {fullscreen && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-6"
+          onClick={() => setFullscreen(false)}
+        >
+          <div
+            className="relative bg-white rounded-lg shadow-2xl w-full h-full max-w-[95vw] max-h-[95vh] p-6 overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setFullscreen(false)}
+              className="absolute top-3 right-3 h-9 w-9 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 z-10"
+              title="닫기 (Esc)"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div className="flex items-center gap-3 text-[14px] text-black font-normal flex-wrap mb-3 pr-12">
+              <span>시트: {sw}×{sh} mm</span>
+              <span>·</span>
+              <span className="text-blue-600">인쇄영역: {usableW}×{usableH} mm</span>
+              <span>·</span>
+              <span>Nup: {result.nup} ({result.cols}×{result.rows})</span>
+              <span>·</span>
+              <span>회전: {result.rotation}°</span>
+              <span>·</span>
+              <span className={utilColor}>활용률 {(util * 100).toFixed(1)}%</span>
+            </div>
+            <svg
+              viewBox={`0 0 ${sw} ${sh}`}
+              className="w-full h-auto"
+              style={{ maxHeight: 'calc(95vh - 120px)' }}
+              preserveAspectRatio="xMidYMid meet"
+            >
+              <rect x={0} y={0} width={sw} height={sh} fill="#f3f4f6" stroke="#94a3b8" strokeWidth={0.6} />
+              <rect
+                x={usableX}
+                y={usableY}
+                width={usableW}
+                height={usableH}
+                fill="#ffffff"
+                stroke="#2563eb"
+                strokeWidth={0.6}
+                strokeDasharray="3 1.5"
+              />
+              <text x={usableX + 1.5} y={usableY + 4.5} fontSize={3} fill="#2563eb" fontFamily="monospace">
+                인쇄영역 {usableW}×{usableH}mm
+              </text>
+              {sheet.placements.map((p, i) => {
+                const wStr = Number.isInteger(p.width) ? `${p.width}` : p.width.toFixed(1);
+                const hStr = Number.isInteger(p.height) ? `${p.height}` : p.height.toFixed(1);
+                const dimFontSize = Math.min(Math.min(p.width, p.height) * 0.055, 4);
+                return (
+                  <g key={i}>
+                    <rect x={p.x} y={p.y} width={p.width} height={p.height} fill="#f1f5f9" stroke="#64748b" strokeWidth={0.4} />
+                    <text
+                      x={p.x + p.width / 2}
+                      y={p.y + p.height / 2}
+                      fontSize={Math.min(p.width, p.height) * 0.18}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      fill="#334155"
+                      fontFamily="monospace"
+                    >
+                      {p.pages.join(' / ')}
+                    </text>
+                    <text x={p.x + p.width / 2} y={p.y + dimFontSize + 0.8} fontSize={dimFontSize} textAnchor="middle" fill="#475569" fontFamily="monospace">
+                      ↔ {wStr}mm
+                    </text>
+                    <text
+                      x={p.x + dimFontSize + 0.8}
+                      y={p.y + p.height / 2}
+                      fontSize={dimFontSize}
+                      textAnchor="middle"
+                      fill="#475569"
+                      fontFamily="monospace"
+                      transform={`rotate(-90, ${p.x + dimFontSize + 0.8}, ${p.y + p.height / 2})`}
+                    >
+                      ↕ {hStr}mm
+                    </text>
+                    {p.creaseX !== undefined && (
+                      <line x1={p.creaseX} y1={p.y} x2={p.creaseX} y2={p.y + p.height} stroke="#2563eb" strokeWidth={0.5} strokeDasharray="1.5 1" />
+                    )}
+                    {p.tackEdge && result.echo.tackMargin !== undefined && (
+                      <TackOverlay p={p} margin={result.echo.tackMargin} />
+                    )}
+                  </g>
+                );
+              })}
+              <text x={sw / 2} y={3.5} fontSize={3.5} textAnchor="middle" fill="#1e293b" fontFamily="monospace" fontWeight="bold">
+                ↔ 시트 {sw}mm
+              </text>
+              <text
+                x={3.5}
+                y={sh / 2}
+                fontSize={3.5}
+                textAnchor="middle"
+                fill="#1e293b"
+                fontFamily="monospace"
+                fontWeight="bold"
+                transform={`rotate(-90, 3.5, ${sh / 2})`}
+              >
+                ↕ 시트 {sh}mm
+              </text>
+            </svg>
+          </div>
+        </div>
       )}
     </div>
   );
