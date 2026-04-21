@@ -1,7 +1,45 @@
 import { Injectable } from '@nestjs/common';
-import { PDFDocument, rgb, PDFPage, degrees } from 'pdf-lib';
+import { PDFDocument, rgb, PDFPage, degrees, PDFFont, StandardFonts } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
 import * as fs from 'fs';
+import * as path from 'path';
 import { ImpositionResult, MM_TO_PT } from './imposition-calc.service';
+
+/** NanumGothic.ttf 경로 탐색 (print-pdf-renderer와 동일 규칙) */
+function resolveKoreanFontPath(): string | null {
+  const candidates = [
+    path.resolve(process.cwd(), 'fonts', 'NanumGothic.ttf'),
+    path.resolve(__dirname, '../../../../fonts/NanumGothic.ttf'),
+    path.resolve(__dirname, '../../../../../fonts/NanumGothic.ttf'),
+    '/app/fonts/NanumGothic.ttf',
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
+/**
+ * jobMetaText 용 폰트 임베드.
+ * 한글 폰트가 있으면 NanumGothic(subset), 없으면 Helvetica + ASCII 강제 필터.
+ */
+export async function embedMetaFont(
+  doc: PDFDocument,
+): Promise<{ font: PDFFont; sanitize: (s: string) => string }> {
+  const fontPath = resolveKoreanFontPath();
+  if (fontPath) {
+    doc.registerFontkit(fontkit);
+    const bytes = fs.readFileSync(fontPath);
+    const font = await doc.embedFont(bytes, { subset: true });
+    return { font, sanitize: (s) => s };
+  }
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  // WinAnsi 외 문자(한글 포함) 제거 — 없으면 공란
+  return {
+    font,
+    sanitize: (s) => s.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim(),
+  };
+}
 
 export interface PdfBuildOptions {
   /** 원본 PDF 파일 경로 (페이지 임베드용). null 이면 빈 박스만 그림. */
@@ -31,6 +69,9 @@ export interface PdfBuildOptions {
 export class ImpositionPdfService {
   async build(result: ImpositionResult, options: PdfBuildOptions = {}): Promise<Uint8Array> {
     const out = await PDFDocument.create();
+
+    // jobMetaText 가 있으면 한글 지원 폰트 임베드 (없을 때 Helvetica + ASCII 필터)
+    const meta = options.jobMetaText ? await embedMetaFont(out) : null;
 
     // 원본 PDF 임베드(있으면)
     let embedded: import('pdf-lib').PDFEmbeddedPage[] | null = null;
@@ -140,8 +181,8 @@ export class ImpositionPdfService {
       if (options.drawColorBar !== false) {
         drawColorBar(page, sheetWpt, sheetHpt);
       }
-      if (options.jobMetaText) {
-        drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount);
+      if (options.jobMetaText && meta) {
+        drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
       }
     }
 
@@ -345,12 +386,19 @@ export function drawJobMeta(
   text: string,
   sheetNum: number,
   sheetTotal: number,
+  font: PDFFont,
+  sanitize: (s: string) => string,
 ) {
-  const label = `${text} | 시트 ${sheetNum}/${sheetTotal}`;
+  // 폰트가 한글 미지원(Helvetica)이면 sanitize 가 비ASCII 제거
+  // — 공란이면 시트번호만이라도 표시
+  const safeText = sanitize(text);
+  const sheetLabel = sanitize(`시트 ${sheetNum}/${sheetTotal}`) || `Sheet ${sheetNum}/${sheetTotal}`;
+  const label = safeText ? `${safeText} | ${sheetLabel}` : sheetLabel;
   page.drawText(label, {
     x: 12,
     y: sheetH - 10,
     size: 7,
     color: rgb(0.1, 0.1, 0.1),
+    font,
   });
 }
