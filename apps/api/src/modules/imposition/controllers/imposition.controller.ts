@@ -296,10 +296,21 @@ export class ImpositionController {
 
 function parseSize(size: string): { w: number; h: number } {
   if (!size) return { w: 0, h: 0 };
-  // "210x297", "210*297", "210 x 297", "210mm x 297mm"
+  // "210x297", "210*297", "210 x 297", "210mm x 297mm", "9×12인치", "7x5.5 inch"
   const m = size.match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
-  if (m) return { w: parseFloat(m[1]), h: parseFloat(m[2]) };
-  return { w: 0, h: 0 };
+  if (!m) return { w: 0, h: 0 };
+  let w = parseFloat(m[1]);
+  let h = parseFloat(m[2]);
+  // 단위 판별: "인치"/"inch"/"in" 명시 시 inch → mm 변환 (×25.4)
+  // 명시 없으면 mm 로 가정 (기존 동작 유지)
+  if (/인치|inch|"|″|\bin\b/i.test(size)) {
+    w *= 25.4;
+    h *= 25.4;
+  } else if (/cm|센치|센티/i.test(size)) {
+    w *= 10;
+    h *= 10;
+  }
+  return { w, h };
 }
 
 function mapBindingType(binding: string): 'compressed' | 'tack' | 'perfect' | 'flat' {
