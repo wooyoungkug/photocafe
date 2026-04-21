@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleInit, Optional } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import {
   GeneratePrintPdfDto,
@@ -9,6 +9,7 @@ import {
 import { PrintPdfRendererService, IndexData } from './print-pdf-renderer.service';
 import { PrintPdfLayoutService, SpecInput, PaperInput } from './print-pdf-layout.service';
 import { PrintPdfSlipPrinterService } from './print-pdf-slip-printer.service';
+import { ImpositionMatcherService } from '../../imposition/services/imposition-matcher.service';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -34,6 +35,7 @@ export class PrintPdfService implements OnModuleInit {
     private readonly renderer: PrintPdfRendererService,
     private readonly layout: PrintPdfLayoutService,
     private readonly slipPrinter: PrintPdfSlipPrinterService,
+    @Optional() private readonly matcher?: ImpositionMatcherService,
   ) {}
 
   /**
@@ -604,10 +606,51 @@ export class PrintPdfService implements OnModuleInit {
         sheetHeightMm: paperData.sheetHeightMm,
       };
 
+      // 임포지션 프리셋 매칭: JDF 옵션(시트크기·블리드) 적용
+      const impositionBinding = this.resolveImpositionBinding(item.bindingType);
+      let resolvedNupOverride = dto.nupOverride;
+      if (this.matcher && impositionBinding && impositionBinding !== 'flat') {
+        try {
+          const matched = await this.matcher.findPreset({
+            productSize: item.size || null,
+            bindingType: impositionBinding,
+            pageCount: item.pages || null,
+          });
+          if (matched?.preset) {
+            const p = matched.preset as any;
+            if (p.sheetWidth && p.sheetHeight) {
+              paperInput.sheetWidthMm = Number(p.sheetWidth);
+              paperInput.sheetHeightMm = Number(p.sheetHeight);
+            }
+            const pb = Number(p.bleed);
+            if (pb > 0) {
+              specInput.bleedTop = pb;
+              specInput.bleedBottom = pb;
+              specInput.bleedLeft = pb;
+              specInput.bleedRight = pb;
+            }
+          }
+        } catch (err: any) {
+          this.logger.warn(`Imposition preset lookup failed: ${err.message}`);
+        }
+      }
+
+      // delegateNupFromBinding: 압축/타카 제본은 임포지션 엔진으로 최적 Nup 계산
+      if (!resolvedNupOverride && impositionBinding && impositionBinding !== 'flat') {
+        const imposed = this.layout.delegateNupFromBinding(
+          item.bindingType,
+          { widthMm: specData.widthMm, heightMm: specData.heightMm, pages: item.pages || 1 },
+          { sheetWidthMm: paperInput.sheetWidthMm, sheetHeightMm: paperInput.sheetHeightMm },
+        );
+        if (imposed && imposed.nup > 1) {
+          resolvedNupOverride = `${imposed.nup}up`;
+        }
+      }
+
       // preserveSpread: 양면(spread) 입력 + 4up 인 경우 좌우 셀 내부 틈새(크롭마진)를 제거하여
       // 좌우 페이지가 seam 없이 붙어보이도록 배치.
       const isSpreadInput = String(item.pageLayout || '').toLowerCase() === 'spread';
-      const resolvedNupText = (dto.nupOverride || specData.nup || '').toLowerCase();
+      const resolvedNupText = (resolvedNupOverride || specData.nup || '').toLowerCase();
       const resolvedNupCount = (() => {
         const m = resolvedNupText.match(/^(\d+)up$/);
         if (m) return parseInt(m[1], 10);
@@ -619,7 +662,7 @@ export class PrintPdfService implements OnModuleInit {
         specInput,
         paperInput,
         dto.includeBleed,
-        dto.nupOverride,
+        resolvedNupOverride,
         { preserveSpread },
       );
 
@@ -731,8 +774,8 @@ export class PrintPdfService implements OnModuleInit {
       }
 
       // 파일명/출력 경로 결정 (customPath 있으면 {YYMMDD}/{인디고도수}/{양면|단면}/{fileName} 구조로 저장)
-      const nupCountEarly = dto.nupOverride
-        ? (parseInt(dto.nupOverride.replace(/\D/g, ''), 10) || 1)
+      const nupCountEarly = resolvedNupOverride
+        ? (parseInt(resolvedNupOverride.replace(/\D/g, ''), 10) || 1)
         : (specData.nUpX || 1) * (specData.nUpY || 1);
       const isSpreadEarly = String(item?.pageLayout || '').toLowerCase() === 'spread';
       const sideEarly = isSpreadEarly ? '양면' : '단면';
@@ -978,6 +1021,20 @@ export class PrintPdfService implements OnModuleInit {
     }
 
     return out;
+  }
+
+  /**
+   * 제본 타입 문자열 → 임포지션 엔진 바인딩 타입 변환
+   */
+  private resolveImpositionBinding(
+    binding: string | null | undefined,
+  ): 'compressed' | 'tack' | 'perfect' | 'flat' | null {
+    if (!binding) return null;
+    const s = binding.toLowerCase();
+    if (s.includes('압축') || s.includes('compressed')) return 'compressed';
+    if (s.includes('타카') || s.includes('tack')) return 'tack';
+    if (s.includes('무선') || s.includes('perfect') || s.includes('화보')) return 'perfect';
+    return 'flat';
   }
 
   /**
