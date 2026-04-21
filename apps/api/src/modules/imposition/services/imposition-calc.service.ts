@@ -204,6 +204,25 @@ export class ImpositionCalcService {
       return 0;
     };
 
+    /**
+     * 오리엔테이션 매칭 보너스.
+     * 제품과 시트의 긴축 방향이 같으면(둘 다 세로형, 둘 다 가로형, 또는 제품이 정사각형)
+     * rotation=0(회전 없음)을 우선한다. 사용자 직관(세로 시트에 세로/정사각 제품은 그대로 표시)에 맞추기 위함.
+     */
+    const orientationBonusFor = (rotation: 0 | 90, uW: number, uH: number): number => {
+      const sheetPortrait = sheetH >= sheetW;
+      // rotation 적용 후 단위박스의 방향
+      const effW = rotation === 0 ? uW : uH;
+      const effH = rotation === 0 ? uH : uW;
+      const unitPortrait = effH > effW;
+      const unitSquare = Math.abs(effH - effW) < 0.01;
+      // 정사각형: rotation=0을 선호 (둘 중 뭘 택해도 동일하지만 의미상 회전 없음이 자연스러움)
+      if (unitSquare) return rotation === 0 ? 0.05 : 0;
+      // 방향 일치: 매칭되는 회전에 보너스
+      const matches = unitPortrait === sheetPortrait;
+      return matches ? 0.05 : 0;
+    };
+
     const pickBest = (uW: number, uH: number) => {
       const rot0 = computeGrid(uW, uH);
       const rot90 = computeGrid(uH, uW);
@@ -212,13 +231,13 @@ export class ImpositionCalcService {
           rotation: 0 as 0 | 90,
           cols: rot0.cols,
           rows: rot0.rows,
-          score: rot0.cols * rot0.rows * (1 + grainScoreFor(0, uW, uH)),
+          score: rot0.cols * rot0.rows * (1 + grainScoreFor(0, uW, uH) + orientationBonusFor(0, uW, uH)),
         },
         {
           rotation: 90 as 0 | 90,
           cols: rot90.cols,
           rows: rot90.rows,
-          score: rot90.cols * rot90.rows * (1 + grainScoreFor(90, uW, uH)),
+          score: rot90.cols * rot90.rows * (1 + grainScoreFor(90, uW, uH) + orientationBonusFor(90, uW, uH)),
         },
       ];
       let filt = cands;
@@ -226,7 +245,14 @@ export class ImpositionCalcService {
       else if (rotationPolicy === '90') filt = [cands[1]];
       filt.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        return grainScoreFor(b.rotation, uW, uH) - grainScoreFor(a.rotation, uW, uH);
+        // 동률: 오리엔테이션 매칭 → grain → rotation=0 순
+        const oa = orientationBonusFor(a.rotation, uW, uH);
+        const ob = orientationBonusFor(b.rotation, uW, uH);
+        if (ob !== oa) return ob - oa;
+        const ga = grainScoreFor(a.rotation, uW, uH);
+        const gb = grainScoreFor(b.rotation, uW, uH);
+        if (gb !== ga) return gb - ga;
+        return a.rotation - b.rotation; // rotation=0 우선
       });
       return filt[0];
     };

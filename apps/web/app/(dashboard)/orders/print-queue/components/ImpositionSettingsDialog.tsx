@@ -545,6 +545,25 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
                   className="h-9 text-[14px]"
                 />
               </div>
+              {/* 배치 옵션 */}
+              <div className="flex flex-wrap gap-4 pt-1">
+                <label className="flex items-center gap-1.5 text-[14px] text-black font-normal cursor-pointer">
+                  <Checkbox
+                    checked={centerAlign}
+                    onCheckedChange={(v) => setCenterAlign(!!v)}
+                  />
+                  <span>중앙정렬</span>
+                  <span className="text-gray-500 text-[12px]">(인쇄영역을 Nup 셀로 나눠 중앙 배치)</span>
+                </label>
+                <label className="flex items-center gap-1.5 text-[14px] text-black font-normal cursor-pointer">
+                  <Checkbox
+                    checked={noGutter}
+                    onCheckedChange={(v) => setNoGutter(!!v)}
+                  />
+                  <span>여백없음</span>
+                  <span className="text-gray-500 text-[12px]">(gutter=0, 페이지 붙여서 출력)</span>
+                </label>
+              </div>
             </section>
 
             {/* 제본방식 탭 */}
