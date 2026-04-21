@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { ShopHeader } from '@/components/shop/shop-header';
 import { CategoryNav } from '@/components/shop/category-nav';
 import { ShopFooter } from '@/components/shop/shop-footer';
+import { Toaster } from '@/components/ui/toaster';
 import { useAuthStore } from '@/stores/auth-store';
 import { usePageView } from '@/hooks/use-page-view';
 
@@ -64,6 +65,7 @@ export default function ShopLayout({
         {children}
       </main>
       <ShopFooter />
+      <Toaster />
     </div>
   );
 }
