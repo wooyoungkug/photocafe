@@ -295,6 +295,7 @@ export class ImpositionController {
             drawFoldLines: marks.fold !== false,
             jobMetaText,
             spreadImages: isSpread,
+            bindingDirection: item.bindingDirection,
           });
           imagePdfPath = imagePdfFilePath;
         }

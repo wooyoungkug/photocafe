@@ -56,6 +56,15 @@ export interface ImagePdfOptions {
    * - 뒤 N페이지: 각 이미지 우측 절반
    */
   spreadImages?: boolean;
+  /**
+   * 제본방향 — 1up + spreadImages 모드에서 첫/마지막 spread의 빈 절반을 출력에서 제외할 때 사용.
+   * - 'RIGHT_START_LEFT_END': 첫 페이지가 오른쪽에서 시작 → 첫 시트의 left 절반 = blank (skip),
+   *   마지막 페이지가 왼쪽에서 끝 → 마지막 시트의 right 절반 = blank (skip)
+   * - 'LEFT_START_RIGHT_END': 첫 시트의 right 절반 = blank (skip),
+   *   마지막 시트의 left 절반 = blank (skip)
+   * 미지정 시 모든 절반 출력.
+   */
+  bindingDirection?: 'RIGHT_START_LEFT_END' | 'LEFT_START_RIGHT_END' | string | null;
 }
 
 type PDFImage = Awaited<ReturnType<PDFDocument['embedJpg']>>;
@@ -116,8 +125,30 @@ export class ImpositionImagePdfService {
       ? ['left', 'right']
       : ['none'];
 
+    // 1up + spreadImages + bindingDirection 지정 시 첫/마지막 시트의 빈 절반 식별
+    // - RIGHT_START_LEFT_END: 첫 시트 left = blank, 마지막 시트 right = blank
+    // - LEFT_START_RIGHT_END: 첫 시트 right = blank, 마지막 시트 left = blank
+    const skipBlankHalves = options.spreadImages && result.nup === 1 && !!options.bindingDirection;
+    let firstImageSheetIdx = -1;
+    let lastImageSheetIdx = -1;
+    if (skipBlankHalves) {
+      for (let i = 0; i < result.sheets.length; i++) {
+        const has = result.sheets[i].placements.some((p) =>
+          p.pages.some((pn) => imageCache.has(pn)),
+        );
+        if (has) {
+          if (firstImageSheetIdx === -1) firstImageSheetIdx = i;
+          lastImageSheetIdx = i;
+        }
+      }
+    }
+    const isRightStart = options.bindingDirection === 'RIGHT_START_LEFT_END';
+    const blankFirstHalf: 'left' | 'right' | null = isRightStart ? 'left' : 'right';
+    const blankLastHalf: 'left' | 'right' | null = isRightStart ? 'right' : 'left';
+
     for (const pass of passes) {
-      for (const sheet of result.sheets) {
+      for (let sheetIdx = 0; sheetIdx < result.sheets.length; sheetIdx++) {
+        const sheet = result.sheets[sheetIdx];
         // 스프레드 모드에서는 실제 이미지가 있는 슬롯만 포함.
         // 이미지 없는 슬롯(회색 폴백)은 건너뛰어 총 페이지 = 파일수 × 2 가 되도록 한다.
         if (options.spreadImages) {
@@ -125,6 +156,11 @@ export class ImpositionImagePdfService {
             p.pages.some((pn) => imageCache.has(pn)),
           );
           if (!hasAnyImage) continue;
+        }
+        // 첫/마지막 시트의 blank 절반 skip
+        if (skipBlankHalves) {
+          if (sheetIdx === firstImageSheetIdx && pass === blankFirstHalf) continue;
+          if (sheetIdx === lastImageSheetIdx && pass === blankLastHalf) continue;
         }
 
         const page = out.addPage([sheetWpt, sheetHpt]);
