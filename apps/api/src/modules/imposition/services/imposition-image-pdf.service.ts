@@ -236,17 +236,14 @@ function drawImageFit(
   const natW = img.width;
   const natH = img.height;
 
-  // 스프레드 절반 클리핑 모드: 이미지 높이를 슬롯 높이에 맞추고(scale=h/natH)
-  // 슬롯 경계로 클리핑하여 좌/우 절반만 표시한다.
+  // 스프레드 절반 클리핑 모드: 이미지를 슬롯에 맞게 스케일하고 슬롯 경계로 클리핑.
+  // rotation=0: 이미지 높이를 슬롯 높이에 맞추고 좌/우 절반 노출.
+  // rotation=90: 이미지를 CCW 90° 회전 후 슬롯에 맞춤.
+  //   - CCW 90° 회전 시 원본 좌측 절반은 회전 후 시각적으로 하단 절반에 위치
+  //   - 원본 우측 절반은 회전 후 시각적으로 상단 절반에 위치
+  //   - 슬롯 가로(w)에 회전 후 이미지 가로(drawH=natH*scale)를 맞춤 → scale=w/natH
   if (half === 'left' || half === 'right') {
-    const scale = h / natH;
-    const drawW = natW * scale;
-    const drawH = natH * scale;
-    // 좌측 절반: 이미지 왼쪽 끝을 슬롯 왼쪽 끝에 맞춤
-    // 우측 절반: 이미지 오른쪽 끝을 슬롯 오른쪽 끝에 맞춤
-    const drawX = half === 'left' ? x : x - (drawW - w);
-
-    // 클리핑 영역 = 슬롯 정확히
+    // 클리핑 영역 = 슬롯 정확히 (회전과 무관)
     page.pushOperators(
       pushGraphicsState(),
       moveTo(x, y),
@@ -257,7 +254,32 @@ function drawImageFit(
       clip(),
       endPath(),
     );
-    page.drawImage(img, { x: drawX, y, width: drawW, height: drawH });
+
+    if (rotation === 90) {
+      const scale = w / natH;
+      const drawW = natW * scale; // 회전 후 시각 높이
+      const drawH = natH * scale; // 회전 후 시각 가로 (= w)
+      // 회전 후 시각 bbox: x ∈ [anchorX-drawH, anchorX], y ∈ [anchorY, anchorY+drawW]
+      // anchorX = x + drawH 로 시각 좌측을 슬롯 좌측(x)에 맞춤
+      // left: 시각 하단(원본 좌측)이 슬롯 [y, y+h]에 보이도록 anchorY = y
+      // right: 시각 상단(원본 우측)이 슬롯에 보이도록 anchorY = y - drawW/2
+      const anchorX = x + drawH;
+      const anchorY = half === 'left' ? y : y - drawW / 2;
+      page.drawImage(img, {
+        x: anchorX,
+        y: anchorY,
+        width: drawW,
+        height: drawH,
+        rotate: degrees(90),
+      });
+    } else {
+      const scale = h / natH;
+      const drawW = natW * scale;
+      const drawH = natH * scale;
+      const drawX = half === 'left' ? x : x - (drawW - w);
+      page.drawImage(img, { x: drawX, y, width: drawW, height: drawH });
+    }
+
     page.pushOperators(popGraphicsState());
     return;
   }
