@@ -282,12 +282,15 @@ export function drawCreaseTicks(page: PDFPage, cx: number, yBot: number, yTop: n
 
 export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number) {
   // pdf-lib 는 dashPattern 지원 제한 → 짧은 세그먼트 반복
+  // 색/굵기: 연회색 + 얇게 (crop mark 검정 tick과 시각적 충돌 최소화)
   const dashLen = 3;
   const gapLen = 2;
-  const col = rgb(0, 0.4, 0.8);
+  const col = rgb(0.55, 0.55, 0.55);
+  const lw = 0.3;
   const dx = x2 - x1;
   const dy = y2 - y1;
   const total = Math.hypot(dx, dy);
+  if (total <= 0) return;
   const ux = dx / total;
   const uy = dy / total;
   let pos = 0;
@@ -297,9 +300,47 @@ export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number
       start: { x: x1 + ux * pos, y: y1 + uy * pos },
       end: { x: x1 + ux * segEnd, y: y1 + uy * segEnd },
       color: col,
-      thickness: 0.5,
+      thickness: lw,
     });
     pos = segEnd + gapLen;
+  }
+}
+
+/**
+ * 수평/수직 점선을 여러 구간으로 끊어서 그린다.
+ * crop mark tick 이 관통하는 구간을 시각적으로 비워 점선과 tick 이 겹치지 않게 한다.
+ *
+ * @param orientation 'horizontal' 이면 y1===y2 인 수평선, 'vertical' 이면 x1===x2 인 수직선
+ * @param gapCenters  점선 경로에서 건너뛸 좌표들 (horizontal 이면 x, vertical 이면 y)
+ * @param gapHalf     각 tick 중심에서 좌우(또는 상하)로 비울 반경 (pt)
+ */
+export function drawDashedLineSegmented(
+  page: PDFPage,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  orientation: 'horizontal' | 'vertical',
+  gapCenters: number[],
+  gapHalf: number,
+) {
+  const [start, end] =
+    orientation === 'horizontal'
+      ? [Math.min(x1, x2), Math.max(x1, x2)]
+      : [Math.min(y1, y2), Math.max(y1, y2)];
+  const gaps = gapCenters.filter((g) => g > start && g < end).sort((a, b) => a - b);
+  let cursor = start;
+  const segments: Array<[number, number]> = [];
+  for (const g of gaps) {
+    const gs = g - gapHalf;
+    const ge = g + gapHalf;
+    if (gs > cursor) segments.push([cursor, gs]);
+    cursor = Math.max(cursor, ge);
+  }
+  if (cursor < end) segments.push([cursor, end]);
+  for (const [a, b] of segments) {
+    if (orientation === 'horizontal') drawDashedLine(page, a, y1, b, y1);
+    else drawDashedLine(page, x1, a, x1, b);
   }
 }
 
@@ -459,18 +500,34 @@ export function drawFoldLines(
   const sheetWpt = sheetWMm * MM_TO_PT;
   const sheetHpt = sheetHMm * MM_TO_PT;
 
-  // 세로 중간선 (컬럼 사이) — 시트 상하 전체 관통
+  // crop mark tick 이 그려지는 좌표 (셀 좌/우 edge → x, 셀 상/하 edge → y)
+  // — 가로 점선은 이 x 좌표들을 비워서, 세로 점선은 이 y 좌표들을 비워서 그린다.
+  const tickXsPt = Array.from(
+    new Set(placements.flatMap((p) => [p.x, p.x + p.width])),
+  )
+    .sort((a, b) => a - b)
+    .map((mm) => mm * MM_TO_PT);
+  // placements 는 top-left 원점 mm → PDF 좌표(bottom-left 원점 pt) 로 변환
+  const tickYsPt = Array.from(
+    new Set(placements.flatMap((p) => [p.y, p.y + p.height])),
+  )
+    .sort((a, b) => a - b)
+    .map((mm) => sheetHpt - mm * MM_TO_PT);
+
+  const gapHalf = 2 * MM_TO_PT; // 각 tick 주변 ±2mm 를 비움
+
+  // 세로 중간선 (컬럼 사이) — 행 tick y 좌표에서 끊김
   for (const [rx, lx] of colEdges) {
     const midMm = (rx + lx) / 2;
     const xPt = midMm * MM_TO_PT;
-    drawDashedLine(page, xPt, 0, xPt, sheetHpt);
+    drawDashedLineSegmented(page, xPt, 0, xPt, sheetHpt, 'vertical', tickYsPt, gapHalf);
   }
 
-  // 가로 중간선 (행 사이) — 시트 좌우 전체 관통. y 는 bottom-left 원점 변환 필요.
+  // 가로 중간선 (행 사이) — 컬럼 tick x 좌표에서 끊김
   for (const [by, ty] of rowEdges) {
     const midMmFromTop = (by + ty) / 2;
     const yPt = sheetHpt - midMmFromTop * MM_TO_PT;
-    drawDashedLine(page, 0, yPt, sheetWpt, yPt);
+    drawDashedLineSegmented(page, 0, yPt, sheetWpt, yPt, 'horizontal', tickXsPt, gapHalf);
   }
 }
 
