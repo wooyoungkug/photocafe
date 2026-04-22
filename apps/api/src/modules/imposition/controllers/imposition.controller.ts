@@ -96,6 +96,16 @@ export class ImpositionController {
     return this.presets.create(dto);
   }
 
+  @Post('presets/find-or-create')
+  @ApiOperation({
+    summary: '임시(_즉시_) 프리셋 find-or-create',
+    description:
+      '임포지션 실행 다이얼로그용. 동일 파라미터의 _즉시_ prefix 프리셋이 있으면 재사용, 없으면 생성. 프리셋 누적 방지.',
+  })
+  findOrCreatePreset(@Body() dto: CreatePresetDto) {
+    return this.presets.findOrCreateTransient(dto);
+  }
+
   @Patch('presets/:id')
   updatePreset(@Param('id') id: string, @Body() dto: UpdatePresetDto) {
     return this.presets.update(id, dto);
