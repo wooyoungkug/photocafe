@@ -103,6 +103,13 @@ export class ImpositionImagePdfService {
     const sheetHpt = toPt(result.sheetHeight);
     const bleedPt = toPt(result.echo.bleed ?? 0);
 
+    // 인쇄영역(print area) — 시트에서 margin 을 뺀 유효 영역 (bottom-left 원점, pt)
+    const m = result.echo.margin;
+    const printAreaX = toPt(m.left);
+    const printAreaY = toPt(m.bottom);
+    const printAreaW = sheetWpt - toPt(m.left + m.right);
+    const printAreaH = sheetHpt - toPt(m.top + m.bottom);
+
     // 스프레드 이미지: 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
     // 일반 이미지: 1 패스만 실행
     const passes: Array<'left' | 'right' | 'none'> = options.spreadImages
@@ -170,18 +177,18 @@ export class ImpositionImagePdfService {
           }
         }
 
-        // 시트 단위 마크
+        // 시트 단위 마크 — 인쇄영역(print area) 안쪽에 배치
         if (options.drawRegistrationMarks !== false) {
-          drawRegistrationMarks(page, sheetWpt, sheetHpt);
+          drawRegistrationMarks(page, printAreaX, printAreaY, printAreaW, printAreaH);
         }
         if (options.drawColorBar !== false) {
-          drawColorBar(page, sheetWpt, sheetHpt);
+          drawColorBar(page, printAreaX, printAreaY, printAreaW, printAreaH);
         }
         if (options.drawFoldLines !== false && result.nup >= 2) {
           drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
         }
         if (effectiveMeta && meta) {
-          drawJobMeta(page, sheetWpt, sheetHpt, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+          drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
         }
       }
     }

@@ -94,6 +94,13 @@ export class ImpositionPdfService {
     const sheetHpt = toPt(result.sheetHeight);
     const bleedPt = toPt(result.echo.bleed ?? 0);
 
+    // 인쇄영역(print area) — 시트에서 margin 을 뺀 유효 영역 (bottom-left 원점, pt)
+    const m = result.echo.margin;
+    const printAreaX = toPt(m.left);
+    const printAreaY = toPt(m.bottom);
+    const printAreaW = sheetWpt - toPt(m.left + m.right);
+    const printAreaH = sheetHpt - toPt(m.top + m.bottom);
+
     for (const sheet of result.sheets) {
       const page = out.addPage([sheetWpt, sheetHpt]);
 
@@ -176,18 +183,18 @@ export class ImpositionPdfService {
         }
       }
 
-      // 시트 단위 마크
+      // 시트 단위 마크 — 인쇄영역(print area) 안쪽에 배치
       if (options.drawRegistrationMarks !== false) {
-        drawRegistrationMarks(page, sheetWpt, sheetHpt);
+        drawRegistrationMarks(page, printAreaX, printAreaY, printAreaW, printAreaH);
       }
       if (options.drawColorBar !== false) {
-        drawColorBar(page, sheetWpt, sheetHpt);
+        drawColorBar(page, printAreaX, printAreaY, printAreaW, printAreaH);
       }
       if (options.drawFoldLines !== false && result.nup >= 2) {
         drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
       }
       if (options.jobMetaText && meta) {
-        drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+        drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
       }
     }
 
@@ -324,17 +331,23 @@ export function drawBleedBox(
 }
 
 /**
- * 레지스트레이션 마크 — 시트 4 모서리 외곽 여백에 십자 원형 타깃.
- * 인쇄기 판 맞춤(register)용.
+ * 레지스트레이션 마크 — 인쇄영역(print area) 4 모서리 안쪽에 십자 원형 타깃.
+ * 인쇄기 판 맞춤(register)용. 시트 가장자리(여백)는 인쇄 불가 영역이라 안쪽으로 배치.
  */
-export function drawRegistrationMarks(page: PDFPage, sheetW: number, sheetH: number) {
+export function drawRegistrationMarks(
+  page: PDFPage,
+  paX: number,
+  paY: number,
+  paW: number,
+  paH: number,
+) {
   const r = 3; // 반지름(pt)
-  const off = 5; // 시트 가장자리에서의 오프셋(pt)
+  const inset = 3; // 인쇄영역 모서리에서의 들여쓰기(pt)
   const positions = [
-    { x: off + r, y: off + r },                       // 좌하
-    { x: sheetW - off - r, y: off + r },              // 우하
-    { x: off + r, y: sheetH - off - r },              // 좌상
-    { x: sheetW - off - r, y: sheetH - off - r },    // 우상
+    { x: paX + inset + r, y: paY + inset + r },                   // 좌하
+    { x: paX + paW - inset - r, y: paY + inset + r },             // 우하
+    { x: paX + inset + r, y: paY + paH - inset - r },             // 좌상
+    { x: paX + paW - inset - r, y: paY + paH - inset - r },       // 우상
   ];
   const col = rgb(0, 0, 0);
   for (const pos of positions) {
@@ -347,10 +360,16 @@ export function drawRegistrationMarks(page: PDFPage, sheetW: number, sheetH: num
 }
 
 /**
- * 컬러바 — 시트 하단 중앙에 CMYK + RGB + 그레이 스텝.
+ * 컬러바 — 인쇄영역 하단 중앙에 CMYK + RGB + 그레이 스텝.
  * 각 패치 약 8x6pt, 좌→우 순서.
  */
-export function drawColorBar(page: PDFPage, sheetW: number, sheetH: number) {
+export function drawColorBar(
+  page: PDFPage,
+  paX: number,
+  paY: number,
+  paW: number,
+  _paH: number,
+) {
   const patchW = 8;
   const patchH = 6;
   const swatches: Array<[number, number, number]> = [
@@ -366,8 +385,8 @@ export function drawColorBar(page: PDFPage, sheetW: number, sheetH: number) {
     [0.75, 0.75, 0.75],
   ];
   const totalW = patchW * swatches.length;
-  const startX = (sheetW - totalW) / 2;
-  const y = 2; // 시트 하단 2pt 여백
+  const startX = paX + (paW - totalW) / 2;
+  const y = paY + 2; // 인쇄영역 하단 안쪽 2pt
   for (let i = 0; i < swatches.length; i++) {
     const [r, g, b] = swatches[i];
     page.drawRectangle({
@@ -440,8 +459,10 @@ export function drawFoldLines(
 
 export function drawJobMeta(
   page: PDFPage,
-  sheetW: number,
-  sheetH: number,
+  paX: number,
+  paY: number,
+  _paW: number,
+  paH: number,
   text: string,
   sheetNum: number,
   sheetTotal: number,
@@ -454,8 +475,8 @@ export function drawJobMeta(
   const sheetLabel = sanitize(`시트 ${sheetNum}/${sheetTotal}`) || `Sheet ${sheetNum}/${sheetTotal}`;
   const label = safeText ? `${safeText} | ${sheetLabel}` : sheetLabel;
   page.drawText(label, {
-    x: 12,
-    y: sheetH - 10,
+    x: paX + 4,
+    y: paY + paH - 10,
     size: 7,
     color: rgb(0.1, 0.1, 0.1),
     font,
