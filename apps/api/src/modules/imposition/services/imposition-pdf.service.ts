@@ -164,17 +164,16 @@ export class ImpositionPdfService {
           drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
         }
 
-        // 압축앨범 crease (중앙 점선) — Nup>=2 스프레드 페어일 때만
+        // 압축앨범 crease (상/하 바깥쪽 tick) — Nup>=2 스프레드 페어일 때만
         // Nup=1 (compressed single) / perfect / tack / flat 은 오시 없음
+        // 이미지 영역을 가로지르지 않도록 재단선처럼 박스 바깥 위/아래 tick 만 그림
         if (options.drawCreaseMarks !== false && p.isPair && p.creaseXs && p.creaseXs.length > 0) {
           for (const cxMm of p.creaseXs) {
-            const cx = toPt(cxMm);
-            drawDashedLine(page, cx, yPt, cx, yPt + hPt);
+            drawCreaseTicks(page, toPt(cxMm), yPt, yPt + hPt);
           }
         } else if (options.drawCreaseMarks !== false && p.creaseX !== undefined && !p.needsTaping) {
           // 하위 호환 (creaseXs 미설정 레거시 레이아웃)
-          const cx = toPt(p.creaseX);
-          drawDashedLine(page, cx, yPt, cx, yPt + hPt);
+          drawCreaseTicks(page, toPt(p.creaseX), yPt, yPt + hPt);
         }
 
         // 타카 여백 음영
@@ -261,6 +260,24 @@ export function drawCropMarks(page: PDFPage, x: number, y: number, w: number, h:
   // 우하
   page.drawLine({ start: { x: x + w + off, y }, end: { x: x + w + off + len, y }, color: col, thickness: lw });
   page.drawLine({ start: { x: x + w, y: y - off }, end: { x: x + w, y: y - off - len }, color: col, thickness: lw });
+}
+
+/**
+ * 오시선(crease) 눈금 — 이미지 영역을 가로지르지 않고
+ * 페어박스의 상/하 바깥쪽에 짧은 세로 tick 만 그린다 (재단선 스타일).
+ * 제본 작업자는 두 눈금을 이은 가상의 선 위로 크리저를 맞춤.
+ *
+ * @param cx   오시 x-좌표 (pt)
+ * @param yBot 페어박스 하단 y-좌표 (pt, bottom-left 원점)
+ * @param yTop 페어박스 상단 y-좌표 (pt, bottom-left 원점)
+ */
+export function drawCreaseTicks(page: PDFPage, cx: number, yBot: number, yTop: number) {
+  const len = 5 * MM_TO_PT; // 재단선과 동일한 길이
+  const off = 2 * MM_TO_PT; // 박스 경계에서의 간격
+  // 상단: 박스 위로 len 만큼 뻗는 점선
+  drawDashedLine(page, cx, yTop + off, cx, yTop + off + len);
+  // 하단: 박스 아래로 len 만큼 뻗는 점선
+  drawDashedLine(page, cx, yBot - off, cx, yBot - off - len);
 }
 
 export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number) {

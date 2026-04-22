@@ -17,7 +17,7 @@ import * as path from 'path';
 import { ImpositionResult, MM_TO_PT } from './imposition-calc.service';
 import {
   drawCropMarks,
-  drawDashedLine,
+  drawCreaseTicks,
   drawTackMarginOverlay,
   drawBleedBox,
   drawRegistrationMarks,
@@ -202,14 +202,15 @@ export class ImpositionImagePdfService {
             drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
           }
 
-          // 압축앨범 오시선 (crease)
+          // 압축앨범 오시선 (crease) — 이미지 영역을 가로지르지 않도록
+          // 페어박스 상/하 바깥쪽에 짧은 tick 만 표시 (재단선 스타일)
           if (options.drawCreaseMarks !== false) {
             if (p.isPair && p.creaseXs && p.creaseXs.length > 0) {
               for (const cxMm of p.creaseXs) {
-                drawDashedLine(page, toPt(cxMm), yPt, toPt(cxMm), yPt + hPt);
+                drawCreaseTicks(page, toPt(cxMm), yPt, yPt + hPt);
               }
             } else if (p.creaseX !== undefined && !p.needsTaping) {
-              drawDashedLine(page, toPt(p.creaseX), yPt, toPt(p.creaseX), yPt + hPt);
+              drawCreaseTicks(page, toPt(p.creaseX), yPt, yPt + hPt);
             }
           }
 
