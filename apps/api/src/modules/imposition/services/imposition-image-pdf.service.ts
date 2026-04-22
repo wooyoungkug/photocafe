@@ -106,11 +106,17 @@ export class ImpositionImagePdfService {
     const printAreaW = sheetWpt - toPt(m.left + m.right);
     const printAreaH = sheetHpt - toPt(m.top + m.bottom);
 
-    // 스프레드 이미지: 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
-    // 일반 이미지: 1 패스만 실행
-    const passes: Array<'left' | 'right' | 'none'> = options.spreadImages
-      ? ['left', 'right']
-      : ['none'];
+    // 스프레드 입력(spreadImages) + 페어 레이아웃(isPair) 조합 감지.
+    // 이 경우 원본 파일 1장(2페이지 스프레드)이 페어박스 하나에 통째로 들어가야 하므로
+    // 좌/우 분할 패스를 돌지 않고 1 패스만 실행한다.
+    const isPairLayout =
+      result.sheets.length > 0 && result.sheets[0].placements.some((p) => p.isPair);
+    const useSpreadInPair = options.spreadImages === true && isPairLayout;
+
+    // 스프레드 이미지(1up): 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
+    // 일반 이미지 또는 스프레드+페어: 1 패스만 실행
+    const passes: Array<'left' | 'right' | 'none'> =
+      options.spreadImages && !useSpreadInPair ? ['left', 'right'] : ['none'];
 
     // 1up + spreadImages + bindingDirection 지정 시 첫/마지막 시트의 빈 절반 식별
     // - RIGHT_START_LEFT_END: 첫 시트 left = blank, 마지막 시트 right = blank
@@ -139,9 +145,15 @@ export class ImpositionImagePdfService {
         // 스프레드 모드에서는 실제 이미지가 있는 슬롯만 포함.
         // 이미지 없는 슬롯(회색 폴백)은 건너뛰어 총 페이지 = 파일수 × 2 가 되도록 한다.
         if (options.spreadImages) {
-          const hasAnyImage = sheet.placements.some((p) =>
-            p.pages.some((pn) => imageCache.has(pn)),
-          );
+          const hasAnyImage = sheet.placements.some((p) => {
+            // 스프레드+페어: 파일 1장 = 페어 1개. 페어 첫 페이지 번호로부터 파일 인덱스 산출.
+            // (pair [1,2] → file#1, pair [3,4] → file#2, ...)
+            if (useSpreadInPair && p.isPair && p.pages.length === 2) {
+              const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
+              return imageCache.has(fileKey);
+            }
+            return p.pages.some((pn) => imageCache.has(pn));
+          });
           if (!hasAnyImage) continue;
         }
         // 첫/마지막 시트의 blank 절반 skip
@@ -164,11 +176,18 @@ export class ImpositionImagePdfService {
           const hPt = toPt(p.height);
 
           if (p.isPair && p.pages.length === 2) {
-            // 압축앨범 스프레드 페어: 좌/우 절반 각각 배치
-            const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
-            const halfW = (wPt - creaseWPt) / 2;
-            drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
-            drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+            if (useSpreadInPair) {
+              // 스프레드 입력 + 페어: 파일 1장(=스프레드)이 페어박스 전체를 채움.
+              // 파일 키 = floor((pages[0]-1)/2) + 1
+              const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
+              drawImageFit(page, imageCache, fileKey, xPt, yPt, wPt, hPt, p.rotation);
+            } else {
+              // 압축앨범 비스프레드 페어: 좌/우 절반 각각 배치 (파일 2장)
+              const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
+              const halfW = (wPt - creaseWPt) / 2;
+              drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
+              drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+            }
           } else {
             drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation, pass === 'none' ? undefined : pass);
           }
