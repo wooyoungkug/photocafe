@@ -4,9 +4,6 @@ import {
   PDFPage,
   rgb,
   degrees,
-  PDFName,
-  PDFStream,
-  PDFRef,
   pushGraphicsState,
   popGraphicsState,
   moveTo,
@@ -89,18 +86,8 @@ export class ImpositionImagePdfService {
           ? await out.embedPng(bytes)
           : await out.embedJpg(bytes);
 
-        // JPEG: APP2 ICC_PROFILE이 있으면 PDF Image XObject의 ColorSpace를
-        // /ICCBased stream으로 교체. 없으면 pdf-lib 기본(DeviceRGB) 유지.
-        if (ext !== '.png') {
-          try {
-            const icc = extractIccProfile(bytes);
-            if (icc) {
-              await injectIccColorSpace(out, img, icc, 3);
-            }
-          } catch {
-            // ICC 주입 실패는 무시 (원본 DeviceRGB 유지)
-          }
-        }
+        // ICC 프로파일 주입하지 않음 — 인디고 RIP 측 표준 프로파일이 적용되어야 하므로
+        // PDF는 DeviceRGB(태그 없음)로 두고 RIP 가 변환하도록 위임한다.
 
         imageCache.set(entry.pageNumber, img);
       } catch {
@@ -350,98 +337,3 @@ function drawImageFit(
   }
 }
 
-/**
- * JPEG의 APP2(0xFFE2) 세그먼트에서 ICC 프로파일을 추출.
- * 여러 청크로 나뉜 경우 chunk 번호 순서대로 이어 붙여 반환.
- * ICC 프로파일이 없으면 null.
- */
-function extractIccProfile(jpegBytes: Buffer | Uint8Array): Buffer | null {
-  const buf = Buffer.isBuffer(jpegBytes) ? jpegBytes : Buffer.from(jpegBytes);
-  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
-
-  const chunks = new Map<number, Buffer>();
-  let totalChunks = 0;
-  let i = 2; // SOI 다음부터 스캔
-
-  while (i < buf.length - 4) {
-    if (buf[i] !== 0xff) break;
-    const marker = buf[i + 1];
-    // SOS(0xDA) 이후는 압축 데이터 구간 — 더 이상 APP 세그먼트 없음
-    if (marker === 0xda) break;
-    // 0xFF 패딩 스킵
-    if (marker === 0xff) {
-      i += 1;
-      continue;
-    }
-    // 세그먼트 없는 마커 (RSTn, SOI, EOI, TEM)
-    if (
-      marker === 0xd8 ||
-      marker === 0xd9 ||
-      (marker >= 0xd0 && marker <= 0xd7) ||
-      marker === 0x01
-    ) {
-      i += 2;
-      continue;
-    }
-    if (i + 4 > buf.length) break;
-    const segLen = buf.readUInt16BE(i + 2);
-    if (segLen < 2 || i + 2 + segLen > buf.length) break;
-
-    if (marker === 0xe2 && segLen > 16) {
-      // APP2 payload: "ICC_PROFILE\0" (12 bytes) + chunkNum(1) + chunkCnt(1) + profileData
-      const sig = buf.slice(i + 4, i + 16).toString('ascii');
-      if (sig === 'ICC_PROFILE\0') {
-        const chunkNum = buf[i + 16]; // 1-based
-        const chunkCnt = buf[i + 17];
-        totalChunks = chunkCnt;
-        const start = i + 18;
-        const end = i + 2 + segLen;
-        chunks.set(chunkNum, buf.slice(start, end));
-      }
-    }
-    i += 2 + segLen;
-  }
-
-  if (chunks.size === 0 || totalChunks === 0) return null;
-  const parts: Buffer[] = [];
-  for (let n = 1; n <= totalChunks; n++) {
-    const c = chunks.get(n);
-    if (!c) return null; // 누락 청크 — 안전하게 포기
-    parts.push(c);
-  }
-  return Buffer.concat(parts);
-}
-
-/**
- * 이미 임베드된 PDFImage의 Image XObject에 /ColorSpace [/ICCBased <stream>]를 주입.
- *
- * pdf-lib의 embedJpg/embedPng는 ref만 예약하고 실제 스트림은 save()에서 할당하므로,
- * 여기서 수동으로 image.embed()를 await한 뒤 lookup으로 dict를 얻어 ColorSpace 키를 교체한다.
- * image.embed()는 멱등적이며 이후 save() 시 skip된다.
- */
-async function injectIccColorSpace(
-  doc: PDFDocument,
-  pdfImage: PDFImage,
-  iccProfile: Buffer,
-  nComponents: 1 | 3 | 4,
-): Promise<void> {
-  // 1) JPEG bytes가 이미 context에 실제 스트림으로 등록되도록 embed 강제 실행
-  await (pdfImage as any).embed();
-
-  // 2) Image XObject 스트림 조회 (이제 존재). lookup은 PDFRawStream 오버로드가 없으므로
-  //    PDFStream으로 조회 — 실제 인스턴스는 PDFRawStream이며 .dict 속성을 공유한다.
-  const imgRef: PDFRef = (pdfImage as any).ref;
-  const imgStream = doc.context.lookup(imgRef, PDFStream);
-  if (!imgStream) return;
-
-  // 3) ICC 프로파일 raw stream 생성 — PDF writer가 자동으로 /Length 삽입하므로
-  //    dict에는 N(컴포넌트 수)만 명시.
-  const iccStream = doc.context.stream(iccProfile, {
-    N: nComponents,
-  });
-  const iccRef = doc.context.register(iccStream);
-
-  // 4) ICCBased ColorSpace 배열 [/ICCBased <ref>] 생성 후 기존 /ColorSpace 덮어쓰기
-  const csArray = doc.context.obj([PDFName.of('ICCBased'), iccRef]);
-  imgStream.dict.set(PDFName.of('ColorSpace'), csArray);
-}
