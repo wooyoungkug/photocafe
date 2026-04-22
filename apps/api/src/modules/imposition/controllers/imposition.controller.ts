@@ -178,9 +178,18 @@ export class ImpositionController {
     }
 
     // product width/height 추출 (size 필드 "210x297" 가정)
-    const { w, h } = parseSize(item.size);
+    let { w, h } = parseSize(item.size);
     if (!w || !h) {
       throw new BadRequestException(`OrderItem.size 파싱 실패: ${item.size}`);
+    }
+
+    // 펼침면(spread) 주문에서 size가 스프레드 전체 규격으로 저장된 경우 보정.
+    // 예: "24x15인치" (스프레드) → 실제 단면 12×15인치. w/h > 1.4 이면 가로가 세로보다
+    // 40% 이상 크므로 스프레드 규격으로 판단하고 productWidth를 절반으로 사용한다.
+    // "12×15인치"처럼 이미 단면 규격인 경우는 w < h 이므로 변환하지 않는다.
+    const isSpread = item.pageLayout === 'spread';
+    if (isSpread && w / h > 1.4) {
+      w = w / 2;
     }
 
     const bindingType = mapBindingType(item.bindingType);
@@ -285,6 +294,7 @@ export class ImpositionController {
             drawColorBar: marks.colorBar !== false,
             drawFoldLines: marks.fold !== false,
             jobMetaText,
+            spreadImages: isSpread,
           });
           imagePdfPath = imagePdfFilePath;
         }

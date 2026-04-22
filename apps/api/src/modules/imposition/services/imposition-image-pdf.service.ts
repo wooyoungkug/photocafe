@@ -7,6 +7,13 @@ import {
   PDFName,
   PDFStream,
   PDFRef,
+  pushGraphicsState,
+  popGraphicsState,
+  moveTo,
+  lineTo,
+  closePath,
+  clip,
+  endPath,
 } from 'pdf-lib';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -41,6 +48,14 @@ export interface ImagePdfOptions {
   drawFoldLines?: boolean;    // default: true (Nup>=2 일 때만 실제 그려짐)
   jobMetaText?: string | null;  // 있으면 상단에 표시
   outputPath?: string;
+  /**
+   * 펼침면(spread) 이미지 처리 여부.
+   * true이면 각 이미지를 좌/우 절반으로 나눠 2배 페이지 수를 생성한다.
+   * (인디고 등 스프레드 전체 규격 출력 불가 장비에서 반잘라 테이핑하는 방식 대응)
+   * - 앞 N페이지: 각 이미지 좌측 절반
+   * - 뒤 N페이지: 각 이미지 우측 절반
+   */
+  spreadImages?: boolean;
 }
 
 type PDFImage = Awaited<ReturnType<PDFDocument['embedJpg']>>;
@@ -88,65 +103,77 @@ export class ImpositionImagePdfService {
     const sheetHpt = toPt(result.sheetHeight);
     const bleedPt = toPt(result.echo.bleed ?? 0);
 
-    for (const sheet of result.sheets) {
-      const page = out.addPage([sheetWpt, sheetHpt]);
+    // 스프레드 이미지: 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
+    // 일반 이미지: 1 패스만 실행
+    const passes: Array<'left' | 'right' | 'none'> = options.spreadImages
+      ? ['left', 'right']
+      : ['none'];
 
-      for (const p of sheet.placements) {
-        // pdf-lib 좌표계: bottom-left 원점
-        const xPt = toPt(p.x);
-        const yPt = sheetHpt - toPt(p.y) - toPt(p.height);
-        const wPt = toPt(p.width);
-        const hPt = toPt(p.height);
+    for (const pass of passes) {
+      for (const sheet of result.sheets) {
+        const page = out.addPage([sheetWpt, sheetHpt]);
 
-        if (p.isPair && p.pages.length === 2) {
-          // 압축앨범 스프레드: 좌/우 절반 각각 배치
-          const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
-          const halfW = (wPt - creaseWPt) / 2;
-          drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
-          drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
-        } else {
-          drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation);
-        }
+        // 스프레드 패스일 때 jobMetaText에 좌/우 표시 추가
+        const passLabel = pass === 'left' ? ' [L]' : pass === 'right' ? ' [R]' : '';
+        const effectiveMeta = options.jobMetaText ? options.jobMetaText + passLabel : null;
 
-        // 재단선
-        if (options.drawCropMarks !== false) {
-          drawCropMarks(page, xPt, yPt, wPt, hPt);
-        }
+        for (const p of sheet.placements) {
+          // pdf-lib 좌표계: bottom-left 원점
+          const xPt = toPt(p.x);
+          const yPt = sheetHpt - toPt(p.y) - toPt(p.height);
+          const wPt = toPt(p.width);
+          const hPt = toPt(p.height);
 
-        // 블리드 경계선
-        if (options.drawBleedLines !== false && bleedPt > 0) {
-          drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
-        }
+          if (p.isPair && p.pages.length === 2) {
+            // 압축앨범 스프레드 페어: 좌/우 절반 각각 배치
+            const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
+            const halfW = (wPt - creaseWPt) / 2;
+            drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
+            drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+          } else {
+            drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation, pass === 'none' ? undefined : pass);
+          }
 
-        // 압축앨범 오시선 (crease)
-        if (options.drawCreaseMarks !== false) {
-          if (p.isPair && p.creaseXs && p.creaseXs.length > 0) {
-            for (const cxMm of p.creaseXs) {
-              drawDashedLine(page, toPt(cxMm), yPt, toPt(cxMm), yPt + hPt);
+          // 재단선
+          if (options.drawCropMarks !== false) {
+            drawCropMarks(page, xPt, yPt, wPt, hPt);
+          }
+
+          // 블리드 경계선
+          if (options.drawBleedLines !== false && bleedPt > 0) {
+            drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
+          }
+
+          // 압축앨범 오시선 (crease)
+          if (options.drawCreaseMarks !== false) {
+            if (p.isPair && p.creaseXs && p.creaseXs.length > 0) {
+              for (const cxMm of p.creaseXs) {
+                drawDashedLine(page, toPt(cxMm), yPt, toPt(cxMm), yPt + hPt);
+              }
+            } else if (p.creaseX !== undefined && !p.needsTaping) {
+              drawDashedLine(page, toPt(p.creaseX), yPt, toPt(p.creaseX), yPt + hPt);
             }
-          } else if (p.creaseX !== undefined && !p.needsTaping) {
-            drawDashedLine(page, toPt(p.creaseX), yPt, toPt(p.creaseX), yPt + hPt);
+          }
+
+          // 타카 여백 음영
+          if (options.drawTackMargin !== false && p.tackEdge) {
+            drawTackMarginOverlay(page, xPt, yPt, wPt, hPt, p.tackEdge, result.echo.tackMargin ?? 12);
           }
         }
 
-        // 타카 여백 음영
-        if (options.drawTackMargin !== false && p.tackEdge) {
-          drawTackMarginOverlay(page, xPt, yPt, wPt, hPt, p.tackEdge, result.echo.tackMargin ?? 12);
+        // 시트 단위 마크
+        if (options.drawRegistrationMarks !== false) {
+          drawRegistrationMarks(page, sheetWpt, sheetHpt);
         }
-      }
-
-      // 시트 단위 마크
-      if (options.drawRegistrationMarks !== false) {
-        drawRegistrationMarks(page, sheetWpt, sheetHpt);
-      }
-      if (options.drawColorBar !== false) {
-        drawColorBar(page, sheetWpt, sheetHpt);
-      }
-      if (options.drawFoldLines !== false && result.nup >= 2) {
-        drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
-      }
-      if (options.jobMetaText && meta) {
-        drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+        if (options.drawColorBar !== false) {
+          drawColorBar(page, sheetWpt, sheetHpt);
+        }
+        if (options.drawFoldLines !== false && result.nup >= 2) {
+          drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
+        }
+        if (effectiveMeta && meta) {
+          drawJobMeta(page, sheetWpt, sheetHpt, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+        }
       }
     }
 
@@ -159,9 +186,13 @@ export class ImpositionImagePdfService {
 }
 
 /**
- * 이미지를 슬롯 내 aspect-fit 중앙 배치.
- * rotation=90 이면 반시계 90° 회전.
- * 이미지 없으면 회색 사각형 + 페이지 번호 폴백.
+ * 이미지를 슬롯 내 배치.
+ * - half 없음: aspect-fit 중앙 배치 (일반 이미지)
+ * - half='left'/'right': 스프레드 이미지를 클리핑하여 좌/우 절반만 표시.
+ *   이미지 높이를 슬롯 높이에 맞춰 100% 스케일 후 좌 또는 우 절반만 클리핑한다.
+ *   (인디고 장비에서 24×15 스프레드를 12×15 × 2장으로 반잘라 출력하는 방식)
+ * - rotation=90: 반시계 90° 회전
+ * - 이미지 없으면 회색 폴백
  */
 function drawImageFit(
   page: PDFPage,
@@ -172,6 +203,7 @@ function drawImageFit(
   w: number,
   h: number,
   rotation: 0 | 90,
+  half?: 'left' | 'right',
 ): void {
   const img = cache.get(pageNum);
   if (!img) {
@@ -187,6 +219,32 @@ function drawImageFit(
 
   const natW = img.width;
   const natH = img.height;
+
+  // 스프레드 절반 클리핑 모드: 이미지 높이를 슬롯 높이에 맞추고(scale=h/natH)
+  // 슬롯 경계로 클리핑하여 좌/우 절반만 표시한다.
+  if (half === 'left' || half === 'right') {
+    const scale = h / natH;
+    const drawW = natW * scale;
+    const drawH = natH * scale;
+    // 좌측 절반: 이미지 왼쪽 끝을 슬롯 왼쪽 끝에 맞춤
+    // 우측 절반: 이미지 오른쪽 끝을 슬롯 오른쪽 끝에 맞춤
+    const drawX = half === 'left' ? x : x - (drawW - w);
+
+    // 클리핑 영역 = 슬롯 정확히
+    page.pushOperators(
+      pushGraphicsState(),
+      moveTo(x, y),
+      lineTo(x + w, y),
+      lineTo(x + w, y + h),
+      lineTo(x, y + h),
+      closePath(),
+      clip(),
+      endPath(),
+    );
+    page.drawImage(img, { x: drawX, y, width: drawW, height: drawH });
+    page.pushOperators(popGraphicsState());
+    return;
+  }
 
   if (rotation === 90) {
     // 90° 회전: 슬롯의 w/h를 뒤집어 스케일 계산

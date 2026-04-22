@@ -440,6 +440,38 @@ uploads/orders/{YYYY}/{MM}/{DD}/{company}/{orderNumber}/print-pdf/
 3. 완료 시 `GET /jobs/:jobId/download`로 다운로드
 4. Job 상태는 메모리(Map) 저장 (서버 재시작 시 초기화)
 
+## 펼침면(Spread) 이미지 하리꼬미 처리 규칙
+
+### 배경
+고객이 12×15인치 앨범을 편집할 때 좌우 두 페이지를 합쳐 24×15인치 스프레드 이미지로 작업하는 경우가 대다수다.
+
+### 장비별 처리 방식
+
+| 장비 | 스프레드(24×15) 출력 가능 | 처리 방식 |
+|------|--------------------------|-----------|
+| 잉크젯 | ✅ 가능 | 24×15 슬롯으로 이미지 1:1 배치 |
+| 인디고 | ❌ 불가 | **반잘라 테이핑** (12×15 × 2장) |
+
+### 인디고 반잘라 규칙 (핵심)
+- **기준**: 출력물이 12×17인치(310×450mm)를 초과하면 반잘라 처리
+- **예시**: 24×15 → 12×15 × 2, 28×11 → 14×11 × 2
+- **`OrderItem.size`**: 단면 규격(12×15인치)으로 저장 — `pageLayout = 'spread'`와 함께 판단
+- **하리꼬미 image PDF**: 총 페이지 = 파일 수 × 2
+  - 앞 N페이지: 각 스프레드 이미지의 **좌측 절반** (L 표시)
+  - 뒤 N페이지: 각 스프레드 이미지의 **우측 절반** (R 표시)
+  - 이미지 높이를 슬롯에 100% 맞추고 좌/우 클리핑 (축소 없음)
+- **`OrderItem.size`가 스프레드 규격(landscape, w/h > 1.4)으로 저장된 경우**: 컨트롤러에서 자동 절반 보정
+
+### 구현 위치
+- 컨트롤러: `apps/api/src/modules/imposition/controllers/imposition.controller.ts`
+  - `isSpread = item.pageLayout === 'spread'`
+  - `w/h > 1.4` 이면 `w = w / 2` (landscape 스프레드 규격 보정)
+  - `imagePdf.build(result, { ..., spreadImages: isSpread })`
+- 서비스: `apps/api/src/modules/imposition/services/imposition-image-pdf.service.ts`
+  - `ImagePdfOptions.spreadImages?: boolean`
+  - `true` 이면 left/right 2 패스로 시트를 2배 생성
+  - `drawImageFit()` `half` 파라미터로 pdf-lib 클리핑 처리
+
 ## 체크리스트
 
 PDF 기능 구현 시 확인사항:
@@ -453,3 +485,4 @@ PDF 기능 구현 시 확인사항:
 - [ ] 인쇄용 PDF: 무손실 이미지 임베딩 (sharp 리사이즈 금지)
 - [ ] crop mark: ISO 12647 표준 준수
 - [ ] Nup 배치 시 셀 간 gutter 확보
+- [ ] 펼침면 스프레드 이미지: 인디고 반잘라 규칙 확인 (`spreadImages` 옵션)
