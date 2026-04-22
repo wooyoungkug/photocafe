@@ -111,6 +111,15 @@ export class ImpositionImagePdfService {
 
     for (const pass of passes) {
       for (const sheet of result.sheets) {
+        // 스프레드 모드에서는 실제 이미지가 있는 슬롯만 포함.
+        // 이미지 없는 슬롯(회색 폴백)은 건너뛰어 총 페이지 = 파일수 × 2 가 되도록 한다.
+        if (options.spreadImages) {
+          const hasAnyImage = sheet.placements.some((p) =>
+            p.pages.some((pn) => imageCache.has(pn)),
+          );
+          if (!hasAnyImage) continue;
+        }
+
         const page = out.addPage([sheetWpt, sheetHpt]);
 
         // 스프레드 패스일 때 jobMetaText에 좌/우 표시 추가
