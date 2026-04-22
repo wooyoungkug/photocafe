@@ -65,6 +65,14 @@ export default function ImpositionPresetsPage() {
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeBinding, setActiveBinding] = useState<BindingType>('compressed');
+  // `_즉시_` prefix 는 임포지션 실행 다이얼로그가 자동 생성/재사용하는 임시 프리셋.
+  // 기본적으로 숨겨 목록을 깔끔하게 유지하고, 필요 시 토글로 노출.
+  const [showTransient, setShowTransient] = useState(false);
+
+  const transientCount = useMemo(
+    () => presets.filter((p) => p.name.startsWith('_즉시_')).length,
+    [presets],
+  );
 
   const filteredByBinding = useMemo(() => {
     const byBinding: Record<BindingType, ImpositionPreset[]> = {
@@ -75,6 +83,10 @@ export default function ImpositionPresetsPage() {
     };
     const q = search.trim().toLowerCase();
     for (const p of presets) {
+      // 임시 프리셋 숨김 (검색 중이 아니고 토글 OFF 일 때)
+      if (!showTransient && !q && p.name.startsWith('_즉시_')) {
+        continue;
+      }
       if (q && !p.name.toLowerCase().includes(q) && !(p.productSize ?? '').toLowerCase().includes(q)) {
         continue;
       }
@@ -167,6 +179,21 @@ export default function ImpositionPresetsPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="h-9 text-[14px]"
             />
+
+            {transientCount > 0 && (
+              <div className="flex items-center gap-2 px-1">
+                <Switch
+                  checked={showTransient}
+                  onCheckedChange={setShowTransient}
+                />
+                <Label className="text-[14px] text-black font-normal">
+                  임시 프리셋 표시
+                  <span className="text-gray-500 ml-1">
+                    (_즉시_ · {transientCount}개)
+                  </span>
+                </Label>
+              </div>
+            )}
 
             <Tabs
               value={activeBinding}

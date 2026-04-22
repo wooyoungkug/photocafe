@@ -20,6 +20,7 @@ import ImpositionPreviewCanvas from '@/components/imposition/ImpositionPreviewCa
 import {
   useImpositionCalculate,
   useCreateImpositionPreset,
+  useFindOrCreateImpositionPreset,
   useRunImposition,
   useDownloadImpositionJdf,
   useDownloadImpositionPdf,
@@ -226,6 +227,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
   // ==== 훅 ====
   const calcMut = useImpositionCalculate();
   const createPresetMut = useCreateImpositionPreset();
+  const findOrCreatePresetMut = useFindOrCreateImpositionPreset();
   const runMut = useRunImposition();
   const dlJdf = useDownloadImpositionJdf();
   const dlPdf = useDownloadImpositionPdf();
@@ -379,9 +381,10 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
 
     let presetIdToUse: string;
     try {
-      const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-      const created = await createPresetMut.mutateAsync({
-        name: `_즉시_${bindingTab}_${sheetW}x${sheetH}_${ts}`,
+      // 동일 파라미터의 _즉시_ 프리셋이 있으면 재사용 (없으면 신규 생성).
+      // name 은 신규 생성 시에만 사용되므로 파라미터 기반으로 안정적인 값을 부여.
+      const created = await findOrCreatePresetMut.mutateAsync({
+        name: `_즉시_${bindingTab}_${sheetW}x${sheetH}`,
         bindingType: bindingTab,
         sheetWidth: sheetW,
         sheetHeight: sheetH,
@@ -885,12 +888,16 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
           </Button>
           <Button
             onClick={onRun}
-            disabled={runMut.isPending || createPresetMut.isPending || !seed?.orderItemId}
+            disabled={
+              runMut.isPending ||
+              findOrCreatePresetMut.isPending ||
+              !seed?.orderItemId
+            }
           >
             {runMut.isPending
               ? '생성 중...'
-              : createPresetMut.isPending
-                ? '임시 프리셋 저장 중...'
+              : findOrCreatePresetMut.isPending
+                ? '임시 프리셋 준비 중...'
                 : 'JDF + PDF 생성'}
           </Button>
         </DialogFooter>
