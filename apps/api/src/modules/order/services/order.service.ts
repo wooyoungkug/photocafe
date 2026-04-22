@@ -23,6 +23,8 @@ import {
   ORDER_STATUS,
   PROCESS_STATUS,
   INSPECTION_PROCESS_TYPES,
+  PRINT_QUEUE_STATUS,
+  PRINT_QUEUE_PROCESS_TYPES,
   InspectFileDto,
   HoldInspectionDto,
   CompleteInspectionDto,
@@ -889,6 +891,74 @@ export class OrderService {
     return STATUS_TO_PROCESS[status] || null;
   }
 
+  // ==================== 출력대기 큐 상태 전이 계산 ====================
+  // 주문 status가 변경될 때 printQueueStatus를 어떻게 바꿔야 하는지 계산.
+  // 반환값이 null이면 변경 없음. Why: 출력대기 목록 멤버십을 status+currentProcess 조합에
+  // 의존하지 않고 별도 플래그로 관리하여, 의도치 않은 상태 변경으로 목록에서 사라지지 않도록 함.
+  private computeQueueTransition(
+    currentQueueStatus: string | null,
+    oldOrderStatus: string,
+    newOrderStatus: string,
+  ): { next: string; processType: string; reason: string } | null {
+    // 진입: 생산진행 진입 + 아직 큐 상태 미설정 → pending
+    if (newOrderStatus === ORDER_STATUS.IN_PRODUCTION && !currentQueueStatus) {
+      return {
+        next: PRINT_QUEUE_STATUS.PENDING,
+        processType: PRINT_QUEUE_PROCESS_TYPES.ENTERED,
+        reason: `status_change:${oldOrderStatus}→${newOrderStatus}`,
+      };
+    }
+    // pending 상태에서만 이탈 판정 (printed/skipped는 이미 이탈한 상태)
+    if (currentQueueStatus !== PRINT_QUEUE_STATUS.PENDING) return null;
+
+    // 배송준비/배송완료 → printed (정상 진행)
+    if (
+      newOrderStatus === ORDER_STATUS.READY_FOR_SHIPPING ||
+      newOrderStatus === ORDER_STATUS.SHIPPED
+    ) {
+      return {
+        next: PRINT_QUEUE_STATUS.PRINTED,
+        processType: PRINT_QUEUE_PROCESS_TYPES.EXITED_PRINTED,
+        reason: `status_change:${oldOrderStatus}→${newOrderStatus}`,
+      };
+    }
+    // 취소 → skipped
+    if (newOrderStatus === ORDER_STATUS.CANCELLED) {
+      return {
+        next: PRINT_QUEUE_STATUS.SKIPPED,
+        processType: PRINT_QUEUE_PROCESS_TYPES.EXITED_SKIPPED,
+        reason: `status_change:${oldOrderStatus}→${newOrderStatus}`,
+      };
+    }
+    // pending_receipt/receipt_completed로의 롤백은 pending 유지 (롤백 후 재생산 시나리오 대비)
+    return null;
+  }
+
+  // 큐 전이 결과를 data에 병합하여 반환 (DB update data와 합쳐 1회 트랜잭션 처리).
+  // historyEntry를 반환하여 호출자가 processHistory.create에 함께 넣을 수 있도록 함.
+  private buildQueueTransitionPatch(transition: ReturnType<OrderService['computeQueueTransition']>) {
+    if (!transition) return { data: {}, historyEntry: null };
+    const now = new Date();
+    const data: any = { printQueueStatus: transition.next };
+    if (transition.next === PRINT_QUEUE_STATUS.PENDING) {
+      data.printQueueEnteredAt = now;
+      data.printQueueExitedAt = null;
+      data.printQueueExitReason = null;
+    } else {
+      data.printQueueExitedAt = now;
+      data.printQueueExitReason = transition.reason;
+    }
+    const historyEntry = {
+      fromStatus: transition.processType === PRINT_QUEUE_PROCESS_TYPES.ENTERED
+        ? ''
+        : PRINT_QUEUE_STATUS.PENDING,
+      toStatus: transition.next,
+      processType: transition.processType,
+      note: `[출력대기] ${transition.reason}`,
+    };
+    return { data, historyEntry };
+  }
+
   // ==================== 주문 상태 변경 ====================
   async updateStatus(id: string, dto: UpdateOrderStatusDto, userId: string) {
     const order = await this.findOne(id);
@@ -899,20 +969,34 @@ export class OrderService {
       this.getDefaultProcessForStatus(dto.status) ||
       order.currentProcess;
 
+    // 출력대기 큐 전이 계산 (status 변경에 따라 printQueueStatus 자동 동기화)
+    const transition = this.computeQueueTransition(
+      (order as any).printQueueStatus ?? null,
+      order.status,
+      dto.status,
+    );
+    const queuePatch = this.buildQueueTransitionPatch(transition);
+
+    const historyEntries: any[] = [
+      {
+        fromStatus: order.status,
+        toStatus: dto.status,
+        processType: 'status_change',
+        note: dto.note,
+        processedBy: userId,
+      },
+    ];
+    if (queuePatch.historyEntry) {
+      historyEntries.push({ ...queuePatch.historyEntry, processedBy: userId });
+    }
+
     return this.prisma.order.update({
       where: { id },
       data: {
         status: dto.status,
         currentProcess,
-        processHistory: {
-          create: {
-            fromStatus: order.status,
-            toStatus: dto.status,
-            processType: 'status_change',
-            note: dto.note,
-            processedBy: userId,
-          },
-        },
+        ...queuePatch.data,
+        processHistory: { create: historyEntries },
       },
       include: {
         client: true,
@@ -1071,6 +1155,25 @@ export class OrderService {
   async markAsDelivered(id: string, userId: string) {
     const order = await this.findOne(id);
 
+    // 출력대기 큐 전이 (pending → printed, 이미 인쇄 완료된 상태로 배송된 것으로 간주)
+    const transition = this.computeQueueTransition(
+      (order as any).printQueueStatus ?? null,
+      order.status,
+      ORDER_STATUS.SHIPPED,
+    );
+    const queuePatch = this.buildQueueTransitionPatch(transition);
+    const historyEntries: any[] = [
+      {
+        fromStatus: order.status,
+        toStatus: ORDER_STATUS.SHIPPED,
+        processType: 'delivery_completed',
+        processedBy: userId,
+      },
+    ];
+    if (queuePatch.historyEntry) {
+      historyEntries.push({ ...queuePatch.historyEntry, processedBy: userId });
+    }
+
     return this.prisma.$transaction([
       this.prisma.orderShipping.update({
         where: { orderId: id },
@@ -1081,14 +1184,8 @@ export class OrderService {
         data: {
           status: ORDER_STATUS.SHIPPED,
           currentProcess: 'delivered',
-          processHistory: {
-            create: {
-              fromStatus: order.status,
-              toStatus: ORDER_STATUS.SHIPPED,
-              processType: 'delivery_completed',
-              processedBy: userId,
-            },
-          },
+          ...queuePatch.data,
+          processHistory: { create: historyEntries },
         },
       }),
     ]);
@@ -1102,20 +1199,33 @@ export class OrderService {
       throw new BadRequestException('배송완료된 주문은 취소할 수 없습니다');
     }
 
+    // 출력대기 큐 전이 (pending → skipped)
+    const transition = this.computeQueueTransition(
+      (order as any).printQueueStatus ?? null,
+      order.status,
+      ORDER_STATUS.CANCELLED,
+    );
+    const queuePatch = this.buildQueueTransitionPatch(transition);
+    const historyEntries: any[] = [
+      {
+        fromStatus: order.status,
+        toStatus: ORDER_STATUS.CANCELLED,
+        processType: 'order_cancelled',
+        note: reason,
+        processedBy: userId,
+      },
+    ];
+    if (queuePatch.historyEntry) {
+      historyEntries.push({ ...queuePatch.historyEntry, processedBy: userId });
+    }
+
     const updatedOrder = await this.prisma.order.update({
       where: { id },
       data: {
         status: ORDER_STATUS.CANCELLED,
         currentProcess: 'order_cancelled',
-        processHistory: {
-          create: {
-            fromStatus: order.status,
-            toStatus: ORDER_STATUS.CANCELLED,
-            processType: 'order_cancelled',
-            note: reason,
-            processedBy: userId,
-          },
-        },
+        ...queuePatch.data,
+        processHistory: { create: historyEntries },
       },
     });
 
@@ -1396,19 +1506,32 @@ export class OrderService {
           const order = await tx.order.findUnique({ where: { id: orderId } });
           if (!order) { results.failed.push(orderId); continue; }
 
+          // 출력대기 큐 전이 동기화 (단건 updateStatus와 동일 규칙)
+          const transition = this.computeQueueTransition(
+            (order as any).printQueueStatus ?? null,
+            order.status,
+            dto.status,
+          );
+          const queuePatch = this.buildQueueTransitionPatch(transition);
+          const historyEntries: any[] = [
+            {
+              fromStatus: order.status,
+              toStatus: dto.status,
+              processType: 'bulk_status_change',
+              note: dto.note,
+              processedBy: userId,
+            },
+          ];
+          if (queuePatch.historyEntry) {
+            historyEntries.push({ ...queuePatch.historyEntry, processedBy: userId });
+          }
+
           await tx.order.update({
             where: { id: orderId },
             data: {
               status: dto.status,
-              processHistory: {
-                create: {
-                  fromStatus: order.status,
-                  toStatus: dto.status,
-                  processType: 'bulk_status_change',
-                  note: dto.note,
-                  processedBy: userId,
-                },
-              },
+              ...queuePatch.data,
+              processHistory: { create: historyEntries },
             },
           });
           results.success++;
@@ -1432,19 +1555,31 @@ export class OrderService {
           if (!order) { results.failed.push(orderId); continue; }
           if (order.status === ORDER_STATUS.SHIPPED) { results.skipped.push(orderId); continue; }
 
+          const transition = this.computeQueueTransition(
+            (order as any).printQueueStatus ?? null,
+            order.status,
+            ORDER_STATUS.CANCELLED,
+          );
+          const queuePatch = this.buildQueueTransitionPatch(transition);
+          const historyEntries: any[] = [
+            {
+              fromStatus: order.status,
+              toStatus: ORDER_STATUS.CANCELLED,
+              processType: 'bulk_order_cancelled',
+              note: dto.reason,
+              processedBy: userId,
+            },
+          ];
+          if (queuePatch.historyEntry) {
+            historyEntries.push({ ...queuePatch.historyEntry, processedBy: userId });
+          }
+
           await tx.order.update({
             where: { id: orderId },
             data: {
               status: ORDER_STATUS.CANCELLED,
-              processHistory: {
-                create: {
-                  fromStatus: order.status,
-                  toStatus: ORDER_STATUS.CANCELLED,
-                  processType: 'bulk_order_cancelled',
-                  note: dto.reason,
-                  processedBy: userId,
-                },
-              },
+              ...queuePatch.data,
+              processHistory: { create: historyEntries },
             },
           });
 

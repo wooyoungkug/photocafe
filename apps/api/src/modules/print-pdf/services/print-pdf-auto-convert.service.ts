@@ -130,8 +130,18 @@ export class PrintPdfAutoConvertService {
     const orders = await this.prisma.order.findMany({
       where: {
         OR: [
-          { status: 'in_production', currentProcess: 'print_waiting' },
-          { status: 'print_waiting' },
+          { printQueueStatus: 'pending' },
+          {
+            AND: [
+              { printQueueStatus: null },
+              {
+                OR: [
+                  { status: 'in_production', currentProcess: 'print_waiting' },
+                  { status: 'print_waiting' },
+                ],
+              },
+            ],
+          },
         ],
       },
       select: {

@@ -71,10 +71,23 @@ export class PrintPdfService implements OnModuleInit {
    * 출력대기 주문 목록 조회
    */
   async getQueue(query: PrintQueueQueryDto) {
+    // printQueueStatus='pending' 이 주 필터. 레거시 조건은 아직 플래그가 채워지지 않은
+    // 주문을 위한 안전망(fallback). 마이그레이션 이후에도 신규 주문이 미설정 상태로
+    // 남는 경우가 있을 수 있어 유지.
     const where: any = {
       OR: [
-        { status: 'in_production', currentProcess: 'print_waiting' },
-        { status: 'print_waiting' },
+        { printQueueStatus: 'pending' },
+        {
+          AND: [
+            { printQueueStatus: null },
+            {
+              OR: [
+                { status: 'in_production', currentProcess: 'print_waiting' },
+                { status: 'print_waiting' },
+              ],
+            },
+          ],
+        },
       ],
     };
 
