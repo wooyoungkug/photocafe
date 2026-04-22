@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { PrintQueueItem } from '@/hooks/use-print-pdf';
 import { useMatchImpositionBatch, MatchResult, BindingType } from '@/hooks/use-imposition';
 
@@ -138,8 +137,6 @@ export default function PrintQueueTable({
             <TableHead className="text-[14px] text-black font-normal">제본</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">Nup</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">진행상황</TableHead>
-            <TableHead className="text-[14px] text-black font-normal">자동 임포지션</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">액션</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -205,11 +202,25 @@ export default function PrintQueueTable({
                       failed: { label: '실패', className: 'bg-red-100 text-red-600' },
                     };
                     const s = map[status] || map.pending;
+                    const showImposition = status === 'pending' || status === 'failed';
                     return (
                       <div className="flex flex-col items-center gap-0.5">
                         <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}`}>
                           {s.label}
                         </Badge>
+                        {showImposition && !match && (
+                          <span className="text-[10px] text-black">임포지션 확인중...</span>
+                        )}
+                        {showImposition && match && !matched && (
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] text-red-600 font-normal bg-amber-50 border-amber-300 cursor-pointer px-1.5 py-0"
+                            onClick={() => onImposition?.(item)}
+                            title="클릭하여 임포지션 수동 설정"
+                          >
+                            임포지션 수동 필요
+                          </Badge>
+                        )}
                         {status === 'failed' && (item as any).pdfError && (
                           <span className="text-[10px] text-red-600 max-w-[120px] truncate" title={(item as any).pdfError}>
                             {(item as any).pdfError}
@@ -226,44 +237,6 @@ export default function PrintQueueTable({
                       </div>
                     );
                   })()}
-                </TableCell>
-                <TableCell className="text-[14px] text-black font-normal">
-                  {!match ? (
-                    <Badge variant="outline" className="text-[12px] text-black font-normal">
-                      확인중...
-                    </Badge>
-                  ) : matched && match.preset ? (
-                    <Badge
-                      variant="outline"
-                      className="text-[12px] text-black font-normal bg-green-50 border-green-300"
-                      title={match.preset.name}
-                    >
-                      ✓ {match.preset.productSize ?? ''}
-                      {match.preset.targetNup ? `-${match.preset.targetNup}up` : ''}
-                      {match.preset.bindingType ? `-${match.preset.bindingType}` : ''}
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className="text-[12px] text-red-600 font-normal bg-amber-50 border-amber-300 cursor-pointer"
-                      onClick={() => onImposition?.(item)}
-                    >
-                      수동 필요
-                    </Badge>
-                  )}
-                </TableCell>
-                <TableCell className="text-center">
-                  {/* 매칭 실패 시에만 [임포지션] 버튼 노출 */}
-                  {onImposition && !matched && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-[12px] h-7 px-2 text-black font-normal"
-                      onClick={() => onImposition(item)}
-                    >
-                      임포지션
-                    </Button>
-                  )}
                 </TableCell>
               </TableRow>
             );
