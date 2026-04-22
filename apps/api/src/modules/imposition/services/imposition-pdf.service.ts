@@ -474,8 +474,10 @@ export function drawJobMeta(
   const safeText = sanitize(text);
   const sheetLabel = sanitize(`시트 ${sheetNum}/${sheetTotal}`) || `Sheet ${sheetNum}/${sheetTotal}`;
   const label = safeText ? `${safeText} | ${sheetLabel}` : sheetLabel;
+  // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
+  // x 오프셋을 18pt 이상 두고 시작
   page.drawText(label, {
-    x: paX + 4,
+    x: paX + 18,
     y: paY + paH - 10,
     size: 7,
     color: rgb(0.1, 0.1, 0.1),
