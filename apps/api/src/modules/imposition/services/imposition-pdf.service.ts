@@ -94,6 +94,13 @@ export class ImpositionPdfService {
     const sheetHpt = toPt(result.sheetHeight);
     const bleedPt = toPt(result.echo.bleed ?? 0);
 
+    // 인쇄영역(print area) — 시트에서 margin 을 뺀 유효 영역 (bottom-left 원점, pt)
+    const m = result.echo.margin;
+    const printAreaX = toPt(m.left);
+    const printAreaY = toPt(m.bottom);
+    const printAreaW = sheetWpt - toPt(m.left + m.right);
+    const printAreaH = sheetHpt - toPt(m.top + m.bottom);
+
     for (const sheet of result.sheets) {
       const page = out.addPage([sheetWpt, sheetHpt]);
 
@@ -157,17 +164,16 @@ export class ImpositionPdfService {
           drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
         }
 
-        // 압축앨범 crease (중앙 점선) — Nup>=2 스프레드 페어일 때만
+        // 압축앨범 crease (상/하 바깥쪽 tick) — Nup>=2 스프레드 페어일 때만
         // Nup=1 (compressed single) / perfect / tack / flat 은 오시 없음
+        // 이미지 영역을 가로지르지 않도록 재단선처럼 박스 바깥 위/아래 tick 만 그림
         if (options.drawCreaseMarks !== false && p.isPair && p.creaseXs && p.creaseXs.length > 0) {
           for (const cxMm of p.creaseXs) {
-            const cx = toPt(cxMm);
-            drawDashedLine(page, cx, yPt, cx, yPt + hPt);
+            drawCreaseTicks(page, toPt(cxMm), yPt, yPt + hPt);
           }
         } else if (options.drawCreaseMarks !== false && p.creaseX !== undefined && !p.needsTaping) {
           // 하위 호환 (creaseXs 미설정 레거시 레이아웃)
-          const cx = toPt(p.creaseX);
-          drawDashedLine(page, cx, yPt, cx, yPt + hPt);
+          drawCreaseTicks(page, toPt(p.creaseX), yPt, yPt + hPt);
         }
 
         // 타카 여백 음영
@@ -176,18 +182,18 @@ export class ImpositionPdfService {
         }
       }
 
-      // 시트 단위 마크
+      // 시트 단위 마크 — 인쇄영역(print area) 안쪽에 배치
       if (options.drawRegistrationMarks !== false) {
-        drawRegistrationMarks(page, sheetWpt, sheetHpt);
+        drawRegistrationMarks(page, printAreaX, printAreaY, printAreaW, printAreaH);
       }
       if (options.drawColorBar !== false) {
-        drawColorBar(page, sheetWpt, sheetHpt);
+        drawColorBar(page, printAreaX, printAreaY, printAreaW, printAreaH);
       }
       if (options.drawFoldLines !== false && result.nup >= 2) {
         drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
       }
       if (options.jobMetaText && meta) {
-        drawJobMeta(page, sheetWpt, sheetHpt, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+        drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
       }
     }
 
@@ -256,14 +262,35 @@ export function drawCropMarks(page: PDFPage, x: number, y: number, w: number, h:
   page.drawLine({ start: { x: x + w, y: y - off }, end: { x: x + w, y: y - off - len }, color: col, thickness: lw });
 }
 
+/**
+ * 오시선(crease) 눈금 — 이미지 영역을 가로지르지 않고
+ * 페어박스의 상/하 바깥쪽에 짧은 세로 tick 만 그린다 (재단선 스타일).
+ * 제본 작업자는 두 눈금을 이은 가상의 선 위로 크리저를 맞춤.
+ *
+ * @param cx   오시 x-좌표 (pt)
+ * @param yBot 페어박스 하단 y-좌표 (pt, bottom-left 원점)
+ * @param yTop 페어박스 상단 y-좌표 (pt, bottom-left 원점)
+ */
+export function drawCreaseTicks(page: PDFPage, cx: number, yBot: number, yTop: number) {
+  const len = 5 * MM_TO_PT; // 재단선과 동일한 길이
+  const off = 2 * MM_TO_PT; // 박스 경계에서의 간격
+  // 상단: 박스 위로 len 만큼 뻗는 점선
+  drawDashedLine(page, cx, yTop + off, cx, yTop + off + len);
+  // 하단: 박스 아래로 len 만큼 뻗는 점선
+  drawDashedLine(page, cx, yBot - off, cx, yBot - off - len);
+}
+
 export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number) {
   // pdf-lib 는 dashPattern 지원 제한 → 짧은 세그먼트 반복
+  // 색/굵기: 연회색 + 얇게 (crop mark 검정 tick과 시각적 충돌 최소화)
   const dashLen = 3;
   const gapLen = 2;
-  const col = rgb(0, 0.4, 0.8);
+  const col = rgb(0.55, 0.55, 0.55);
+  const lw = 0.3;
   const dx = x2 - x1;
   const dy = y2 - y1;
   const total = Math.hypot(dx, dy);
+  if (total <= 0) return;
   const ux = dx / total;
   const uy = dy / total;
   let pos = 0;
@@ -273,9 +300,47 @@ export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number
       start: { x: x1 + ux * pos, y: y1 + uy * pos },
       end: { x: x1 + ux * segEnd, y: y1 + uy * segEnd },
       color: col,
-      thickness: 0.5,
+      thickness: lw,
     });
     pos = segEnd + gapLen;
+  }
+}
+
+/**
+ * 수평/수직 점선을 여러 구간으로 끊어서 그린다.
+ * crop mark tick 이 관통하는 구간을 시각적으로 비워 점선과 tick 이 겹치지 않게 한다.
+ *
+ * @param orientation 'horizontal' 이면 y1===y2 인 수평선, 'vertical' 이면 x1===x2 인 수직선
+ * @param gapCenters  점선 경로에서 건너뛸 좌표들 (horizontal 이면 x, vertical 이면 y)
+ * @param gapHalf     각 tick 중심에서 좌우(또는 상하)로 비울 반경 (pt)
+ */
+export function drawDashedLineSegmented(
+  page: PDFPage,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  orientation: 'horizontal' | 'vertical',
+  gapCenters: number[],
+  gapHalf: number,
+) {
+  const [start, end] =
+    orientation === 'horizontal'
+      ? [Math.min(x1, x2), Math.max(x1, x2)]
+      : [Math.min(y1, y2), Math.max(y1, y2)];
+  const gaps = gapCenters.filter((g) => g > start && g < end).sort((a, b) => a - b);
+  let cursor = start;
+  const segments: Array<[number, number]> = [];
+  for (const g of gaps) {
+    const gs = g - gapHalf;
+    const ge = g + gapHalf;
+    if (gs > cursor) segments.push([cursor, gs]);
+    cursor = Math.max(cursor, ge);
+  }
+  if (cursor < end) segments.push([cursor, end]);
+  for (const [a, b] of segments) {
+    if (orientation === 'horizontal') drawDashedLine(page, a, y1, b, y1);
+    else drawDashedLine(page, x1, a, x1, b);
   }
 }
 
@@ -324,17 +389,23 @@ export function drawBleedBox(
 }
 
 /**
- * 레지스트레이션 마크 — 시트 4 모서리 외곽 여백에 십자 원형 타깃.
- * 인쇄기 판 맞춤(register)용.
+ * 레지스트레이션 마크 — 인쇄영역(print area) 4 모서리 안쪽에 십자 원형 타깃.
+ * 인쇄기 판 맞춤(register)용. 시트 가장자리(여백)는 인쇄 불가 영역이라 안쪽으로 배치.
  */
-export function drawRegistrationMarks(page: PDFPage, sheetW: number, sheetH: number) {
+export function drawRegistrationMarks(
+  page: PDFPage,
+  paX: number,
+  paY: number,
+  paW: number,
+  paH: number,
+) {
   const r = 3; // 반지름(pt)
-  const off = 5; // 시트 가장자리에서의 오프셋(pt)
+  const inset = 3; // 인쇄영역 모서리에서의 들여쓰기(pt)
   const positions = [
-    { x: off + r, y: off + r },                       // 좌하
-    { x: sheetW - off - r, y: off + r },              // 우하
-    { x: off + r, y: sheetH - off - r },              // 좌상
-    { x: sheetW - off - r, y: sheetH - off - r },    // 우상
+    { x: paX + inset + r, y: paY + inset + r },                   // 좌하
+    { x: paX + paW - inset - r, y: paY + inset + r },             // 우하
+    { x: paX + inset + r, y: paY + paH - inset - r },             // 좌상
+    { x: paX + paW - inset - r, y: paY + paH - inset - r },       // 우상
   ];
   const col = rgb(0, 0, 0);
   for (const pos of positions) {
@@ -347,10 +418,16 @@ export function drawRegistrationMarks(page: PDFPage, sheetW: number, sheetH: num
 }
 
 /**
- * 컬러바 — 시트 하단 중앙에 CMYK + RGB + 그레이 스텝.
+ * 컬러바 — 인쇄영역 하단 중앙에 CMYK + RGB + 그레이 스텝.
  * 각 패치 약 8x6pt, 좌→우 순서.
  */
-export function drawColorBar(page: PDFPage, sheetW: number, sheetH: number) {
+export function drawColorBar(
+  page: PDFPage,
+  paX: number,
+  paY: number,
+  paW: number,
+  _paH: number,
+) {
   const patchW = 8;
   const patchH = 6;
   const swatches: Array<[number, number, number]> = [
@@ -366,8 +443,8 @@ export function drawColorBar(page: PDFPage, sheetW: number, sheetH: number) {
     [0.75, 0.75, 0.75],
   ];
   const totalW = patchW * swatches.length;
-  const startX = (sheetW - totalW) / 2;
-  const y = 2; // 시트 하단 2pt 여백
+  const startX = paX + (paW - totalW) / 2;
+  const y = paY + 2; // 인쇄영역 하단 안쪽 2pt
   for (let i = 0; i < swatches.length; i++) {
     const [r, g, b] = swatches[i];
     page.drawRectangle({
@@ -423,25 +500,43 @@ export function drawFoldLines(
   const sheetWpt = sheetWMm * MM_TO_PT;
   const sheetHpt = sheetHMm * MM_TO_PT;
 
-  // 세로 중간선 (컬럼 사이) — 시트 상하 전체 관통
+  // crop mark tick 이 그려지는 좌표 (셀 좌/우 edge → x, 셀 상/하 edge → y)
+  // — 가로 점선은 이 x 좌표들을 비워서, 세로 점선은 이 y 좌표들을 비워서 그린다.
+  const tickXsPt = Array.from(
+    new Set(placements.flatMap((p) => [p.x, p.x + p.width])),
+  )
+    .sort((a, b) => a - b)
+    .map((mm) => mm * MM_TO_PT);
+  // placements 는 top-left 원점 mm → PDF 좌표(bottom-left 원점 pt) 로 변환
+  const tickYsPt = Array.from(
+    new Set(placements.flatMap((p) => [p.y, p.y + p.height])),
+  )
+    .sort((a, b) => a - b)
+    .map((mm) => sheetHpt - mm * MM_TO_PT);
+
+  const gapHalf = 2 * MM_TO_PT; // 각 tick 주변 ±2mm 를 비움
+
+  // 세로 중간선 (컬럼 사이) — 행 tick y 좌표에서 끊김
   for (const [rx, lx] of colEdges) {
     const midMm = (rx + lx) / 2;
     const xPt = midMm * MM_TO_PT;
-    drawDashedLine(page, xPt, 0, xPt, sheetHpt);
+    drawDashedLineSegmented(page, xPt, 0, xPt, sheetHpt, 'vertical', tickYsPt, gapHalf);
   }
 
-  // 가로 중간선 (행 사이) — 시트 좌우 전체 관통. y 는 bottom-left 원점 변환 필요.
+  // 가로 중간선 (행 사이) — 컬럼 tick x 좌표에서 끊김
   for (const [by, ty] of rowEdges) {
     const midMmFromTop = (by + ty) / 2;
     const yPt = sheetHpt - midMmFromTop * MM_TO_PT;
-    drawDashedLine(page, 0, yPt, sheetWpt, yPt);
+    drawDashedLineSegmented(page, 0, yPt, sheetWpt, yPt, 'horizontal', tickXsPt, gapHalf);
   }
 }
 
 export function drawJobMeta(
   page: PDFPage,
-  sheetW: number,
-  sheetH: number,
+  paX: number,
+  paY: number,
+  _paW: number,
+  paH: number,
   text: string,
   sheetNum: number,
   sheetTotal: number,
@@ -453,9 +548,11 @@ export function drawJobMeta(
   const safeText = sanitize(text);
   const sheetLabel = sanitize(`시트 ${sheetNum}/${sheetTotal}`) || `Sheet ${sheetNum}/${sheetTotal}`;
   const label = safeText ? `${safeText} | ${sheetLabel}` : sheetLabel;
+  // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
+  // x 오프셋을 18pt 이상 두고 시작
   page.drawText(label, {
-    x: 12,
-    y: sheetH - 10,
+    x: paX + 18,
+    y: paY + paH - 10,
     size: 7,
     color: rgb(0.1, 0.1, 0.1),
     font,

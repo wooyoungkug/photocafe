@@ -146,6 +146,19 @@ export function useCreateImpositionPreset() {
   });
 }
 
+/**
+ * 임포지션 실행 다이얼로그 전용. 동일 파라미터의 _즉시_ 프리셋이 있으면 재사용.
+ * 백엔드가 find-or-create 로 동작하므로 프리셋 목록이 무한 누적되지 않는다.
+ */
+export function useFindOrCreateImpositionPreset() {
+  const qc = useQueryClient();
+  return useMutation<ImpositionPreset, Error, CreatePresetRequest>({
+    mutationFn: (body) =>
+      api.post<ImpositionPreset>('/imposition/presets/find-or-create', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['imposition-presets'] }),
+  });
+}
+
 export function useUpdateImpositionPreset() {
   const qc = useQueryClient();
   return useMutation<ImpositionPreset, Error, { id: string; body: Partial<CreatePresetRequest> }>({

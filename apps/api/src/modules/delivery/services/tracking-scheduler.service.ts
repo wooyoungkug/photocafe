@@ -218,6 +218,23 @@ export class TrackingSchedulerService {
         updateData.status = 'shipped';
       }
 
+      // 출력대기 큐 동기화: pending 상태였으면 printed 로 마킹 (자동 배송추적 경로 보강)
+      if ((order as any).printQueueStatus === 'pending') {
+        updateData.printQueueStatus = 'printed';
+        updateData.printQueueExitedAt = new Date();
+        updateData.printQueueExitReason = 'tracking_auto_delivered';
+        (updateData.processHistory.create as any) = [
+          updateData.processHistory.create,
+          {
+            fromStatus: 'pending',
+            toStatus: 'printed',
+            processType: 'print_queue_exited_printed',
+            note: '[출력대기] tracking_auto_delivered',
+            processedBy: 'system',
+          },
+        ];
+      }
+
       await tx.order.update({
         where: { id: order.id },
         data: updateData,

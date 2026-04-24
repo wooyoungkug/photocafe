@@ -42,6 +42,21 @@ export const INSPECTION_PROCESS_TYPES = {
   INSPECTION_SMS_SENT: 'inspection_sms_sent',
 } as const;
 
+// ==================== 출력대기 큐 상태 (status/currentProcess와 독립된 영속 플래그) ====================
+// 주문이 status/currentProcess 변경으로 인해 출력대기 목록에서 실수로 사라지는 것을 방지하기 위해
+// 별도의 플래그를 두고 명시적 전환(생산진행→배송준비/취소)에만 빠지도록 한다.
+export const PRINT_QUEUE_STATUS = {
+  PENDING: 'pending',  // 출력대기 (목록에 표시)
+  PRINTED: 'printed',  // 인쇄 완료 후 제외
+  SKIPPED: 'skipped',  // 취소/수동 제외
+} as const;
+
+export const PRINT_QUEUE_PROCESS_TYPES = {
+  ENTERED: 'print_queue_entered',
+  EXITED_PRINTED: 'print_queue_exited_printed',
+  EXITED_SKIPPED: 'print_queue_exited_skipped',
+} as const;
+
 // ==================== 주문 파일 DTO ====================
 export class OrderFileDto {
   @ApiProperty({ description: '파일명' })

@@ -4,9 +4,6 @@ import {
   PDFPage,
   rgb,
   degrees,
-  PDFName,
-  PDFStream,
-  PDFRef,
   pushGraphicsState,
   popGraphicsState,
   moveTo,
@@ -20,7 +17,7 @@ import * as path from 'path';
 import { ImpositionResult, MM_TO_PT } from './imposition-calc.service';
 import {
   drawCropMarks,
-  drawDashedLine,
+  drawCreaseTicks,
   drawTackMarginOverlay,
   drawBleedBox,
   drawRegistrationMarks,
@@ -56,6 +53,15 @@ export interface ImagePdfOptions {
    * - 뒤 N페이지: 각 이미지 우측 절반
    */
   spreadImages?: boolean;
+  /**
+   * 제본방향 — 1up + spreadImages 모드에서 첫/마지막 spread의 빈 절반을 출력에서 제외할 때 사용.
+   * - 'RIGHT_START_LEFT_END': 첫 페이지가 오른쪽에서 시작 → 첫 시트의 left 절반 = blank (skip),
+   *   마지막 페이지가 왼쪽에서 끝 → 마지막 시트의 right 절반 = blank (skip)
+   * - 'LEFT_START_RIGHT_END': 첫 시트의 right 절반 = blank (skip),
+   *   마지막 시트의 left 절반 = blank (skip)
+   * 미지정 시 모든 절반 출력.
+   */
+  bindingDirection?: 'RIGHT_START_LEFT_END' | 'LEFT_START_RIGHT_END' | string | null;
 }
 
 type PDFImage = Awaited<ReturnType<PDFDocument['embedJpg']>>;
@@ -80,18 +86,8 @@ export class ImpositionImagePdfService {
           ? await out.embedPng(bytes)
           : await out.embedJpg(bytes);
 
-        // JPEG: APP2 ICC_PROFILE이 있으면 PDF Image XObject의 ColorSpace를
-        // /ICCBased stream으로 교체. 없으면 pdf-lib 기본(DeviceRGB) 유지.
-        if (ext !== '.png') {
-          try {
-            const icc = extractIccProfile(bytes);
-            if (icc) {
-              await injectIccColorSpace(out, img, icc, 3);
-            }
-          } catch {
-            // ICC 주입 실패는 무시 (원본 DeviceRGB 유지)
-          }
-        }
+        // ICC 프로파일 주입하지 않음 — 인디고 RIP 측 표준 프로파일이 적용되어야 하므로
+        // PDF는 DeviceRGB(태그 없음)로 두고 RIP 가 변환하도록 위임한다.
 
         imageCache.set(entry.pageNumber, img);
       } catch {
@@ -103,21 +99,67 @@ export class ImpositionImagePdfService {
     const sheetHpt = toPt(result.sheetHeight);
     const bleedPt = toPt(result.echo.bleed ?? 0);
 
-    // 스프레드 이미지: 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
-    // 일반 이미지: 1 패스만 실행
-    const passes: Array<'left' | 'right' | 'none'> = options.spreadImages
-      ? ['left', 'right']
-      : ['none'];
+    // 인쇄영역(print area) — 시트에서 margin 을 뺀 유효 영역 (bottom-left 원점, pt)
+    const m = result.echo.margin;
+    const printAreaX = toPt(m.left);
+    const printAreaY = toPt(m.bottom);
+    const printAreaW = sheetWpt - toPt(m.left + m.right);
+    const printAreaH = sheetHpt - toPt(m.top + m.bottom);
+
+    // 스프레드 입력(spreadImages) + 페어 레이아웃(isPair) 조합 감지.
+    // 이 경우 원본 파일 1장(2페이지 스프레드)이 페어박스 하나에 통째로 들어가야 하므로
+    // 좌/우 분할 패스를 돌지 않고 1 패스만 실행한다.
+    const isPairLayout =
+      result.sheets.length > 0 && result.sheets[0].placements.some((p) => p.isPair);
+    const useSpreadInPair = options.spreadImages === true && isPairLayout;
+
+    // 스프레드 이미지(1up): 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
+    // 일반 이미지 또는 스프레드+페어: 1 패스만 실행
+    const passes: Array<'left' | 'right' | 'none'> =
+      options.spreadImages && !useSpreadInPair ? ['left', 'right'] : ['none'];
+
+    // 1up + spreadImages + bindingDirection 지정 시 첫/마지막 시트의 빈 절반 식별
+    // - RIGHT_START_LEFT_END: 첫 시트 left = blank, 마지막 시트 right = blank
+    // - LEFT_START_RIGHT_END: 첫 시트 right = blank, 마지막 시트 left = blank
+    const skipBlankHalves = options.spreadImages && result.nup === 1 && !!options.bindingDirection;
+    let firstImageSheetIdx = -1;
+    let lastImageSheetIdx = -1;
+    if (skipBlankHalves) {
+      for (let i = 0; i < result.sheets.length; i++) {
+        const has = result.sheets[i].placements.some((p) =>
+          p.pages.some((pn) => imageCache.has(pn)),
+        );
+        if (has) {
+          if (firstImageSheetIdx === -1) firstImageSheetIdx = i;
+          lastImageSheetIdx = i;
+        }
+      }
+    }
+    const isRightStart = options.bindingDirection === 'RIGHT_START_LEFT_END';
+    const blankFirstHalf: 'left' | 'right' | null = isRightStart ? 'left' : 'right';
+    const blankLastHalf: 'left' | 'right' | null = isRightStart ? 'right' : 'left';
 
     for (const pass of passes) {
-      for (const sheet of result.sheets) {
+      for (let sheetIdx = 0; sheetIdx < result.sheets.length; sheetIdx++) {
+        const sheet = result.sheets[sheetIdx];
         // 스프레드 모드에서는 실제 이미지가 있는 슬롯만 포함.
         // 이미지 없는 슬롯(회색 폴백)은 건너뛰어 총 페이지 = 파일수 × 2 가 되도록 한다.
         if (options.spreadImages) {
-          const hasAnyImage = sheet.placements.some((p) =>
-            p.pages.some((pn) => imageCache.has(pn)),
-          );
+          const hasAnyImage = sheet.placements.some((p) => {
+            // 스프레드+페어: 파일 1장 = 페어 1개. 페어 첫 페이지 번호로부터 파일 인덱스 산출.
+            // (pair [1,2] → file#1, pair [3,4] → file#2, ...)
+            if (useSpreadInPair && p.isPair && p.pages.length === 2) {
+              const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
+              return imageCache.has(fileKey);
+            }
+            return p.pages.some((pn) => imageCache.has(pn));
+          });
           if (!hasAnyImage) continue;
+        }
+        // 첫/마지막 시트의 blank 절반 skip
+        if (skipBlankHalves) {
+          if (sheetIdx === firstImageSheetIdx && pass === blankFirstHalf) continue;
+          if (sheetIdx === lastImageSheetIdx && pass === blankLastHalf) continue;
         }
 
         const page = out.addPage([sheetWpt, sheetHpt]);
@@ -134,11 +176,18 @@ export class ImpositionImagePdfService {
           const hPt = toPt(p.height);
 
           if (p.isPair && p.pages.length === 2) {
-            // 압축앨범 스프레드 페어: 좌/우 절반 각각 배치
-            const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
-            const halfW = (wPt - creaseWPt) / 2;
-            drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
-            drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+            if (useSpreadInPair) {
+              // 스프레드 입력 + 페어: 파일 1장(=스프레드)이 페어박스 전체를 채움.
+              // 파일 키 = floor((pages[0]-1)/2) + 1
+              const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
+              drawImageFit(page, imageCache, fileKey, xPt, yPt, wPt, hPt, p.rotation);
+            } else {
+              // 압축앨범 비스프레드 페어: 좌/우 절반 각각 배치 (파일 2장)
+              const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
+              const halfW = (wPt - creaseWPt) / 2;
+              drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
+              drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+            }
           } else {
             drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation, pass === 'none' ? undefined : pass);
           }
@@ -153,14 +202,15 @@ export class ImpositionImagePdfService {
             drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
           }
 
-          // 압축앨범 오시선 (crease)
+          // 압축앨범 오시선 (crease) — 이미지 영역을 가로지르지 않도록
+          // 페어박스 상/하 바깥쪽에 짧은 tick 만 표시 (재단선 스타일)
           if (options.drawCreaseMarks !== false) {
             if (p.isPair && p.creaseXs && p.creaseXs.length > 0) {
               for (const cxMm of p.creaseXs) {
-                drawDashedLine(page, toPt(cxMm), yPt, toPt(cxMm), yPt + hPt);
+                drawCreaseTicks(page, toPt(cxMm), yPt, yPt + hPt);
               }
             } else if (p.creaseX !== undefined && !p.needsTaping) {
-              drawDashedLine(page, toPt(p.creaseX), yPt, toPt(p.creaseX), yPt + hPt);
+              drawCreaseTicks(page, toPt(p.creaseX), yPt, yPt + hPt);
             }
           }
 
@@ -170,18 +220,18 @@ export class ImpositionImagePdfService {
           }
         }
 
-        // 시트 단위 마크
+        // 시트 단위 마크 — 인쇄영역(print area) 안쪽에 배치
         if (options.drawRegistrationMarks !== false) {
-          drawRegistrationMarks(page, sheetWpt, sheetHpt);
+          drawRegistrationMarks(page, printAreaX, printAreaY, printAreaW, printAreaH);
         }
         if (options.drawColorBar !== false) {
-          drawColorBar(page, sheetWpt, sheetHpt);
+          drawColorBar(page, printAreaX, printAreaY, printAreaW, printAreaH);
         }
         if (options.drawFoldLines !== false && result.nup >= 2) {
           drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
         }
         if (effectiveMeta && meta) {
-          drawJobMeta(page, sheetWpt, sheetHpt, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+          drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
         }
       }
     }
@@ -229,17 +279,14 @@ function drawImageFit(
   const natW = img.width;
   const natH = img.height;
 
-  // 스프레드 절반 클리핑 모드: 이미지 높이를 슬롯 높이에 맞추고(scale=h/natH)
-  // 슬롯 경계로 클리핑하여 좌/우 절반만 표시한다.
+  // 스프레드 절반 클리핑 모드: 이미지를 슬롯에 맞게 스케일하고 슬롯 경계로 클리핑.
+  // rotation=0: 이미지 높이를 슬롯 높이에 맞추고 좌/우 절반 노출.
+  // rotation=90: 이미지를 CCW 90° 회전 후 슬롯에 맞춤.
+  //   - CCW 90° 회전 시 원본 좌측 절반은 회전 후 시각적으로 하단 절반에 위치
+  //   - 원본 우측 절반은 회전 후 시각적으로 상단 절반에 위치
+  //   - 슬롯 가로(w)에 회전 후 이미지 가로(drawH=natH*scale)를 맞춤 → scale=w/natH
   if (half === 'left' || half === 'right') {
-    const scale = h / natH;
-    const drawW = natW * scale;
-    const drawH = natH * scale;
-    // 좌측 절반: 이미지 왼쪽 끝을 슬롯 왼쪽 끝에 맞춤
-    // 우측 절반: 이미지 오른쪽 끝을 슬롯 오른쪽 끝에 맞춤
-    const drawX = half === 'left' ? x : x - (drawW - w);
-
-    // 클리핑 영역 = 슬롯 정확히
+    // 클리핑 영역 = 슬롯 정확히 (회전과 무관)
     page.pushOperators(
       pushGraphicsState(),
       moveTo(x, y),
@@ -250,7 +297,32 @@ function drawImageFit(
       clip(),
       endPath(),
     );
-    page.drawImage(img, { x: drawX, y, width: drawW, height: drawH });
+
+    if (rotation === 90) {
+      const scale = w / natH;
+      const drawW = natW * scale; // 회전 후 시각 높이
+      const drawH = natH * scale; // 회전 후 시각 가로 (= w)
+      // 회전 후 시각 bbox: x ∈ [anchorX-drawH, anchorX], y ∈ [anchorY, anchorY+drawW]
+      // anchorX = x + drawH 로 시각 좌측을 슬롯 좌측(x)에 맞춤
+      // left: 시각 하단(원본 좌측)이 슬롯 [y, y+h]에 보이도록 anchorY = y
+      // right: 시각 상단(원본 우측)이 슬롯에 보이도록 anchorY = y - drawW/2
+      const anchorX = x + drawH;
+      const anchorY = half === 'left' ? y : y - drawW / 2;
+      page.drawImage(img, {
+        x: anchorX,
+        y: anchorY,
+        width: drawW,
+        height: drawH,
+        rotate: degrees(90),
+      });
+    } else {
+      const scale = h / natH;
+      const drawW = natW * scale;
+      const drawH = natH * scale;
+      const drawX = half === 'left' ? x : x - (drawW - w);
+      page.drawImage(img, { x: drawX, y, width: drawW, height: drawH });
+    }
+
     page.pushOperators(popGraphicsState());
     return;
   }
@@ -285,98 +357,3 @@ function drawImageFit(
   }
 }
 
-/**
- * JPEG의 APP2(0xFFE2) 세그먼트에서 ICC 프로파일을 추출.
- * 여러 청크로 나뉜 경우 chunk 번호 순서대로 이어 붙여 반환.
- * ICC 프로파일이 없으면 null.
- */
-function extractIccProfile(jpegBytes: Buffer | Uint8Array): Buffer | null {
-  const buf = Buffer.isBuffer(jpegBytes) ? jpegBytes : Buffer.from(jpegBytes);
-  if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
-
-  const chunks = new Map<number, Buffer>();
-  let totalChunks = 0;
-  let i = 2; // SOI 다음부터 스캔
-
-  while (i < buf.length - 4) {
-    if (buf[i] !== 0xff) break;
-    const marker = buf[i + 1];
-    // SOS(0xDA) 이후는 압축 데이터 구간 — 더 이상 APP 세그먼트 없음
-    if (marker === 0xda) break;
-    // 0xFF 패딩 스킵
-    if (marker === 0xff) {
-      i += 1;
-      continue;
-    }
-    // 세그먼트 없는 마커 (RSTn, SOI, EOI, TEM)
-    if (
-      marker === 0xd8 ||
-      marker === 0xd9 ||
-      (marker >= 0xd0 && marker <= 0xd7) ||
-      marker === 0x01
-    ) {
-      i += 2;
-      continue;
-    }
-    if (i + 4 > buf.length) break;
-    const segLen = buf.readUInt16BE(i + 2);
-    if (segLen < 2 || i + 2 + segLen > buf.length) break;
-
-    if (marker === 0xe2 && segLen > 16) {
-      // APP2 payload: "ICC_PROFILE\0" (12 bytes) + chunkNum(1) + chunkCnt(1) + profileData
-      const sig = buf.slice(i + 4, i + 16).toString('ascii');
-      if (sig === 'ICC_PROFILE\0') {
-        const chunkNum = buf[i + 16]; // 1-based
-        const chunkCnt = buf[i + 17];
-        totalChunks = chunkCnt;
-        const start = i + 18;
-        const end = i + 2 + segLen;
-        chunks.set(chunkNum, buf.slice(start, end));
-      }
-    }
-    i += 2 + segLen;
-  }
-
-  if (chunks.size === 0 || totalChunks === 0) return null;
-  const parts: Buffer[] = [];
-  for (let n = 1; n <= totalChunks; n++) {
-    const c = chunks.get(n);
-    if (!c) return null; // 누락 청크 — 안전하게 포기
-    parts.push(c);
-  }
-  return Buffer.concat(parts);
-}
-
-/**
- * 이미 임베드된 PDFImage의 Image XObject에 /ColorSpace [/ICCBased <stream>]를 주입.
- *
- * pdf-lib의 embedJpg/embedPng는 ref만 예약하고 실제 스트림은 save()에서 할당하므로,
- * 여기서 수동으로 image.embed()를 await한 뒤 lookup으로 dict를 얻어 ColorSpace 키를 교체한다.
- * image.embed()는 멱등적이며 이후 save() 시 skip된다.
- */
-async function injectIccColorSpace(
-  doc: PDFDocument,
-  pdfImage: PDFImage,
-  iccProfile: Buffer,
-  nComponents: 1 | 3 | 4,
-): Promise<void> {
-  // 1) JPEG bytes가 이미 context에 실제 스트림으로 등록되도록 embed 강제 실행
-  await (pdfImage as any).embed();
-
-  // 2) Image XObject 스트림 조회 (이제 존재). lookup은 PDFRawStream 오버로드가 없으므로
-  //    PDFStream으로 조회 — 실제 인스턴스는 PDFRawStream이며 .dict 속성을 공유한다.
-  const imgRef: PDFRef = (pdfImage as any).ref;
-  const imgStream = doc.context.lookup(imgRef, PDFStream);
-  if (!imgStream) return;
-
-  // 3) ICC 프로파일 raw stream 생성 — PDF writer가 자동으로 /Length 삽입하므로
-  //    dict에는 N(컴포넌트 수)만 명시.
-  const iccStream = doc.context.stream(iccProfile, {
-    N: nComponents,
-  });
-  const iccRef = doc.context.register(iccStream);
-
-  // 4) ICCBased ColorSpace 배열 [/ICCBased <ref>] 생성 후 기존 /ColorSpace 덮어쓰기
-  const csArray = doc.context.obj([PDFName.of('ICCBased'), iccRef]);
-  imgStream.dict.set(PDFName.of('ColorSpace'), csArray);
-}

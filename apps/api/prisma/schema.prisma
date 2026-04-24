@@ -980,6 +980,10 @@ model Order {
   paymentStatus         String           @default("pending")
   status                String           @default("pending_receipt")
   currentProcess        String           @default("receipt_pending")
+  printQueueStatus      String?
+  printQueueEnteredAt   DateTime?
+  printQueueExitedAt    DateTime?
+  printQueueExitReason  String?
   isUrgent              Boolean          @default(false)
   requestedDeliveryDate DateTime?
   customerMemo          String?
@@ -1007,6 +1011,7 @@ model Order {
   @@index([status, orderedAt])
   @@index([paymentStatus, orderedAt])
   @@index([createdByUserId])
+  @@index([printQueueStatus])
   @@map("orders")
 }
 
