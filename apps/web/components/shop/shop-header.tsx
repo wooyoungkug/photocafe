@@ -64,7 +64,7 @@ export function ShopHeader() {
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-neutral-900">
-                printing<span className="font-normal">114</span>
+                Photocafe
               </span>
             </Link>
 
@@ -199,7 +199,7 @@ export function ShopHeader() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
                 <span className="text-xl font-light tracking-tight text-neutral-900">
-                  printing<span className="font-normal">114</span>
+                  Photocafe
                 </span>
               </Link>
             </div>
