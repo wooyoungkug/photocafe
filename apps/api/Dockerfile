@@ -8,17 +8,17 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy package files (build context is repo root)
-COPY apps/api/package.json ./
-COPY apps/api/prisma ./prisma/
+COPY package.json ./
+COPY prisma ./prisma/
 
 # Install dependencies
 RUN npm install
 
 # Copy source code
-COPY apps/api/src ./src
-COPY apps/api/tsconfig*.json ./
-COPY apps/api/nest-cli.json ./
-COPY apps/api/fonts ./fonts
+COPY src ./src
+COPY tsconfig*.json ./
+COPY nest-cli.json ./
+COPY fonts ./fonts
 
 # Generate Prisma client and build
 RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
