@@ -80,8 +80,8 @@
       <div class="error" id="errorMsg"></div>
       <form onsubmit="handleLogin(event)">
         <div class="form-group">
-          <label for="email">이메일</label>
-          <input type="email" id="email" placeholder="admin@example.com" required>
+          <label for="email">직원 ID</label>
+          <input type="text" id="email" placeholder="직원 ID 입력" required>
         </div>
         <div class="form-group">
           <label for="password">비밀번호</label>
@@ -122,7 +122,7 @@
     }
     async function handleLogin(e) {
       e.preventDefault();
-      const email = document.getElementById('email').value;
+      const staffId = document.getElementById('email').value;
       const password = document.getElementById('password').value;
       const errorMsg = document.getElementById('errorMsg');
       const submitBtn = document.getElementById('submitBtn');
@@ -130,10 +130,10 @@
       submitBtn.disabled = true;
       submitBtn.textContent = '로그인 중...';
       try {
-        const res = await fetch('/api/v1/auth/login', {
+        const res = await fetch('/api/v1/auth/staff/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
+          body: JSON.stringify({ staffId, password })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || '로그인에 실패했습니다.');
