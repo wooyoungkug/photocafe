@@ -163,7 +163,7 @@ function createCartStorage() {
     };
   }
 
-  const DB_NAME = 'printing114';
+  const DB_NAME = 'photocafe';
   const STORE_NAME = 'cart';
   let db: IDBDatabase | null = null;
 

@@ -548,7 +548,7 @@ export default function PdfSettingsDialog({
  * 시스템 설정에서 PDF 설정을 읽어 기본값으로 사용하는 유틸
  */
 // 로컬 폴더 핸들을 전역 + IndexedDB로 영속화 (새로고침 내성)
-const IDB_DB_NAME = 'printing114';
+const IDB_DB_NAME = 'photocafe';
 const IDB_STORE = 'pdf-folder-handle';
 const IDB_KEY = 'selected';
 let _localDirHandle: FileSystemDirectoryHandle | null = null;

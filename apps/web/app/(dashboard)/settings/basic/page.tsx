@@ -764,7 +764,7 @@ export default function BasicSettingsPage() {
                     className="font-mono"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Docker 컨테이너 내부 경로입니다. 시놀로지 실제 경로: /volume1/docker/printing114/uploads
+                    Docker 컨테이너 내부 경로입니다. 시놀로지 실제 경로: /volume1/docker/photocafe/uploads
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -792,7 +792,7 @@ export default function BasicSettingsPage() {
                     id="backup_path"
                     value={serverSettings.backupPath}
                     onChange={(e) => setServerSettings({ ...serverSettings, backupPath: e.target.value })}
-                    placeholder="/volume1/backup/printing114"
+                    placeholder="/volume1/backup/photocafe"
                     className="font-mono"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -842,7 +842,7 @@ export default function BasicSettingsPage() {
                 <div className="space-y-2 text-sm font-mono">
                   <div className="flex items-start gap-2">
                     <span className="text-muted-foreground whitespace-nowrap">호스트(NAS):</span>
-                    <span>/volume1/docker/printing114/uploads</span>
+                    <span>/volume1/docker/photocafe/uploads</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <span className="text-muted-foreground whitespace-nowrap">컨테이너:</span>
