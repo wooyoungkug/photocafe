@@ -16,10 +16,10 @@ export class BackupService {
   constructor(private config: ConfigService) {
     this.s3 = new S3Client({
       region: 'us-east-005',
-      endpoint: config.get('B2_BACKUP_ENDPOINT'),
+      endpoint: config.get<string>('B2_BACKUP_ENDPOINT'),
       credentials: {
-        accessKeyId: config.get('B2_BACKUP_KEY_ID'),
-        secretAccessKey: config.get('B2_BACKUP_APP_KEY'),
+        accessKeyId: config.get<string>('B2_BACKUP_KEY_ID', ''),
+        secretAccessKey: config.get<string>('B2_BACKUP_APP_KEY', ''),
       },
     });
   }
