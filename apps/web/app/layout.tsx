@@ -25,7 +25,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "printing114",
+  title: "Photocafe",
   description: "포토북/앨범 인쇄업체를 위한 통합 ERP 시스템",
   icons: {
     icon: "/favicon.svg",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Printing114",
+    title: "Photocafe",
   },
   formatDetection: {
     telephone: false,

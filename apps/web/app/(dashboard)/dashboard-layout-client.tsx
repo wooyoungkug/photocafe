@@ -31,8 +31,8 @@ export function DashboardLayoutClient({
   useEffect(() => {
     const studioName = user?.type === 'employee' ? user?.clientName : user?.name;
     document.title = studioName
-      ? `printing114 - ${studioName}`
-      : 'printing114';
+      ? `Photocafe - ${studioName}`
+      : 'Photocafe';
   }, [user?.name, user?.clientName, user?.type]);
 
   const [sheetOpen, setSheetOpen] = useState(false);

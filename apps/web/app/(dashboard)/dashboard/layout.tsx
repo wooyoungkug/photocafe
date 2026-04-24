@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "printing114 - 대시보드",
+  title: "Photocafe - 대시보드",
 };
 
 export default function DashboardLayout({

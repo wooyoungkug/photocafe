@@ -20,8 +20,8 @@ export default function ShopLayout({
   useEffect(() => {
     const studioName = user?.type === 'employee' ? user?.clientName : user?.name;
     document.title = isAuthenticated && studioName
-      ? `printing114 - ${studioName}`
-      : 'printing114';
+      ? `Photocafe - ${studioName}`
+      : 'Photocafe';
   }, [isAuthenticated, user?.name, user?.clientName, user?.type]);
 
   // 대리로그인 데이터가 있으면 sessionStorage에 직접 적용

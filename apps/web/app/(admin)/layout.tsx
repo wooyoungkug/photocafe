@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Admin Login - Printing114",
+  title: "Admin Login - Photocafe",
   description: "관리자 로그인",
 };
 

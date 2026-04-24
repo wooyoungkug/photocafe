@@ -271,7 +271,7 @@ function LoginForm() {
           </div>
         </Link>
         <CardTitle className="text-2xl">로그인</CardTitle>
-        <CardDescription>Printing114에 오신 것을 환영합니다</CardDescription>
+        <CardDescription>Photocafe에 오신 것을 환영합니다</CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">
@@ -493,7 +493,7 @@ function LoginFormFallback() {
           <span className="text-white font-bold text-2xl">P</span>
         </div>
         <CardTitle className="text-2xl">로그인</CardTitle>
-        <CardDescription>Printing114에 오신 것을 환영합니다</CardDescription>
+        <CardDescription>Photocafe에 오신 것을 환영합니다</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex items-center justify-center py-8">

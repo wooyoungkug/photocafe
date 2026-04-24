@@ -169,7 +169,7 @@ export default function PublicReviewPage() {
 
       {/* 푸터 */}
       <footer className="py-4 px-4 text-center border-t bg-white">
-        <p className="text-[12px] text-gray-400">Powered by Printing114</p>
+        <p className="text-[12px] text-gray-400">Powered by Photocafe</p>
       </footer>
     </div>
   );

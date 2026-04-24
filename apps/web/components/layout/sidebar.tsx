@@ -709,7 +709,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
         >
           <Image
             src="/images/logo.png"
-            alt="Printing114 로고"
+            alt="Photocafe 로고"
             width={200}
             height={60}
             className="h-12 w-auto brightness-0 invert opacity-90 group-hover:opacity-100 transition-opacity duration-300"
@@ -970,7 +970,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
 
         {/* Copyright */}
         <p className="text-[10px] text-slate-700 text-center select-none">
-          &copy; 2026 Printing114 Inc.
+          &copy; 2026 Photocafe Inc.
         </p>
       </div>
     </div>

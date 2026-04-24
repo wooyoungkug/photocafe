@@ -77,10 +77,10 @@ export function ShopFooter() {
               <p className="text-neutral-500">{t('holidayClosed')}</p>
               <p className="mt-3">
                 <a
-                  href={`mailto:${companyInfo.company_email || 'support@printing114.com'}`}
+                  href={`mailto:${companyInfo.company_email || 'support@photocafe.com'}`}
                   className="hover:text-white transition-colors text-gold"
                 >
-                  {companyInfo.company_email || 'support@printing114.com'}
+                  {companyInfo.company_email || 'support@photocafe.com'}
                 </a>
               </p>
             </div>

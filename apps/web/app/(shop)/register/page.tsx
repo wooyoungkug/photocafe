@@ -137,7 +137,7 @@ function RegisterForm() {
             </div>
           </Link>
           <CardTitle className="text-2xl">회원가입</CardTitle>
-          <CardDescription>Printing114 계정을 만들어보세요</CardDescription>
+          <CardDescription>Photocafe 계정을 만들어보세요</CardDescription>
         </CardHeader>
 
         <CardContent>
