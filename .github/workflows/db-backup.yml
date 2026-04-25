@@ -2,9 +2,8 @@ name: PostgreSQL Backup to B2
 
 on:
   schedule:
-    # 매일 새벽 03:00 KST = 18:00 UTC (전날)
     - cron: '0 18 * * *'
-  workflow_dispatch:  # 수동 실행 허용
+  workflow_dispatch:
 
 jobs:
   backup:
@@ -16,26 +15,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client
+      - name: Install PostgreSQL 18 client
         run: |
-          # PostgreSQL 공식 저장소 추가 (최신 방식)
-          sudo apt-get install -y curl ca-certificates
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail https://www.postgresql.org/media/keys/ACCC4CF8.asc
-          sudo sh -c 'echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
-          sudo apt-get update
+          # 최신 PostgreSQL 저장소 키 등록 (2024년 공식 방식)
+          sudo apt-get install -y gnupg2 curl
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | \
+            gpg --dearmor | \
+            sudo tee /etc/apt/trusted.gpg.d/postgresql.gpg > /dev/null
 
-          # 설치 가능한 postgresql-client 버전 확인
-          echo "=== 설치 가능한 postgresql-client 버전 ==="
-          apt-cache search postgresql-client | grep "^postgresql-client"
-          echo "==========================================="
+          echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | \
+            sudo tee /etc/apt/sources.list.d/pgdg.list
 
-          # 18 설치 시도, 없으면 최신 버전으로 대체
-          sudo apt-get install -y postgresql-client-18 || \
-          sudo apt-get install -y postgresql-client-17 || \
-          sudo apt-get install -y postgresql-client
+          sudo apt-get update -qq
 
-          # 설치된 버전 확인
+          # 설치 가능한 버전 목록 확인
+          echo "=== 설치 가능한 버전 ==="
+          apt-cache madison postgresql-client-18 2>/dev/null || echo "18 없음"
+          apt-cache madison postgresql-client-17 2>/dev/null || echo "17 없음"
+          echo "========================"
+
+          # 버전 순서대로 시도
+          sudo apt-get install -y postgresql-client-18 2>/dev/null || \
+          sudo apt-get install -y postgresql-client-17 2>/dev/null || \
+          sudo apt-get install -y postgresql-client-16
+
           pg_dump --version
 
       - name: Set timestamp and backup type
@@ -70,21 +73,30 @@ jobs:
           echo "🗄️  Starting pg_dump..."
           echo "🔗 Connecting to: ${DATABASE_URL//:*@/::****@}"
 
+          # pg_dump 실행 (에러도 stdout으로 출력)
+          set +e
           pg_dump "$DATABASE_URL" \
             --no-owner \
             --no-privileges \
             --format=plain \
             --verbose \
-            2> dump.log \
-            | gzip -9 > "${{ steps.meta.outputs.filename }}"
+            2>&1 | tee dump_with_log.txt | grep -v "^pg_dump:" | gzip -9 > "${{ steps.meta.outputs.filename }}"
+          PG_EXIT=${PIPESTATUS[0]}
+          set -e
 
-          echo "=== pg_dump 에러 로그 ==="
-          cat dump.log || echo "(로그 없음)"
+          echo "=== pg_dump 전체 로그 ==="
+          cat dump_with_log.txt
           echo "========================="
+          echo "pg_dump exit code: ${PG_EXIT}"
 
           SIZE=$(du -h "${{ steps.meta.outputs.filename }}" | cut -f1)
-          echo "✅ Dump complete. Size: ${SIZE}"
+          echo "Dump size: ${SIZE}"
           ls -lh "${{ steps.meta.outputs.filename }}"
+
+          if [ "${PG_EXIT}" != "0" ]; then
+            echo "❌ pg_dump failed with exit code ${PG_EXIT}"
+            exit 1
+          fi
 
       - name: Verify dump integrity
         run: |
@@ -112,7 +124,6 @@ jobs:
             "s3://${B2_BUCKET}/${{ steps.meta.outputs.s3_key }}" \
             --endpoint-url "${B2_ENDPOINT}" \
             --no-progress
-
           echo "✅ Upload complete"
 
       - name: Summary
