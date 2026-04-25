@@ -7,13 +7,14 @@
 | 환경 | 프론트엔드 | 백엔드 API | DB |
 |------|------------|------------|-----|
 | 로컬 | localhost:3002 | localhost:3001 | localhost:5432 |
-| 운영 (Railway) | `<web>.up.railway.app` | `<api>.up.railway.app` | Railway Postgres 플러그인 |
+| 운영 (Railway) | https://photocafe.co.kr | https://api.photocafe.co.kr | Railway Postgres 플러그인 |
 | 운영 (Synology, **Legacy**) | 1.212.201.147:3000 | 1.212.201.147:3001 | 192.168.0.67:5433 |
 
 > **배포 플랫폼 전환 중**: Synology NAS → Railway 마이그레이션 진행 중입니다.
 > - 자동 배포는 **Railway**가 `main` 브랜치 push를 감지하여 처리합니다 (`railway.json`, `apps/{api,web}/railway.toml`).
-> - Synology 자동 배포 워크플로우(`.github/workflows/deploy.yml`)는 비활성화(`.disabled`) 상태입니다.
-> - 실제 Railway 도메인은 Railway 대시보드에서 확인하여 위 표를 업데이트하세요.
+> - Synology 자동 배포 워크플로우는 제거되었습니다 (`deploy.yml.disabled` 삭제 완료).
+> - 도메인이 변경되었거나 추가되었다면 `railway domain --service {api|web}` 또는 Railway 대시보드에서 확인 후 위 표를 업데이트하세요.
+> - Custom domain 미설정 서비스는 Railway 자동 도메인(`<service>-<project>.up.railway.app`)을 사용합니다.
 
 ## 기술 스택
 
