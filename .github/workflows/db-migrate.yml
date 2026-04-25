@@ -1,63 +1,149 @@
-name: DB Migration (Local → Production)
+name: DB Migration (Local → Railway Production)
+
+# 로컬에서 작성한 SQL 덤프를 Railway Postgres 로 안전하게 적용합니다.
+#
+# 사용 방법:
+#   1. 로컬에서 덤프 생성:
+#        pg_dump -U postgres -d printing_erp \
+#          --no-owner --no-privileges --format=plain \
+#          > local_db_backup.sql
+#   2. 본 저장소에 업로드(또는 별도 스토리지)하지 말고,
+#      GitHub UI 의 "Run workflow" 입력란에 외부 스토리지 URL 을 지정하거나,
+#      이미 Railway DB 에 접근 가능한 경로(예: B2 사전 서명 URL)를 입력합니다.
+#   3. workflow_dispatch 로 수동 실행 (실수 방지 목적)
+#
+# 사전 요구사항 (GitHub Secrets):
+#   - RAILWAY_DATABASE_URL : Railway Postgres 의 외부 Proxy URL
+#       (Railway 대시보드 → Postgres → Connect → Public URL 복사)
+#   - (선택) BACKUP_SOURCE_URL : 덤프 파일 사전 서명 URL
 
 on:
   workflow_dispatch:
+    inputs:
+      dump_url:
+        description: '복원할 SQL 덤프의 사전 서명 URL (.sql 또는 .sql.gz)'
+        required: true
+        type: string
+      run_prisma_push:
+        description: '복원 후 prisma db push 실행 여부'
+        required: false
+        type: boolean
+        default: false
+      take_backup_first:
+        description: '복원 전 운영 DB 백업 (B2 업로드)'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Migrate DB
-        uses: appleboy/ssh-action@master
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          envs: SUDO_PASS
-          command_timeout: 5m
-          script: |
-            DOCKER="/usr/local/bin/docker"
-            COMPOSE="/usr/local/bin/docker-compose"
-            run_sudo() { echo "$SUDO_PASS" | sudo -S "$@"; }
-            cd /volume1/docker
+          node-version: '22'
 
-            echo "=== 1. 기존 DB 컨테이너 정리 ==="
-            # printing-erp-db (구 docker-compose.yml)가 5433 점유 중이면 중지
-            OLD_DB=$(run_sudo $DOCKER ps -q --filter "name=printing-erp-db" 2>/dev/null || true)
-            if [ -n "$OLD_DB" ]; then
-              echo "구 DB 컨테이너(printing-erp-db) 중지..."
-              run_sudo $DOCKER stop printing-erp-db 2>/dev/null || true
-            fi
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client
 
-            echo "=== 2. photocafe-db 시작 ==="
-            DB_RUNNING=$(run_sudo $DOCKER ps -q --filter "name=photocafe-db" 2>/dev/null || true)
-            if [ -z "$DB_RUNNING" ]; then
-              echo "photocafe-db 시작..."
-              run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d postgres
-              echo "DB 시작 대기 (30초)..."
-              sleep 30
-            else
-              echo "photocafe-db 이미 실행 중"
-            fi
-
-            echo "=== 3. 운영 DB 백업 ==="
-            run_sudo $DOCKER exec photocafe-db pg_dump -U postgres -d postgres -f /tmp/prod_backup_before_migrate.sql 2>&1 || echo "백업 스킵 (빈 DB일 수 있음)"
-
-            echo "=== 4. 로컬 DB 덤프 복원 ==="
-            run_sudo $DOCKER cp ~/local_db_backup.sql photocafe-db:/tmp/local_db_backup.sql
-            run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -f /tmp/local_db_backup.sql 2>&1 | tail -30
-
-            echo "=== 5. API 서버 재시작 (DB 연결 갱신) ==="
-            run_sudo $DOCKER restart photocafe-api 2>/dev/null || true
-            sleep 10
-
-            echo "=== 6. 검증 ==="
-            run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -c "SELECT count(*) as settings_count FROM production_settings;"
-
-            echo "=== 마이그레이션 완료 ==="
+      # ===========================================================
+      # 1. 운영 DB 백업 (선택)
+      # ===========================================================
+      - name: Pre-migration backup to B2
+        if: ${{ inputs.take_backup_first == true }}
         env:
-          SUDO_PASS: ${{ secrets.SSH_SUDO_PASS }}
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          export TZ="Asia/Seoul"
+          TS=$(date '+%Y-%m-%d-%H%M%S')
+          FILENAME="pre-migrate-${TS}.sql.gz"
+
+          echo "=== 마이그레이션 전 운영 DB 백업 ==="
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=plain \
+            | gzip -9 > "${FILENAME}"
+
+          ls -lh "${FILENAME}"
+
+          aws s3 cp "${FILENAME}" \
+            "s3://${B2_BUCKET}/pre-migrate/${FILENAME}" \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --no-progress
+
+          echo "백업 업로드 완료: pre-migrate/${FILENAME}"
+
+      # ===========================================================
+      # 2. 덤프 다운로드
+      # ===========================================================
+      - name: Download dump
+        env:
+          DUMP_URL: ${{ inputs.dump_url }}
+        run: |
+          echo "=== 덤프 다운로드 ==="
+          curl -fsSL -o dump.raw "$DUMP_URL"
+          ls -lh dump.raw
+
+          if file dump.raw | grep -q gzip; then
+            echo "Gzip 감지 - 압축 해제"
+            gunzip -c dump.raw > dump.sql
+          else
+            mv dump.raw dump.sql
+          fi
+
+          ls -lh dump.sql
+          head -3 dump.sql || true
+
+      # ===========================================================
+      # 3. Railway DB 에 복원
+      # ===========================================================
+      - name: Restore to Railway Postgres
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          echo "=== Railway Postgres 에 복원 ==="
+          # ON_ERROR_STOP 으로 중간 실패 시 즉시 중단
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f dump.sql 2>&1 | tail -50
+          echo "복원 완료"
+
+      # ===========================================================
+      # 4. Prisma 스키마 동기화 (선택)
+      # ===========================================================
+      - name: Prisma db push
+        if: ${{ inputs.run_prisma_push == true }}
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          echo "=== Prisma 스키마 동기화 ==="
+          cd apps/api
+          npm ci --no-audit --no-fund
+          npx prisma generate
+          npx prisma db push --accept-data-loss
+          echo "Prisma 동기화 완료"
+
+      # ===========================================================
+      # 5. 검증
+      # ===========================================================
+      - name: Verify
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          echo "=== 검증: 주요 테이블 row 수 ==="
+          psql "$DATABASE_URL" -c "
+            SELECT
+              schemaname || '.' || relname AS table,
+              n_live_tup AS rows
+            FROM pg_stat_user_tables
+            ORDER BY n_live_tup DESC
+            LIMIT 20;
+          "
