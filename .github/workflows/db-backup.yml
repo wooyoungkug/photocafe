@@ -15,27 +15,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL client (version-matched)
-        run: |
-          # Docker로 정확한 버전의 pg_dump 실행
-          # Railway의 PostgreSQL 버전 확인 후 맞는 버전 설치
-          sudo apt-get install -y postgresql-common
-
-          # 현재 시스템에 설치된 버전 확인
-          echo "=== 현재 설치된 pg_dump ==="
-          which pg_dump && pg_dump --version || echo "pg_dump 없음"
-
-          # PostgreSQL 18 직접 설치 (Debian bookworm 기반)
-          # Railway의 DB가 Debian 18.3-1.pgdg13+1 이므로
-          # pgdg 저장소에서 직접 설치
-          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg-bookworm.list'
-          wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-          sudo apt-get update -qq
-
-          echo "=== postgresql-client-18 설치 시도 ==="
-          sudo apt-get install -y postgresql-client-18
-          pg_dump --version
-
       - name: Set timestamp and backup type
         id: meta
         run: |
@@ -61,15 +40,16 @@ jobs:
           echo "📦 Backup type: ${PREFIX}"
           echo "📁 S3 key: ${S3_KEY}"
 
-      - name: Dump PostgreSQL database
+      - name: Dump PostgreSQL database (Docker)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "🗄️  Starting pg_dump..."
+          echo "🗄️  Starting pg_dump via Docker (postgres:18)..."
           echo "🔗 Connecting to: ${DATABASE_URL//:*@/::****@}"
-          echo "pg_dump version: $(pg_dump --version)"
 
-          pg_dump "$DATABASE_URL" \
+          docker run --rm \
+            postgres:18 \
+            pg_dump "$DATABASE_URL" \
             --no-owner \
             --no-privileges \
             --format=plain \
@@ -90,40 +70,4 @@ jobs:
           gzip -t "${{ steps.meta.outputs.filename }}"
           echo "✅ Gzip integrity OK"
 
-          if zcat "${{ steps.meta.outputs.filename }}" | head -20 | grep -q "PostgreSQL database dump"; then
-            echo "✅ SQL header looks valid"
-          else
-            echo "❌ SQL header missing — dump may be corrupted"
-            exit 1
-          fi
-
-      - name: Upload to Backblaze B2 (S3 compatible)
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
-          AWS_DEFAULT_REGION: us-east-005
-          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
-          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
-        run: |
-          echo "☁️  Uploading to B2..."
-          aws s3 cp \
-            "${{ steps.meta.outputs.filename }}" \
-            "s3://${B2_BUCKET}/${{ steps.meta.outputs.s3_key }}" \
-            --endpoint-url "${B2_ENDPOINT}" \
-            --no-progress
-          echo "✅ Upload complete"
-
-      - name: Summary
-        if: always()
-        run: |
-          echo "### 📊 Backup Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
-          echo "| Type | \`${{ steps.meta.outputs.prefix }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| File | \`${{ steps.meta.outputs.filename }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Path | \`s3://${{ secrets.B2_BUCKET_NAME }}/${{ steps.meta.outputs.s3_key }}\` |" >> $GITHUB_STEP_SUMMARY
-          if [ -f "${{ steps.meta.outputs.filename }}" ]; then
-            SIZE=$(du -h "${{ steps.meta.outputs.filename }}" | cut -f1)
-            echo "| Size | ${SIZE} |" >> $GITHUB_STEP_SUMMARY
-          fi
+          if zcat "${{ steps.meta.outputs.filename
