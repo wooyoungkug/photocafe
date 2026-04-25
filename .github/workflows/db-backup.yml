@@ -37,23 +37,62 @@ jobs:
           echo "filename=${FILENAME}" >> $GITHUB_OUTPUT
           echo "s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
           echo "prefix=${PREFIX}" >> $GITHUB_OUTPUT
-          echo "Backup type: ${PREFIX}"
-          echo "S3 key: ${S3_KEY}"
 
       - name: Dump PostgreSQL database via Docker
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "Starting pg_dump via Docker postgres:18..."
           FILENAME="${{ steps.meta.outputs.filename }}"
+          echo "Starting pg_dump via Docker postgres:18..."
 
           docker run --rm \
-            -e PGPASSWORD="" \
+            --network host \
+            -e DATABASE_URL \
             postgres:18 \
-            pg_dump "${DATABASE_URL}" \
-            --no-owner \
-            --no-privileges \
-            --format=plain \
-            2>&1 | gzip -9 > "${FILENAME}"
+            sh -c 'pg_dump $DATABASE_URL --no-owner --no-privileges --format=plain 2>&1' \
+            | gzip -9 > "${FILENAME}"
 
-          echo "=== 결과 확인 ===
+          SIZE=$(du -h "${FILENAME}" | cut -f1)
+          echo "Dump size: ${SIZE}"
+          ls -lh "${FILENAME}"
+
+      - name: Verify dump integrity
+        run: |
+          FILENAME="${{ steps.meta.outputs.filename }}"
+          gzip -t "${FILENAME}"
+          echo "Gzip OK"
+
+          if zcat "${FILENAME}" | head -20 | grep -q "PostgreSQL database dump"; then
+            echo "SQL header OK"
+          else
+            echo "SQL header missing"
+            zcat "${FILENAME}" | head -5
+            exit 1
+          fi
+
+      - name: Upload to Backblaze B2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          FILENAME="${{ steps.meta.outputs.filename }}"
+          S3_KEY="${{ steps.meta.outputs.s3_key }}"
+
+          aws s3 cp "${FILENAME}" \
+            "s3://${B2_BUCKET}/${S3_KEY}" \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --no-progress
+
+          echo "Upload complete"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Backup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | ${{ steps.meta.outputs.prefix }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| File | ${{ steps.meta.outputs.filename }} |" >> $GITHUB_STEP_SUMMARY
