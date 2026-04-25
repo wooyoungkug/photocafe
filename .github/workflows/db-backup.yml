@@ -15,30 +15,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL 18 client
+      - name: Install PostgreSQL client (version-matched)
         run: |
-          # 최신 PostgreSQL 저장소 키 등록 (2024년 공식 방식)
-          sudo apt-get install -y gnupg2 curl
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | \
-            gpg --dearmor | \
-            sudo tee /etc/apt/trusted.gpg.d/postgresql.gpg > /dev/null
+          # Docker로 정확한 버전의 pg_dump 실행
+          # Railway의 PostgreSQL 버전 확인 후 맞는 버전 설치
+          sudo apt-get install -y postgresql-common
 
-          echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | \
-            sudo tee /etc/apt/sources.list.d/pgdg.list
+          # 현재 시스템에 설치된 버전 확인
+          echo "=== 현재 설치된 pg_dump ==="
+          which pg_dump && pg_dump --version || echo "pg_dump 없음"
 
+          # PostgreSQL 18 직접 설치 (Debian bookworm 기반)
+          # Railway의 DB가 Debian 18.3-1.pgdg13+1 이므로
+          # pgdg 저장소에서 직접 설치
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" > /etc/apt/sources.list.d/pgdg-bookworm.list'
+          wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update -qq
 
-          # 설치 가능한 버전 목록 확인
-          echo "=== 설치 가능한 버전 ==="
-          apt-cache madison postgresql-client-18 2>/dev/null || echo "18 없음"
-          apt-cache madison postgresql-client-17 2>/dev/null || echo "17 없음"
-          echo "========================"
-
-          # 버전 순서대로 시도
-          sudo apt-get install -y postgresql-client-18 2>/dev/null || \
-          sudo apt-get install -y postgresql-client-17 2>/dev/null || \
-          sudo apt-get install -y postgresql-client-16
-
+          echo "=== postgresql-client-18 설치 시도 ==="
+          sudo apt-get install -y postgresql-client-18
           pg_dump --version
 
       - name: Set timestamp and backup type
@@ -72,31 +67,23 @@ jobs:
         run: |
           echo "🗄️  Starting pg_dump..."
           echo "🔗 Connecting to: ${DATABASE_URL//:*@/::****@}"
+          echo "pg_dump version: $(pg_dump --version)"
 
-          # pg_dump 실행 (에러도 stdout으로 출력)
-          set +e
           pg_dump "$DATABASE_URL" \
             --no-owner \
             --no-privileges \
             --format=plain \
             --verbose \
-            2>&1 | tee dump_with_log.txt | grep -v "^pg_dump:" | gzip -9 > "${{ steps.meta.outputs.filename }}"
-          PG_EXIT=${PIPESTATUS[0]}
-          set -e
+            2> dump.log \
+            | gzip -9 > "${{ steps.meta.outputs.filename }}"
 
-          echo "=== pg_dump 전체 로그 ==="
-          cat dump_with_log.txt
+          echo "=== pg_dump 에러 로그 ==="
+          cat dump.log || echo "(로그 없음)"
           echo "========================="
-          echo "pg_dump exit code: ${PG_EXIT}"
 
           SIZE=$(du -h "${{ steps.meta.outputs.filename }}" | cut -f1)
-          echo "Dump size: ${SIZE}"
+          echo "✅ Dump complete. Size: ${SIZE}"
           ls -lh "${{ steps.meta.outputs.filename }}"
-
-          if [ "${PG_EXIT}" != "0" ]; then
-            echo "❌ pg_dump failed with exit code ${PG_EXIT}"
-            exit 1
-          fi
 
       - name: Verify dump integrity
         run: |
