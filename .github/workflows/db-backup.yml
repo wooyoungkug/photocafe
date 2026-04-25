@@ -37,37 +37,23 @@ jobs:
           echo "filename=${FILENAME}" >> $GITHUB_OUTPUT
           echo "s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
           echo "prefix=${PREFIX}" >> $GITHUB_OUTPUT
-          echo "📦 Backup type: ${PREFIX}"
-          echo "📁 S3 key: ${S3_KEY}"
+          echo "Backup type: ${PREFIX}"
+          echo "S3 key: ${S3_KEY}"
 
-      - name: Dump PostgreSQL database (Docker)
+      - name: Dump PostgreSQL database via Docker
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          echo "🗄️  Starting pg_dump via Docker (postgres:18)..."
-          echo "🔗 Connecting to: ${DATABASE_URL//:*@/::****@}"
+          echo "Starting pg_dump via Docker postgres:18..."
+          FILENAME="${{ steps.meta.outputs.filename }}"
 
           docker run --rm \
+            -e PGPASSWORD="" \
             postgres:18 \
-            pg_dump "$DATABASE_URL" \
+            pg_dump "${DATABASE_URL}" \
             --no-owner \
             --no-privileges \
             --format=plain \
-            --verbose \
-            2> dump.log \
-            | gzip -9 > "${{ steps.meta.outputs.filename }}"
+            2>&1 | gzip -9 > "${FILENAME}"
 
-          echo "=== pg_dump 에러 로그 ==="
-          cat dump.log || echo "(로그 없음)"
-          echo "========================="
-
-          SIZE=$(du -h "${{ steps.meta.outputs.filename }}" | cut -f1)
-          echo "✅ Dump complete. Size: ${SIZE}"
-          ls -lh "${{ steps.meta.outputs.filename }}"
-
-      - name: Verify dump integrity
-        run: |
-          gzip -t "${{ steps.meta.outputs.filename }}"
-          echo "✅ Gzip integrity OK"
-
-          if zcat "${{ steps.meta.outputs.filename
+          echo "=== 결과 확인 ===
