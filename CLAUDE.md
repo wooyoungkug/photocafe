@@ -7,7 +7,13 @@
 | 환경 | 프론트엔드 | 백엔드 API | DB |
 |------|------------|------------|-----|
 | 로컬 | localhost:3002 | localhost:3001 | localhost:5432 |
-| 운영 | 1.212.201.147:3000 | 1.212.201.147:3001 | 192.168.0.67:5433 |
+| 운영 (Railway) | `<web>.up.railway.app` | `<api>.up.railway.app` | Railway Postgres 플러그인 |
+| 운영 (Synology, **Legacy**) | 1.212.201.147:3000 | 1.212.201.147:3001 | 192.168.0.67:5433 |
+
+> **배포 플랫폼 전환 중**: Synology NAS → Railway 마이그레이션 진행 중입니다.
+> - 자동 배포는 **Railway**가 `main` 브랜치 push를 감지하여 처리합니다 (`railway.json`, `apps/{api,web}/railway.toml`).
+> - Synology 자동 배포 워크플로우(`.github/workflows/deploy.yml`)는 비활성화(`.disabled`) 상태입니다.
+> - 실제 Railway 도메인은 Railway 대시보드에서 확인하여 위 표를 업데이트하세요.
 
 ## 기술 스택
 
@@ -58,14 +64,40 @@ FRONTEND_URL="http://localhost:3002"
 
 Swagger: http://localhost:3001/api/docs
 
-## Docker (운영 서버)
+## 운영 환경 운영/관제
+
+### Railway (현재)
 
 ```bash
-sudo docker ps                                    # 상태 확인
-sudo docker logs printing114-api --tail 30        # 로그
-sudo docker restart printing114-api               # 재시작
-sudo docker exec printing114-api npx prisma db push  # Prisma
+# Railway CLI 설치 (최초 1회)
+npm install -g @railway/cli
+railway login
+railway link            # 프로젝트 선택
+
+# 상태 확인 / 로그 / 재시작
+railway status
+railway logs --service api
+railway logs --service web
+railway redeploy --service api
+
+# Prisma 스키마 동기화 (운영 DB)
+railway run --service api npx prisma db push
 ```
+
+- **자동 배포**: GitHub `main` 브랜치 push → Railway가 자동 빌드/배포
+- **빌드**: 루트 `railway.json`(API)와 `apps/{api,web}/railway.toml`이 각각 Dockerfile 빌드를 정의
+- **환경변수**: Railway 대시보드 → 각 서비스 → Variables 탭에서 관리 (절대 코드/문서에 시크릿 기록 금지)
+
+### Synology NAS (Legacy, 잔존 시)
+
+```bash
+sudo docker ps                                       # 상태 확인
+sudo docker logs photocafe-api --tail 30             # 로그
+sudo docker restart photocafe-api                    # 재시작
+sudo docker exec photocafe-api npx prisma db push    # Prisma
+```
+
+> Synology 컨테이너 명은 마이그레이션을 거치며 `printing114-*` → `photocafe-*`로 변경되었습니다. 구 컨테이너가 남아있으면 충돌 방지를 위해 정리하세요.
 
 ## DB 관리
 
@@ -82,8 +114,27 @@ npx prisma db push --force-reset && npm run db:seed
 
 ## 운영 서버 경로
 
+### Railway (현재)
+- **API 서비스**: `apps/api/Dockerfile` 기반, 컨테이너 내부 `/app`
+- **Web 서비스**: `apps/web/Dockerfile` 기반, 컨테이너 내부 `/app`
+- **업로드 볼륨**: Railway Volume 마운트 → `UPLOAD_BASE_PATH=/app/uploads` (서비스별 Volume 설정 필요)
+- **DB**: Railway Postgres 플러그인 (`DATABASE_URL`은 Railway가 자동 주입)
+- **백업**: GitHub Actions `db-backup.yml`이 매일 18:00 UTC에 Backblaze B2로 업로드
+
+### Synology NAS (Legacy)
 - 백엔드: `/volume1/docker/printing114/`
 - 프론트엔드: `/volume1/docker/printing114-web/apps/web/`
+- compose 파일: `/volume1/docker/docker-compose.prod.yml`
+- 업로드: `/volume1/docker/printing114/uploads`
+
+## CI/CD
+
+| 워크플로우 | 상태 | 트리거 | 용도 |
+|-----------|------|--------|------|
+| Railway 자동 배포 | 활성 | `main` push | API/Web 빌드·배포 (Railway 자체 통합) |
+| `db-backup.yml` | 활성 | 매일 18:00 UTC | PostgreSQL → Backblaze B2 (daily/weekly/monthly) |
+| `db-migrate.yml` | 활성 (수동) | `workflow_dispatch` | 로컬 DB 덤프 → 운영 DB (Synology SSH 의존, Railway 이전 시 재작성 필요) |
+| `deploy.yml.disabled` | 비활성 | - | 구 Synology 자동 배포 |
 
 ## UI 타이포그래피 기준
 
