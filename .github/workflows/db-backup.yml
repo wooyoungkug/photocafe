@@ -16,12 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install PostgreSQL 16 client
+      - name: Install PostgreSQL client
         run: |
           sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
           wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
           sudo apt-get update
-          sudo apt-get install -y postgresql-client-17
+          sudo apt-get install -y postgresql-client
+          pg_dump --version
 
       - name: Set timestamp and backup type
         id: meta
@@ -53,6 +54,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           echo "🗄️  Starting pg_dump..."
+          echo "🔗 Connecting to: ${DATABASE_URL//:*@/::****@}"
+
           pg_dump "$DATABASE_URL" \
             --no-owner \
             --no-privileges \
@@ -60,6 +63,10 @@ jobs:
             --verbose \
             2> dump.log \
             | gzip -9 > "${{ steps.meta.outputs.filename }}"
+
+          echo "=== pg_dump 에러 로그 ==="
+          cat dump.log || echo "(로그 없음)"
+          echo "========================="
 
           SIZE=$(du -h "${{ steps.meta.outputs.filename }}" | cut -f1)
           echo "✅ Dump complete. Size: ${SIZE}"
