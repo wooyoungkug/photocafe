@@ -36,6 +36,7 @@ export const DEFAULT_NAV_DATA: NavItemDef[] = [
     name: "기초정보",
     children: [
       { name: "기초정보 설정", href: "/settings/basic" },
+      { name: "감사로그", href: "/settings/audit-logs" },
       { name: "용지관리", href: "/master/papers" },
       { name: "표지원단정보", href: "/master/fabrics" },
       { name: "카테고리", href: "/company/categories" },

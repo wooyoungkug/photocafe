@@ -1,63 +1,388 @@
-name: DB Migration (Local → Production)
+name: DB Migration (Local → Railway Production)
+
+# 로컬에서 만든 SQL 덤프를, 또는 B2 에 저장된 암호화된 백업을, Railway Postgres 로 복원합니다.
+#
+# 입력 방식 두 가지 (둘 중 하나만 채우면 됩니다):
+#   A. b2_key      : B2 에 저장된 백업 파일 키 (예: weekly/photocafe-2026-04-26-102616.sql.gz.gpg)
+#                    -> 워크플로우가 자동으로 B2 에서 다운로드 + GPG 복호화 수행
+#   B. dump_url    : 외부 사전 서명 URL 또는 직접 다운로드 가능한 URL
+#                    (.sql / .sql.gz / .sql.gz.gpg 모두 지원, 자동 감지)
+#
+# 사전 요구사항 (GitHub Secrets):
+#   - RAILWAY_DATABASE_URL : Railway Postgres 의 외부 Proxy URL
+#   - BACKUP_PASSWORD      : .gpg 파일 복호화용 비밀번호 (db-backup 과 동일)
+#   - B2_KEY_ID / B2_APPLICATION_KEY / B2_ENDPOINT / B2_BUCKET_NAME
+#
+# 안전장치:
+#   - confirm_restore = "I_UNDERSTAND_OVERWRITE" 입력 필수
+#   - take_backup_first 기본 true: 복원 전에 운영 DB 를 GPG 암호화해서 B2 에 저장
+#   - clean_schema_first 옵션: 복원 전에 public 스키마를 DROP+CREATE (완전 교체)
+#   - psql 복원은 ON_ERROR_STOP=1 으로 실행 (오류 발생 시 즉시 중단)
 
 on:
   workflow_dispatch:
+    inputs:
+      b2_key:
+        description: '[방식 A] B2 백업 키 (예: weekly/photocafe-...sql.gz.gpg). dump_url 과 둘 중 하나만 입력'
+        required: false
+        type: string
+        default: ''
+      dump_url:
+        description: '[방식 B] 외부 다운로드 URL (.sql/.sql.gz/.sql.gz.gpg). b2_key 와 둘 중 하나만 입력'
+        required: false
+        type: string
+        default: ''
+      confirm_restore:
+        description: '확인 토큰 (정확히 다음 문자열을 입력하세요): I_UNDERSTAND_OVERWRITE'
+        required: true
+        type: string
+        default: ''
+      take_backup_first:
+        description: '복원 전 운영 DB 백업 (GPG 암호화 후 B2 업로드)'
+        required: false
+        type: boolean
+        default: true
+      clean_schema_first:
+        description: '복원 전 public 스키마를 DROP+CREATE (완전 교체)'
+        required: false
+        type: boolean
+        default: false
+      run_prisma_push:
+        description: '복원 후 prisma db push 실행 여부 (스키마 정합성 보정)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Migrate DB
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          envs: SUDO_PASS
-          command_timeout: 5m
-          script: |
-            DOCKER="/usr/local/bin/docker"
-            COMPOSE="/usr/local/bin/docker-compose"
-            run_sudo() { echo "$SUDO_PASS" | sudo -S "$@"; }
-            cd /volume1/docker
-
-            echo "=== 1. 기존 DB 컨테이너 정리 ==="
-            # printing-erp-db (구 docker-compose.yml)가 5433 점유 중이면 중지
-            OLD_DB=$(run_sudo $DOCKER ps -q --filter "name=printing-erp-db" 2>/dev/null || true)
-            if [ -n "$OLD_DB" ]; then
-              echo "구 DB 컨테이너(printing-erp-db) 중지..."
-              run_sudo $DOCKER stop printing-erp-db 2>/dev/null || true
-            fi
-
-            echo "=== 2. photocafe-db 시작 ==="
-            DB_RUNNING=$(run_sudo $DOCKER ps -q --filter "name=photocafe-db" 2>/dev/null || true)
-            if [ -z "$DB_RUNNING" ]; then
-              echo "photocafe-db 시작..."
-              run_sudo $COMPOSE --env-file .env -f docker-compose.prod.yml up -d postgres
-              echo "DB 시작 대기 (30초)..."
-              sleep 30
-            else
-              echo "photocafe-db 이미 실행 중"
-            fi
-
-            echo "=== 3. 운영 DB 백업 ==="
-            run_sudo $DOCKER exec photocafe-db pg_dump -U postgres -d postgres -f /tmp/prod_backup_before_migrate.sql 2>&1 || echo "백업 스킵 (빈 DB일 수 있음)"
-
-            echo "=== 4. 로컬 DB 덤프 복원 ==="
-            run_sudo $DOCKER cp ~/local_db_backup.sql photocafe-db:/tmp/local_db_backup.sql
-            run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -f /tmp/local_db_backup.sql 2>&1 | tail -30
-
-            echo "=== 5. API 서버 재시작 (DB 연결 갱신) ==="
-            run_sudo $DOCKER restart photocafe-api 2>/dev/null || true
-            sleep 10
-
-            echo "=== 6. 검증 ==="
-            run_sudo $DOCKER exec photocafe-db psql -U postgres -d postgres -c "SELECT count(*) as settings_count FROM production_settings;"
-
-            echo "=== 마이그레이션 완료 ==="
+      - name: Validate inputs and secrets
         env:
-          SUDO_PASS: ${{ secrets.SSH_SUDO_PASS }}
+          B2_KEY: ${{ inputs.b2_key }}
+          DUMP_URL: ${{ inputs.dump_url }}
+          CONFIRM: ${{ inputs.confirm_restore }}
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APP_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          fail=0
+          if [ "$CONFIRM" != "I_UNDERSTAND_OVERWRITE" ]; then
+            echo "::error ::confirm_restore 가 정확히 'I_UNDERSTAND_OVERWRITE' 여야 합니다."
+            fail=1
+          fi
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error ::RAILWAY_DATABASE_URL secret 누락"
+            fail=1
+          fi
+          if [ -z "$B2_KEY" ] && [ -z "$DUMP_URL" ]; then
+            echo "::error ::b2_key 또는 dump_url 중 하나는 입력해야 합니다."
+            fail=1
+          fi
+          if [ -n "$B2_KEY" ] && [ -n "$DUMP_URL" ]; then
+            echo "::error ::b2_key 와 dump_url 은 동시에 입력할 수 없습니다."
+            fail=1
+          fi
+          if [ -n "$B2_KEY" ]; then
+            for s in B2_KEY_ID B2_APP_KEY B2_ENDPOINT B2_BUCKET; do
+              v="$(eval echo \"\${$s}\")"
+              if [ -z "$v" ]; then
+                echo "::error ::B2 secret $s 누락 (b2_key 사용 시 필요)"
+                fail=1
+              fi
+            done
+          fi
+
+          if [ -n "$B2_KEY" ] && echo "$B2_KEY" | grep -q '\.gpg$'; then
+            if [ -z "${BACKUP_PASSWORD:-}" ]; then
+              echo "::error ::BACKUP_PASSWORD secret 누락 (.gpg 파일 복호화에 필요)"
+              fail=1
+            fi
+          fi
+
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "OK: 입력/시크릿 검증 통과"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install PostgreSQL 16 client + tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y wget ca-certificates lsb-release gnupg
+          # PostgreSQL 16 client (Railway 이미 PG 16+ 사용)
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo wget --quiet -O /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y postgresql-client-16
+          which psql && psql --version
+          which gpg && gpg --version | head -1
+
+      # ===========================================================
+      # 1. 운영 DB 백업 (선택, GPG 암호화)
+      # ===========================================================
+      - name: Pre-migration backup to B2 (GPG encrypted)
+        if: ${{ inputs.take_backup_first == true }}
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BACKUP_PASSWORD:-}" ]; then
+            echo "::error ::BACKUP_PASSWORD secret 누락 (Pre-migration 백업도 GPG 암호화 필요)"
+            exit 1
+          fi
+
+          export TZ="Asia/Seoul"
+          TS=$(date '+%Y-%m-%d-%H%M%S')
+          FILENAME="pre-migrate-${TS}.sql.gz"
+          ENC_FILENAME="${FILENAME}.gpg"
+
+          echo "=== 마이그레이션 전 운영 DB 덤프 ==="
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=plain \
+            | gzip -9 > "${FILENAME}"
+          ls -lh "${FILENAME}"
+
+          echo "=== 무결성 검증 (gzip + SQL header) ==="
+          gzip -t "${FILENAME}"
+          HEADER=$(zcat "${FILENAME}" 2>/dev/null | head -20 || true)
+          if echo "$HEADER" | grep -q "PostgreSQL database dump"; then
+            echo "SQL header OK"
+          else
+            echo "::warning ::PostgreSQL header 가 보이지 않습니다. (DB 가 비어있을 수 있음)"
+          fi
+
+          echo "=== GPG AES-256 대칭 암호화 ==="
+          PWFILE=$(mktemp); trap 'rm -f "$PWFILE"' EXIT
+          chmod 600 "$PWFILE"
+          printf '%s' "$BACKUP_PASSWORD" > "$PWFILE"
+          gpg --symmetric \
+              --cipher-algo AES256 \
+              --compress-algo none \
+              --s2k-mode 3 \
+              --s2k-count 65011712 \
+              --batch --yes \
+              --no-symkey-cache \
+              --pinentry-mode loopback \
+              --passphrase-file "$PWFILE" \
+              --output "${ENC_FILENAME}" \
+              "${FILENAME}"
+          rm -f "${FILENAME}"
+          ls -lh "${ENC_FILENAME}"
+
+          echo "=== B2 업로드 ==="
+          aws s3 cp "${ENC_FILENAME}" \
+            "s3://${B2_BUCKET}/pre-migrate/${ENC_FILENAME}" \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --no-progress
+          echo "Pre-migrate backup saved: pre-migrate/${ENC_FILENAME}"
+          rm -f "${ENC_FILENAME}"
+
+      # ===========================================================
+      # 2. 덤프 다운로드 (B2 키 또는 URL)
+      # ===========================================================
+      - name: Download dump (B2 key or URL)
+        env:
+          B2_KEY: ${{ inputs.b2_key }}
+          DUMP_URL: ${{ inputs.dump_url }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          mkdir -p restore && cd restore
+
+          if [ -n "$B2_KEY" ]; then
+            BASENAME="$(basename "$B2_KEY")"
+            echo "=== B2 다운로드: s3://${B2_BUCKET}/${B2_KEY} ==="
+            aws s3 cp "s3://${B2_BUCKET}/${B2_KEY}" "./${BASENAME}" \
+              --endpoint-url "${B2_ENDPOINT}" \
+              --no-progress
+            INPUT_FILE="${BASENAME}"
+          else
+            echo "=== URL 다운로드 ==="
+            curl -fsSL --retry 3 --retry-delay 2 -o dump.raw "$DUMP_URL"
+            INPUT_FILE="dump.raw"
+          fi
+
+          ls -lh "$INPUT_FILE"
+          echo "input_file=$INPUT_FILE" >> $GITHUB_ENV
+
+      - name: Decrypt and decompress
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          cd restore
+          F="$input_file"
+          echo "=== 처리 시작: $F ==="
+
+          # 파일 시그니처 기반 자동 감지
+          # GPG: 첫 바이트 0x8C/0x85/0xC3/0x9C 등 (PGP packet marker)
+          # gzip: 1F 8B
+          MAGIC_HEX=$(head -c 2 "$F" | xxd -p | head -c 4)
+          echo "Magic bytes: $MAGIC_HEX"
+
+          # 1) GPG 인지 확장자 + magic 으로 판단
+          IS_GPG=0
+          if echo "$F" | grep -qE '\.gpg$|\.asc$'; then IS_GPG=1; fi
+          # PGP packet first byte 흔한 값 (8c, 85, c3, 9c, 9d ...)
+          case "$MAGIC_HEX" in
+            8c*|85*|c3*|9c*|9d*) IS_GPG=1 ;;
+          esac
+
+          if [ "$IS_GPG" -eq 1 ]; then
+            if [ -z "${BACKUP_PASSWORD:-}" ]; then
+              echo "::error ::파일이 GPG 암호화되어 있지만 BACKUP_PASSWORD 시크릿이 없습니다."
+              exit 1
+            fi
+            echo "=== GPG 복호화 ==="
+            PWFILE=$(mktemp); trap 'rm -f "$PWFILE"' EXIT
+            chmod 600 "$PWFILE"
+            printf '%s' "$BACKUP_PASSWORD" > "$PWFILE"
+
+            DEC="${F%.gpg}"
+            [ "$DEC" = "$F" ] && DEC="${F}.dec"
+
+            gpg --decrypt \
+                --batch --quiet \
+                --no-symkey-cache \
+                --pinentry-mode loopback \
+                --passphrase-file "$PWFILE" \
+                --output "$DEC" \
+                "$F"
+            rm -f "$F"
+            F="$DEC"
+            echo "복호화 완료: $F"
+            ls -lh "$F"
+          fi
+
+          # 2) gzip 인지 판단 (확장자 또는 file 명령)
+          if echo "$F" | grep -q '\.gz$' || file "$F" | grep -qi gzip; then
+            echo "=== gzip 압축 해제 ==="
+            DEC="${F%.gz}"
+            [ "$DEC" = "$F" ] && DEC="${F}.sql"
+            gunzip -c "$F" > "$DEC"
+            rm -f "$F"
+            F="$DEC"
+          fi
+
+          # 3) 결과 파일 표준화
+          mv "$F" dump.sql
+          ls -lh dump.sql
+          echo "=== SQL 헤더 미리보기 ==="
+          head -3 dump.sql || true
+
+          if grep -q "PostgreSQL database dump" dump.sql; then
+            echo "SQL header OK"
+          else
+            echo "::warning ::PostgreSQL dump 헤더가 보이지 않습니다. 파일 형식을 다시 확인하세요."
+          fi
+
+      # ===========================================================
+      # 3. (선택) public 스키마 초기화
+      # ===========================================================
+      - name: Clean public schema (DROP + CREATE)
+        if: ${{ inputs.clean_schema_first == true }}
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          echo "=== public 스키마 초기화 (clean_schema_first=true) ==="
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          DROP SCHEMA IF EXISTS public CASCADE;
+          CREATE SCHEMA public;
+          GRANT ALL ON SCHEMA public TO public;
+          SQL
+          echo "Schema reset done."
+
+      # ===========================================================
+      # 4. Railway DB 에 복원
+      # ===========================================================
+      - name: Restore to Railway Postgres
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          cd restore
+          echo "=== Railway Postgres 에 복원 ==="
+          # tail 마지막 80 줄만 표시 (대용량 덤프 로그 폭주 방지)
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f dump.sql 2>&1 | tail -80
+          echo "복원 완료"
+
+      # ===========================================================
+      # 5. Prisma 스키마 동기화 (선택)
+      # ===========================================================
+      - name: Prisma db push
+        if: ${{ inputs.run_prisma_push == true }}
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          echo "=== Prisma 스키마 동기화 ==="
+          cd apps/api
+          npm ci --no-audit --no-fund
+          npx prisma generate
+          npx prisma db push --accept-data-loss
+          echo "Prisma 동기화 완료"
+
+      # ===========================================================
+      # 6. 검증
+      # ===========================================================
+      - name: Verify
+        env:
+          DATABASE_URL: ${{ secrets.RAILWAY_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          echo "=== 검증: 주요 테이블 row 수 (상위 20개) ==="
+          psql "$DATABASE_URL" -c "
+            SELECT
+              schemaname || '.' || relname AS table,
+              n_live_tup AS rows
+            FROM pg_stat_user_tables
+            ORDER BY n_live_tup DESC
+            LIMIT 20;
+          "
+
+      - name: Summary
+        if: always()
+        env:
+          B2_KEY: ${{ inputs.b2_key }}
+          DUMP_URL: ${{ inputs.dump_url }}
+          TAKE_BACKUP: ${{ inputs.take_backup_first }}
+          CLEAN_SCHEMA: ${{ inputs.clean_schema_first }}
+          RUN_PRISMA: ${{ inputs.run_prisma_push }}
+        run: |
+          {
+            echo "## DB Migration Summary"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Source (b2_key)    | \`${B2_KEY:-—}\` |"
+            echo "| Source (dump_url)  | \`${DUMP_URL:+(set)}${DUMP_URL:-—}\` |"
+            echo "| Pre-migrate backup | \`${TAKE_BACKUP}\` |"
+            echo "| Clean schema first | \`${CLEAN_SCHEMA}\` |"
+            echo "| Prisma db push     | \`${RUN_PRISMA}\` |"
+            echo "| Job status         | \`${{ job.status }}\` |"
+          } >> $GITHUB_STEP_SUMMARY

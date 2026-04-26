@@ -4,9 +4,10 @@ import { OrderService } from "./services/order.service";
 import { SystemSettingsModule } from "../system-settings/system-settings.module";
 import { AccountingModule } from "../accounting/accounting.module";
 import { UploadModule } from "../upload/upload.module";
+import { AuditLogModule } from "../audit-log/audit-log.module";
 
 @Module({
-  imports: [SystemSettingsModule, AccountingModule, UploadModule],
+  imports: [SystemSettingsModule, AccountingModule, UploadModule, AuditLogModule],
   controllers: [OrderController],
   providers: [OrderService],
   exports: [OrderService],

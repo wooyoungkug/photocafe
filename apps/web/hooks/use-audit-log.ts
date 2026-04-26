@@ -20,7 +20,7 @@ export function useAuditLogs(query?: AuditLogQuery) {
 export function useEntityAuditLogs(
   entityType: string,
   entityId: string,
-  query?: { page?: number; limit?: number },
+  query?: AuditLogQuery,
 ) {
   return useQuery({
     queryKey: [AUDIT_LOGS_KEY, entityType, entityId, query],

@@ -1,0 +1,184 @@
+name: B2 Backup Cleanup (Plaintext Removal)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: |
+          list  : Inventory only (no changes)
+          delete: Delete plaintext .sql.gz files (NOT .sql.gz.gpg)
+        required: true
+        type: choice
+        default: list
+        options:
+          - list
+          - delete
+      confirm_delete:
+        description: |
+          Type exactly: I_UNDERSTAND_DELETE
+          (required only when mode=delete; otherwise leave empty)
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  cleanup:
+    name: B2 Backup Cleanup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Validate inputs
+        run: |
+          set -euo pipefail
+          MODE="${{ inputs.mode }}"
+          CONFIRM="${{ inputs.confirm_delete }}"
+
+          if [ "$MODE" = "delete" ] && [ "$CONFIRM" != "I_UNDERSTAND_DELETE" ]; then
+            echo "::error ::mode=delete requires confirm_delete='I_UNDERSTAND_DELETE'"
+            echo "       provided value: '$CONFIRM'"
+            exit 1
+          fi
+          echo "Mode: $MODE"
+
+      - name: Inventory bucket (all .sql.gz* files)
+        id: inventory
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          mkdir -p out
+
+          aws s3api list-objects-v2 \
+            --bucket "$B2_BUCKET" \
+            --endpoint-url "$B2_ENDPOINT" \
+            --output json \
+            > out/raw.json
+
+          jq -r '.Contents // [] | .[] | [.Key, (.Size|tostring), .LastModified] | @tsv' \
+            out/raw.json | sort > out/all.tsv
+
+          awk -F'\t' '$1 ~ /\.sql\.gz$/ {print}'      out/all.tsv > out/plaintext.tsv || true
+          awk -F'\t' '$1 ~ /\.sql\.gz\.gpg$/ {print}' out/all.tsv > out/encrypted.tsv || true
+          awk -F'\t' '$1 !~ /\.sql\.gz(\.gpg)?$/ {print}' out/all.tsv > out/other.tsv || true
+
+          PLAIN_COUNT=$(wc -l < out/plaintext.tsv | tr -d ' ')
+          ENC_COUNT=$(wc -l < out/encrypted.tsv | tr -d ' ')
+          OTHER_COUNT=$(wc -l < out/other.tsv | tr -d ' ')
+          PLAIN_SIZE=$(awk -F'\t' '{sum+=$2} END{print sum+0}' out/plaintext.tsv)
+          ENC_SIZE=$(awk -F'\t' '{sum+=$2} END{print sum+0}' out/encrypted.tsv)
+
+          echo "plain_count=$PLAIN_COUNT" >> $GITHUB_OUTPUT
+          echo "enc_count=$ENC_COUNT"     >> $GITHUB_OUTPUT
+          echo "other_count=$OTHER_COUNT" >> $GITHUB_OUTPUT
+          echo "plain_size=$PLAIN_SIZE"   >> $GITHUB_OUTPUT
+          echo "enc_size=$ENC_SIZE"       >> $GITHUB_OUTPUT
+
+          {
+            echo "## B2 Bucket Inventory"
+            echo ""
+            echo "| Type | Count | Total Size |"
+            echo "|---|---:|---:|"
+            echo "| Plaintext .sql.gz (RISK) | $PLAIN_COUNT | $(numfmt --to=iec $PLAIN_SIZE) |"
+            echo "| Encrypted .sql.gz.gpg (OK) | $ENC_COUNT | $(numfmt --to=iec $ENC_SIZE) |"
+            echo "| Other files | $OTHER_COUNT | - |"
+            echo ""
+            echo "### Plaintext files (will be deleted if mode=delete)"
+            echo ""
+            echo '```'
+            head -50 out/plaintext.tsv || echo "(none)"
+            if [ "$PLAIN_COUNT" -gt 50 ]; then
+              echo "... and $((PLAIN_COUNT - 50)) more"
+            fi
+            echo '```'
+            echo ""
+            echo "### Encrypted files (will be PRESERVED)"
+            echo ""
+            echo '```'
+            head -10 out/encrypted.tsv || echo "(none)"
+            if [ "$ENC_COUNT" -gt 10 ]; then
+              echo "... and $((ENC_COUNT - 10)) more"
+            fi
+            echo '```'
+            echo ""
+            echo "### Other files (untouched)"
+            echo ""
+            echo '```'
+            head -10 out/other.tsv || echo "(none)"
+            if [ "$OTHER_COUNT" -gt 10 ]; then
+              echo "... and $((OTHER_COUNT - 10)) more"
+            fi
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload inventory artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: b2-inventory
+          path: out/
+          retention-days: 30
+
+      - name: Skip delete (mode=list)
+        if: inputs.mode == 'list'
+        run: |
+          echo "mode=list — no deletion performed."
+          echo "Review the inventory above. To proceed with deletion, re-run with mode=delete and confirm_delete=I_UNDERSTAND_DELETE."
+
+      - name: Delete plaintext .sql.gz files
+        if: inputs.mode == 'delete'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          PLAIN_COUNT=${{ steps.inventory.outputs.plain_count }}
+          if [ "$PLAIN_COUNT" -eq 0 ]; then
+            echo "No plaintext files to delete. Nothing to do."
+            exit 0
+          fi
+
+          echo "Will delete $PLAIN_COUNT plaintext file(s)."
+          DELETED=0
+          FAILED=0
+          : > out/deleted.tsv
+          : > out/delete-failed.tsv
+
+          while IFS=$'\t' read -r KEY SIZE LM; do
+            [ -z "${KEY:-}" ] && continue
+            if [[ "$KEY" != *.sql.gz ]] || [[ "$KEY" == *.sql.gz.gpg ]]; then
+              echo "::warning ::Skipping non-plaintext key (safety net): $KEY"
+              continue
+            fi
+            if aws s3api delete-object \
+                --bucket "$B2_BUCKET" \
+                --endpoint-url "$B2_ENDPOINT" \
+                --key "$KEY" >/dev/null 2>&1; then
+              echo "deleted: $KEY"
+              echo -e "${KEY}\t${SIZE}\t${LM}" >> out/deleted.tsv
+              DELETED=$((DELETED + 1))
+            else
+              echo "::error ::Failed to delete: $KEY"
+              echo -e "${KEY}\t${SIZE}\t${LM}" >> out/delete-failed.tsv
+              FAILED=$((FAILED + 1))
+            fi
+          done < out/plaintext.tsv
+
+          {
+            echo "## Delete Result"
+            echo ""
+            echo "| Status | Count |"
+            echo "|---|---:|"
+            echo "| Deleted | $DELETED |"
+            echo "| Failed | $FAILED |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "$FAILED" -gt 0 ]; then
+            exit 1
+          fi

@@ -9,6 +9,25 @@ function StaffCallbackContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('처리 중...');
   const [error, setError] = useState<string | null>(null);
+  const [redirectSeconds, setRedirectSeconds] = useState(3);
+
+  useEffect(() => {
+    if (!error) return;
+
+    setRedirectSeconds(3);
+    const intervalId = window.setInterval(() => {
+      setRedirectSeconds((prev) => (prev > 1 ? prev - 1 : 1));
+    }, 1000);
+
+    const timeoutId = window.setTimeout(() => {
+      router.replace('/admin-login');
+    }, 3000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [error, router]);
 
   useEffect(() => {
     const oauthCode = searchParams.get('code');
@@ -74,6 +93,7 @@ function StaffCallbackContent() {
         <div className="max-w-md w-full bg-red-900/30 border border-red-800/50 rounded-lg p-6 text-center">
           <h2 className="text-xl font-bold text-red-400 mb-2">로그인 오류</h2>
           <p className="text-red-300 mb-4">{error}</p>
+          <p className="text-red-200 text-sm mb-4">{redirectSeconds}초 후 로그인 페이지로 이동합니다.</p>
           <button
             type="button"
             onClick={() => router.push('/admin-login')}

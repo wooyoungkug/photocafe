@@ -36,13 +36,19 @@ export class AuditLogService {
   }
 
   async findAll(query: AuditLogQueryDto) {
-    const { page = 1, limit = 20, entityType, action, performedBy, startDate, endDate } = query;
+    const { page = 1, limit = 20, entityType, action, performedBy, source, startDate, endDate } = query;
     const skip = (page - 1) * limit;
 
     const where: Prisma.AuditLogWhereInput = {
       ...(entityType && { entityType }),
       ...(action && { action }),
       ...(performedBy && { performedBy }),
+      ...(source && {
+        metadata: {
+          path: ['source'],
+          equals: source,
+        } as any,
+      }),
       ...((startDate || endDate) && {
         createdAt: {
           ...(startDate && { gte: new Date(startDate) }),
@@ -68,10 +74,27 @@ export class AuditLogService {
   }
 
   async findByEntity(entityType: string, entityId: string, query: AuditLogQueryDto) {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, action, performedBy, source, startDate, endDate } = query;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.AuditLogWhereInput = { entityType, entityId };
+    const where: Prisma.AuditLogWhereInput = {
+      entityType,
+      entityId,
+      ...(action && { action }),
+      ...(performedBy && { performedBy }),
+      ...(source && {
+        metadata: {
+          path: ['source'],
+          equals: source,
+        } as any,
+      }),
+      ...((startDate || endDate) && {
+        createdAt: {
+          ...(startDate && { gte: new Date(startDate) }),
+          ...(endDate && { lte: new Date(endDate) }),
+        },
+      }),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({

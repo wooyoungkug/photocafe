@@ -1,34 +1,230 @@
-name: DB 자동 백업
+name: PostgreSQL Backup to B2
 
 on:
   schedule:
-    - cron: '0 18 * * *'  # 매일 새벽 3시 KST (UTC 18:00)
-  workflow_dispatch:       # 수동 실행 가능
+    - cron: '0 18 * * *'
+  workflow_dispatch:
 
 jobs:
   backup:
+    name: Backup PostgreSQL to Backblaze B2 (GPG encrypted)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
-      - name: DB 백업 실행
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          SUDO_PASS: ${{ secrets.SSH_SUDO_PASS }}
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          command_timeout: 5m
-          envs: SUDO_PASS
-          script: |
-            export SUDO_PASS="$SUDO_PASS"
-            /volume1/docker/scripts/db-backup.sh
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: 백업 결과 요약
+      - name: Validate required secrets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APPLICATION_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET_NAME: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in DATABASE_URL BACKUP_PASSWORD B2_KEY_ID B2_APPLICATION_KEY B2_ENDPOINT B2_BUCKET_NAME; do
+            if [ -z "${!v:-}" ]; then
+              echo "::error ::Missing required secret: ${v}"
+              missing=1
+            fi
+          done
+          if [ "${BACKUP_PASSWORD:-}" != "" ] && [ ${#BACKUP_PASSWORD} -lt 24 ]; then
+            echo "::warning ::BACKUP_PASSWORD is shorter than 24 chars. Use 32+ random chars for AES-256."
+          fi
+          if [ "$missing" = "1" ]; then
+            echo "Configure secrets at: GitHub repo → Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          echo "All required secrets present."
+
+      - name: Set timestamp and backup type
+        id: meta
+        run: |
+          set -euo pipefail
+          export TZ="Asia/Seoul"
+          DATE=$(date '+%Y-%m-%d')
+          TIME=$(date '+%H%M%S')
+          DOW=$(date '+%u')
+          DOM=$(date '+%d')
+
+          PREFIX="daily"
+          if [ "$DOM" = "01" ]; then
+            PREFIX="monthly"
+          elif [ "$DOW" = "7" ]; then
+            PREFIX="weekly"
+          fi
+
+          FILENAME="photocafe-${DATE}-${TIME}.sql.gz"
+          ENC_FILENAME="${FILENAME}.gpg"
+          S3_KEY="${PREFIX}/${ENC_FILENAME}"
+
+          echo "filename=${FILENAME}" >> $GITHUB_OUTPUT
+          echo "enc_filename=${ENC_FILENAME}" >> $GITHUB_OUTPUT
+          echo "s3_key=${S3_KEY}" >> $GITHUB_OUTPUT
+          echo "prefix=${PREFIX}" >> $GITHUB_OUTPUT
+
+      - name: Dump PostgreSQL database via Docker
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          FILENAME="${{ steps.meta.outputs.filename }}"
+          echo "Starting pg_dump via Docker postgres:18..."
+
+          docker run --rm \
+            --network host \
+            -e DATABASE_URL \
+            postgres:18 \
+            sh -c 'pg_dump $DATABASE_URL --no-owner --no-privileges --format=plain 2>&1' \
+            | gzip -9 > "${FILENAME}"
+
+          SIZE=$(du -h "${FILENAME}" | cut -f1)
+          echo "Dump size: ${SIZE}"
+          ls -lh "${FILENAME}"
+
+      - name: Verify dump integrity (gzip + SQL header)
+        id: verify
+        run: |
+          set -euo pipefail
+          FILENAME="${{ steps.meta.outputs.filename }}"
+          gzip -t "${FILENAME}"
+          echo "Gzip OK"
+
+          # Capture first 20 lines into a variable to avoid SIGPIPE under pipefail
+          HEADER=$(zcat "${FILENAME}" 2>/dev/null | head -20 || true)
+          if echo "$HEADER" | grep -q "PostgreSQL database dump"; then
+            echo "SQL header OK"
+          else
+            echo "::error ::SQL header missing — dump likely failed"
+            echo "$HEADER" | head -5
+            exit 1
+          fi
+
+          # Sanity statistics (data volume health-check)
+          UNCOMPRESSED=$(zcat "${FILENAME}" | wc -c)
+          TABLES=$(zcat "${FILENAME}" | grep -cE '^CREATE TABLE ' || true)
+          COPIES=$(zcat "${FILENAME}" | grep -cE '^COPY .* FROM stdin' || true)
+          INSERTS=$(zcat "${FILENAME}" | grep -cE '^INSERT INTO ' || true)
+          DATA_LINES=$(zcat "${FILENAME}" | awk '/^COPY .* FROM stdin/{f=1; next} /^\\\.$/{f=0} f' | wc -l)
+
+          UNCOMPRESSED_MB=$(awk -v b="$UNCOMPRESSED" 'BEGIN{printf "%.2f", b/1024/1024}')
+
+          echo "Uncompressed:    ${UNCOMPRESSED_MB} MB (${UNCOMPRESSED} bytes)"
+          echo "Tables (CREATE): ${TABLES}"
+          echo "COPY blocks:     ${COPIES}"
+          echo "INSERT rows:     ${INSERTS}"
+          echo "COPY data rows:  ${DATA_LINES}"
+
+          {
+            echo "uncompressed_mb=${UNCOMPRESSED_MB}"
+            echo "tables=${TABLES}"
+            echo "copy_blocks=${COPIES}"
+            echo "insert_rows=${INSERTS}"
+            echo "data_rows=${DATA_LINES}"
+          } >> "$GITHUB_OUTPUT"
+
+          # Soft warning: a very small dump may indicate the wrong DB
+          if [ "${UNCOMPRESSED}" -lt 102400 ]; then
+            echo "::warning ::Dump is under 100 KB uncompressed (${UNCOMPRESSED_MB} MB). Verify DATABASE_URL points to the correct production DB."
+          fi
+          if [ "${TABLES}" -lt 5 ]; then
+            echo "::warning ::Only ${TABLES} CREATE TABLE statements found. Verify schema completeness."
+          fi
+          if [ "${COPIES}" -eq 0 ] && [ "${INSERTS}" -eq 0 ]; then
+            echo "::warning ::No COPY/INSERT statements found — backup contains schema only (no data rows)."
+          fi
+
+      - name: Encrypt dump with GPG (AES-256 symmetric)
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          FILENAME="${{ steps.meta.outputs.filename }}"
+          ENC_FILENAME="${{ steps.meta.outputs.enc_filename }}"
+
+          PWFILE=$(mktemp)
+          trap 'rm -f "$PWFILE"' EXIT
+          chmod 600 "$PWFILE"
+          printf '%s' "$BACKUP_PASSWORD" > "$PWFILE"
+
+          gpg --symmetric \
+              --cipher-algo AES256 \
+              --compress-algo none \
+              --s2k-mode 3 \
+              --s2k-count 65011712 \
+              --batch --yes \
+              --no-symkey-cache \
+              --pinentry-mode loopback \
+              --passphrase-file "$PWFILE" \
+              --output "${ENC_FILENAME}" \
+              "${FILENAME}"
+
+          ENC_SIZE=$(du -h "${ENC_FILENAME}" | cut -f1)
+          echo "Encrypted: ${ENC_FILENAME} (${ENC_SIZE})"
+
+          rm -f "${FILENAME}"
+          echo "Plaintext .sql.gz removed from runner."
+
+      - name: Verify encrypted dump (test decrypt + gzip)
+        env:
+          BACKUP_PASSWORD: ${{ secrets.BACKUP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ENC_FILENAME="${{ steps.meta.outputs.enc_filename }}"
+
+          PWFILE=$(mktemp)
+          trap 'rm -f "$PWFILE"' EXIT
+          chmod 600 "$PWFILE"
+          printf '%s' "$BACKUP_PASSWORD" > "$PWFILE"
+
+          gpg --decrypt \
+              --batch --quiet \
+              --no-symkey-cache \
+              --pinentry-mode loopback \
+              --passphrase-file "$PWFILE" \
+              "${ENC_FILENAME}" \
+            | gzip -t -
+          echo "GPG decrypt + Gzip integrity OK"
+
+      - name: Upload encrypted backup to Backblaze B2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          AWS_DEFAULT_REGION: us-east-005
+          B2_ENDPOINT: ${{ secrets.B2_ENDPOINT }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+          ENC_FILENAME="${{ steps.meta.outputs.enc_filename }}"
+          S3_KEY="${{ steps.meta.outputs.s3_key }}"
+
+          aws s3 cp "${ENC_FILENAME}" \
+            "s3://${B2_BUCKET}/${S3_KEY}" \
+            --endpoint-url "${B2_ENDPOINT}" \
+            --no-progress
+
+          echo "Upload complete: s3://${B2_BUCKET}/${S3_KEY}"
+
+      - name: Summary
         if: always()
         run: |
-          echo "## DB Backup Result" >> $GITHUB_STEP_SUMMARY
-          echo "- **Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC') (KST +9)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### Backup Summary"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Type | ${{ steps.meta.outputs.prefix }} |"
+            echo "| File | ${{ steps.meta.outputs.enc_filename }} |"
+            echo "| S3 Key | ${{ steps.meta.outputs.s3_key }} |"
+            echo "| Encryption | GPG AES-256 (symmetric) |"
+            echo "| Uncompressed | ${{ steps.verify.outputs.uncompressed_mb }} MB |"
+            echo "| Tables | ${{ steps.verify.outputs.tables }} |"
+            echo "| COPY blocks | ${{ steps.verify.outputs.copy_blocks }} |"
+            echo "| COPY data rows | ${{ steps.verify.outputs.data_rows }} |"
+            echo "| INSERT rows | ${{ steps.verify.outputs.insert_rows }} |"
+            echo "| Status | ${{ job.status }} |"
+          } >> $GITHUB_STEP_SUMMARY

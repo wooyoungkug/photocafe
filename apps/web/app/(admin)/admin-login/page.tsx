@@ -8,7 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+function resolveApiUrl() {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window === 'undefined') return '/api/v1';
+  // 운영 환경에서 env 누락 시 프론트 도메인 상대경로 대신 API 도메인으로 강제
+  if (window.location.hostname.endsWith('photocafe.co.kr')) {
+    return 'https://api.photocafe.co.kr/api/v1';
+  }
+  return '/api/v1';
+}
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -23,13 +31,17 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API_URL}/auth/staff/login`, {
+      const apiUrl = resolveApiUrl();
+      const res = await fetch(`${apiUrl}/auth/staff/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ staffId, password }),
       });
 
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      const data = contentType.includes('application/json')
+        ? await res.json()
+        : { message: 'API 응답 형식이 올바르지 않습니다. 관리자에게 문의해주세요.' };
 
       if (!res.ok) {
         throw new Error(data.message || '로그인에 실패했습니다');

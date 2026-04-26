@@ -86,6 +86,7 @@ export interface AuditLog {
   performedBy: string;
   performerName: string;
   ipAddress?: string;
+  userAgent?: string;
   metadata?: Record<string, any>;
   createdAt: string;
 }
@@ -96,6 +97,7 @@ export interface AuditLogQuery {
   entityType?: string;
   action?: string;
   performedBy?: string;
+  source?: string;
   startDate?: string;
   endDate?: string;
 }
