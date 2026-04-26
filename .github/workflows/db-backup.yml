@@ -93,11 +93,14 @@ jobs:
           gzip -t "${FILENAME}"
           echo "Gzip OK"
 
-          if zcat "${FILENAME}" | head -20 | grep -q "PostgreSQL database dump"; then
+          # Capture first 20 lines into a variable to avoid SIGPIPE under pipefail
+          # (head closes its input early -> zcat exits non-zero -> pipefail flags failure)
+          HEADER=$(zcat "${FILENAME}" 2>/dev/null | head -20 || true)
+          if echo "$HEADER" | grep -q "PostgreSQL database dump"; then
             echo "SQL header OK"
           else
             echo "::error ::SQL header missing — dump likely failed"
-            zcat "${FILENAME}" | head -5
+            echo "$HEADER" | head -5
             exit 1
           fi
 
