@@ -17,19 +17,66 @@
 > - (2) Synology DB 덤프 → Railway 복원 — 데이터 이관이 필요한 경우만
 > - (3) 보류 — 다른 작업 후 진행
 
-## 서버 정보
+## 인프라 아키텍처 (Vercel + Railway + B2 + Cloudflare)
 
-| 환경 | 프론트엔드 | 백엔드 API | DB |
-|------|------------|------------|-----|
-| 로컬 | localhost:3002 | localhost:3001 | localhost:5432 |
-| 운영 (Railway) | https://photocafe.co.kr | https://api.photocafe.co.kr | Railway Postgres 플러그인 |
-| 운영 (Synology, **Legacy**) | 1.212.201.147:3000 | 1.212.201.147:3001 | 192.168.0.67:5433 |
+> **상세 설계서**: [`docs/INFRASTRUCTURE.md`](./docs/INFRASTRUCTURE.md) — 모든 인프라/배포/보안/백업 의사결정의 기준 문서. 이 절은 요약입니다.
 
-> **배포 플랫폼 전환 중**: Synology NAS → Railway 마이그레이션 진행 중입니다.
-> - 자동 배포는 **Railway**가 `main` 브랜치 push를 감지하여 처리합니다 (`railway.json`, `apps/{api,web}/railway.toml`).
-> - Synology 자동 배포 워크플로우는 제거되었습니다 (`deploy.yml.disabled` 삭제 완료).
-> - 도메인이 변경되었거나 추가되었다면 `railway domain --service {api|web}` 또는 Railway 대시보드에서 확인 후 위 표를 업데이트하세요.
-> - Custom domain 미설정 서비스는 Railway 자동 도메인(`<service>-<project>.up.railway.app`)을 사용합니다.
+### 서버 정보
+
+| 환경 | 프론트엔드 | 백엔드 API | 이미지 스토리지 | DB |
+|------|------------|------------|----------------|-----|
+| 로컬 | `localhost:3002` | `localhost:3001` | 로컬 디스크 (`apps/api/uploads/`) | `localhost:5432` |
+| 운영 | **Vercel** `https://photocafe.co.kr` (서울 `icn1`) | **Railway** `https://api.photocafe.co.kr` (오리건) | **Backblaze B2** `cdn.photocafe.co.kr` (`us-east-005`) | Railway Postgres |
+| 운영 (Synology, **Legacy**) | `1.212.201.147:3000` | `1.212.201.147:3001` | `/volume1/docker/printing114/uploads` | `192.168.0.67:5433` |
+
+### 4계층 분리 원칙
+
+| 계층 | 서비스 | 위치 | 역할 |
+|------|--------|------|------|
+| CDN/보안 | Cloudflare Free | 전 세계 엣지 | DNS, 캐싱, WAF, DDoS 방어 |
+| 프론트 | Vercel Pro | 서울 `icn1` | Next.js SSR/SSG (DNS only, **회색 구름**) |
+| 백엔드 | Railway Pro | 미국 오리건 | NestJS + PostgreSQL (Proxied, 주황 구름) |
+| 스토리지 | Backblaze B2 | 미국 버지니아 | 이미지 원본 보관 (Public/Private 2단계 버킷) |
+| 백업 | Synology DS918+ | 한국 사무실 | DB 오프사이트 미러, Btrfs 스냅샷 90일 |
+
+### 도메인-호스팅 매핑 (Cloudflare DNS)
+
+| 서브도메인 | 호스팅 | Proxy | CNAME 대상 |
+|-----------|--------|-------|-----------|
+| `photocafe.co.kr` (apex) | Vercel | **DNS only (회색)** | `cname.vercel-dns.com` |
+| `www` | Vercel | **DNS only (회색)** | `cname.vercel-dns.com` |
+| `api` | Railway | Proxied (주황) | `<railway-app>.up.railway.app` |
+| `cdn` | B2 | Proxied (주황) | `f005.backblazeb2.com` |
+
+> **⚠️ Vercel 은 반드시 DNS only**: Vercel 자체 CDN 과 Cloudflare 프록시가 충돌하기 때문.
+
+### B2 버킷 2단계 전략 (보안 핵심)
+
+```
+photocafe-public   → 로고, 워터마크 썸네일 (Public, CDN 캐시 OK)
+photocafe-private  → 원본·완성본 (Private, 프리사인드 URL 5분만 유효)
+```
+
+### 백업 3-2-1 규칙
+
+- **원본**: Railway PostgreSQL (상시)
+- **복사본 1**: Backblaze B2 GPG 암호화 (30일, 매일 KST 03:30 GitHub Actions)
+- **복사본 2**: Synology DS918+ 오프사이트 미러 (90일~3년, 매일 04:00 Cloud Sync 단방향)
+- **목표**: RTO 30분 이내, RPO 24시간 이내
+
+### 월간 비용
+
+약 **13만~16만원** (Vercel $20 + Railway $20-35 + B2 9TB 75,700원 + Cloudflare Free)
+
+---
+
+> **현재 마이그레이션 상태 (2026-04 기준)**
+> - ✅ Railway API 배포 완료
+> - ⏳ **Vercel 프론트 분리** 진행 예정 (현재 `apps/web` 도 Railway 에 함께 배포되어 있음)
+> - ⏳ **Cloudflare DNS 전환** 진행 예정
+> - ⏳ **B2 Private 전환 + 2단계 버킷** 진행 예정
+> - ⏳ **Synology Cloud Sync 미러** 진행 예정
+> - 단계별 절차는 `docs/INFRASTRUCTURE.md` §7. 배포 로드맵 참조.
 
 ## 기술 스택
 
@@ -130,27 +177,39 @@ npx prisma db push --force-reset && npm run db:seed
 
 ## 운영 서버 경로
 
-### Railway (현재)
-- **API 서비스**: `apps/api/Dockerfile` 기반, 컨테이너 내부 `/app`
-- **Web 서비스**: `apps/web/Dockerfile` 기반, 컨테이너 내부 `/app`
-- **업로드 볼륨**: Railway Volume 마운트 → `UPLOAD_BASE_PATH=/app/uploads` (서비스별 Volume 설정 필요)
-- **DB**: Railway Postgres 플러그인 (`DATABASE_URL`은 Railway가 자동 주입)
-- **백업**: GitHub Actions `db-backup.yml`이 매일 18:00 UTC에 Backblaze B2로 업로드
+### 목표 구성 (Vercel + Railway + B2)
 
-### Synology NAS (Legacy)
+| 구성요소 | 위치 / 경로 | 비고 |
+|---------|------------|------|
+| Web (Next.js) | **Vercel** `apps/web` Root Directory | `icn1` 리전, Pro 플랜 |
+| API (NestJS) | **Railway** `apps/api/Dockerfile`, 컨테이너 내부 `/app` | Pro 플랜 |
+| DB | **Railway Postgres** 플러그인 | `DATABASE_URL` 자동 주입 |
+| 이미지 (운영 신규분) | **Backblaze B2** `photocafe-private/users/{userId}/...` | 프리사인드 URL 5분 |
+| 이미지 (썸네일/로고) | **Backblaze B2** `photocafe-public/...` | Cloudflare 캐시 |
+| DB 백업 | GitHub Actions → B2 `photocafe/backups/YYYY/MM/` (GPG 암호화) | 매일 KST 03:30 |
+| DB 백업 미러 | Synology `/volume1/backups/db/` (Cloud Sync 단방향) | 매일 04:00 |
+
+### Railway 현재 잔존 구성
+- **API 서비스**: `apps/api/Dockerfile`, 컨테이너 내부 `/app`
+- **Web 서비스**: `apps/web/Dockerfile` (Vercel 이전 후 제거 예정)
+- **업로드 볼륨**: Railway Volume → `UPLOAD_BASE_PATH=/app/uploads` (B2 이전 후 폐기 예정)
+
+### Synology NAS (Legacy, 단계적 제거)
 - 백엔드: `/volume1/docker/printing114/`
 - 프론트엔드: `/volume1/docker/printing114-web/apps/web/`
 - compose 파일: `/volume1/docker/docker-compose.prod.yml`
 - 업로드: `/volume1/docker/printing114/uploads`
+- 신규 역할: **DB 백업 미러 전용** (`/volume1/backups/db/`)
 
 ## CI/CD
 
 | 워크플로우 | 상태 | 트리거 | 용도 |
 |-----------|------|--------|------|
-| Railway 자동 배포 | 활성 | `main` push | API/Web 빌드·배포 (Railway 자체 통합) |
-| `db-backup.yml` | 활성 | 매일 18:00 UTC | PostgreSQL → Backblaze B2 (daily/weekly/monthly) |
-| `db-migrate.yml` | 활성 (수동) | `workflow_dispatch` | 로컬 DB 덤프 → 운영 DB (Synology SSH 의존, Railway 이전 시 재작성 필요) |
-| `deploy.yml.disabled` | 비활성 | - | 구 Synology 자동 배포 |
+| Vercel 자동 배포 (예정) | 도입 예정 | `main` push (Vercel GitHub 통합) | `apps/web` 빌드·배포, Preview URL 자동 생성 |
+| Railway 자동 배포 | 활성 | `main` push | `apps/api` 빌드·배포 (Railway 자체 통합) |
+| `db-backup.yml` | 활성 | 매일 18:00 UTC (= KST 03:30) | PostgreSQL → Backblaze B2 (GPG 암호화, daily/weekly/monthly) |
+| `db-migrate.yml` | 활성 (수동) | `workflow_dispatch` | 로컬 DB 덤프 → Railway Postgres 복원 |
+| Synology Cloud Sync (예정) | 도입 예정 | 매일 04:00 (DSM 자체 스케줄) | B2 `backups/` → Synology `/volume1/backups/db/` 단방향 미러 |
 
 ## UI 타이포그래피 기준
 
@@ -180,11 +239,15 @@ className="text-[24px] text-black font-normal"
 ## 개발 요구사항
 
 ### 다국어 (i18n)
-- **라이브러리**: next-intl
+- **라이브러리**: next-intl 4.x
 - **지원 언어**: ko(기본), en, ja, zh
-- **자동감지**: Accept-Language 헤더 기반 국가별 자동인식, 현지 언어로 표시
-- **라우팅**: `app/[locale]/` 기반 locale 프리픽스 라우팅
-- **번역 파일**: `apps/web/messages/{locale}.json`
+- **자동감지**: 첫 방문 시 `Accept-Language` 헤더로 언어를 감지하여 `locale` 쿠키(1년 유효)에 저장.
+- **라우팅 방식**: **쿠키 기반 자동감지** (URL `/[locale]/` 프리픽스 사용 안 함).
+  - `apps/web/middleware.ts` 가 쿠키 검사 후 없으면 헤더로 자동 설정.
+  - 서버 사이드는 `apps/web/i18n/request.ts` 에서 쿠키 값으로 `messages/{locale}.json` 로드.
+  - `apps/web/i18n/routing.ts` 에 `locales`, `defaultLocale`, `detectLocaleFromHeader()` 정의.
+- **번역 파일**: `apps/web/messages/{ko,en,ja,zh}.json`
+- **사용자 수동 변경**: 언어 스위처 컴포넌트가 `locale` 쿠키를 덮어쓰면 즉시 반영.
 
 ### 배송정보 (파일업로드 시)
 - 파일업로드(앨범주문) 시 폴더(원판)별로 배송정보 입력
