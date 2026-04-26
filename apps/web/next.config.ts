@@ -101,6 +101,71 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  // 전역 보안 헤더 (Vercel/Cloudflare 와 충돌 없도록 보수적 설정)
+  // CSP 는 별도로 적용 (의도치 않은 차단 방지를 위해 본 단계에서는 미포함)
+  async headers() {
+    const securityHeaders = [
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+      {
+        key: "X-Frame-Options",
+        value: "SAMEORIGIN",
+      },
+      {
+        key: "X-Content-Type-Options",
+        value: "nosniff",
+      },
+      {
+        key: "Referrer-Policy",
+        value: "strict-origin-when-cross-origin",
+      },
+      {
+        key: "Permissions-Policy",
+        value: [
+          "accelerometer=()",
+          "autoplay=()",
+          "camera=()",
+          "display-capture=()",
+          "encrypted-media=()",
+          "fullscreen=(self)",
+          "geolocation=()",
+          "gyroscope=()",
+          "magnetometer=()",
+          "microphone=()",
+          "midi=()",
+          "payment=()",
+          "picture-in-picture=()",
+          "publickey-credentials-get=()",
+          "screen-wake-lock=()",
+          "sync-xhr=()",
+          "usb=()",
+          "xr-spatial-tracking=()",
+        ].join(", "),
+      },
+      {
+        key: "X-DNS-Prefetch-Control",
+        value: "on",
+      },
+      {
+        key: "Cross-Origin-Opener-Policy",
+        value: "same-origin",
+      },
+      {
+        key: "Cross-Origin-Resource-Policy",
+        value: "same-site",
+      },
+    ];
+
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
