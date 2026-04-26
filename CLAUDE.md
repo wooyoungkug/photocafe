@@ -280,6 +280,14 @@ npx prisma db push --force-reset && npm run db:seed
 | `db-migrate.yml` | 활성 (수동) | `workflow_dispatch` | 로컬 DB 덤프 → Railway Postgres 복원 |
 | Synology Cloud Sync (예정) | 도입 예정 | 매일 04:00 (DSM 자체 스케줄) | B2 `backups/` → Synology `/volume1/backups/db/` 단방향 미러 |
 
+### 배포 전략 (분리 배포 기준)
+
+- 상세 체크리스트: `docs/DEPLOY_SPLIT_CHECKLIST.md`
+- **프론트만 배포 가능**: UI/문구/스타일 수정, 기존 API/응답 스키마/인증 규칙/DB 변경 없음
+- **통합 배포 필요**: API 경로/응답 구조 변경, 인증 로직 변경, Prisma/DB 스키마 변경
+- 원칙: **호환성(Backward compatibility) 유지가 확실할 때만 분리 배포**
+- 불확실하면 통합 배포를 기본 선택
+
 ## UI 타이포그래피 기준
 
 > **모든 UI 텍스트에 적용되는 서체 그룹 규칙**
