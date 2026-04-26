@@ -68,10 +68,21 @@ export class AuditLogService {
   }
 
   async findByEntity(entityType: string, entityId: string, query: AuditLogQueryDto) {
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, action, performedBy, startDate, endDate } = query;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.AuditLogWhereInput = { entityType, entityId };
+    const where: Prisma.AuditLogWhereInput = {
+      entityType,
+      entityId,
+      ...(action && { action }),
+      ...(performedBy && { performedBy }),
+      ...((startDate || endDate) && {
+        createdAt: {
+          ...(startDate && { gte: new Date(startDate) }),
+          ...(endDate && { lte: new Date(endDate) }),
+        },
+      }),
+    };
 
     const [data, total] = await Promise.all([
       this.prisma.auditLog.findMany({

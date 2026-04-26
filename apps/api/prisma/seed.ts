@@ -19,9 +19,8 @@ async function seedUsers() {
     const admin = await prisma.user.create({
       data: {
         email: 'wooceo@gmail.com',
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         name: '관리자',
-        role: 'admin',
         isActive: true,
       },
     });
@@ -30,9 +29,8 @@ async function seedUsers() {
     await prisma.user.create({
       data: {
         email: 'manager@printing-erp.com',
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         name: '매니저',
-        role: 'manager',
         isActive: true,
       },
     });

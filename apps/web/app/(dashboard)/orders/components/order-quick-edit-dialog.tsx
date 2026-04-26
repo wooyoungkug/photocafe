@@ -19,7 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Order, useOrder, useAdjustOrder } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
-import { ImageIcon, Save, Loader2, FolderOpen, FileText, BookOpen, ChevronDown, ChevronUp } from 'lucide-react';
+import { resolveOrderFileAccessUrl } from '@/lib/order-file-access';
+import { ImageIcon, Save, Loader2, FolderOpen, FileText, BookOpen, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { cn, normalizeImageUrl } from '@/lib/utils';
 
 // ==================== 편집스타일 / 제본순서 라벨 ====================
@@ -117,12 +118,16 @@ function AdaptiveThumbnail({
   pageLayout,
   totalFiles,
   direction,
+  onOpenOriginal,
+  openingFileId,
 }: {
   file: ThumbnailFile;
   index: number;
   pageLayout?: string;
   totalFiles: number;
   direction: BindingDirectionType;
+  onOpenOriginal?: (file: ThumbnailFile) => void;
+  openingFileId?: string | null;
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
   const [imgSrc, setImgSrc] = useState<string | null>(
@@ -208,6 +213,18 @@ function AdaptiveThumbnail({
         <div className="text-gray-500">
           {file.pageRange || `${file.pageStart}p`}
         </div>
+        {!!onOpenOriginal && (
+          <button
+            type="button"
+            className="mt-1 w-full h-5 rounded bg-gray-100 hover:bg-gray-200 text-[9px] flex items-center justify-center gap-1 transition-colors"
+            onClick={() => onOpenOriginal(file)}
+            disabled={openingFileId === file.id}
+            title="원본 열기"
+          >
+            <Download className="h-2.5 w-2.5" />
+            {openingFileId === file.id ? '열는 중...' : '원본'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -217,10 +234,14 @@ function ThumbnailGrid({
   files,
   pageLayout,
   bindingDirection,
+  onOpenOriginal,
+  openingFileId,
 }: {
   files: ThumbnailFile[];
   pageLayout?: string;
   bindingDirection?: BindingDirectionType;
+  onOpenOriginal?: (file: ThumbnailFile) => void;
+  openingFileId?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const direction = bindingDirection || 'LEFT_START_RIGHT_END';
@@ -234,6 +255,8 @@ function ThumbnailGrid({
       pageLayout={pageLayout}
       totalFiles={totalFiles}
       direction={direction}
+      onOpenOriginal={onOpenOriginal}
+      openingFileId={openingFileId}
     />
   );
 
@@ -369,6 +392,7 @@ export function OrderQuickEditDialog({
   // Discount
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
+  const [openingFileId, setOpeningFileId] = useState<string | null>(null);
 
   // Initialize edit state when full order data loads
   useEffect(() => {
@@ -476,6 +500,24 @@ export function OrderQuickEditDialog({
       onOpenChange(false);
     } catch {
       toast({ title: '주문 수정에 실패했습니다.', variant: 'destructive' });
+    }
+  };
+
+  const handleOpenOriginal = async (file: ThumbnailFile) => {
+    if (!file?.id) return;
+    setOpeningFileId(file.id);
+    try {
+      const finalUrl = await resolveOrderFileAccessUrl(file);
+      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      const fallback = normalizeImageUrl(file.fileUrl) || file.fileUrl;
+      if (fallback) {
+        window.open(fallback, '_blank', 'noopener,noreferrer');
+      } else {
+        toast({ title: e?.message || '원본 파일 열기에 실패했습니다.', variant: 'destructive' });
+      }
+    } finally {
+      setOpeningFileId(null);
     }
   };
 
@@ -612,6 +654,8 @@ export function OrderQuickEditDialog({
                           files={allFiles}
                           pageLayout={edit.pageLayout}
                           bindingDirection={edit.bindingDirection as BindingDirectionType | undefined}
+                          onOpenOriginal={handleOpenOriginal}
+                          openingFileId={openingFileId}
                         />
                       ) : item.thumbnailUrl ? (
                         <div>

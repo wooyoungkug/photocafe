@@ -51,7 +51,7 @@ import {
   useToggleSuperAdmin,
 } from '@/hooks/use-staff';
 import { useTeams } from '@/hooks/use-team';
-import { useEntityAuditLogs } from '@/hooks/use-audit-log';
+import { useAuditLogs } from '@/hooks/use-audit-log';
 import { useImpersonateStaff } from '@/hooks/use-auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { Staff, CreateStaffRequest, AuditLog, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
@@ -128,6 +128,7 @@ export default function EmployeesPage() {
   const [statusChangeValue, setStatusChangeValue] = useState('');
   const [statusChangeReason, setStatusChangeReason] = useState('');
   const [auditLogTarget, setAuditLogTarget] = useState<Staff | null>(null);
+  const [auditActionFilter, setAuditActionFilter] = useState<string>('all');
   const [superAdminToggleTarget, setSuperAdminToggleTarget] = useState<Staff | null>(null);
   const [superAdminToggleValue, setSuperAdminToggleValue] = useState(false);
 
@@ -145,12 +146,12 @@ export default function EmployeesPage() {
     departmentFilter !== 'all' ? { departmentId: departmentFilter } : undefined,
   );
 
-  // 감사 로그 조회 (타겟이 설정된 경우)
-  const { data: auditLogData } = useEntityAuditLogs(
-    'staff',
-    auditLogTarget?.id || '',
-    { limit: 20 },
-  );
+  // 감사 로그 조회 (타겟 직원이 수행한 전체 이력)
+  const { data: auditLogData } = useAuditLogs({
+    limit: 50,
+    performedBy: auditLogTarget?.id || undefined,
+    action: auditActionFilter !== 'all' ? auditActionFilter : undefined,
+  });
 
   // Mutations
   const createStaff = useCreateStaff();
@@ -1727,7 +1728,15 @@ kim01,pass1234,김철수,과장,kim@email.com,010-2345-6789</pre>
       </Dialog>
 
       {/* 감사 로그(변경 이력) 다이얼로그 */}
-      <Dialog open={!!auditLogTarget} onOpenChange={() => setAuditLogTarget(null)}>
+      <Dialog
+        open={!!auditLogTarget}
+        onOpenChange={(open) => {
+          if (!open) {
+            setAuditLogTarget(null);
+            setAuditActionFilter('all');
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1735,9 +1744,26 @@ kim01,pass1234,김철수,과장,kim@email.com,010-2345-6789</pre>
               변경 이력 - {auditLogTarget?.name}
             </DialogTitle>
             <DialogDescription>
-              {auditLogTarget?.staffId} 직원의 변경 내역입니다.
+              {auditLogTarget?.staffId} 직원이 수행한 활동 이력입니다.
             </DialogDescription>
           </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Label className="text-[11px] shrink-0">이벤트</Label>
+            <Select value={auditActionFilter} onValueChange={setAuditActionFilter}>
+              <SelectTrigger className="w-[240px] h-8 text-[11px]">
+                <SelectValue placeholder="전체 이벤트" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="file_access_url_issued">원본 접근 URL 발급</SelectItem>
+                <SelectItem value="update">수정</SelectItem>
+                <SelectItem value="create">생성</SelectItem>
+                <SelectItem value="delete">삭제</SelectItem>
+                <SelectItem value="status_change">상태변경</SelectItem>
+                <SelectItem value="password_reset">비밀번호초기화</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="space-y-3">
             {auditLogData?.data?.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-[11px]">
@@ -1758,14 +1784,27 @@ kim01,pass1234,김철수,과장,kim@email.com,010-2345-6789</pre>
                          log.action === 'delete' ? '삭제' :
                          log.action === 'status_change' ? '상태변경' :
                          log.action === 'password_reset' ? '비밀번호초기화' :
+                         log.action === 'file_access_url_issued' ? '원본접근URL발급' :
                          log.action}
                       </Badge>
+                      {log.metadata?.source && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {String(log.metadata.source)}
+                        </Badge>
+                      )}
                       <span className="text-[11px] text-black font-normal">{log.performerName}</span>
                     </div>
                     <span className="text-[10px] text-gray-500">
                       {new Date(log.createdAt).toLocaleString('ko-KR')}
                     </span>
                   </div>
+                  {(log.ipAddress || log.metadata?.fileName || log.metadata?.orderNumber) && (
+                    <div className="text-[10px] text-gray-500 space-x-2">
+                      {log.metadata?.orderNumber && <span>주문: {String(log.metadata.orderNumber)}</span>}
+                      {log.metadata?.fileName && <span>파일: {String(log.metadata.fileName)}</span>}
+                      {log.ipAddress && <span>IP: {log.ipAddress}</span>}
+                    </div>
+                  )}
                   {log.changes && Object.keys(log.changes).length > 0 && (
                     <div className="bg-muted rounded p-2 mt-1">
                       {Object.entries(log.changes).map(([key, change]: [string, any]) => (

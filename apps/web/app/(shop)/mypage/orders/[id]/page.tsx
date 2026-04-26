@@ -48,6 +48,7 @@ import { TrackingTimeline } from '@/components/order/tracking-timeline';
 import { ShippingEditWithFeeDialog } from '@/components/order/shipping-edit-with-fee-dialog';
 import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
 import { ReturnStatusBadge } from '@/components/order/return-status-badge';
+import { resolveOrderFileAccessUrl } from '@/lib/order-file-access';
 import {
   useReturnRequestsByOrder,
   REPAIR_REASON_LABELS,
@@ -240,6 +241,7 @@ export default function OrderDetailPage() {
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   // 다운로드 진행 상태
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isOpeningOriginal, setIsOpeningOriginal] = useState(false);
   // 배송정보 수정 다이얼로그
   const [shippingEditOpen, setShippingEditOpen] = useState(false);
   // 반품/교환 신청 다이얼로그
@@ -310,6 +312,24 @@ export default function OrderDetailPage() {
       alert(e?.message || '다운로드 중 오류가 발생했습니다.');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleOpenOriginal = async (file: OrderFile) => {
+    if (!file?.id) return;
+    setIsOpeningOriginal(true);
+    try {
+      const finalUrl = await resolveOrderFileAccessUrl(file);
+      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+    } catch (e: any) {
+      const fallback = normalizeImageUrl(file.fileUrl) || file.fileUrl;
+      if (fallback) {
+        window.open(fallback, '_blank', 'noopener,noreferrer');
+      } else {
+        alert(e?.message || '원본 파일 열기에 실패했습니다.');
+      }
+    } finally {
+      setIsOpeningOriginal(false);
     }
   };
 
@@ -1339,6 +1359,19 @@ export default function OrderDetailPage() {
                       {previewFiles.itemName} - {currentIndex + 1} / {totalFiles}
                     </DialogTitle>
                     <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2"
+                        onClick={() => handleOpenOriginal(currentFile)}
+                        disabled={isOpeningOriginal || !currentFile.id}
+                        title="원본 파일 열기"
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        <span className="text-xs">
+                          {isOpeningOriginal ? '열는 중...' : '원본 열기'}
+                        </span>
+                      </Button>
                       <Button
                         variant="ghost"
                         size="sm"

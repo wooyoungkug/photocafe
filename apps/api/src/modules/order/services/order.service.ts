@@ -4,6 +4,8 @@ import { SystemSettingsService } from '@/modules/system-settings/system-settings
 import { FileStorageService, getUploadBasePath } from '@/modules/upload/services/file-storage.service';
 import { PdfGeneratorService } from '@/modules/upload/services/pdf-generator.service';
 import { ThumbnailService } from '@/modules/upload/services/thumbnail.service';
+import { B2StorageService } from '@/modules/upload/services/b2-storage.service';
+import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { Prisma } from '@prisma/client';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
@@ -42,7 +44,173 @@ export class OrderService {
     private fileStorage: FileStorageService,
     private pdfGenerator: PdfGeneratorService,
     private thumbnailService: ThumbnailService,
+    private b2Storage: B2StorageService,
+    private auditLogService: AuditLogService,
   ) { }
+
+  private getContentType(fileName: string, fallback = 'application/octet-stream'): string {
+    const lower = fileName.toLowerCase();
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.gif')) return 'image/gif';
+    if (lower.endsWith('.avif')) return 'image/avif';
+    if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'image/tiff';
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    return fallback;
+  }
+
+  private sanitizeStorageKeyPart(value: string): string {
+    return value
+      .replace(/\\/g, '/')
+      .replace(/^\.+/, '')
+      .replace(/\.\./g, '_')
+      .replace(/[^a-zA-Z0-9._/-]/g, '_');
+  }
+
+  private async uploadMovedFileToB2(
+    orderNumber: string,
+    moved: { original: string; thumbnail: string; fileName: string },
+  ): Promise<{ uploadedOriginal: boolean; publicThumbnailUrl: string | null; publicThumbnailKey: string | null }> {
+    if (!this.b2Storage.isEnabled()) {
+      return { uploadedOriginal: false, publicThumbnailUrl: null, publicThumbnailKey: null };
+    }
+
+    try {
+      const { readFile } = await import('fs/promises');
+      const safeOrder = this.sanitizeStorageKeyPart(orderNumber);
+      const safeName = this.sanitizeStorageKeyPart(moved.fileName);
+      const originalKey = `orders/${safeOrder}/originals/${safeName}`;
+      const originalBuffer = await readFile(moved.original);
+      await this.b2Storage.putPrivateObject(
+        originalKey,
+        originalBuffer,
+        this.getContentType(moved.fileName),
+      );
+
+      if (moved.thumbnail && this.b2Storage.getPublicBucket()) {
+        const thumbName = this.sanitizeStorageKeyPart(this.fileStorage.getThumbName(moved.fileName));
+        const thumbKey = `orders/${safeOrder}/thumbnails/${thumbName}`;
+        const thumbBuffer = await readFile(moved.thumbnail);
+        await this.b2Storage.putPublicObject(thumbKey, thumbBuffer, 'image/jpeg');
+        return {
+          uploadedOriginal: true,
+          publicThumbnailUrl: this.b2Storage.getPublicObjectUrl(thumbKey),
+          publicThumbnailKey: thumbKey,
+        };
+      }
+
+      return { uploadedOriginal: true, publicThumbnailUrl: null, publicThumbnailKey: null };
+    } catch (err) {
+      this.logger.warn(`B2 업로드 실패 (order: ${orderNumber}, file: ${moved.fileName}) - ${(err as Error).message}`);
+      return { uploadedOriginal: false, publicThumbnailUrl: null, publicThumbnailKey: null };
+    }
+  }
+
+  async getOrderFileAccessUrl(fileId: string, actor?: {
+    id?: string;
+    sub?: string;
+    name?: string;
+    username?: string;
+    employeeId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+  }): Promise<{
+    fileId: string;
+    url: string;
+    source: 'b2-presigned' | 'local';
+    expiresIn: number | null;
+  }> {
+    const file = await this.prisma.orderFile.findUnique({
+      where: { id: fileId },
+      select: {
+        id: true,
+        fileName: true,
+        fileUrl: true,
+        orderItem: {
+          select: {
+            order: {
+              select: { orderNumber: true },
+            },
+          },
+        },
+      },
+    });
+    if (!file) {
+      throw new NotFoundException('파일을 찾을 수 없습니다.');
+    }
+
+    const localUrl = file.fileUrl;
+    const performedBy = actor?.id || actor?.sub || 'system';
+    const performerName = actor?.name || actor?.username || actor?.employeeId || 'system';
+
+    if (!this.b2Storage.isEnabled()) {
+      await this.auditLogService.log({
+        entityType: 'order_file',
+        entityId: file.id,
+        action: 'file_access_url_issued',
+        performedBy,
+        performerName,
+        ipAddress: actor?.ipAddress,
+        userAgent: actor?.userAgent,
+        metadata: {
+          source: 'local',
+          reason: 'b2_not_configured',
+          orderNumber: file.orderItem?.order?.orderNumber || null,
+          fileName: file.fileName,
+        },
+      });
+      return { fileId: file.id, url: localUrl, source: 'local', expiresIn: null };
+    }
+
+    try {
+      const orderNumber = file.orderItem?.order?.orderNumber;
+      if (!orderNumber) {
+        return { fileId: file.id, url: localUrl, source: 'local', expiresIn: null };
+      }
+
+      const key = `orders/${this.sanitizeStorageKeyPart(orderNumber)}/originals/${this.sanitizeStorageKeyPart(file.fileName)}`;
+      const fromEnv = parseInt(process.env.B2_PRESIGN_EXPIRES_IN || '300', 10);
+      const expiresIn = Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 300;
+      const url = await this.b2Storage.getPrivatePresignedUrl(key, expiresIn);
+      await this.auditLogService.log({
+        entityType: 'order_file',
+        entityId: file.id,
+        action: 'file_access_url_issued',
+        performedBy,
+        performerName,
+        ipAddress: actor?.ipAddress,
+        userAgent: actor?.userAgent,
+        metadata: {
+          source: 'b2-presigned',
+          expiresIn,
+          orderNumber,
+          fileName: file.fileName,
+          key,
+        },
+      });
+      return { fileId: file.id, url, source: 'b2-presigned', expiresIn };
+    } catch (err) {
+      this.logger.warn(`프리사인드 URL 생성 실패(fileId=${file.id}): ${(err as Error).message}`);
+      await this.auditLogService.log({
+        entityType: 'order_file',
+        entityId: file.id,
+        action: 'file_access_url_issued',
+        performedBy,
+        performerName,
+        ipAddress: actor?.ipAddress,
+        userAgent: actor?.userAgent,
+        metadata: {
+          source: 'local',
+          reason: 'presign_failed',
+          orderNumber: file.orderItem?.order?.orderNumber || null,
+          fileName: file.fileName,
+          error: (err as Error).message,
+        },
+      });
+      return { fileId: file.id, url: localUrl, source: 'local', expiresIn: null };
+    }
+  }
 
   // ==================== 주문번호 생성 (원자적) ====================
   private async generateOrderNumber(
@@ -2541,12 +2709,16 @@ export class OrderService {
           },
         );
         if (matchingFile) {
+          const b2Result = await this.uploadMovedFileToB2(order.orderNumber, moved);
+          const nextThumbUrl =
+            b2Result.publicThumbnailUrl
+            || (moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl);
           updates.push({
             id: matchingFile.id,
             fileUrl: this.fileStorage.toRelativeUrl(moved.original),
             originalPath: moved.original,
-            thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
-            thumbnailPath: moved.thumbnail || null,
+            thumbnailUrl: nextThumbUrl,
+            thumbnailPath: b2Result.publicThumbnailKey || moved.thumbnail || null,
           });
         } else {
           matchFailed++;
@@ -2687,13 +2859,18 @@ export class OrderService {
           || f.fileName === decodedFileName;
       });
 
-      if (matchingFile) {
+        if (matchingFile) {
+          const b2Result = await this.uploadMovedFileToB2(order.orderNumber, {
+            original: originalPath,
+            thumbnail: hasThumb ? thumbPath : '',
+            fileName: diskFileName,
+          });
         updates.push({
           id: matchingFile.id,
           fileUrl: this.fileStorage.toRelativeUrl(originalPath),
           originalPath,
-          thumbnailUrl: hasThumb ? this.fileStorage.toRelativeUrl(thumbPath) : '',
-          thumbnailPath: hasThumb ? thumbPath : null,
+            thumbnailUrl: b2Result.publicThumbnailUrl || (hasThumb ? this.fileStorage.toRelativeUrl(thumbPath) : ''),
+            thumbnailPath: b2Result.publicThumbnailKey || (hasThumb ? thumbPath : null),
         });
       }
     }
@@ -2941,13 +3118,14 @@ export class OrderService {
           for (const moved of movedFiles) {
             const matchingFile = files.find(f => decodeURIComponent(f.fileUrl).includes(moved.fileName) || f.fileUrl.includes(moved.fileName));
             if (matchingFile) {
+              const b2Result = await this.uploadMovedFileToB2(orderItem.order.orderNumber, moved);
               await this.prisma.orderFile.update({
                 where: { id: matchingFile.id },
                 data: {
                   fileUrl: this.fileStorage.toRelativeUrl(moved.original),
                   originalPath: moved.original,
-                  thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : null,
-                  thumbnailPath: moved.thumbnail || null,
+                  thumbnailUrl: b2Result.publicThumbnailUrl || (moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : null),
+                  thumbnailPath: b2Result.publicThumbnailKey || moved.thumbnail || null,
                   storageStatus: 'uploaded',
                 },
               });
@@ -3084,13 +3262,14 @@ export class OrderService {
                 return decoded.includes(moved.fileName) || f.fileUrl.includes(moved.fileName);
               });
               if (matchingFile) {
+                const b2Result = await this.uploadMovedFileToB2(orderInfo.orderNumber, moved);
                 await this.prisma.orderFile.update({
                   where: { id: matchingFile.id },
                   data: {
                     fileUrl: this.fileStorage.toRelativeUrl(moved.original),
                     originalPath: moved.original,
-                    thumbnailUrl: moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl,
-                    thumbnailPath: moved.thumbnail || null,
+                    thumbnailUrl: b2Result.publicThumbnailUrl || (moved.thumbnail ? this.fileStorage.toRelativeUrl(moved.thumbnail) : matchingFile.thumbnailUrl),
+                    thumbnailPath: b2Result.publicThumbnailKey || moved.thumbnail || null,
                     storageStatus: 'uploaded',
                   },
                 });
@@ -3192,13 +3371,18 @@ export class OrderService {
 
       // DB 업데이트
       try {
+        const b2Result = await this.uploadMovedFileToB2(orderNumber, {
+          original: actualOriginalPath,
+          thumbnail: thumbPath || '',
+          fileName: file.fileName,
+        });
         await this.prisma.orderFile.update({
           where: { id: file.id },
           data: {
             fileUrl: this.fileStorage.toRelativeUrl(actualOriginalPath),
             originalPath: actualOriginalPath,
-            thumbnailUrl: thumbPath ? this.fileStorage.toRelativeUrl(thumbPath) : null,
-            thumbnailPath: thumbPath || null,
+            thumbnailUrl: b2Result.publicThumbnailUrl || (thumbPath ? this.fileStorage.toRelativeUrl(thumbPath) : null),
+            thumbnailPath: b2Result.publicThumbnailKey || thumbPath || null,
             storageStatus: 'uploaded',
           },
         });

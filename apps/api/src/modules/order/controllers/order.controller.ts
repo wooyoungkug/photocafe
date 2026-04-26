@@ -187,6 +187,16 @@ export class OrderController {
     return this.orderService.downloadOriginals(id, res);
   }
 
+  @Get('files/:fileId/access-url')
+  @ApiOperation({ summary: '원본 파일 접근 URL 조회 (B2 프리사인드 우선, 미설정 시 로컬 URL)' })
+  async getFileAccessUrl(@Param('fileId') fileId: string, @Request() req: any) {
+    return this.orderService.getOrderFileAccessUrl(fileId, {
+      ...req?.user,
+      ipAddress: req?.ip,
+      userAgent: req?.headers?.['user-agent'],
+    });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '주문 상세 조회' })
   async findOne(@Param('id') id: string) {

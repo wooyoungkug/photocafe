@@ -3,14 +3,14 @@ import { UploadController } from './upload.controller';
 import { FileStorageService } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
 import { PdfGeneratorService } from './services/pdf-generator.service';
-import { OriginalsStorageService } from './services/originals-storage.service';
+import { B2StorageService } from './services/b2-storage.service';
 
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6시간
 
 @Module({
     controllers: [UploadController],
-    providers: [FileStorageService, ThumbnailService, PdfGeneratorService, OriginalsStorageService],
-    exports: [FileStorageService, ThumbnailService, PdfGeneratorService, OriginalsStorageService],
+    providers: [FileStorageService, ThumbnailService, PdfGeneratorService, B2StorageService],
+    exports: [FileStorageService, ThumbnailService, PdfGeneratorService, B2StorageService],
 })
 export class UploadModule implements OnModuleInit, OnModuleDestroy {
     private cleanupTimer: ReturnType<typeof setInterval> | null = null;
