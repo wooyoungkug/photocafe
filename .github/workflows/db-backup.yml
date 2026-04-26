@@ -87,6 +87,7 @@ jobs:
           ls -lh "${FILENAME}"
 
       - name: Verify dump integrity (gzip + SQL header)
+        id: verify
         run: |
           set -euo pipefail
           FILENAME="${{ steps.meta.outputs.filename }}"
@@ -94,7 +95,6 @@ jobs:
           echo "Gzip OK"
 
           # Capture first 20 lines into a variable to avoid SIGPIPE under pipefail
-          # (head closes its input early -> zcat exits non-zero -> pipefail flags failure)
           HEADER=$(zcat "${FILENAME}" 2>/dev/null | head -20 || true)
           if echo "$HEADER" | grep -q "PostgreSQL database dump"; then
             echo "SQL header OK"
@@ -102,6 +102,40 @@ jobs:
             echo "::error ::SQL header missing — dump likely failed"
             echo "$HEADER" | head -5
             exit 1
+          fi
+
+          # Sanity statistics (data volume health-check)
+          UNCOMPRESSED=$(zcat "${FILENAME}" | wc -c)
+          TABLES=$(zcat "${FILENAME}" | grep -cE '^CREATE TABLE ' || true)
+          COPIES=$(zcat "${FILENAME}" | grep -cE '^COPY .* FROM stdin' || true)
+          INSERTS=$(zcat "${FILENAME}" | grep -cE '^INSERT INTO ' || true)
+          DATA_LINES=$(zcat "${FILENAME}" | awk '/^COPY .* FROM stdin/{f=1; next} /^\\\.$/{f=0} f' | wc -l)
+
+          UNCOMPRESSED_MB=$(awk -v b="$UNCOMPRESSED" 'BEGIN{printf "%.2f", b/1024/1024}')
+
+          echo "Uncompressed:    ${UNCOMPRESSED_MB} MB (${UNCOMPRESSED} bytes)"
+          echo "Tables (CREATE): ${TABLES}"
+          echo "COPY blocks:     ${COPIES}"
+          echo "INSERT rows:     ${INSERTS}"
+          echo "COPY data rows:  ${DATA_LINES}"
+
+          {
+            echo "uncompressed_mb=${UNCOMPRESSED_MB}"
+            echo "tables=${TABLES}"
+            echo "copy_blocks=${COPIES}"
+            echo "insert_rows=${INSERTS}"
+            echo "data_rows=${DATA_LINES}"
+          } >> "$GITHUB_OUTPUT"
+
+          # Soft warning: a very small dump may indicate the wrong DB
+          if [ "${UNCOMPRESSED}" -lt 102400 ]; then
+            echo "::warning ::Dump is under 100 KB uncompressed (${UNCOMPRESSED_MB} MB). Verify DATABASE_URL points to the correct production DB."
+          fi
+          if [ "${TABLES}" -lt 5 ]; then
+            echo "::warning ::Only ${TABLES} CREATE TABLE statements found. Verify schema completeness."
+          fi
+          if [ "${COPIES}" -eq 0 ] && [ "${INSERTS}" -eq 0 ]; then
+            echo "::warning ::No COPY/INSERT statements found — backup contains schema only (no data rows)."
           fi
 
       - name: Encrypt dump with GPG (AES-256 symmetric)
@@ -187,5 +221,10 @@ jobs:
             echo "| File | ${{ steps.meta.outputs.enc_filename }} |"
             echo "| S3 Key | ${{ steps.meta.outputs.s3_key }} |"
             echo "| Encryption | GPG AES-256 (symmetric) |"
+            echo "| Uncompressed | ${{ steps.verify.outputs.uncompressed_mb }} MB |"
+            echo "| Tables | ${{ steps.verify.outputs.tables }} |"
+            echo "| COPY blocks | ${{ steps.verify.outputs.copy_blocks }} |"
+            echo "| COPY data rows | ${{ steps.verify.outputs.data_rows }} |"
+            echo "| INSERT rows | ${{ steps.verify.outputs.insert_rows }} |"
             echo "| Status | ${{ job.status }} |"
           } >> $GITHUB_STEP_SUMMARY
