@@ -1,0 +1,176 @@
+name: B2 Bucket Settings
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: |
+          info       : Show bucket type & metadata (no changes)
+          set-private: Change bucket to allPrivate (requires confirm)
+        required: true
+        type: choice
+        default: info
+        options:
+          - info
+          - set-private
+      confirm:
+        description: |
+          For set-private only: type exactly  I_UNDERSTAND_PRIVATE
+        required: false
+        type: string
+        default: ''
+
+jobs:
+  bucket-mgmt:
+    name: B2 Bucket Settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Validate
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.action }}" = "set-private" ] && [ "${{ inputs.confirm }}" != "I_UNDERSTAND_PRIVATE" ]; then
+            echo "::error ::action=set-private requires confirm='I_UNDERSTAND_PRIVATE'"
+            exit 1
+          fi
+
+      - name: Authorize with Backblaze B2
+        id: auth
+        env:
+          B2_KEY_ID: ${{ secrets.B2_KEY_ID }}
+          B2_APP_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+        run: |
+          set -euo pipefail
+          AUTH_JSON=$(curl -fsS -u "${B2_KEY_ID}:${B2_APP_KEY}" \
+            "https://api.backblazeb2.com/b2api/v3/b2_authorize_account")
+
+          API_URL=$(echo "$AUTH_JSON" | jq -r '.apiInfo.storageApi.apiUrl')
+          AUTH_TOKEN=$(echo "$AUTH_JSON" | jq -r '.authorizationToken')
+          ACCOUNT_ID=$(echo "$AUTH_JSON" | jq -r '.accountId')
+          ALLOWED_BUCKET_ID=$(echo "$AUTH_JSON" | jq -r '.apiInfo.storageApi.allowed.bucketId // empty')
+          ALLOWED_BUCKET_NAME=$(echo "$AUTH_JSON" | jq -r '.apiInfo.storageApi.allowed.bucketName // empty')
+
+          echo "::add-mask::$AUTH_TOKEN"
+          echo "::add-mask::$ACCOUNT_ID"
+          echo "::add-mask::$ALLOWED_BUCKET_ID"
+
+          {
+            echo "api_url=$API_URL"
+            echo "auth_token=$AUTH_TOKEN"
+            echo "account_id=$ACCOUNT_ID"
+            echo "allowed_bucket_id=$ALLOWED_BUCKET_ID"
+            echo "allowed_bucket_name=$ALLOWED_BUCKET_NAME"
+          } >> $GITHUB_OUTPUT
+
+          echo "Authorized. Allowed bucket name: ${ALLOWED_BUCKET_NAME:-(account-wide key)}"
+
+      - name: List bucket info
+        id: info
+        env:
+          API_URL: ${{ steps.auth.outputs.api_url }}
+          AUTH_TOKEN: ${{ steps.auth.outputs.auth_token }}
+          ACCOUNT_ID: ${{ steps.auth.outputs.account_id }}
+          ALLOWED_BUCKET_ID: ${{ steps.auth.outputs.allowed_bucket_id }}
+          B2_BUCKET: ${{ secrets.B2_BUCKET_NAME }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${ALLOWED_BUCKET_ID:-}" ]; then
+            REQ_BODY=$(jq -n --arg accountId "$ACCOUNT_ID" --arg bucketId "$ALLOWED_BUCKET_ID" \
+              '{accountId: $accountId, bucketId: $bucketId}')
+          else
+            REQ_BODY=$(jq -n --arg accountId "$ACCOUNT_ID" --arg bucketName "$B2_BUCKET" \
+              '{accountId: $accountId, bucketName: $bucketName}')
+          fi
+
+          BUCKETS_JSON=$(curl -fsS \
+            -H "Authorization: $AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$REQ_BODY" \
+            "${API_URL}/b2api/v3/b2_list_buckets")
+
+          BUCKET_TYPE=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].bucketType')
+          BUCKET_NAME=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].bucketName')
+          BUCKET_ID=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].bucketId')
+          REVISION=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].revision')
+          CORS=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].corsRules // [] | length')
+          LIFECYCLE=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].lifecycleRules // [] | length')
+          DEFAULT_RETENTION=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].defaultRetention // {} | tostring')
+          OBJECT_LOCK=$(echo "$BUCKETS_JSON" | jq -r '.buckets[0].fileLockConfiguration // {} | tostring')
+
+          echo "::add-mask::$BUCKET_ID"
+
+          echo "bucket_type=$BUCKET_TYPE" >> $GITHUB_OUTPUT
+          echo "bucket_id=$BUCKET_ID"     >> $GITHUB_OUTPUT
+          echo "revision=$REVISION"       >> $GITHUB_OUTPUT
+
+          {
+            echo "## B2 Bucket Info"
+            echo ""
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Bucket name | $BUCKET_NAME |"
+            echo "| Bucket type | **$BUCKET_TYPE** |"
+            echo "| Revision | $REVISION |"
+            echo "| CORS rules | $CORS |"
+            echo "| Lifecycle rules | $LIFECYCLE |"
+            echo "| Default retention | \`$DEFAULT_RETENTION\` |"
+            echo "| Object Lock | \`$OBJECT_LOCK\` |"
+            echo ""
+            if [ "$BUCKET_TYPE" = "allPublic" ]; then
+              echo "> **WARNING**: bucket is **allPublic**. Anyone with key path can download files."
+            elif [ "$BUCKET_TYPE" = "allPrivate" ]; then
+              echo "> **OK**: bucket is **allPrivate**. Auth required for all downloads."
+            else
+              echo "> NOTE: bucket type is \`$BUCKET_TYPE\`."
+            fi
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Set bucket to allPrivate
+        if: inputs.action == 'set-private'
+        env:
+          API_URL: ${{ steps.auth.outputs.api_url }}
+          AUTH_TOKEN: ${{ steps.auth.outputs.auth_token }}
+          ACCOUNT_ID: ${{ steps.auth.outputs.account_id }}
+          BUCKET_ID: ${{ steps.info.outputs.bucket_id }}
+          CURRENT_TYPE: ${{ steps.info.outputs.bucket_type }}
+          REVISION: ${{ steps.info.outputs.revision }}
+        run: |
+          set -euo pipefail
+
+          if [ "$CURRENT_TYPE" = "allPrivate" ]; then
+            echo "Bucket is already allPrivate. No change needed."
+            exit 0
+          fi
+
+          REQ_BODY=$(jq -n \
+            --arg accountId "$ACCOUNT_ID" \
+            --arg bucketId  "$BUCKET_ID" \
+            --arg bucketType "allPrivate" \
+            --argjson ifRevisionIs "$REVISION" \
+            '{accountId: $accountId, bucketId: $bucketId, bucketType: $bucketType, ifRevisionIs: $ifRevisionIs}')
+
+          RESULT=$(curl -fsS \
+            -H "Authorization: $AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$REQ_BODY" \
+            "${API_URL}/b2api/v3/b2_update_bucket")
+
+          NEW_TYPE=$(echo "$RESULT" | jq -r '.bucketType')
+          NEW_REV=$(echo "$RESULT" | jq -r '.revision')
+
+          {
+            echo "## Bucket Update Result"
+            echo ""
+            echo "| Field | Before | After |"
+            echo "|---|---|---|"
+            echo "| Bucket type | $CURRENT_TYPE | **$NEW_TYPE** |"
+            echo "| Revision | $REVISION | $NEW_REV |"
+          } >> $GITHUB_STEP_SUMMARY
+
+          if [ "$NEW_TYPE" != "allPrivate" ]; then
+            echo "::error ::Update returned unexpected bucketType: $NEW_TYPE"
+            exit 1
+          fi
+          echo "Success: bucket is now allPrivate."
