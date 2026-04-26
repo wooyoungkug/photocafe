@@ -32,6 +32,11 @@ export class AuditLogQueryDto {
   @IsOptional()
   performedBy?: string;
 
+  @ApiPropertyOptional({ description: 'metadata.source 필터 (예: b2-presigned, local)' })
+  @IsString()
+  @IsOptional()
+  source?: string;
+
   @ApiPropertyOptional({ description: '시작일' })
   @IsDateString()
   @IsOptional()

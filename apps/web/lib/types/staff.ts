@@ -97,6 +97,7 @@ export interface AuditLogQuery {
   entityType?: string;
   action?: string;
   performedBy?: string;
+  source?: string;
   startDate?: string;
   endDate?: string;
 }

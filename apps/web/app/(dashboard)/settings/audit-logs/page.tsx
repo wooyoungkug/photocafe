@@ -53,6 +53,7 @@ export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [action, setAction] = useState("file_access_url_issued");
   const [onlyOriginalView, setOnlyOriginalView] = useState(true);
+  const [onlyLocalSource, setOnlyLocalSource] = useState(false);
   const [performedBy, setPerformedBy] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -64,10 +65,11 @@ export default function AuditLogsPage() {
       limit: 50,
       action: action !== "all" ? action : undefined,
       performedBy: performedBy.trim() || undefined,
+      source: onlyLocalSource ? "local" : undefined,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
     }),
-    [page, action, performedBy, startDate, endDate],
+    [page, action, performedBy, onlyLocalSource, startDate, endDate],
   );
 
   const { data, isLoading, isFetching, refetch, error } = useAuditLogs(query);
@@ -79,10 +81,19 @@ export default function AuditLogsPage() {
     startDate: today,
     endDate: today,
   });
+  const { data: localTodayData } = useAuditLogs({
+    page: 1,
+    limit: 1,
+    action: "file_access_url_issued",
+    source: "local",
+    startDate: today,
+    endDate: today,
+  });
   const rows = data?.data || [];
   const meta = data?.meta;
   const pageB2Count = rows.filter((r) => r.action === "file_access_url_issued" && r.metadata?.source === "b2-presigned").length;
   const pageLocalCount = rows.filter((r) => r.action === "file_access_url_issued" && r.metadata?.source === "local").length;
+  const localTodayCount = localTodayData?.meta?.total ?? 0;
 
   const buildCsv = (logs: AuditLog[]) => {
     const header = [
@@ -92,6 +103,7 @@ export default function AuditLogsPage() {
       "entityId",
       "performedBy",
       "performerName",
+      "changes",
       "source",
       "orderNumber",
       "fileName",
@@ -110,6 +122,7 @@ export default function AuditLogsPage() {
         log.entityId,
         log.performedBy,
         log.performerName,
+        log.changes ? JSON.stringify(log.changes) : "",
         log.metadata?.source ?? "",
         log.metadata?.orderNumber ?? "",
         log.metadata?.fileName ?? "",
@@ -127,6 +140,7 @@ export default function AuditLogsPage() {
         limit: 200,
         action: action !== "all" ? action : undefined,
         performedBy: performedBy.trim() || undefined,
+        source: onlyLocalSource ? "local" : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
       };
@@ -147,8 +161,9 @@ export default function AuditLogsPage() {
       const a = document.createElement("a");
       const todayStamp = new Date().toISOString().slice(0, 10);
       const actionPart = action === "all" ? "all" : action;
+      const sourcePart = onlyLocalSource ? "_source-local" : "";
       a.href = url;
-      a.download = `audit-logs_${actionPart}_${todayStamp}.csv`;
+      a.download = `audit-logs_${actionPart}${sourcePart}_${todayStamp}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -164,6 +179,20 @@ export default function AuditLogsPage() {
         title="감사로그"
         description="운영 활동(원본 접근 URL 발급 포함)을 검색하고 추적합니다."
       />
+      {localTodayCount > 0 && (
+        <Card className="border-red-300 bg-red-50">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-[14px] text-red-700 font-medium">
+                오늘 `local` 원본 접근 URL 발급이 {localTodayCount}건 발생했습니다.
+              </div>
+              <Badge variant="destructive" className="text-[11px]">
+                점검 필요
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="pb-3">
@@ -237,10 +266,26 @@ export default function AuditLogsPage() {
                   const next = !onlyOriginalView;
                   setOnlyOriginalView(next);
                   setAction(next ? "file_access_url_issued" : "all");
+                  if (!next) setOnlyLocalSource(false);
                   setPage(1);
                 }}
               >
                 원본 접근만
+              </Button>
+              <Button
+                variant={onlyLocalSource ? "destructive" : "outline"}
+                className="h-9"
+                onClick={() => {
+                  const next = !onlyLocalSource;
+                  setOnlyLocalSource(next);
+                  if (next) {
+                    setOnlyOriginalView(true);
+                    setAction("file_access_url_issued");
+                  }
+                  setPage(1);
+                }}
+              >
+                local만
               </Button>
               <Button
                 variant="outline"
@@ -248,6 +293,7 @@ export default function AuditLogsPage() {
                 onClick={() => {
                   setAction("all");
                   setOnlyOriginalView(false);
+                  setOnlyLocalSource(false);
                   setPerformedBy("");
                   setStartDate("");
                   setEndDate("");
@@ -279,7 +325,7 @@ export default function AuditLogsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Card>
           <CardContent className="pt-5">
             <div className="text-[14px] text-gray-500">조회 결과 총 건수</div>
@@ -290,6 +336,14 @@ export default function AuditLogsPage() {
           <CardContent className="pt-5">
             <div className="text-[14px] text-gray-500">오늘 원본 접근 URL 발급</div>
             <div className="text-[24px] text-black font-normal mt-1">{accessTodayData?.meta?.total ?? 0}</div>
+          </CardContent>
+        </Card>
+        <Card className={localTodayCount > 0 ? "border-red-300" : ""}>
+          <CardContent className="pt-5">
+            <div className="text-[14px] text-gray-500">오늘 local 발생</div>
+            <div className={`text-[24px] font-normal mt-1 ${localTodayCount > 0 ? "text-red-600" : "text-black"}`}>
+              {localTodayCount}
+            </div>
           </CardContent>
         </Card>
         <Card>
