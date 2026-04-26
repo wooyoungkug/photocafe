@@ -105,6 +105,16 @@ jobs:
           echo "bucket_id=$BUCKET_ID"     >> $GITHUB_OUTPUT
           echo "revision=$REVISION"       >> $GITHUB_OUTPUT
 
+          echo "----- BUCKET INFO -----"
+          echo "name        : $BUCKET_NAME"
+          echo "type        : $BUCKET_TYPE"
+          echo "revision    : $REVISION"
+          echo "cors rules  : $CORS"
+          echo "lifecycle   : $LIFECYCLE"
+          echo "default ret : $DEFAULT_RETENTION"
+          echo "object lock : $OBJECT_LOCK"
+          echo "-----------------------"
+
           {
             echo "## B2 Bucket Info"
             echo ""
