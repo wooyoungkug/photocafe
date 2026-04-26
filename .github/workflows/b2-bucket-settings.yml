@@ -110,10 +110,18 @@ jobs:
           echo "type        : $BUCKET_TYPE"
           echo "revision    : $REVISION"
           echo "cors rules  : $CORS"
-          echo "lifecycle   : $LIFECYCLE"
+          echo "lifecycle   : $LIFECYCLE rule(s)"
           echo "default ret : $DEFAULT_RETENTION"
           echo "object lock : $OBJECT_LOCK"
           echo "-----------------------"
+          echo ""
+          echo "----- LIFECYCLE RULES (detail) -----"
+          echo "$BUCKETS_JSON" | jq '.buckets[0].lifecycleRules'
+          echo "------------------------------------"
+          echo ""
+          echo "----- CORS RULES (detail) -----"
+          echo "$BUCKETS_JSON" | jq '.buckets[0].corsRules'
+          echo "-------------------------------"
 
           {
             echo "## B2 Bucket Info"
