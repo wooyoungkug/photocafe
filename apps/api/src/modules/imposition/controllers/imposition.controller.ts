@@ -333,6 +333,36 @@ export class ImpositionController {
         const allFiles = (item.files ?? []).slice().sort(
           (a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
         );
+
+        // ===== 사전 검증: 주문페이지와 PDF변환 입력 파일이 정합한지 확인 =====
+        // 한 장이라도 안 맞으면 fail-fast — 사일런트 드랍은 출력 사고로 이어지므로 절대 금지.
+        // 사용자에게는 PDF 재생성을 유도한다.
+        // 1) 모든 파일의 디스크 경로가 해석되는지
+        const missingIdx: number[] = [];
+        allFiles.forEach((f: any, idx: number) => {
+          if (!resolveLocalPath(f)) missingIdx.push(idx + 1);
+        });
+        if (missingIdx.length > 0) {
+          throw new BadRequestException(
+            `[주문 ${item.order.orderNumber}] 원본 파일 #${missingIdx.join(', #')} 의 디스크 경로를 찾을 수 없습니다. ` +
+              `주문페이지의 파일과 PDF 변환 입력이 일치하지 않아 안전하게 진행할 수 없습니다. ` +
+              `주문 상세에서 PDF를 다시 생성한 뒤 변환을 재시도해주세요.`,
+          );
+        }
+        // 2) 주문 페이지 수 ↔ 등록 파일 개수 정합성
+        //    펼침면(spread): 파일 1개 = album 2페이지 → 예상 파일 = ceil(pages/2)
+        //    낱장(single):   파일 1개 = album 1페이지 → 예상 파일 = pages
+        const expectedFileCount = isSpread
+          ? Math.ceil(item.pages / 2)
+          : item.pages;
+        if (allFiles.length !== expectedFileCount) {
+          throw new BadRequestException(
+            `[주문 ${item.order.orderNumber}] 주문페이지 ${item.pages}P (${isSpread ? '펼침면' : '낱장'}) ` +
+              `기준 예상 파일 ${expectedFileCount}개와 실제 등록 파일 ${allFiles.length}개가 일치하지 않습니다. ` +
+              `주문 상세에서 PDF를 다시 생성한 뒤 변환을 재시도해주세요.`,
+          );
+        }
+
         const images = allFiles
           .map((f: any, idx: number) => ({
             pageNumber: idx + 1,
@@ -340,16 +370,6 @@ export class ImpositionController {
             fileName: f.fileName,
           }))
           .filter((e: any) => !!e.filePath);
-        // 누락된 파일이 있으면 경고에 명시 → 사일런트 드랍 방지
-        const missingIdx: number[] = [];
-        allFiles.forEach((f: any, idx: number) => {
-          if (!resolveLocalPath(f)) missingIdx.push(idx + 1);
-        });
-        if (missingIdx.length > 0) {
-          (result.warnings as any[]).push(
-            `원본 파일 누락: 파일 #${missingIdx.join(', #')} 의 디스크 경로를 찾을 수 없어 해당 페이지가 출력에서 제외되었습니다.`,
-          );
-        }
         if (images.length > 0) {
           const imagePdfFilePath = path.join(IMPOSITION_OUTPUT_DIR, `${base}_image.pdf`);
           await this.imagePdf.build(result, {
