@@ -1089,6 +1089,8 @@ model OrderItem {
   fabricSnapshot    Json?
   bindingDirection  String?
   pageLayout        String?
+  /// 양면/단면: 'single' | 'double'. 주문 시 사용자 선택값 기록.
+  printSide         String?
   pdfPath           String?
   pdfGeneratedAt    DateTime?
   pdfStatus         String?

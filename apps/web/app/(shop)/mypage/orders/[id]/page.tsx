@@ -187,6 +187,7 @@ interface OrderDetail {
     fabricName?: string;
     pageLayout?: string;
     bindingDirection?: string;
+    printSide?: string;
     finishingOptions?: string[];
     jdfCoatingFront?: string;
     jdfCoatingBack?: string;
@@ -588,7 +589,7 @@ export default function OrderDetailPage() {
                         </div>
 
                         {/* 편집 · 제본방향 행 */}
-                        {(item.bindingType || item.pageLayout || item.bindingDirection || item.printMethod) && (
+                        {(item.bindingType || item.pageLayout || item.bindingDirection || item.printMethod || item.printSide) && (
                           <div className="flex items-center gap-2 text-[13px] text-gray-600 mb-1.5 flex-wrap">
                             {item.bindingType && (
                               <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[13px]">
@@ -604,6 +605,14 @@ export default function OrderDetailPage() {
                                     : 'bg-blue-500 text-white border-blue-500'
                                 }`}>
                                   {item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : item.pageLayout}
+                                </span>
+                              </>
+                            )}
+                            {item.printSide && (
+                              <>
+                                <span className="text-[13px] text-black ml-2">인쇄</span>
+                                <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 text-[13px]">
+                                  {item.printSide === 'double' ? '양면' : item.printSide === 'single' ? '단면' : item.printSide}
                                 </span>
                               </>
                             )}
