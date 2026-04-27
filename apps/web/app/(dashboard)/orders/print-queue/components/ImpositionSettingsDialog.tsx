@@ -428,6 +428,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
 
     let succeeded = 0;
     const failed: { label: string; error: string }[] = [];
+    const succeededJobs: { id: string; imagePdfPath?: string | null }[] = [];
 
     for (let i = 0; i < targets.length; i++) {
       const t = targets[i];
@@ -441,22 +442,25 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
           marks,
         });
         succeeded++;
+        succeededJobs.push({ id: job.id, imagePdfPath: job.imagePdfPath });
         if (total > 1) {
           toast.success(`(${i + 1}/${total}) ${label} 생성 완료`);
-        }
-        // 다운로드는 첫 항목만 자동 트리거 (배치 시 N개 동시 다운로드 폭주 방지).
-        // 나머지는 서버 저장본 사용 (운영 흐름) 또는 향후 일괄 zip 다운로드 추가 가능.
-        if (i === 0) {
-          dlJdf.mutate(job.id);
-          setTimeout(() => dlPdf.mutate(job.id), 500);
-          if (job.imagePdfPath) {
-            setTimeout(() => dlImagePdf.mutate(job.id), 1000);
-          }
         }
       } catch (e: any) {
         failed.push({ label, error: e?.message || '알 수 없는 오류' });
       }
     }
+
+    // 모든 성공 항목의 JDF/PDF 를 stagger 다운로드 (브라우저 동시 다운로드 폭주/차단 방지).
+    // 항목당 약 1.2초 간격으로 jdf → pdf → imagePdf 순차 트리거.
+    succeededJobs.forEach((job, idx) => {
+      const base = idx * 1200;
+      setTimeout(() => dlJdf.mutate(job.id), base);
+      setTimeout(() => dlPdf.mutate(job.id), base + 300);
+      if (job.imagePdfPath) {
+        setTimeout(() => dlImagePdf.mutate(job.id), base + 700);
+      }
+    });
 
     if (total === 1) {
       if (succeeded === 1) {
@@ -466,7 +470,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
       }
     } else {
       if (failed.length === 0) {
-        toast.success(`${succeeded}건 모두 생성 완료 (첫 항목만 다운로드, 나머지는 서버 저장됨)`);
+        toast.success(`${succeeded}건 모두 생성 완료 — 다운로드 진행 중`);
       } else {
         toast.warning(`${succeeded}/${total}건 성공, ${failed.length}건 실패: ${failed.map(f => f.label).join(', ')}`);
       }
