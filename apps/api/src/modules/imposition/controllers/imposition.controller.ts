@@ -309,13 +309,47 @@ export class ImpositionController {
         // 원본 파일 인덱스(1-based)를 그대로 pageNumber에 매핑해야
         // ImpositionCalcService가 할당한 Placement.pages 번호와 일치.
         // validFiles 필터 후 idx+1 재매핑은 누락 파일 발생 시 번호가 틀어짐.
-        const allFiles = item.files ?? [];
+        // 또한 originalPath 가 빠져있더라도 fileUrl(/uploads/...) 로 폴백해야
+        // 첫 파일 누락으로 album 페이지 1~2 가 통째로 사라지는 사고를 막을 수 있다.
+        // (print-pdf 의 파일 해석 흐름과 동일.)
+        const uploadBase = process.env.UPLOAD_BASE_PATH || path.join(process.cwd(), 'uploads');
+        const resolveLocalPath = (f: any): string => {
+          // 1) originalPath 가 디스크에 있으면 그대로 사용
+          if (f.originalPath && fs.existsSync(f.originalPath)) return f.originalPath;
+          // 2) fileUrl 이 /uploads/... 형식이면 UPLOAD_BASE_PATH 기준 매핑
+          const url: string | undefined = f.fileUrl;
+          if (url && (url.startsWith('/uploads/') || url.startsWith('uploads/'))) {
+            const rel = url.replace(/^\/?uploads\/?/, '');
+            const candidates = new Set<string>([path.join(uploadBase, rel)]);
+            try {
+              candidates.add(path.join(uploadBase, decodeURIComponent(rel)));
+            } catch { /* malformed URI 는 무시 */ }
+            for (const c of candidates) {
+              if (fs.existsSync(c)) return c;
+            }
+          }
+          return '';
+        };
+        const allFiles = (item.files ?? []).slice().sort(
+          (a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+        );
         const images = allFiles
-          .map((f, idx) => ({
+          .map((f: any, idx: number) => ({
             pageNumber: idx + 1,
-            filePath: f.originalPath ?? '',
+            filePath: resolveLocalPath(f),
+            fileName: f.fileName,
           }))
-          .filter((e) => e.filePath && fs.existsSync(e.filePath));
+          .filter((e: any) => !!e.filePath);
+        // 누락된 파일이 있으면 경고에 명시 → 사일런트 드랍 방지
+        const missingIdx: number[] = [];
+        allFiles.forEach((f: any, idx: number) => {
+          if (!resolveLocalPath(f)) missingIdx.push(idx + 1);
+        });
+        if (missingIdx.length > 0) {
+          (result.warnings as any[]).push(
+            `원본 파일 누락: 파일 #${missingIdx.join(', #')} 의 디스크 경로를 찾을 수 없어 해당 페이지가 출력에서 제외되었습니다.`,
+          );
+        }
         if (images.length > 0) {
           const imagePdfFilePath = path.join(IMPOSITION_OUTPUT_DIR, `${base}_image.pdf`);
           await this.imagePdf.build(result, {
