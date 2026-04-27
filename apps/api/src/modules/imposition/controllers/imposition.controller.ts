@@ -17,6 +17,7 @@ import { Response } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import {
   ImpositionCalcService,
   ImpositionInput,
@@ -52,6 +53,7 @@ export class ImpositionController {
     private readonly rules: ImpositionRuleService,
     private readonly matcher: ImpositionMatcherService,
     private readonly prisma: PrismaService,
+    private readonly settings: SystemSettingsService,
   ) {
     if (!fs.existsSync(IMPOSITION_OUTPUT_DIR)) {
       fs.mkdirSync(IMPOSITION_OUTPUT_DIR, { recursive: true });
@@ -265,8 +267,22 @@ export class ImpositionController {
 
       // 마크 옵션 (dto.marks 누락 시 전부 default=true 로 취급)
       const marks = dto.marks ?? {};
+      // 인디고 도수 (예: 4도, 6도) — colorIntentId 우선, 없으면 printMethod 폴백
+      const colorMode = await this.resolveColorMode(item);
+      const sideText = String(item.printSide || '').toLowerCase() === 'double' ? '양면' : '단면';
+      const nupText = `${result.nup}up`;
       const jobMetaText = marks.jobMeta !== false
-        ? `${item.order.orderNumber} | ${item.order.client?.clientName ?? ''} | Job ${jobRecord.id.slice(0, 8)}`
+        ? this.buildRichJobMetaText({
+            orderNumber: item.order.orderNumber,
+            studio: item.order.client?.clientName ?? '',
+            paper: item.paper,
+            size: item.size,
+            pages: item.pages,
+            colorMode,
+            sideText,
+            nupText,
+            bindingType: item.bindingType,
+          })
         : null;
 
       // 소스 PDF 기반 정식 PDF — 명시적으로 dto.generateSourcePdf === true 일 때만.
@@ -318,6 +334,48 @@ export class ImpositionController {
         }
       }
 
+      // 무인 자동저장 — print_pdf_output_path 가 설정돼 있으면 동일 폴더 구조로 사본 저장
+      // 폴더: {outputPath}/{YYMMDD}/인디고/{도수}/{양면|단면}/
+      // 파일명: print-pdf 와 동일한 규칙 사용. 사용자 다운로드 폴더 오염을 막고
+      // 출력팀이 한 곳에서 모든 PDF 를 모아 볼 수 있게 한다.
+      const autoSavePath = (await this.settings.getValue('print_pdf_output_path', '')).trim();
+      let autoSavedPath: string | null = null;
+      let autoSavedJdfPath: string | null = null;
+      let autoSavedSourcePdfPath: string | null = null;
+      if (autoSavePath && imagePdfPath && fs.existsSync(imagePdfPath)) {
+        try {
+          const dir = this.resolveImpositionAutoSaveDir(autoSavePath, {
+            colorMode,
+            sideText,
+            printMethod: item.printMethod,
+          });
+          if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+          const fileName = this.buildImpositionFileName(item, {
+            colorMode,
+            sideText,
+            nupText,
+          });
+          autoSavedPath = path.join(dir, fileName);
+          fs.copyFileSync(imagePdfPath, autoSavedPath);
+          // JDF 도 함께 보관 (출력기/검수용)
+          if (fs.existsSync(jdfPath)) {
+            autoSavedJdfPath = path.join(dir, fileName.replace(/\.pdf$/i, '.jdf'));
+            fs.copyFileSync(jdfPath, autoSavedJdfPath);
+          }
+          if (wantSourcePdf && fs.existsSync(pdfPath)) {
+            autoSavedSourcePdfPath = path.join(dir, fileName.replace(/\.pdf$/i, '_imposed.pdf'));
+            fs.copyFileSync(pdfPath, autoSavedSourcePdfPath);
+          }
+        } catch (copyErr: any) {
+          // 자동저장 실패는 작업 자체를 실패시키지 않음 — 다운로드 경로는 살아있음
+          // 단, 응답에 alert 가능하도록 경고 추가
+          (result.warnings as any[]).push(`자동 저장 실패: ${copyErr.message}`);
+          autoSavedPath = null;
+          autoSavedJdfPath = null;
+          autoSavedSourcePdfPath = null;
+        }
+      }
+
       await this.prisma.impositionJob.update({
         where: { id: jobRecord.id },
         data: {
@@ -335,6 +393,10 @@ export class ImpositionController {
         pdfPath: wantSourcePdf ? pdfPath : null,
         imagePdfPath,
         warnings: result.warnings,
+        autoSaved: !!autoSavedPath,
+        autoSavedPath,
+        autoSavedJdfPath,
+        autoSavedSourcePdfPath,
       };
     } catch (err: any) {
       await this.prisma.impositionJob.update({
@@ -429,6 +491,100 @@ export class ImpositionController {
     }
 
     await archive.finalize();
+  }
+
+  // ==================== 자동저장 / 메타텍스트 헬퍼 ====================
+
+  private async resolveColorMode(item: any): Promise<string> {
+    if (item.colorIntentId) {
+      const colorIntent = await this.prisma.colorIntent.findUnique({
+        where: { id: item.colorIntentId },
+      });
+      if (colorIntent) {
+        return (colorIntent as any).displayNameKo || colorIntent.name || '-';
+      }
+    }
+    if (item.printMethod) {
+      const m = String(item.printMethod).toLowerCase();
+      if (m.includes('inkjet')) return '잉크젯';
+      if (m.includes('indigo')) return '인디고';
+    }
+    return '-';
+  }
+
+  /**
+   * 인디고 출력 머리말 메타텍스트.
+   * print-pdf 의 IndexData 와 동일한 정보 구성:
+   *   날짜시간 | 주문번호 | 스튜디오 | 용지 | 제본 | 양/단면 | P | 규격 | 도수 | Nup
+   */
+  private buildRichJobMetaText(ctx: {
+    orderNumber: string;
+    studio: string;
+    paper?: string | null;
+    size?: string | null;
+    pages?: number | null;
+    colorMode?: string | null;
+    sideText: string;
+    nupText: string;
+    bindingType?: string | null;
+  }): string {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const parts: string[] = [dt, ctx.orderNumber];
+    if (ctx.studio) parts.push(ctx.studio);
+    if (ctx.paper) parts.push(ctx.paper);
+    if (ctx.bindingType) parts.push(ctx.bindingType);
+    if (ctx.sideText) parts.push(ctx.sideText);
+    if (ctx.pages) parts.push(`${ctx.pages}P`);
+    if (ctx.size) parts.push(ctx.size);
+    if (ctx.colorMode && ctx.colorMode !== '-') parts.push(ctx.colorMode);
+    parts.push(ctx.nupText);
+    return parts.join(' | ');
+  }
+
+  /**
+   * 자동저장 폴더 결정 (print-pdf 와 동일 규칙):
+   *   인디고: {base}/{YYMMDD}/인디고/{도수}/{양면|단면}/
+   *   잉크젯: {base}/{YYMMDD}/잉크젯/
+   */
+  private resolveImpositionAutoSaveDir(
+    base: string,
+    ctx: { colorMode?: string; sideText: string; printMethod?: string | null },
+  ): string {
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    const datePart = `${yy}${mm}${dd}`;
+    const sanitize = (s: string) => (s || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || '_';
+    const isInkjet = String(ctx.printMethod || '').toLowerCase().includes('inkjet');
+    if (isInkjet) {
+      return path.join(base, datePart, '잉크젯');
+    }
+    const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitize(ctx.colorMode) : '4도';
+    return path.join(base, datePart, '인디고', colorSeg, ctx.sideText || '단면');
+  }
+
+  /**
+   * 자동저장 파일명: {주문번호}_{스튜디오}_{도수}_{양면|단면}_{제본}_{Nup}_imposed.pdf
+   */
+  private buildImpositionFileName(
+    item: any,
+    ctx: { colorMode?: string; sideText: string; nupText: string },
+  ): string {
+    const orderNumber = item?.order?.orderNumber || 'order';
+    const studio = item?.order?.client?.clientName || '';
+    const binding = item?.bindingType || '';
+    const parts: string[] = [orderNumber];
+    if (studio) parts.push(studio);
+    if (ctx.colorMode && ctx.colorMode !== '-') parts.push(ctx.colorMode);
+    parts.push(ctx.sideText);
+    if (binding && binding !== '-') parts.push(binding);
+    parts.push(ctx.nupText);
+    parts.push('imposed');
+    const raw = parts.join('_') + '.pdf';
+    return raw.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/\s+/g, ' ').trim();
   }
 }
 

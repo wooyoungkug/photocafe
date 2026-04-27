@@ -120,6 +120,12 @@ export interface ImpositionJob {
   error?: string | null;
   warnings?: string[];
   createdAt: string;
+  /** 서버 자동저장 성공 여부 — true 면 클라이언트는 다운로드 트리거를 생략한다 */
+  autoSaved?: boolean;
+  /** 자동저장된 이미지 PDF 의 절대경로 (서버 디스크) */
+  autoSavedPath?: string | null;
+  autoSavedJdfPath?: string | null;
+  autoSavedSourcePdfPath?: string | null;
 }
 
 // ==================== Hooks ====================
