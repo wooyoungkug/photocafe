@@ -260,7 +260,7 @@ export function AlbumSplitTool() {
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && isJpegOrPng(file)) {
-      // 드래그 & 드롭에서도 파일 핸들 저장 시도
+      // 파일 핸들 저장 시도
       const item = e.dataTransfer.items[0];
       if (item && 'getAsFileSystemHandle' in item) {
         try {
@@ -270,11 +270,20 @@ export function AlbumSplitTool() {
           }
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
-      loadImage(file);
-      // 자동 저장을 위해 폴더 선택 안내
-      if (!directoryHandle) {
-        toast.info('자동 저장하려면 "저장 폴더 선택" 버튼을 클릭하세요. 또는 클릭하여 폴더를 선택하면 연속 작업이 가능합니다.', { duration: 5000 });
+
+      // 폴더 미선택 시: 드롭 이벤트(사용자 제스처) 안에서 즉시 폴더 선택
+      // → 드롭 시 호출하면 별도 권한 팝업 없이 폴더 지정 가능
+      if (!directoryHandle && 'showDirectoryPicker' in window) {
+        try {
+          const opts: any = { mode: 'readwrite' };
+          if (sourceFileHandleRef.current) opts.startIn = sourceFileHandleRef.current;
+          const dirHandle = await (window as any).showDirectoryPicker(opts);
+          setDirectoryHandle(dirHandle);
+          toast.success(`저장 폴더: "${dirHandle.name}" — 이후 자동 저장 활성화`);
+        } catch { /* 사용자 취소 - 폴더 없이 진행 */ }
       }
+
+      loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
     }
@@ -428,32 +437,8 @@ export function AlbumSplitTool() {
         } else {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
-      } else if ('showDirectoryPicker' in window) {
-        // 폴더 미선택: 원본 파일 위치에서 폴더 선택창 열기 (한 번만 확인)
-        try {
-          const options: any = { mode: 'readwrite' };
-          if (sourceFileHandleRef.current) {
-            options.startIn = sourceFileHandleRef.current; // 원본 파일 위치에서 시작
-          }
-          const dirHandle = await (window as any).showDirectoryPicker(options);
-          setDirectoryHandle(dirHandle);
-          const ok1 = await saveToFolder(dirHandle, leftResult.blob, '첫장.jpg');
-          const ok2 = await saveToFolder(dirHandle, rightResult.blob, '막장.jpg');
-          if (ok1 && ok2) {
-            toast.success(`"${dirHandle.name}" 폴더에 첫장, 막장 저장 완료!`);
-            setTimeout(() => resetTool(true), 1500);
-          } else {
-            toast.error('저장 실패 - 다시 시도해주세요.');
-          }
-        } catch {
-          // 사용자가 폴더 선택 취소 → 다운로드 폴백
-          fallbackDownload(leftResult.blob, '첫장.jpg');
-          fallbackDownload(rightResult.blob, '막장.jpg');
-          toast.info('폴더 선택 취소 — 다운로드 폴더에 저장되었습니다.');
-          setTimeout(() => resetTool(false), 1500);
-        }
       } else {
-        // File System API 미지원 브라우저 → 다운로드 폴백
+        // 폴더 미선택(드롭 시 취소하거나 API 미지원) → 다운로드 폴더로 폴백
         fallbackDownload(leftResult.blob, '첫장.jpg');
         fallbackDownload(rightResult.blob, '막장.jpg');
         toast.success('첫장, 막장 다운로드 완료!');
