@@ -638,19 +638,13 @@ export default function EditProductPage() {
   }, [autoPrintType]);
 
   const handleImageUpload = async (file: File, index: number) => {
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-    if (!token) {
-      toast({ variant: 'destructive', title: '로그인이 필요합니다.' });
-      return;
-    }
-
     const formData = new FormData();
     formData.append('file', file);
 
     try {
       const response = await fetch(`${API_URL}/upload/product-image`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
         body: formData,
       });
 
@@ -2586,15 +2580,12 @@ export default function EditProductPage() {
               onChange={setDescription}
               placeholder="상품 상세 설명을 입력하세요."
               onImageUpload={async (file: File) => {
-                const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-                if (!token) throw new Error('로그인이 필요합니다.');
-
                 const formData = new FormData();
                 formData.append('file', file);
 
                 const response = await fetch(`${API_URL}/upload/product-image`, {
                   method: 'POST',
-                  headers: { Authorization: `Bearer ${token}` },
+                  credentials: 'include',
                   body: formData,
                 });
 

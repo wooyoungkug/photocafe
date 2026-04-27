@@ -11,35 +11,6 @@ interface RequestOptions extends RequestInit {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  // sessionStorage 우선: 대리로그인 등 탭별 독립 세션 지원
-  return sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-}
-
-function getRefreshToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
-}
-
-function isRememberMe(): boolean {
-  if (typeof window === 'undefined') return false;
-  // 대리로그인 등 현재 세션이 sessionStorage 기반이면 false (localStorage 어드민 토큰 덮어쓰기 방지)
-  if (sessionStorage.getItem('accessToken')) return false;
-  return !!localStorage.getItem('accessToken');
-}
-
-function saveTokens(accessToken: string, refreshToken?: string) {
-  if (typeof window === 'undefined') return;
-  const storage = isRememberMe() ? localStorage : sessionStorage;
-  storage.setItem('accessToken', accessToken);
-  if (refreshToken) {
-    storage.setItem('refreshToken', refreshToken);
-  }
-  // 관리자 인증 쿠키도 갱신 (middleware 연동)
-  renewAuthCookie();
-}
-
 function renewAuthCookie() {
   if (typeof window === 'undefined') return;
   // auth-storage에서 role 확인
@@ -60,33 +31,10 @@ function renewAuthCookie() {
 
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
-
-  // sessionStorage에 토큰이 있고, localStorage에 별도 admin 세션이 있으면
-  // sessionStorage만 정리 (다른 탭의 admin 세션 보호)
-  const hasSessionToken = !!sessionStorage.getItem('accessToken');
-  const hasLocalAdmin = (() => {
-    try {
-      const raw = localStorage.getItem('auth-storage');
-      if (!raw) return false;
-      const parsed = JSON.parse(raw);
-      const role = parsed?.state?.user?.role;
-      return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
-    } catch { return false; }
-  })();
-
-  if (hasSessionToken && hasLocalAdmin) {
-    sessionStorage.removeItem('accessToken');
-    sessionStorage.removeItem('refreshToken');
-    sessionStorage.removeItem('auth-storage');
-  } else {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('auth-storage');
-    sessionStorage.removeItem('accessToken');
-    sessionStorage.removeItem('refreshToken');
-    sessionStorage.removeItem('auth-storage');
-    document.cookie = 'auth-verified=; path=/; max-age=0';
-  }
+  localStorage.removeItem('auth-storage');
+  sessionStorage.removeItem('auth-storage');
+  document.cookie = 'auth-verified=; path=/; max-age=0';
+  fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
 function redirectToLogin() {
@@ -110,12 +58,6 @@ function redirectToLogin() {
 
 // refresh token으로 새 access token 발급 (네트워크 에러 시 1회 재시도)
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    console.warn('[Auth] refresh 실패: refreshToken 없음');
-    return null;
-  }
-
   // 이미 갱신 중이면 기존 Promise 재사용 (중복 요청 방지)
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
@@ -129,7 +71,7 @@ async function refreshAccessToken(): Promise<string | null> {
         const response = await fetch(`${API_URL}/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
+          body: JSON.stringify({}),
           credentials: 'include',
         });
 
@@ -139,31 +81,8 @@ async function refreshAccessToken(): Promise<string | null> {
         }
 
         const data = await response.json();
-        saveTokens(data.accessToken, data.refreshToken);
-
-        // Zustand auth store도 동기화
-        try {
-          const storageKey = 'auth-storage';
-          const storage = isRememberMe() ? localStorage : sessionStorage;
-          const stored = storage.getItem(storageKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed?.state) {
-              parsed.state.accessToken = data.accessToken;
-              if (data.refreshToken) {
-                parsed.state.refreshToken = data.refreshToken;
-              }
-              if (data.user) {
-                parsed.state.user = { ...parsed.state.user, ...data.user };
-              }
-              storage.setItem(storageKey, JSON.stringify(parsed));
-            }
-          }
-        } catch {
-          // 스토어 동기화 실패해도 토큰 갱신은 성공
-        }
-
-        return data.accessToken as string;
+        renewAuthCookie();
+        return data?.accessToken ?? 'ok';
       } catch (err) {
         // 네트워크 에러 (서버 재시작 중 등) - 첫 번째 시도면 재시도
         if (attempt === 0) {
@@ -199,9 +118,6 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     }
   }
 
-  // localStorage 또는 sessionStorage에서 토큰 가져오기
-  const token = getAccessToken();
-
   // 타임아웃 처리를 위한 AbortController
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -214,7 +130,6 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(token && { Authorization: `Bearer ${token}` }),
         ...fetchOptions.headers,
       },
     });
@@ -279,13 +194,9 @@ export const api = {
     request<T>(endpoint, { method: 'DELETE' }),
 
   downloadBlob: async (endpoint: string, defaultFileName: string = 'download') => {
-    const token = getAccessToken();
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'GET',
       credentials: 'include',
-      headers: {
-        ...(token && { Authorization: `Bearer ${token}` }),
-      },
     });
 
     if (!response.ok) {

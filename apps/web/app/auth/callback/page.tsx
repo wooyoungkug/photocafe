@@ -64,6 +64,7 @@ function AuthCallbackContent() {
                 const res = await fetch(`${apiUrl}/auth/exchange-code`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ code: oauthCode }),
                 });
                 if (!res.ok) {

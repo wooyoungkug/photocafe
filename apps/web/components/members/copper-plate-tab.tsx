@@ -288,10 +288,11 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
       formDataUpload.append('file', file);
 
       // 토큰 가져오기 (store 또는 storage에서)
-      const token = accessToken || localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+      const token = accessToken;
 
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpointMap[type]}`, {
         method: 'POST',
+        credentials: 'include',
         body: formDataUpload,
         headers: {
           ...(token && { 'Authorization': `Bearer ${token}` }),

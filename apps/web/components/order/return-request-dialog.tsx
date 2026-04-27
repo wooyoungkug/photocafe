@@ -370,11 +370,7 @@ export function ReturnRequestDialog({
     updatePages((e) => ({ ...e, file, uploading: true, progress: 0, error: undefined }));
 
     try {
-      const token =
-        typeof window !== 'undefined'
-          ? sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken')
-          : null;
-      const result = await uploadRepairFile(file, tempRepairId.current, pageNumber, token, (percent) => {
+      const result = await uploadRepairFile(file, tempRepairId.current, pageNumber, null, (percent) => {
         updatePages((e) => ({ ...e, progress: percent }));
       });
       updatePages((e) => ({ ...e, uploading: false, progress: 100, result }));

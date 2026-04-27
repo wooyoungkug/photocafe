@@ -1022,9 +1022,6 @@ export default function CategoriesPage() {
                           // 토큰 확인 - 여러 소스에서 토큰 검색
                           let token = accessToken;
                           if (!token) {
-                            token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-                          }
-                          if (!token) {
                             // zustand persist storage에서도 확인
                             try {
                               const authStorage = localStorage.getItem('auth-storage');
@@ -1035,23 +1032,15 @@ export default function CategoriesPage() {
                             } catch (e) {
                             }
                           }
-                          if (!token) {
-                            toast({
-                              variant: "destructive",
-                              title: "인증 필요",
-                              description: "로그인이 필요합니다. 다시 로그인해주세요.",
-                            });
-                            return;
-                          }
-
                           const formDataUpload = new FormData();
                           formDataUpload.append('file', file);
 
                           try {
                             const response = await fetch(`${API_URL}/upload/category-icon`, {
                               method: 'POST',
+                              credentials: 'include',
                               headers: {
-                                'Authorization': `Bearer ${token}`,
+                                ...(token ? { Authorization: `Bearer ${token}` } : {}),
                               },
                               body: formDataUpload,
                             });

@@ -25,33 +25,14 @@ export default function ShopLayout({
   }, [isAuthenticated, user?.name, user?.clientName, user?.type]);
 
   // 대리로그인 데이터가 있으면 sessionStorage에 직접 적용
-  // setAuth를 쓰면 localStorage의 관리자 토큰이 삭제되므로, 직접 sessionStorage에 저장
+  // 쿠키 기반 인증: 사용자 정보만 스토어에 반영
   useEffect(() => {
     const raw = localStorage.getItem('impersonate-data');
     if (!raw) return;
     try {
       const data = JSON.parse(raw);
       localStorage.removeItem('impersonate-data');
-
-      // sessionStorage에 직접 토큰 저장 (localStorage 건드리지 않음)
-      sessionStorage.setItem('accessToken', data.accessToken);
-      sessionStorage.setItem('refreshToken', data.refreshToken);
-
-      // Zustand auth-storage도 sessionStorage에 직접 저장
-      const authStorage = JSON.stringify({
-        state: {
-          user: data.user,
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          isAuthenticated: true,
-          rememberMe: false,
-        },
-        version: 0,
-      });
-      sessionStorage.setItem('auth-storage', authStorage);
-
-      // Zustand 스토어 rehydrate하여 UI 반영
-      useAuthStore.persist.rehydrate();
+      useAuthStore.getState().setAuth({ user: data.user, rememberMe: false });
     } catch {
       localStorage.removeItem('impersonate-data');
     }

@@ -96,15 +96,10 @@ const TYPE_BADGE_CONFIG: Record<AccountType, { label: string; className: string 
 
 // ===== API 함수 =====
 async function fetchAccounts(): Promise<Account[]> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-      : null;
-
   const res = await fetch(`${API_URL}/accounting/accounts`, {
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
   });
 
@@ -116,16 +111,11 @@ async function fetchAccounts(): Promise<Account[]> {
 }
 
 async function createAccount(data: CreateAccountDto): Promise<Account> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-      : null;
-
   const res = await fetch(`${API_URL}/accounting/accounts`, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
     body: JSON.stringify(data),
   });
@@ -139,16 +129,11 @@ async function createAccount(data: CreateAccountDto): Promise<Account> {
 }
 
 async function deleteAccount(id: string): Promise<void> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-      : null;
-
   const res = await fetch(`${API_URL}/accounting/accounts/${id}`, {
     method: 'DELETE',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
   });
 
@@ -159,16 +144,11 @@ async function deleteAccount(id: string): Promise<void> {
 }
 
 async function seedAccounts(): Promise<SeedResult> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken')
-      : null;
-
   const res = await fetch(`${API_URL}/accounting/accounts/seed`, {
     method: 'POST',
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
   });
 

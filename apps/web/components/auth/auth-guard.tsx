@@ -15,39 +15,17 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 let authCache: { authenticated: boolean; timestamp: number } | null = null;
 const AUTH_CACHE_DURATION = 30000; // 30초간 캐시 유지
 
-// access token 없을 때 refresh token으로 복구 시도
+// 인증 쿠키 기반 세션 복구 시도
 async function tryRecoverSession(): Promise<boolean> {
-  const refreshToken =
-    sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
-  if (!refreshToken) return false;
-
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({}),
+      credentials: 'include',
     });
     if (!res.ok) return false;
-
-    const data = await res.json();
-    // 대리로그인 세션(sessionStorage)이 있으면 sessionStorage에 저장 (localStorage 어드민 토큰 보호)
-    const useSession = !!sessionStorage.getItem('refreshToken');
-    const storage = useSession ? sessionStorage : localStorage;
-    storage.setItem('accessToken', data.accessToken);
-    if (data.refreshToken) storage.setItem('refreshToken', data.refreshToken);
-
-    // auth-storage도 복구
-    const raw = storage.getItem('auth-storage');
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (parsed?.state) {
-          parsed.state.accessToken = data.accessToken;
-          if (data.refreshToken) parsed.state.refreshToken = data.refreshToken;
-          storage.setItem('auth-storage', JSON.stringify(parsed));
-        }
-      } catch { /* ignore */ }
-    }
+    await res.json().catch(() => ({}));
 
     // auth-verified 쿠키 갱신
     document.cookie = `auth-verified=true; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
@@ -73,18 +51,22 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
 
     const checkAuth = async () => {
       try {
-        let token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
-
-        // 토큰이 없으면 refresh token으로 복구 시도
-        if (!token) {
-          console.warn('[AuthGuard] accessToken 없음, refresh로 복구 시도...');
+        let meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+        if (!meRes.ok) {
           const recovered = await tryRecoverSession();
-          if (recovered) {
-            token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+          if (!recovered) {
+            console.warn('[AuthGuard] 인증 세션 없음 → 로그인 페이지로 이동');
+            checkedRef.current = true;
+            authCache = null;
+            // 쿠키도 정리
+            document.cookie = 'auth-verified=; path=/; max-age=0';
+            window.location.href = loginPath;
+            return;
           }
+          meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
         }
 
-        if (!token) {
+        if (!meRes.ok) {
           console.warn('[AuthGuard] 토큰 복구 실패 → 로그인 페이지로 이동');
           checkedRef.current = true;
           authCache = null;

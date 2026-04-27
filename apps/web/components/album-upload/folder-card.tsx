@@ -65,15 +65,7 @@ import Link from 'next/link';
 // 관리자가 회원으로 대리로그인 중인지 확인
 function isAdminImpersonating(): boolean {
   if (typeof window === 'undefined') return false;
-  const hasSessionToken = !!sessionStorage.getItem('accessToken');
-  if (!hasSessionToken) return false;
-  try {
-    const raw = localStorage.getItem('auth-storage');
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    const role = parsed?.state?.user?.role;
-    return (role === 'admin' || role === 'staff') && !!localStorage.getItem('accessToken');
-  } catch { return false; }
+  return !!sessionStorage.getItem('impersonate-session');
 }
 import { useAlbumPagePrice, useCalculateAlbumOrderPrice } from '@/hooks/use-pricing';
 

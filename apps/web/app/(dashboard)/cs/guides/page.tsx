@@ -197,7 +197,6 @@ export default function GuidesPage() {
 
     setUploading(true);
     try {
-      const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
       const newUrls: string[] = [];
 
       for (const file of Array.from(files)) {
@@ -206,7 +205,7 @@ export default function GuidesPage() {
 
         const res = await fetch(`${API_URL}/upload/cs-guide-image`, {
           method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: 'include',
           body: fd,
         });
 

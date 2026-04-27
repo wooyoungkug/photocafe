@@ -77,11 +77,11 @@ function LoginForm() {
         return;
       }
 
-      if (response.accessToken && response.user) {
+      if (response.user) {
         setAuth({
           user: response.user,
           accessToken: response.accessToken,
-          refreshToken: response.refreshToken!,
+          refreshToken: response.refreshToken,
           rememberMe: true,
         });
         const redirectTo = searchParams.get('redirect') || '/';

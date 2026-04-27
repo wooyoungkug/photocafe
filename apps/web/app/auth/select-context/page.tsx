@@ -110,6 +110,7 @@ export default function SelectContextPage() {
       const res = await fetch(`${apiUrl}/auth/select-context`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           tempToken,
           contextType: context.type,

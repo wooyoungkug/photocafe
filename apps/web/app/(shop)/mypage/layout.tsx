@@ -85,10 +85,8 @@ export default function MyPageLayout({
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (user.role !== 'client' && user.type !== 'employee') return;
-    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-    if (!token) return;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-    fetch(`${apiUrl}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${apiUrl}/auth/me`, { credentials: 'include' })
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data) {

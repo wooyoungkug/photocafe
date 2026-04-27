@@ -35,6 +35,7 @@ export default function AdminLoginPage() {
       const res = await fetch(`${apiUrl}/auth/staff/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ staffId, password }),
       });
 

@@ -7,11 +7,6 @@ export interface AutoPrintOptions {
   onError?: (error: Error) => void;
 }
 
-function getAccessToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
-}
-
 /**
  * 라벨 PDF를 hidden iframe에 로드하여 자동 출력
  *
@@ -37,11 +32,8 @@ export function autoPrintLabel(options: AutoPrintOptions): () => void {
 
   (async () => {
     try {
-      const token = getAccessToken();
       const response = await fetch(`${API_URL}/delivery/label/view/${orderId}`, {
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-        },
+        credentials: 'include',
       });
 
       if (!response.ok) {

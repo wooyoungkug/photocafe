@@ -72,6 +72,18 @@ export class AuthController {
     });
   }
 
+  private clearAuthCookies(res: Response) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const baseOptions = {
+      httpOnly: true as const,
+      secure: isProd,
+      sameSite: 'lax' as const,
+      path: '/',
+    };
+    res.clearCookie('access_token', baseOptions);
+    res.clearCookie('refresh_token', baseOptions);
+  }
+
   @Public()
   @Post('refresh')
   @Throttle({ default: { ttl: 60000, limit: 20 } })
@@ -380,6 +392,14 @@ export class AuthController {
     return result;
   }
 
+  @Public()
+  @Post('logout')
+  @ApiOperation({ summary: '로그아웃 (인증 쿠키 제거)' })
+  async logout(@Res({ passthrough: true }) res: Response) {
+    this.clearAuthCookies(res);
+    return { success: true };
+  }
+
   // ========== 직원 소셜 로그인 ==========
 
   @Public()
@@ -518,35 +538,41 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '최고관리자가 특정 직원으로 대리 로그인' })
-  async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any) {
+  async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any, @Res({ passthrough: true }) res: Response) {
     if (req.user.type !== 'staff') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
-    return this.authService.impersonateStaff(staffId, req.user.sub);
+    const result = await this.authService.impersonateStaff(staffId, req.user.sub);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    return result;
   }
 
   @Post('impersonate-employee/:employmentId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '스튜디오 최고관리자가 소속 직원으로 대리 로그인' })
-  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any) {
+  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any, @Res({ passthrough: true }) res: Response) {
     if (req.user.type !== 'employee' && req.user.type !== 'client') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
     // client 타입이면 sub === clientId (소유자의 client.id)
     const clientId = req.user.clientId || req.user.sub;
-    return this.authService.impersonateEmployee(employmentId, req.user.sub, clientId);
+    const result = await this.authService.impersonateEmployee(employmentId, req.user.sub, clientId);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    return result;
   }
 
   @Post('impersonate/:clientId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
-  async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
+  async impersonateClient(@Param('clientId') clientId: string, @Request() req: any, @Res({ passthrough: true }) res: Response) {
     if (req.user.type !== 'staff') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
-    return this.authService.impersonateClient(clientId, req.user.sub);
+    const result = await this.authService.impersonateClient(clientId, req.user.sub);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    return result;
   }
 
   @Patch('reset-client-password/:id')

@@ -43,7 +43,7 @@ interface AuthState {
   isAuthenticated: boolean;
   rememberMe: boolean;
 
-  setAuth: (data: { user: User; accessToken: string; refreshToken: string; rememberMe?: boolean }) => void;
+  setAuth: (data: { user: User; rememberMe?: boolean; accessToken?: string; refreshToken?: string }) => void;
   updateUser: (user: Partial<User>) => void;
   logout: () => void;
 }
@@ -113,7 +113,7 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       rememberMe: false,
 
-      setAuth: ({ user, accessToken, refreshToken, rememberMe = false }) => {
+      setAuth: ({ user, rememberMe = false, accessToken = null, refreshToken = null }) => {
         if (typeof window !== 'undefined') {
           const isNewLoginAdmin = user.role === 'admin' || user.role === 'staff';
 
@@ -128,19 +128,9 @@ export const useAuthStore = create<AuthState>()(
             } catch { return false; }
           })();
 
+          // rememberMe 정책에 따라 auth-storage 저장 위치만 분기
           if (hasAdminInLocal && !rememberMe) {
-            // localStorage에 admin 세션이 있고 rememberMe 없으면 → sessionStorage에만 저장
-            // (비관리자 대리로그인 + 직원 대리로그인 모두 포함, 원본 어드민 세션 보호)
-            sessionStorage.setItem('accessToken', accessToken);
-            sessionStorage.setItem('refreshToken', refreshToken);
-          } else {
-            // 일반 로그인 또는 관리자 로그인
-            const storage = rememberMe ? localStorage : sessionStorage;
-            const otherStorage = rememberMe ? sessionStorage : localStorage;
-            storage.setItem('accessToken', accessToken);
-            storage.setItem('refreshToken', refreshToken);
-            otherStorage.removeItem('accessToken');
-            otherStorage.removeItem('refreshToken');
+            // localStorage에 admin 세션이 있으면 sessionStorage에만 저장해 원본 세션 보호
           }
 
           // 관리자/직원 로그인 시 미들웨어 인증 쿠키 설정
@@ -166,11 +156,8 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
-          // 완전 로그아웃: 모든 스토리지 정리 (대리로그인 포함)
-          localStorage.removeItem('accessToken');
-          localStorage.removeItem('refreshToken');
-          sessionStorage.removeItem('accessToken');
-          sessionStorage.removeItem('refreshToken');
+          // 쿠키 세션 로그아웃
+          fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
           localStorage.removeItem('auth-storage');
           sessionStorage.removeItem('auth-storage');
           sessionStorage.removeItem('impersonate-session');
@@ -192,28 +179,9 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(createCustomStorage),
       partialize: (state) => ({
         user: state.user,
-        accessToken: state.accessToken,
-        refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
         rememberMe: state.rememberMe,
       }),
-      onRehydrateStorage: () => (state) => {
-        // Rehydrate 완료 후 토큰 동기화 검증
-        if (typeof window !== 'undefined' && state?.isAuthenticated) {
-          const hasToken =
-            localStorage.getItem('accessToken') ||
-            sessionStorage.getItem('accessToken');
-
-          // 토큰이 없으면 인증 상태 초기화
-          if (!hasToken) {
-            state.user = null;
-            state.accessToken = null;
-            state.refreshToken = null;
-            state.isAuthenticated = false;
-            state.rememberMe = false;
-          }
-        }
-      },
     }
   )
 );

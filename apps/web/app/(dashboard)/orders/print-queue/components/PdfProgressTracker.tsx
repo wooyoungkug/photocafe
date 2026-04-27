@@ -65,13 +65,12 @@ export default function PdfProgressTracker({
 
   /** 공통: completed 항목을 순회하며 폴더 혹은 다운로드로 저장 (양면/단면 하위폴더 분리) */
   const saveCompletedPdfs = async (forceHandle?: FileSystemDirectoryHandle) => {
-    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
     for (const result of job.results) {
       if (result.status !== 'completed') continue;
 
       const response = await fetch(
         `${API_URL}/print-pdf/jobs/${job.jobId}/download?itemId=${result.orderItemId}`,
-        { headers: { ...(token && { Authorization: `Bearer ${token}` }) } },
+        { credentials: 'include' },
       );
       if (!response.ok) continue;
 
