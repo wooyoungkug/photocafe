@@ -2,10 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Length } from 'class-validator';
 
 export class RefreshTokenDto {
-  @ApiProperty({ description: 'Refresh Token' })
+  @ApiPropertyOptional({ description: 'Refresh Token (쿠키 기반이면 생략 가능)' })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  refreshToken: string;
+  refreshToken?: string;
 }
 
 // ========== 고객 이메일/PW 로그인 DTO ==========

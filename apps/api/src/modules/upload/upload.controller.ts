@@ -1,7 +1,7 @@
 import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res, Body, Delete } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
-import { SkipThrottle } from '@nestjs/throttler';
+import { Throttle } from '@nestjs/throttler';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
@@ -31,7 +31,6 @@ ensureDir('copper-plates/albums');
 ensureDir('repairs');
 
 @ApiTags('Upload')
-@SkipThrottle({ default: true })
 @Controller('upload')
 export class UploadController {
     constructor(
@@ -43,6 +42,7 @@ export class UploadController {
 
     @Public()
     @Post('album-file')
+    @Throttle({ default: { ttl: 60000, limit: 20 } })
     @ApiOperation({ summary: '앨범 원본 파일 업로드 (장바구니 단계)' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -167,6 +167,7 @@ export class UploadController {
 
     @Public()
     @Get('temp/:tempFolderId/files')
+    @Throttle({ default: { ttl: 60000, limit: 60 } })
     @ApiOperation({ summary: '임시 업로드 파일 목록 조회' })
     listTempFiles(@Param('tempFolderId') tempFolderId: string) {
         const safeTempFolderId = tempFolderId
@@ -185,6 +186,7 @@ export class UploadController {
 
     @Public()
     @Delete('temp/:tempFolderId')
+    @Throttle({ default: { ttl: 60000, limit: 20 } })
     @ApiOperation({ summary: '임시 업로드 파일 삭제' })
     deleteTempFolder(@Param('tempFolderId') tempFolderId: string) {
         this.fileStorage.cleanupTempFolder(tempFolderId);
@@ -525,6 +527,7 @@ export class UploadController {
 
     @Public()
     @Post('repair-file')
+    @Throttle({ default: { ttl: 60000, limit: 20 } })
     @ApiOperation({ summary: '앨범수리 교체페이지 파일 업로드' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
@@ -611,6 +614,7 @@ export class UploadController {
 
     @Public()
     @Delete('repair/:tempRepairId')
+    @Throttle({ default: { ttl: 60000, limit: 20 } })
     @ApiOperation({ summary: '수리 임시 파일 삭제' })
     deleteRepairFolder(@Param('tempRepairId') tempRepairId: string) {
         const safeId = tempRepairId.replace(/\.\./g, '').replace(/[/\\]/g, '').trim();
@@ -626,6 +630,7 @@ export class UploadController {
 
     @Public()
     @Get('serve/*path')
+    @Throttle({ default: { ttl: 60000, limit: 120 } })
     @ApiOperation({ summary: '업로드 파일 직접 서빙 (orders/repairs/temp 등 한글 경로 지원)' })
     serveUploadFile(@Param('path') rawPath: string, @Res() res: Response) {
         if (!rawPath) {

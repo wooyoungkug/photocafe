@@ -130,6 +130,7 @@ async function refreshAccessToken(): Promise<string | null> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
+          credentials: 'include',
         });
 
         if (!response.ok) {
@@ -210,6 +211,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     response = await fetch(url, {
       ...fetchOptions,
       signal: controller.signal,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(token && { Authorization: `Bearer ${token}` }),

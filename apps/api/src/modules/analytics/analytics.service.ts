@@ -11,14 +11,10 @@ export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
   private extractIp(req: Request): string | null {
-    const forwarded = req.headers['x-forwarded-for'];
-    if (forwarded) {
-      const ip = Array.isArray(forwarded)
-        ? forwarded[0]
-        : forwarded.split(',')[0];
-      return ip.trim();
-    }
-    return req.ip || req.socket?.remoteAddress || null;
+    // trust proxy 설정된 Express 환경에서는 req.ip를 신뢰하고,
+    // 클라이언트가 임의로 보낼 수 있는 x-forwarded-for 원문은 직접 신뢰하지 않는다.
+    const ip = req.ip || req.socket?.remoteAddress || null;
+    return ip ? ip.replace(/^::ffff:/, '').trim() : null;
   }
 
   private parseUserAgent(ua: string | undefined) {

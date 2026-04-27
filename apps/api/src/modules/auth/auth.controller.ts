@@ -46,12 +46,44 @@ export class AuthController {
     private employmentService: EmploymentService,
   ) { }
 
+  private setAuthCookies(
+    res: Response,
+    accessToken: string,
+    refreshToken: string,
+    rememberMe = false,
+  ) {
+    const isProd = process.env.NODE_ENV === 'production';
+    const accessMaxAge = 8 * 60 * 60 * 1000; // 8h
+    const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: accessMaxAge,
+    });
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: refreshMaxAge,
+    });
+  }
+
   @Public()
   @Post('refresh')
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '토큰 갱신' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto) {
-    return this.authService.refreshToken(refreshTokenDto.refreshToken);
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+    const refreshToken = refreshTokenDto.refreshToken || req?.cookies?.refresh_token;
+    if (!refreshToken) {
+      throw new UnauthorizedException('refresh token이 필요합니다.');
+    }
+    const result = await this.authService.refreshToken(refreshToken);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    return result;
   }
 
   @Get('me')
@@ -79,14 +111,16 @@ export class AuthController {
   @Post('select-context')
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: '로그인 컨텍스트 선택 (내 계정 vs 회사 직원)' })
-  async selectContext(@Body() dto: SelectContextDto, @Ip() ip: string) {
-    return this.authService.loginWithContext(
+  async selectContext(@Body() dto: SelectContextDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.loginWithContext(
       dto.tempToken,
       dto.contextType,
       dto.employmentId,
       dto.rememberMe,
       ip,
     );
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, !!dto.rememberMe);
+    return result;
   }
 
   // ========== 초대용 OAuth 진입점 ==========
@@ -122,7 +156,7 @@ export class AuthController {
   @Get('naver-login')
   @ApiOperation({ summary: '네이버 로그인 (기존 회원만)' })
   async naverLoginRedirect(@Res() res: Response) {
-    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/naver');
   }
 
@@ -130,7 +164,7 @@ export class AuthController {
   @Get('kakao-login')
   @ApiOperation({ summary: '카카오 로그인 (기존 회원만)' })
   async kakaoLoginRedirect(@Res() res: Response) {
-    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/kakao');
   }
 
@@ -139,7 +173,7 @@ export class AuthController {
   @Get('naver-register')
   @ApiOperation({ summary: '네이버 회원가입 (신규 회원만)' })
   async naverRegisterRedirect(@Res() res: Response) {
-    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/naver');
   }
 
@@ -147,7 +181,7 @@ export class AuthController {
   @Get('kakao-register')
   @ApiOperation({ summary: '카카오 회원가입 (신규 회원만)' })
   async kakaoRegisterRedirect(@Res() res: Response) {
-    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/kakao');
   }
 
@@ -155,7 +189,7 @@ export class AuthController {
   @Get('google-login')
   @ApiOperation({ summary: 'Google 로그인 (기존 회원만)' })
   async googleLoginRedirect(@Res() res: Response) {
-    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('auth_mode', 'login', { httpOnly: true, maxAge: 300000, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/google');
   }
 
@@ -163,7 +197,7 @@ export class AuthController {
   @Get('google-register')
   @ApiOperation({ summary: 'Google 회원가입 (신규 회원만)' })
   async googleRegisterRedirect(@Res() res: Response) {
-    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('auth_mode', 'register', { httpOnly: true, maxAge: 300000, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' });
     return res.redirect('/api/v1/auth/google');
   }
 
@@ -272,11 +306,13 @@ export class AuthController {
   @Public()
   @Post('exchange-code')
   @ApiOperation({ summary: 'OAuth 인증 코드를 토큰으로 교환' })
-  async exchangeCode(@Body('code') code: string) {
+  async exchangeCode(@Body('code') code: string, @Res({ passthrough: true }) res: Response) {
     if (!code) {
       throw new UnauthorizedException('인증 코드가 필요합니다.');
     }
-    return this.authService.exchangeOAuthCode(code);
+    const result = this.authService.exchangeOAuthCode(code);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    return result;
   }
 
   // ========== 고객 이메일/PW 로그인 ==========
@@ -285,8 +321,12 @@ export class AuthController {
   @Post('client/login')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: '고객 아이디/PW 로그인' })
-  async clientLogin(@Body() dto: ClientLoginDto, @Ip() ip: string) {
-    return this.authService.loginClientWithPassword(dto.loginId, dto.password, ip);
+  async clientLogin(@Body() dto: ClientLoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.loginClientWithPassword(dto.loginId, dto.password, ip);
+    if ('accessToken' in result && result.accessToken && result.refreshToken) {
+      this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    }
+    return result;
   }
 
   @Public()
@@ -334,8 +374,10 @@ export class AuthController {
   @Post('staff/login')
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '직원 ID/PW 로그인' })
-  async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string) {
-    return this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);
+  async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
+    const result = await this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    return result;
   }
 
   // ========== 직원 소셜 로그인 ==========
