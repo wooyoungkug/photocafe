@@ -724,6 +724,45 @@ export class AuthService {
 
   // ========== 직원 ID/PW 로그인 ==========
 
+  // ========== 통합 비밀번호 변경 (staff/client 공용) ==========
+
+  async changeCurrentUserPassword(
+    userId: string,
+    type: 'staff' | 'client',
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    if (type === 'staff') {
+      const staff = await this.prisma.staff.findUnique({ where: { id: userId } });
+      if (!staff) throw new NotFoundException('직원을 찾을 수 없습니다');
+      if (!staff.password) {
+        throw new BadRequestException('소셜 로그인 계정은 비밀번호를 변경할 수 없습니다');
+      }
+      const ok = await bcrypt.compare(currentPassword, staff.password);
+      if (!ok) throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다');
+
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await this.prisma.staff.update({ where: { id: userId }, data: { password: hashed } });
+      return { success: true, message: '비밀번호가 변경되었습니다' };
+    }
+
+    if (type === 'client') {
+      const client = await this.prisma.client.findUnique({ where: { id: userId } });
+      if (!client) throw new NotFoundException('회원을 찾을 수 없습니다');
+      if (!client.password) {
+        throw new BadRequestException('소셜 로그인 계정은 비밀번호를 변경할 수 없습니다');
+      }
+      const ok = await bcrypt.compare(currentPassword, client.password);
+      if (!ok) throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다');
+
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await this.prisma.client.update({ where: { id: userId }, data: { password: hashed } });
+      return { success: true, message: '비밀번호가 변경되었습니다' };
+    }
+
+    throw new BadRequestException('지원하지 않는 사용자 유형입니다');
+  }
+
   async loginStaffWithPassword(staffId: string, password: string, ip?: string) {
     const staff = await this.prisma.staff.findFirst({
       where: { staffId },

@@ -32,6 +32,7 @@ import {
   SelectContextDto,
   SendEmailVerificationDto,
   VerifyEmailDto,
+  ChangePasswordDto,
 } from './dto/auth.dto';
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { EmploymentService } from '../employment/employment.service';
@@ -107,6 +108,20 @@ export class AuthController {
   @ApiOperation({ summary: '내 정보 조회' })
   async getProfile(@Request() req: any) {
     return this.authService.getProfile(req.user.sub, req.user.type, req.user.clientId, req.user.staffId);
+  }
+
+  @Patch('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '내 비밀번호 변경 (staff/client 공용)' })
+  async changePassword(@Body() dto: ChangePasswordDto, @Request() req: any) {
+    return this.authService.changeCurrentUserPassword(
+      req.user.sub,
+      req.user.type,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 
   // ========== 컨텍스트 선택 ==========

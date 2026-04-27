@@ -57,6 +57,21 @@ export class ClientRegisterDto {
   phone?: string;
 }
 
+// ========== 비밀번호 변경 DTO ==========
+
+export class ChangePasswordDto {
+  @ApiProperty({ description: '현재 비밀번호' })
+  @IsString()
+  @IsNotEmpty({ message: '현재 비밀번호를 입력해주세요' })
+  currentPassword: string;
+
+  @ApiProperty({ description: '새 비밀번호 (최소 4자)' })
+  @IsString()
+  @IsNotEmpty({ message: '새 비밀번호를 입력해주세요' })
+  @MinLength(4, { message: '비밀번호는 최소 4자 이상이어야 합니다' })
+  newPassword: string;
+}
+
 // ========== 이메일 인증 DTO ==========
 
 export class SendEmailVerificationDto {
