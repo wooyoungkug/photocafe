@@ -525,6 +525,12 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
         });
       }
     }
+
+    // 모든 항목 성공 시 다이얼로그 자동 닫기 — 출력대기 화면으로 즉시 복귀.
+    // 부분 실패가 있으면 사용자가 설정 조정/재시도할 수 있도록 다이얼로그 유지.
+    if (failed.length === 0 && succeeded > 0) {
+      onOpenChange(false);
+    }
   };
 
   const util = result?.utilization ?? 0;
