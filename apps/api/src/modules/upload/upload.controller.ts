@@ -42,7 +42,7 @@ export class UploadController {
 
     @Public()
     @Post('album-file')
-    @Throttle({ default: { ttl: 60000, limit: 20 } })
+    @Throttle({ default: { ttl: 60000, limit: 300 } })
     @ApiOperation({ summary: '앨범 원본 파일 업로드 (장바구니 단계)' })
     @ApiConsumes('multipart/form-data')
     @ApiBody({
