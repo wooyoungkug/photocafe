@@ -203,9 +203,14 @@ export class AuthService {
     }
   }
 
-  async getProfile(userId: string, type?: string, companyClientId?: string) {
+  async getProfile(userId: string, type?: string, companyClientId?: string, staffId?: string) {
+    const mapStaff = (staff: any) => ({
+      ...staff,
+      type: 'staff' as const,
+    });
+
     const getStaffProfile = async () => {
-      const staff = await this.prisma.staff.findUnique({
+      const staffById = await this.prisma.staff.findUnique({
         where: { id: userId },
         select: {
           id: true, staffId: true, name: true, email: true, role: true,
@@ -219,7 +224,25 @@ export class AuthService {
           canViewAuditLogs: true, memberViewScope: true, salesViewScope: true,
         },
       });
-      return staff ? { ...staff, type: 'staff' } : null;
+      if (staffById) return mapStaff(staffById);
+
+      if (!staffId) return null;
+
+      const staffByStaffId = await this.prisma.staff.findFirst({
+        where: { staffId },
+        select: {
+          id: true, staffId: true, name: true, email: true, role: true,
+          isSuperAdmin: true, isActive: true, position: true,
+          branchId: true, departmentId: true, menuPermissions: true,
+          canLoginAsManager: true, canEditInManagerView: true,
+          canChangeDepositStage: true, canChangeReceptionStage: true,
+          canChangeCancelStage: true, canEditMemberInfo: true,
+          canViewSettlement: true, canChangeOrderAmount: true,
+          canManageDepartments: true, canBulkImportStaff: true,
+          canViewAuditLogs: true, memberViewScope: true, salesViewScope: true,
+        },
+      });
+      return staffByStaffId ? mapStaff(staffByStaffId) : null;
     };
 
     // staff 타입: Staff 테이블에서 조회
