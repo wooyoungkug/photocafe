@@ -107,6 +107,36 @@ export class PrintPdfController {
     return { message: `${stuckJobs.length} jobs cancelled` };
   }
 
+  @Get('items/:orderItemId/pdf')
+  @ApiOperation({
+    summary: '주문항목의 최종 PDF 인라인 열기',
+    description:
+      'OrderItem.pdfPath 경로의 PDF 를 application/pdf inline 으로 스트림. ' +
+      '출력대기 테이블의 PDF변환성공 배지 클릭으로 새 탭 열기 용도.',
+  })
+  async openItemPdf(
+    @Param('orderItemId') orderItemId: string,
+    @Res() res: Response,
+  ) {
+    const item = await this.printPdfService['prisma'].orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { pdfPath: true, productionNumber: true, productName: true },
+    });
+    if (!item) throw new NotFoundException('주문항목을 찾을 수 없습니다.');
+    if (!item.pdfPath) throw new NotFoundException('이 항목의 PDF 가 아직 생성되지 않았습니다.');
+    // 절대경로/상대경로 모두 지원 (운영은 컨테이너 기준 절대경로 저장)
+    const abs = path.isAbsolute(item.pdfPath) ? item.pdfPath : path.join(process.cwd(), item.pdfPath);
+    if (!fs.existsSync(abs)) {
+      throw new NotFoundException('PDF 파일이 디스크에 존재하지 않습니다. 재생성이 필요합니다.');
+    }
+    const fileName = `${item.productionNumber || item.productName || orderItemId}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    // inline → 새 탭에서 PDF 뷰어로 열림 (다운로드 강제 X)
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
+    res.setHeader('Content-Length', fs.statSync(abs).size);
+    fs.createReadStream(abs).pipe(res);
+  }
+
   @Get('jobs/:jobId/download')
   @ApiOperation({ summary: '생성된 PDF 다운로드 (itemId 지정 시 해당 항목의 PDF만 반환)' })
   async downloadPdf(

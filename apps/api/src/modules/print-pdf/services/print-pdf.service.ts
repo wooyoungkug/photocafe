@@ -193,6 +193,9 @@ export class PrintPdfService implements OnModuleInit {
                 ? 'failed'
                 : null
             ),
+            // 출력대기 배지에서 PDF 인라인 열기 링크 노출 여부 — pdfPath 존재 + 파일 디스크 확인까지는
+            // 비용이 크므로 pdfPath 존재만으로 판단. 실제 열기 시 엔드포인트에서 NotFound 처리.
+            hasPdf: !!item.pdfPath,
             warnings: warnings.length > 0 ? warnings : undefined,
           };
         }),

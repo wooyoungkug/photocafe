@@ -13,6 +13,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { PrintQueueItem } from '@/hooks/use-print-pdf';
 import { useMatchImpositionBatch, MatchResult, BindingType } from '@/hooks/use-imposition';
+import { API_URL } from '@/lib/api';
 
 interface PrintQueueTableProps {
   items: PrintQueueItem[];
@@ -211,11 +212,29 @@ export default function PrintQueueTable({
                     const map = isInkjet ? inkjetMap : indigoMap;
                     const s = map[status] || map.pending;
                     const showImposition = status === 'pending' || status === 'failed';
+                    // PDF변환성공 + hasPdf=true 인 경우 배지를 새 탭 링크로 감싼다.
+                    // inline 스트림이라 PDF 뷰어로 바로 열림 (다운로드 강제 X).
+                    const canOpenPdf = status === 'completed' && (item as any).hasPdf;
+                    const pdfUrl = `${API_URL}/print-pdf/items/${item.id}/pdf`;
+                    const badge = (
+                      <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}${canOpenPdf ? ' cursor-pointer hover:underline' : ''}`}>
+                        {s.label}
+                      </Badge>
+                    );
                     return (
                       <div className="flex flex-col items-center gap-0.5">
-                        <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}`}>
-                          {s.label}
-                        </Badge>
+                        {canOpenPdf ? (
+                          <a
+                            href={pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="새 탭에서 PDF 열기"
+                          >
+                            {badge}
+                          </a>
+                        ) : (
+                          badge
+                        )}
                         {showImposition && !match && (
                           <span className="text-[10px] text-black">임포지션 확인중...</span>
                         )}
