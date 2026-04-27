@@ -35,7 +35,6 @@ export function AlbumSplitTool() {
   const [savedRight, setSavedRight] = useState(false);
   const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
   const [originalDeleted, setOriginalDeleted] = useState(false);
-  const [autoSplit, setAutoSplit] = useState(false);
 
   // 연속 작업용: 폴더 내 파일 목록 및 현재 인덱스
   const [folderFiles, setFolderFiles] = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
@@ -49,12 +48,6 @@ export function AlbumSplitTool() {
   const resultCardRef = useRef<HTMLDivElement>(null);
   const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
   const sourceDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
-  const autoSplitRef = useRef(false);
-  const handleSplitRef = useRef<(() => Promise<void>) | null>(null);
-  // 사용자가 권한을 부여한 폴더 핸들 누적 (세션 단위) — 드래그된 파일의 원본 폴더 자동 매칭용
-  const knownDirsRef = useRef<FileSystemDirectoryHandle[]>([]);
-
-  useEffect(() => { autoSplitRef.current = autoSplit; }, [autoSplit]);
 
   const playBeep = useCallback(() => {
     try {
@@ -76,29 +69,6 @@ export function AlbumSplitTool() {
     setTimeout(() => {
       window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
     }, 100);
-  }, []);
-
-  /** 알려진 폴더 목록에 추가 (중복 방지) */
-  const addKnownDir = useCallback(async (dir: FileSystemDirectoryHandle) => {
-    for (const existing of knownDirsRef.current) {
-      try {
-        if (await existing.isSameEntry(dir)) return;
-      } catch { /* skip */ }
-    }
-    knownDirsRef.current.push(dir);
-  }, []);
-
-  /** 파일 핸들이 알려진 폴더 중 어디에 속하는지 찾기 */
-  const findDirForFile = useCallback(async (
-    fileHandle: FileSystemFileHandle,
-  ): Promise<FileSystemDirectoryHandle | null> => {
-    for (const dir of knownDirsRef.current) {
-      try {
-        const path = await dir.resolve(fileHandle);
-        if (path !== null) return dir;
-      } catch { /* skip */ }
-    }
-    return null;
   }, []);
 
   const cleanup = useCallback(() => {
@@ -178,9 +148,6 @@ export function AlbumSplitTool() {
         setFileName(file.name);
         setShowInfo(true);
         setShowPreview(true);
-        if (autoSplitRef.current) {
-          setTimeout(() => handleSplitRef.current?.(), 80);
-        }
       };
       img.src = URL.createObjectURL(file);
     };
@@ -209,9 +176,6 @@ export function AlbumSplitTool() {
         setShowInfo(true);
         setShowPreview(true);
         scrollToBottom();
-        if (autoSplitRef.current) {
-          setTimeout(() => handleSplitRef.current?.(), 80);
-        }
       };
       img.src = URL.createObjectURL(file);
     };
@@ -248,7 +212,6 @@ export function AlbumSplitTool() {
         if (directoryHandle) options.startIn = directoryHandle;
         const dirHandle = await (window as any).showDirectoryPicker(options);
         setDirectoryHandle(dirHandle);
-        await addKnownDir(dirHandle);
 
         // 폴더 내 이미지 파일 목록 (출력 결과물 제외)
         const files = await scanFolderFiles(dirHandle);
@@ -279,14 +242,14 @@ export function AlbumSplitTool() {
     } else {
       fileInputRef.current?.click();
     }
-  }, [loadImage, directoryHandle, folderFiles, currentFileIndex, loadFileAtIndex, scanFolderFiles, resetTool, addKnownDir]);
+  }, [loadImage, directoryHandle, folderFiles, currentFileIndex, loadFileAtIndex, scanFolderFiles, resetTool]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && isJpegOrPng(file)) {
-      // 파일 핸들 저장 시도
+      // 드래그 & 드롭에서도 파일 핸들 저장 시도
       const item = e.dataTransfer.items[0];
       if (item && 'getAsFileSystemHandle' in item) {
         try {
@@ -297,10 +260,14 @@ export function AlbumSplitTool() {
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
       loadImage(file);
+      // 자동 저장을 위해 폴더 선택 안내
+      if (!directoryHandle) {
+        toast.info('자동 저장하려면 "저장 폴더 선택" 버튼을 클릭하세요. 또는 클릭하여 폴더를 선택하면 연속 작업이 가능합니다.', { duration: 5000 });
+      }
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
     }
-  }, [loadImage]);
+  }, [loadImage, directoryHandle]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -347,27 +314,6 @@ export function AlbumSplitTool() {
       return false;
     }
   }, [fileName]);
-
-  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
-  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
-    if (!('showSaveFilePicker' in window)) return false;
-    try {
-      const options: any = {
-        suggestedName,
-        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
-      };
-      if (sourceFileHandleRef.current) {
-        options.startIn = sourceFileHandleRef.current;
-      }
-      const fileHandle = await (window as any).showSaveFilePicker(options);
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return true;
-    } catch {
-      return false; // 사용자 취소
-    }
-  }, []);
 
   const handleSplit = useCallback(async () => {
     if (!originalImage) return;
@@ -472,54 +418,7 @@ export function AlbumSplitTool() {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
       } else {
-        // 드래그&드롭 워크플로우: 알려진 폴더에서 자동 매칭 → 매칭 실패 시 폴더 선택
-        let targetDir: FileSystemDirectoryHandle | null = null;
-
-        // 1) 이미 권한이 있는 폴더 중에서 원본 파일이 속한 곳 자동 찾기
-        if (sourceFileHandleRef.current) {
-          targetDir = await findDirForFile(sourceFileHandleRef.current);
-        }
-
-        // 2) 매칭 실패 → 폴더 선택 다이얼로그 (원본 파일 위치에서 시작)
-        if (!targetDir && 'showDirectoryPicker' in window) {
-          try {
-            const opts: any = { mode: 'readwrite' };
-            if (sourceFileHandleRef.current) opts.startIn = sourceFileHandleRef.current;
-            targetDir = await (window as any).showDirectoryPicker(opts);
-            if (targetDir) await addKnownDir(targetDir);
-            // ⚠️ setDirectoryHandle 은 호출하지 않음 (다른 폴더 파일 처리 시 영향 X)
-          } catch {
-            targetDir = null; // 사용자 취소
-          }
-        }
-
-        if (targetDir) {
-          const ok1 = await saveToFolder(targetDir, leftResult.blob, '첫장.jpg');
-          const ok2 = await saveToFolder(targetDir, rightResult.blob, '막장.jpg');
-          if (ok1 && ok2) {
-            toast.success(`첫장, 막장 저장 완료! (${targetDir.name})`);
-            setTimeout(() => resetTool(false), 1500);
-          } else {
-            toast.error('저장 실패 - 아래 저장 버튼을 사용해주세요.');
-          }
-        } else if ('showSaveFilePicker' in window) {
-          // 폴더 선택까지 취소됨 → 파일별 저장 다이얼로그 폴백
-          const ok1 = await saveWithPicker(leftResult.blob, '첫장.jpg');
-          if (ok1) {
-            const ok2 = await saveWithPicker(rightResult.blob, '막장.jpg');
-            if (ok2) {
-              toast.success('첫장, 막장 저장 완료!');
-              setTimeout(() => resetTool(false), 1500);
-            }
-          }
-          // 취소 시 결과 패널 유지 → 하단 저장 버튼으로 재시도 가능
-        } else {
-          // 모든 API 미지원 → 다운로드 폴백
-          fallbackDownload(leftResult.blob, '첫장.jpg');
-          fallbackDownload(rightResult.blob, '막장.jpg');
-          toast.success('첫장, 막장 다운로드 완료!');
-          setTimeout(() => resetTool(false), 1500);
-        }
+        toast.success('분리 완료! 결과를 확인하세요.');
       }
     } catch (err) {
       console.error('Split error:', err);
@@ -527,9 +426,28 @@ export function AlbumSplitTool() {
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom, saveWithPicker, findDirForFile, addKnownDir]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom]);
 
-  useEffect(() => { handleSplitRef.current = handleSplit; }, [handleSplit]);
+  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
+  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
+    if (!('showSaveFilePicker' in window)) return false;
+    try {
+      const options: any = {
+        suggestedName,
+        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+      };
+      if (sourceFileHandleRef.current) {
+        options.startIn = sourceFileHandleRef.current;
+      }
+      const fileHandle = await (window as any).showSaveFilePicker(options);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch {
+      return false; // 사용자 취소
+    }
+  }, []);
 
   const handleSelectDirectory = useCallback(async () => {
     if ('showDirectoryPicker' in window) {
@@ -540,11 +458,10 @@ export function AlbumSplitTool() {
         }
         const handle = await (window as any).showDirectoryPicker(options);
         setDirectoryHandle(handle);
-        await addKnownDir(handle);
         toast.success(`저장 폴더: ${handle.name}`);
       } catch { /* 사용자가 취소 */ }
     }
-  }, [addKnownDir]);
+  }, []);
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
@@ -719,17 +636,6 @@ export function AlbumSplitTool() {
             title="앨범 이미지 선택"
             onChange={handleFileSelect}
           />
-          {/* 자동 분리+저장 토글 */}
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <Checkbox
-              id="auto-split-toggle"
-              checked={autoSplit}
-              onCheckedChange={(checked) => setAutoSplit(checked === true)}
-            />
-            <Label htmlFor="auto-split-toggle" className="text-sm cursor-pointer text-slate-600">
-              자동 분리+저장 — 이미지 올리자마자 자동으로 처리
-            </Label>
-          </div>
         </CardContent>
       </Card>
       </div>
@@ -785,24 +691,7 @@ export function AlbumSplitTool() {
                 className="w-full h-auto object-contain max-h-[400px]"
               />
             </div>
-            <div className="mt-3 flex flex-col items-center gap-2">
-              {!directoryHandle && (
-                <button
-                  type="button"
-                  onClick={handleSelectDirectory}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors w-full justify-center"
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  저장 폴더 지정 (클릭) — 지정하면 분리 후 원본 폴더에 자동 저장
-                </button>
-              )}
-              {directoryHandle && (
-                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 w-full justify-center">
-                  <FolderOpen className="h-4 w-4" />
-                  저장 폴더: <span className="font-semibold">{directoryHandle.name}</span>
-                  <button type="button" onClick={handleSelectDirectory} className="ml-1 text-xs text-slate-400 hover:text-slate-600 underline">변경</button>
-                </div>
-              )}
+            <div className="mt-3 flex justify-center">
               <Button onClick={handleSplit} disabled={processing} size="lg">
                 <Scissors className="h-4 w-4 mr-2" />
                 {processing ? '분리 중...' : '첫장 / 막장 분리'}
