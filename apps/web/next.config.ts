@@ -5,6 +5,21 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const isDev = process.env.NODE_ENV === "development";
+const cspReportOnly = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'self'",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https:",
+  "style-src 'self' 'unsafe-inline' https:",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+  "connect-src 'self' https: wss:",
+  "worker-src 'self' blob:",
+  "media-src 'self' blob: https:",
+  "form-action 'self'",
+  "report-uri /csp-report",
+].join("; ");
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -156,6 +171,10 @@ const nextConfig: NextConfig = {
       {
         key: "Cross-Origin-Resource-Policy",
         value: "same-site",
+      },
+      {
+        key: "Content-Security-Policy-Report-Only",
+        value: cspReportOnly,
       },
     ];
 
