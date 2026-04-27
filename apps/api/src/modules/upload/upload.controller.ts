@@ -632,12 +632,14 @@ export class UploadController {
     @Get('serve/*path')
     @Throttle({ default: { ttl: 60000, limit: 120 } })
     @ApiOperation({ summary: '업로드 파일 직접 서빙 (orders/repairs/temp 등 한글 경로 지원)' })
-    serveUploadFile(@Param('path') rawPath: string, @Res() res: Response) {
+    serveUploadFile(@Param('path') rawPath: string | string[], @Res() res: Response) {
         if (!rawPath) {
             return res.status(400).json({ message: '경로가 필요합니다.' });
         }
+        // NestJS 와일드카드(*path)는 다중 세그먼트를 배열로 반환하므로 '/'로 결합
+        const joined = Array.isArray(rawPath) ? rawPath.join('/') : rawPath;
         // 경로 탐색 방지
-        const decoded = decodeURIComponent(rawPath);
+        const decoded = decodeURIComponent(joined);
         if (decoded.includes('..') || decoded.includes('\0')) {
             return res.status(400).json({ message: '잘못된 경로입니다.' });
         }

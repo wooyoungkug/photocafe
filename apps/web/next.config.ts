@@ -93,11 +93,11 @@ const nextConfig: NextConfig = {
       },
       {
         source: "/uploads/:path*",
-        destination: `${apiBase}/uploads/:path*`,
+        destination: `${apiBase}/api/v1/upload/serve/:path*`,
       },
       {
         source: "/upload/:path*",
-        destination: `${apiBase}/uploads/:path*`,
+        destination: `${apiBase}/api/v1/upload/serve/:path*`,
       },
     ];
   },
