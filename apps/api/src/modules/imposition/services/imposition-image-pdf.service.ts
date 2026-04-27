@@ -115,15 +115,21 @@ export class ImpositionImagePdfService {
     const useSpreadInPair = options.spreadImages === true && isPairLayout;
 
     // 스프레드 입력 + 단면(1up) 모드 감지 — pair 박스가 시트에 안 들어가서 폴백된 경우.
-    // calc 의 pageCount = album 페이지 수 = 파일수 × 2 (스프레드 입력이므로).
+    // calc 의 pageCount = album 페이지 수.
+    // 표지 빈장 드롭이 있을 수 있으므로 조건은 pageCount + drops === fileCount * 2.
+    //   drops = (RIGHT_START 면 첫 파일 L 빈장 1) + (LEFT_END 면 마지막 파일 R 빈장 1)
     // 시트 N → 파일 ceil(N/2) 의 좌/우 반쪽, half 는 bindingDirection 으로 결정.
     const fileCount = options.images.length;
+    const bdUpperEarly = String(options.bindingDirection || '').toUpperCase();
+    const dropsEarly =
+      (bdUpperEarly.includes('RIGHT_START') || bdUpperEarly.startsWith('RTL') ? 1 : 0) +
+      (bdUpperEarly.includes('LEFT_END') || bdUpperEarly.endsWith('LEND') ? 1 : 0);
     const useSpreadInSingle =
       options.spreadImages === true &&
       !useSpreadInPair &&
       result.nup === 1 &&
       fileCount > 0 &&
-      result.pageCount === fileCount * 2;
+      result.pageCount + dropsEarly === fileCount * 2;
 
     // 스프레드 이미지(1up, 페어 없음): 좌/우 절반을 각각 별도 패스로 렌더링.
     // 단면 폴백 모드(useSpreadInSingle): 시트마다 album 페이지 1장 = 1 PDF 페이지 (1 패스).
