@@ -270,24 +270,11 @@ export function AlbumSplitTool() {
           }
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
-
-      // 폴더 미선택 시: 드롭 이벤트(사용자 제스처) 안에서 즉시 폴더 선택
-      // → 드롭 시 호출하면 별도 권한 팝업 없이 폴더 지정 가능
-      if (!directoryHandle && 'showDirectoryPicker' in window) {
-        try {
-          const opts: any = { mode: 'readwrite' };
-          if (sourceFileHandleRef.current) opts.startIn = sourceFileHandleRef.current;
-          const dirHandle = await (window as any).showDirectoryPicker(opts);
-          setDirectoryHandle(dirHandle);
-          toast.success(`저장 폴더: "${dirHandle.name}" — 이후 자동 저장 활성화`);
-        } catch { /* 사용자 취소 - 폴더 없이 진행 */ }
-      }
-
       loadImage(file);
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
     }
-  }, [loadImage, directoryHandle]);
+  }, [loadImage]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -728,7 +715,24 @@ export function AlbumSplitTool() {
                 className="w-full h-auto object-contain max-h-[400px]"
               />
             </div>
-            <div className="mt-3 flex justify-center">
+            <div className="mt-3 flex flex-col items-center gap-2">
+              {!directoryHandle && (
+                <button
+                  type="button"
+                  onClick={handleSelectDirectory}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border-2 border-dashed border-blue-400 bg-blue-50 text-blue-700 text-sm font-medium hover:bg-blue-100 transition-colors w-full justify-center"
+                >
+                  <FolderOpen className="h-4 w-4" />
+                  저장 폴더 지정 (클릭) — 지정하면 분리 후 원본 폴더에 자동 저장
+                </button>
+              )}
+              {directoryHandle && (
+                <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 w-full justify-center">
+                  <FolderOpen className="h-4 w-4" />
+                  저장 폴더: <span className="font-semibold">{directoryHandle.name}</span>
+                  <button type="button" onClick={handleSelectDirectory} className="ml-1 text-xs text-slate-400 hover:text-slate-600 underline">변경</button>
+                </div>
+              )}
               <Button onClick={handleSplit} disabled={processing} size="lg">
                 <Scissors className="h-4 w-4 mr-2" />
                 {processing ? '분리 중...' : '첫장 / 막장 분리'}
