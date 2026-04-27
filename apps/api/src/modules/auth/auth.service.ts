@@ -204,6 +204,26 @@ export class AuthService {
   }
 
   async getProfile(userId: string, type?: string, companyClientId?: string) {
+    // staff 타입: Staff 테이블에서 조회
+    if (type === 'staff') {
+      const staff = await this.prisma.staff.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, staffId: true, name: true, email: true, role: true,
+          isSuperAdmin: true, isActive: true, position: true,
+          branchId: true, departmentId: true, menuPermissions: true,
+          canLoginAsManager: true, canEditInManagerView: true,
+          canChangeDepositStage: true, canChangeReceptionStage: true,
+          canChangeCancelStage: true, canEditMemberInfo: true,
+          canViewSettlement: true, canChangeOrderAmount: true,
+          canManageDepartments: true, canBulkImportStaff: true,
+          canViewAuditLogs: true, memberViewScope: true, salesViewScope: true,
+        },
+      });
+      if (!staff) throw new UnauthorizedException('User not found');
+      return { ...staff, type: 'staff' };
+    }
+
     // client / employee 타입: Client 테이블에서 최신 설정값 반환
     if (type === 'client' || type === 'employee') {
       // employee는 소속 회사(companyClientId) 기준, client는 본인 ID
