@@ -51,6 +51,8 @@ export function AlbumSplitTool() {
   const sourceDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
   const autoSplitRef = useRef(false);
   const handleSplitRef = useRef<(() => Promise<void>) | null>(null);
+  // 사용자가 권한을 부여한 폴더 핸들 누적 (세션 단위) — 드래그된 파일의 원본 폴더 자동 매칭용
+  const knownDirsRef = useRef<FileSystemDirectoryHandle[]>([]);
 
   useEffect(() => { autoSplitRef.current = autoSplit; }, [autoSplit]);
 
@@ -223,6 +225,7 @@ export function AlbumSplitTool() {
         if (directoryHandle) options.startIn = directoryHandle;
         const dirHandle = await (window as any).showDirectoryPicker(options);
         setDirectoryHandle(dirHandle);
+        await addKnownDir(dirHandle);
 
         // 폴더 내 이미지 파일 목록 (출력 결과물 제외)
         const files = await scanFolderFiles(dirHandle);
@@ -253,7 +256,7 @@ export function AlbumSplitTool() {
     } else {
       fileInputRef.current?.click();
     }
-  }, [loadImage, directoryHandle, folderFiles, currentFileIndex, loadFileAtIndex, scanFolderFiles, resetTool]);
+  }, [loadImage, directoryHandle, folderFiles, currentFileIndex, loadFileAtIndex, scanFolderFiles, resetTool, addKnownDir]);
 
   const handleDrop = useCallback(async (e: React.DragEvent) => {
     e.preventDefault();
@@ -321,6 +324,29 @@ export function AlbumSplitTool() {
       return false;
     }
   }, [fileName]);
+
+  /** 알려진 폴더 목록에 추가 (중복 방지) */
+  const addKnownDir = useCallback(async (dir: FileSystemDirectoryHandle) => {
+    for (const existing of knownDirsRef.current) {
+      try {
+        if (await existing.isSameEntry(dir)) return;
+      } catch { /* skip */ }
+    }
+    knownDirsRef.current.push(dir);
+  }, []);
+
+  /** 파일 핸들이 알려진 폴더 중 어디에 속하는지 찾기 */
+  const findDirForFile = useCallback(async (
+    fileHandle: FileSystemFileHandle,
+  ): Promise<FileSystemDirectoryHandle | null> => {
+    for (const dir of knownDirsRef.current) {
+      try {
+        const path = await dir.resolve(fileHandle);
+        if (path !== null) return dir;
+      } catch { /* skip */ }
+    }
+    return null;
+  }, []);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
@@ -445,23 +471,55 @@ export function AlbumSplitTool() {
         } else {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
-      } else if ('showSaveFilePicker' in window) {
-        // 폴더 미선택(드래그 업로드 등) → saveWithPicker가 startIn으로 원본 폴더 자동 열기
-        const ok1 = await saveWithPicker(leftResult.blob, '첫장.jpg');
-        if (ok1) {
-          const ok2 = await saveWithPicker(rightResult.blob, '막장.jpg');
-          if (ok2) {
-            toast.success('첫장, 막장 저장 완료!');
-            setTimeout(() => resetTool(false), 1500);
+      } else {
+        // 드래그&드롭 워크플로우: 알려진 폴더에서 자동 매칭 → 매칭 실패 시 폴더 선택
+        let targetDir: FileSystemDirectoryHandle | null = null;
+
+        // 1) 이미 권한이 있는 폴더 중에서 원본 파일이 속한 곳 자동 찾기
+        if (sourceFileHandleRef.current) {
+          targetDir = await findDirForFile(sourceFileHandleRef.current);
+        }
+
+        // 2) 매칭 실패 → 폴더 선택 다이얼로그 (원본 파일 위치에서 시작)
+        if (!targetDir && 'showDirectoryPicker' in window) {
+          try {
+            const opts: any = { mode: 'readwrite' };
+            if (sourceFileHandleRef.current) opts.startIn = sourceFileHandleRef.current;
+            targetDir = await (window as any).showDirectoryPicker(opts);
+            if (targetDir) await addKnownDir(targetDir);
+            // ⚠️ setDirectoryHandle 은 호출하지 않음 (다른 폴더 파일 처리 시 영향 X)
+          } catch {
+            targetDir = null; // 사용자 취소
           }
         }
-        // 취소 시 결과 패널 유지 → 하단 저장 버튼으로 재시도 가능
-      } else {
-        // File System Access API 미지원 브라우저 → 다운로드 폴백
-        fallbackDownload(leftResult.blob, '첫장.jpg');
-        fallbackDownload(rightResult.blob, '막장.jpg');
-        toast.success('첫장, 막장 다운로드 완료!');
-        setTimeout(() => resetTool(false), 1500);
+
+        if (targetDir) {
+          const ok1 = await saveToFolder(targetDir, leftResult.blob, '첫장.jpg');
+          const ok2 = await saveToFolder(targetDir, rightResult.blob, '막장.jpg');
+          if (ok1 && ok2) {
+            toast.success(`첫장, 막장 저장 완료! (${targetDir.name})`);
+            setTimeout(() => resetTool(false), 1500);
+          } else {
+            toast.error('저장 실패 - 아래 저장 버튼을 사용해주세요.');
+          }
+        } else if ('showSaveFilePicker' in window) {
+          // 폴더 선택까지 취소됨 → 파일별 저장 다이얼로그 폴백
+          const ok1 = await saveWithPicker(leftResult.blob, '첫장.jpg');
+          if (ok1) {
+            const ok2 = await saveWithPicker(rightResult.blob, '막장.jpg');
+            if (ok2) {
+              toast.success('첫장, 막장 저장 완료!');
+              setTimeout(() => resetTool(false), 1500);
+            }
+          }
+          // 취소 시 결과 패널 유지 → 하단 저장 버튼으로 재시도 가능
+        } else {
+          // 모든 API 미지원 → 다운로드 폴백
+          fallbackDownload(leftResult.blob, '첫장.jpg');
+          fallbackDownload(rightResult.blob, '막장.jpg');
+          toast.success('첫장, 막장 다운로드 완료!');
+          setTimeout(() => resetTool(false), 1500);
+        }
       }
     } catch (err) {
       console.error('Split error:', err);
@@ -469,7 +527,7 @@ export function AlbumSplitTool() {
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom, saveWithPicker]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom, saveWithPicker, findDirForFile, addKnownDir]);
 
   useEffect(() => { handleSplitRef.current = handleSplit; }, [handleSplit]);
 
@@ -482,10 +540,11 @@ export function AlbumSplitTool() {
         }
         const handle = await (window as any).showDirectoryPicker(options);
         setDirectoryHandle(handle);
+        await addKnownDir(handle);
         toast.success(`저장 폴더: ${handle.name}`);
       } catch { /* 사용자가 취소 */ }
     }
-  }, []);
+  }, [addKnownDir]);
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;

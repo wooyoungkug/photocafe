@@ -204,8 +204,7 @@ export class AuthService {
   }
 
   async getProfile(userId: string, type?: string, companyClientId?: string) {
-    // staff 타입: Staff 테이블에서 조회
-    if (type === 'staff') {
+    const getStaffProfile = async () => {
       const staff = await this.prisma.staff.findUnique({
         where: { id: userId },
         select: {
@@ -220,8 +219,14 @@ export class AuthService {
           canViewAuditLogs: true, memberViewScope: true, salesViewScope: true,
         },
       });
-      if (!staff) throw new UnauthorizedException('User not found');
-      return { ...staff, type: 'staff' };
+      return staff ? { ...staff, type: 'staff' } : null;
+    };
+
+    // staff 타입: Staff 테이블에서 조회
+    if (type === 'staff') {
+      const staffProfile = await getStaffProfile();
+      if (!staffProfile) throw new UnauthorizedException('User not found');
+      return staffProfile;
     }
 
     // client / employee 타입: Client 테이블에서 최신 설정값 반환
@@ -246,6 +251,12 @@ export class AuthService {
         enableSchedule: client.enableSchedule ?? true,
         enableRecruitment: client.enableRecruitment ?? true,
       };
+    }
+
+    // 타입 누락/레거시 토큰 대응: staff 우선 재조회
+    const fallbackStaffProfile = await getStaffProfile();
+    if (fallbackStaffProfile) {
+      return fallbackStaffProfile;
     }
 
     const user = await this.prisma.user.findUnique({
