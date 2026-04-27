@@ -35,6 +35,7 @@ export function AlbumSplitTool() {
   const [savedRight, setSavedRight] = useState(false);
   const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
   const [originalDeleted, setOriginalDeleted] = useState(false);
+  const [autoSplit, setAutoSplit] = useState(false);
 
   // 연속 작업용: 폴더 내 파일 목록 및 현재 인덱스
   const [folderFiles, setFolderFiles] = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
@@ -48,6 +49,10 @@ export function AlbumSplitTool() {
   const resultCardRef = useRef<HTMLDivElement>(null);
   const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
   const sourceDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
+  const autoSplitRef = useRef(false);
+  const handleSplitRef = useRef<(() => Promise<void>) | null>(null);
+
+  useEffect(() => { autoSplitRef.current = autoSplit; }, [autoSplit]);
 
   const playBeep = useCallback(() => {
     try {
@@ -148,6 +153,9 @@ export function AlbumSplitTool() {
         setFileName(file.name);
         setShowInfo(true);
         setShowPreview(true);
+        if (autoSplitRef.current) {
+          setTimeout(() => handleSplitRef.current?.(), 80);
+        }
       };
       img.src = URL.createObjectURL(file);
     };
@@ -176,6 +184,9 @@ export function AlbumSplitTool() {
         setShowInfo(true);
         setShowPreview(true);
         scrollToBottom();
+        if (autoSplitRef.current) {
+          setTimeout(() => handleSplitRef.current?.(), 80);
+        }
       };
       img.src = URL.createObjectURL(file);
     };
@@ -418,7 +429,11 @@ export function AlbumSplitTool() {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
       } else {
-        toast.success('분리 완료! 결과를 확인하세요.');
+        // 폴더 미선택 시 자동 다운로드
+        fallbackDownload(leftResult.blob, '첫장.jpg');
+        fallbackDownload(rightResult.blob, '막장.jpg');
+        toast.success('첫장, 막장 자동 다운로드 완료! 다운로드 폴더를 확인하세요.');
+        setTimeout(() => resetTool(false), 1500);
       }
     } catch (err) {
       console.error('Split error:', err);
@@ -427,6 +442,8 @@ export function AlbumSplitTool() {
       setProcessing(false);
     }
   }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom]);
+
+  useEffect(() => { handleSplitRef.current = handleSplit; }, [handleSplit]);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
@@ -636,6 +653,17 @@ export function AlbumSplitTool() {
             title="앨범 이미지 선택"
             onChange={handleFileSelect}
           />
+          {/* 자동 분리+저장 토글 */}
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <Checkbox
+              id="auto-split-toggle"
+              checked={autoSplit}
+              onCheckedChange={(checked) => setAutoSplit(checked === true)}
+            />
+            <Label htmlFor="auto-split-toggle" className="text-sm cursor-pointer text-slate-600">
+              자동 분리+저장 — 이미지 올리자마자 자동으로 처리
+            </Label>
+          </div>
         </CardContent>
       </Card>
       </div>
