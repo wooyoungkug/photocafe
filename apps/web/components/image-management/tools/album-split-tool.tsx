@@ -424,25 +424,17 @@ export function AlbumSplitTool() {
         } else {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
-      } else if ('showDirectoryPicker' in window) {
-        // 폴더 미선택(드래그 업로드 등) → 원본 파일 위치에서 폴더 선택 창 열기
-        try {
-          const pickerOptions: any = { mode: 'readwrite' };
-          if (sourceFileHandleRef.current) pickerOptions.startIn = sourceFileHandleRef.current;
-          const dirHandle = await (window as any).showDirectoryPicker(pickerOptions);
-          setDirectoryHandle(dirHandle);
-          const ok1 = await saveToFolder(dirHandle, leftResult.blob, '첫장.jpg');
-          const ok2 = await saveToFolder(dirHandle, rightResult.blob, '막장.jpg');
-          if (ok1 && ok2) {
-            toast.success(`첫장, 막장 저장 완료! (${dirHandle.name})`);
-            setTimeout(() => resetTool(true), 1500);
-          } else {
-            toast.error('저장 실패 - 아래 저장 버튼을 사용해주세요.');
+      } else if ('showSaveFilePicker' in window) {
+        // 폴더 미선택(드래그 업로드 등) → saveWithPicker가 startIn으로 원본 폴더 자동 열기
+        const ok1 = await saveWithPicker(leftResult.blob, '첫장.jpg');
+        if (ok1) {
+          const ok2 = await saveWithPicker(rightResult.blob, '막장.jpg');
+          if (ok2) {
+            toast.success('첫장, 막장 저장 완료!');
+            setTimeout(() => resetTool(false), 1500);
           }
-        } catch {
-          // 사용자가 폴더 선택 취소 → 결과 패널 유지, 수동 저장 버튼 사용
-          toast.info('폴더를 선택하지 않았습니다. 아래 저장 버튼으로 직접 저장해주세요.');
         }
+        // 취소 시 결과 패널 유지 → 하단 저장 버튼으로 재시도 가능
       } else {
         // File System Access API 미지원 브라우저 → 다운로드 폴백
         fallbackDownload(leftResult.blob, '첫장.jpg');
@@ -456,7 +448,7 @@ export function AlbumSplitTool() {
     } finally {
       setProcessing(false);
     }
-  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom]);
+  }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom, saveWithPicker]);
 
   useEffect(() => { handleSplitRef.current = handleSplit; }, [handleSplit]);
 
