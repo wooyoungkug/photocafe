@@ -441,12 +441,33 @@ export default function OrderPage() {
     (item) => item.productType === 'album-order' && (!item.serverFiles || item.serverFiles.length === 0)
   );
 
+  // 업로드 미완료 / 실패 항목 검사 (BE의 temp 파일 사전검증 실패를 사전 차단)
+  const hasUploadInProgress = items.some(
+    (item) => item.uploadStatus === 'uploading' || item.uploadStatus === 'pending'
+  );
+  const hasUploadFailed = items.some((item) => item.uploadStatus === 'failed');
+
   useEffect(() => {
     if (albumItemsMissingFiles.length > 0) {
       toast.error('파일 데이터 누락', {
         description: `${albumItemsMissingFiles.length}건의 앨범 상품에 파일 데이터가 누락되었습니다. 해당 상품을 삭제 후 다시 업로드해주세요.`,
       });
       router.replace('/cart');
+      return;
+    }
+    if (hasUploadInProgress) {
+      toast.error('파일 업로드 진행 중', {
+        description: '원본 파일 업로드가 완료된 후 주문할 수 있습니다. 장바구니에서 업로드 완료를 확인해주세요.',
+      });
+      router.replace('/cart');
+      return;
+    }
+    if (hasUploadFailed) {
+      toast.error('업로드 실패 항목 확인', {
+        description: '업로드에 실패한 항목이 있습니다. 장바구니에서 재시도하거나 삭제 후 주문해주세요.',
+      });
+      router.replace('/cart');
+      return;
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -577,6 +598,20 @@ export default function OrderPage() {
     if (albumItemsWithNoFiles.length > 0) {
       toast.error('파일 업로드 필요', {
         description: `${albumItemsWithNoFiles.length}건의 앨범 상품에 업로드된 파일이 없습니다. 장바구니에서 다시 업로드해주세요.`,
+      });
+      return;
+    }
+
+    // 업로드 진행/실패 게이트 — BE temp 파일 사전검증 실패 사전 차단
+    if (hasUploadInProgress) {
+      toast.error('파일 업로드 진행 중', {
+        description: '원본 파일 업로드가 완료된 후 주문할 수 있습니다.',
+      });
+      return;
+    }
+    if (hasUploadFailed) {
+      toast.error('업로드 실패 항목 확인', {
+        description: '업로드에 실패한 항목이 있습니다. 장바구니에서 재시도하거나 삭제 후 주문해주세요.',
       });
       return;
     }
@@ -1165,10 +1200,23 @@ export default function OrderPage() {
                     type="submit"
                     size="lg"
                     className="w-full"
-                    disabled={isSubmitting || !agreeTerms || !allShippingComplete}
+                    disabled={isSubmitting || !agreeTerms || !allShippingComplete || hasUploadInProgress || hasUploadFailed}
                   >
-                    {isSubmitting ? '처리중...' : `${total.toLocaleString()}원 결제하기`}
+                    {isSubmitting
+                      ? '처리중...'
+                      : hasUploadInProgress
+                        ? '파일 업로드 중...'
+                        : hasUploadFailed
+                          ? '업로드 실패 — 장바구니 확인'
+                          : `${total.toLocaleString()}원 결제하기`}
                   </Button>
+
+                  {hasUploadInProgress && (
+                    <p className="text-xs text-orange-500 text-center flex items-center justify-center gap-1">
+                      <AlertCircle className="w-3 h-3" />
+                      원본 파일 업로드 완료 후 결제할 수 있습니다
+                    </p>
+                  )}
 
                   {!agreeTerms && (
                     <p className="text-xs text-orange-500 text-center flex items-center justify-center gap-1">
