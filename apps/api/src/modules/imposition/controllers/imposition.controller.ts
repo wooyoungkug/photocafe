@@ -268,22 +268,25 @@ export class ImpositionController {
         ? `${item.order.orderNumber} | ${item.order.client?.clientName ?? ''} | Job ${jobRecord.id.slice(0, 8)}`
         : null;
 
-      // PDF (시뮬레이션 — 빈 박스 레이아웃)
-      await this.pdf.build(result, {
-        sourcePdfPath,
-        outputPath: pdfPath,
-        drawCropMarks: marks.crop !== false,
-        drawBleedLines: marks.bleed !== false,
-        drawRegistrationMarks: marks.registration !== false,
-        drawColorBar: marks.colorBar !== false,
-        drawFoldLines: marks.fold !== false,
-        jobMetaText,
-      });
+      // 정식 PDF — 소스 PDF가 실제로 존재할 때만 생성. 누락 시 빈 PDF 만들지 않음.
+      const hasSource = !!(sourcePdfPath && fs.existsSync(sourcePdfPath));
+      if (hasSource) {
+        await this.pdf.build(result, {
+          sourcePdfPath,
+          outputPath: pdfPath,
+          drawCropMarks: marks.crop !== false,
+          drawBleedLines: marks.bleed !== false,
+          drawRegistrationMarks: marks.registration !== false,
+          drawColorBar: marks.colorBar !== false,
+          drawFoldLines: marks.fold !== false,
+          jobMetaText,
+        });
+      }
 
       // 이미지 배치 인쇄용 PDF (OrderItem.files JPG 실제 배치)
-      // 명시적으로 generateImagePdf=true 일 때만 생성 (기본은 정식 PDF만).
+      // 기본 생성: 소스 PDF 누락 시에도 JPG 원본으로 정식 PDF 출력 가능.
       let imagePdfPath: string | undefined;
-      if (dto.generateImagePdf === true) {
+      if (dto.generateImagePdf !== false) {
         // 원본 파일 인덱스(1-based)를 그대로 pageNumber에 매핑해야
         // ImpositionCalcService가 할당한 Placement.pages 번호와 일치.
         // validFiles 필터 후 idx+1 재매핑은 누락 파일 발생 시 번호가 틀어짐.
@@ -317,7 +320,7 @@ export class ImpositionController {
         data: {
           status: 'done',
           jdfPath,
-          pdfPath,
+          pdfPath: hasSource ? pdfPath : null,
           imagePdfPath,
         },
       });
@@ -326,7 +329,7 @@ export class ImpositionController {
         ...jobRecord,
         status: 'done',
         jdfPath,
-        pdfPath,
+        pdfPath: hasSource ? pdfPath : null,
         imagePdfPath,
         warnings: result.warnings,
       };
