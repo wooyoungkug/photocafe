@@ -112,7 +112,9 @@ export class PrintPdfController {
     summary: '주문항목의 최종 PDF 인라인 열기',
     description:
       'OrderItem.pdfPath 경로의 PDF 를 application/pdf inline 으로 스트림. ' +
-      '출력대기 테이블의 PDF변환성공 배지 클릭으로 새 탭 열기 용도.',
+      '출력대기 테이블의 PDF변환성공 배지 클릭으로 새 탭 열기 용도. ' +
+      '옛 폴더 컨벤션({인디고}/{도수}/{양면|단면})으로 저장된 항목은 ' +
+      '새 컨벤션({인디고}/{인디고N도양면}) 경로로 자동 폴백 후 DB 보정.',
   })
   async openItemPdf(
     @Param('orderItemId') orderItemId: string,
@@ -124,14 +126,30 @@ export class PrintPdfController {
     });
     if (!item) throw new NotFoundException('주문항목을 찾을 수 없습니다.');
     if (!item.pdfPath) throw new NotFoundException('이 항목의 PDF 가 아직 생성되지 않았습니다.');
-    // 절대경로/상대경로 모두 지원 (운영은 컨테이너 기준 절대경로 저장)
-    const abs = path.isAbsolute(item.pdfPath) ? item.pdfPath : path.join(process.cwd(), item.pdfPath);
+
+    const toAbs = (p: string) => (path.isAbsolute(p) ? p : path.join(process.cwd(), p));
+    let abs = toAbs(item.pdfPath);
+
+    if (!fs.existsSync(abs)) {
+      // 옛 형식 → 새 형식 폴백 (commit dbadb10a 이전 컨벤션 호환)
+      const remapped = remapLegacyPdfPath(item.pdfPath);
+      if (remapped) {
+        const remappedAbs = toAbs(remapped);
+        if (fs.existsSync(remappedAbs)) {
+          this.logger.log(`pdfPath 보정: ${item.pdfPath} → ${remapped}`);
+          await this.printPdfService['prisma'].orderItem
+            .update({ where: { id: orderItemId }, data: { pdfPath: remapped } })
+            .catch(() => {});
+          abs = remappedAbs;
+        }
+      }
+    }
+
     if (!fs.existsSync(abs)) {
       throw new NotFoundException('PDF 파일이 디스크에 존재하지 않습니다. 재생성이 필요합니다.');
     }
     const fileName = `${item.productionNumber || item.productName || orderItemId}.pdf`;
     res.setHeader('Content-Type', 'application/pdf');
-    // inline → 새 탭에서 PDF 뷰어로 열림 (다운로드 강제 X)
     res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileName)}"`);
     res.setHeader('Content-Length', fs.statSync(abs).size);
     fs.createReadStream(abs).pipe(res);
@@ -163,4 +181,36 @@ export class PrintPdfController {
     const readStream = fs.createReadStream(pdfPath);
     readStream.pipe(res);
   }
+}
+
+// 옛 폴더 컨벤션 → 새 컨벤션 매핑
+//   인디고: ...\인디고\<...N도...>\(양면|단면)\<file>  →  ...\인디고\인디고N도(양면|단면)\<file>
+//   잉크젯: ...\잉크젯\(양면|단면)\<file>            →  ...\잉크젯\<file>
+function remapLegacyPdfPath(oldPath: string): string | null {
+  const sep = oldPath.includes('\\') ? '\\' : '/';
+  const segs = oldPath.split(/[\\\/]/);
+  const idxIndigo = segs.lastIndexOf('인디고');
+  if (idxIndigo >= 0 && idxIndigo + 3 < segs.length) {
+    const colorSeg = segs[idxIndigo + 1];
+    const sideSeg = segs[idxIndigo + 2];
+    const fileSeg = segs[idxIndigo + 3];
+    const dosu = colorSeg?.match(/(\d+도)/)?.[1];
+    if (dosu && (sideSeg === '양면' || sideSeg === '단면')) {
+      const newSegs = [
+        ...segs.slice(0, idxIndigo + 1),
+        `인디고${dosu}${sideSeg}`,
+        fileSeg,
+      ];
+      return newSegs.join(sep);
+    }
+  }
+  const idxInkjet = segs.lastIndexOf('잉크젯');
+  if (idxInkjet >= 0 && idxInkjet + 2 < segs.length) {
+    const sideSeg = segs[idxInkjet + 1];
+    const fileSeg = segs[idxInkjet + 2];
+    if (sideSeg === '양면' || sideSeg === '단면') {
+      return [...segs.slice(0, idxInkjet + 1), fileSeg].join(sep);
+    }
+  }
+  return null;
 }
