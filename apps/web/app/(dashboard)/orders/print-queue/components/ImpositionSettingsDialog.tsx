@@ -25,6 +25,7 @@ import {
   useDownloadImpositionJdf,
   useDownloadImpositionPdf,
   useDownloadImpositionImagePdf,
+  useDownloadImpositionBatchZip,
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
@@ -238,6 +239,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
   const dlJdf = useDownloadImpositionJdf();
   const dlPdf = useDownloadImpositionPdf();
   const dlImagePdf = useDownloadImpositionImagePdf();
+  const dlBatchZip = useDownloadImpositionBatchZip();
 
   // 자동 임포지션 적용: seed(제본/규격/페이지)로부터 시트·여백·Nup·오시·타카까지 규칙 기반 자동 산출.
   // 다이얼로그 오픈 또는 대상 항목 변경 시에만 실행 → 사용자의 이후 미세조정은 덮어쓰지 않음.
@@ -428,7 +430,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
 
     let succeeded = 0;
     const failed: { label: string; error: string }[] = [];
-    const succeededJobs: { id: string; imagePdfPath?: string | null }[] = [];
+    const succeededJobs: { id: string; pdfPath?: string | null; imagePdfPath?: string | null }[] = [];
 
     for (let i = 0; i < targets.length; i++) {
       const t = targets[i];
@@ -442,7 +444,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
           marks,
         });
         succeeded++;
-        succeededJobs.push({ id: job.id, imagePdfPath: job.imagePdfPath });
+        succeededJobs.push({ id: job.id, pdfPath: job.pdfPath, imagePdfPath: job.imagePdfPath });
         if (total > 1) {
           toast.success(`(${i + 1}/${total}) ${label} 생성 완료`);
         }
@@ -451,16 +453,23 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
       }
     }
 
-    // 모든 성공 항목의 JDF/PDF 를 stagger 다운로드 (브라우저 동시 다운로드 폭주/차단 방지).
-    // 항목당 약 1.2초 간격으로 jdf → pdf → imagePdf 순차 트리거.
-    succeededJobs.forEach((job, idx) => {
-      const base = idx * 1200;
-      setTimeout(() => dlJdf.mutate(job.id), base);
-      setTimeout(() => dlPdf.mutate(job.id), base + 300);
-      if (job.imagePdfPath) {
-        setTimeout(() => dlImagePdf.mutate(job.id), base + 700);
+    // 다운로드 전략:
+    // - 단건: 개별 파일 (jdf/pdf/imagePdf) 다운로드
+    // - 다건: ZIP 1개로 묶어 다운로드 (브라우저 동시 다운로드 차단 회피)
+    if (succeededJobs.length === 1) {
+      const job = succeededJobs[0];
+      dlJdf.mutate(job.id);
+      // pdfPath 가 null 이면 source PDF 다운로드 스킵 (404 방지)
+      if (job.pdfPath) {
+        setTimeout(() => dlPdf.mutate(job.id), 300);
       }
-    });
+      if (job.imagePdfPath) {
+        setTimeout(() => dlImagePdf.mutate(job.id), 700);
+      }
+    } else if (succeededJobs.length > 1) {
+      // 모든 성공 항목을 한 ZIP 으로 묶어 단 1번의 다운로드 트리거
+      dlBatchZip.mutate(succeededJobs.map(j => j.id));
+    }
 
     if (total === 1) {
       if (succeeded === 1) {
@@ -470,7 +479,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
       }
     } else {
       if (failed.length === 0) {
-        toast.success(`${succeeded}건 모두 생성 완료 — 다운로드 진행 중`);
+        toast.success(`${succeeded}건 모두 생성 완료 — ZIP 다운로드 시작`);
       } else {
         toast.warning(`${succeeded}/${total}건 성공, ${failed.length}건 실패: ${failed.map(f => f.label).join(', ')}`);
       }

@@ -227,6 +227,19 @@ export function useDownloadImpositionImagePdf() {
   });
 }
 
+export function useDownloadImpositionBatchZip() {
+  return useMutation<void, Error, string[]>({
+    mutationFn: (jobIds) => {
+      const idsParam = encodeURIComponent(jobIds.join(','));
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      return api.downloadBlob(
+        `/imposition/jobs/batch-zip?ids=${idsParam}`,
+        `imposition_batch_${ts}.zip`,
+      );
+    },
+  });
+}
+
 // ==================== Rules (v1.1) ====================
 
 export interface ImpositionRule {

@@ -380,6 +380,55 @@ export class ImpositionController {
     });
     return new StreamableFile(fs.createReadStream(job.imagePdfPath));
   }
+
+  @Get('jobs/batch-zip')
+  @ApiOperation({ summary: '여러 임포지션 작업의 jdf/pdf/imagePdf 를 ZIP 으로 일괄 다운로드' })
+  async downloadBatchZip(@Query('ids') ids: string, @Res() res: Response) {
+    if (!ids) throw new BadRequestException('ids 쿼리 파라미터 필수 (콤마 구분)');
+    const jobIds = ids.split(',').map((s) => s.trim()).filter(Boolean);
+    if (jobIds.length === 0) throw new BadRequestException('유효한 job id 가 없습니다');
+
+    const jobs = await this.prisma.impositionJob.findMany({
+      where: { id: { in: jobIds } },
+    });
+    if (jobs.length === 0) throw new NotFoundException('해당 작업을 찾을 수 없습니다');
+
+    // 폴더명용 productionNumber 별도 조회
+    const itemIds = jobs.map((j) => j.orderItemId).filter((v): v is string => !!v);
+    const items = itemIds.length > 0
+      ? await this.prisma.orderItem.findMany({
+          where: { id: { in: itemIds } },
+          select: { id: true, productionNumber: true },
+        })
+      : [];
+    const itemNumberById = new Map(items.map((it) => [it.id, it.productionNumber]));
+
+    const archiver = require('archiver');
+    const archive = archiver('zip', { zlib: { level: 1 } });
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+
+    res.set({
+      'Content-Type': 'application/zip',
+      'Content-Disposition': `attachment; filename="imposition_batch_${ts}.zip"`,
+    });
+    archive.pipe(res);
+
+    for (const job of jobs) {
+      const prodNum = (job.orderItemId && itemNumberById.get(job.orderItemId)) || job.id.slice(0, 8);
+      const safeName = prodNum.replace(/[\\/:*?"<>|]/g, '_');
+      if (job.jdfPath && fs.existsSync(job.jdfPath)) {
+        archive.file(job.jdfPath, { name: `${safeName}/imposition_${job.id}.jdf` });
+      }
+      if (job.pdfPath && fs.existsSync(job.pdfPath)) {
+        archive.file(job.pdfPath, { name: `${safeName}/imposition_${job.id}.pdf` });
+      }
+      if (job.imagePdfPath && fs.existsSync(job.imagePdfPath)) {
+        archive.file(job.imagePdfPath, { name: `${safeName}/imposition_image_${job.id}.pdf` });
+      }
+    }
+
+    await archive.finalize();
+  }
 }
 
 function parseSize(size: string): { w: number; h: number } {
