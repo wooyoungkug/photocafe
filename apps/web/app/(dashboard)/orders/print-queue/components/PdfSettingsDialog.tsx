@@ -153,7 +153,6 @@ export default function PdfSettingsDialog({
   // 로컬 상태
   const [autoConvert, setAutoConvert] = useState(false);
   const [autoInterval, setAutoInterval] = useState('5');
-  const [indexOptions, setIndexOptions] = useState<IndexOptions>({ ...DEFAULT_INDEX_OPTIONS });
   const [indexOrder, setIndexOrder] = useState<IndexOrderItem[]>(() =>
     DEFAULT_INDEX_ORDER.map((i) => ({ ...i })),
   );
@@ -232,13 +231,12 @@ export default function PdfSettingsDialog({
     setMarkFold(map[SETTING_KEYS.MARK_FOLD] !== 'false');
     setMarkJobMeta(map[SETTING_KEYS.MARK_JOB_META] !== 'false');
 
-    // 인덱스 옵션 파싱
+    // 인덱스 옵션(legacy) 파싱: 저장된 순서가 없을 때 활성화 상태 추론용
     let parsedOptions: IndexOptions = { ...DEFAULT_INDEX_OPTIONS };
     try {
       const saved = map[SETTING_KEYS.INDEX_OPTIONS];
       if (saved) {
         parsedOptions = { ...DEFAULT_INDEX_OPTIONS, ...JSON.parse(saved) };
-        setIndexOptions(parsedOptions);
       }
     } catch {
       // 파싱 실패 시 기본값 유지
@@ -286,15 +284,19 @@ export default function PdfSettingsDialog({
   };
   const handleOrderDragEnd = () => setDragIdx(null);
 
-  const toggleIndexOption = (key: keyof IndexOptions) => {
-    setIndexOptions((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
   const handleSave = () => {
+    // 순서 + 활성화 상태로부터 indexOptions 객체 재구성 (legacy 호환)
+    const optionsFromOrder: IndexOptions = { ...DEFAULT_INDEX_OPTIONS };
+    for (const it of indexOrder) {
+      optionsFromOrder[it.key] = it.enabled;
+    }
+    const orderPayload = indexOrder.map((i) => ({ key: i.key, enabled: i.enabled }));
+
     const settings = [
       { key: SETTING_KEYS.AUTO_CONVERT, value: String(autoConvert), category: CATEGORY, label: '자동변환 사용' },
       { key: SETTING_KEYS.AUTO_INTERVAL, value: autoInterval, category: CATEGORY, label: '자동변환 간격(분)' },
-      { key: SETTING_KEYS.INDEX_OPTIONS, value: JSON.stringify(indexOptions), category: CATEGORY, label: '인덱스 표기 항목' },
+      { key: SETTING_KEYS.INDEX_OPTIONS, value: JSON.stringify(optionsFromOrder), category: CATEGORY, label: '인덱스 표기 항목' },
+      { key: SETTING_KEYS.INDEX_ORDER, value: JSON.stringify(orderPayload), category: CATEGORY, label: '인덱스 표기 순서' },
       { key: SETTING_KEYS.INCLUDE_BLEED, value: String(includeBleed), category: CATEGORY, label: '재단여백 포함' },
       { key: SETTING_KEYS.INCLUDE_CROP_MARKS, value: String(includeCropMarks), category: CATEGORY, label: '재단선 표시' },
       { key: SETTING_KEYS.DEFAULT_NUP, value: defaultNup, category: CATEGORY, label: '기본 Nup' },
@@ -381,6 +383,110 @@ export default function PdfSettingsDialog({
                   <span className="text-[12px] text-gray-500">마다 자동 실행</span>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* ===== 1-2. 인덱스 표기 항목 ===== */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[14px] text-black font-bold">인덱스 표기 항목</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-[12px] text-gray-500">
+                JDF+PDF 변환 시 인쇄물 외곽에 표시되는 인덱스 항목입니다. 체크로 표시 여부를, 드래그/화살표로 순서를 변경합니다.
+              </p>
+              <div className="border rounded-lg divide-y">
+                {indexOrder.map((item, idx) => (
+                  <div
+                    key={item.key}
+                    draggable
+                    onDragStart={() => handleOrderDragStart(idx)}
+                    onDragOver={(e) => handleOrderDragOver(e, idx)}
+                    onDragEnd={handleOrderDragEnd}
+                    className={`flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing transition-colors ${
+                      dragIdx === idx ? 'bg-blue-50' : 'hover:bg-gray-50'
+                    } ${!item.enabled ? 'opacity-50' : ''}`}
+                  >
+                    <GripVertical className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <span className="text-[12px] text-gray-400 w-5 text-center flex-shrink-0">
+                      {idx + 1}
+                    </span>
+                    <Checkbox
+                      checked={item.enabled}
+                      onCheckedChange={() => toggleOrderItem(idx)}
+                    />
+                    <Label
+                      className="text-[14px] text-black font-normal flex-1 cursor-pointer"
+                      onClick={() => toggleOrderItem(idx)}
+                    >
+                      {item.label}
+                    </Label>
+                    <div className="flex flex-col gap-0">
+                      <button
+                        type="button"
+                        title="위로 이동"
+                        onClick={() => moveOrderItem(idx, 'up')}
+                        disabled={idx === 0}
+                        className="p-0.5 text-gray-400 hover:text-black disabled:opacity-30"
+                      >
+                        <ChevronUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        title="아래로 이동"
+                        onClick={() => moveOrderItem(idx, 'down')}
+                        disabled={idx === indexOrder.length - 1}
+                        className="p-0.5 text-gray-400 hover:text-black disabled:opacity-30"
+                      >
+                        <ChevronDown className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {indexOrder.some((i) => i.enabled) && (
+                <div className="px-3 py-2 bg-gray-100 rounded text-[11px] text-gray-600 font-mono break-all">
+                  {indexOrder.filter((i) => i.enabled).map((i) => i.label).join(' | ')}
+                </div>
+              )}
+
+              <Separator />
+
+              <div className="flex items-center gap-3">
+                <Label className="text-[14px] text-black font-normal whitespace-nowrap">
+                  인덱스 위치
+                </Label>
+                <Select value={indexPosition} onValueChange={setIndexPosition}>
+                  <SelectTrigger className="w-[200px] h-9 text-[14px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INDEX_POSITION_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Label className="text-[14px] text-black font-normal whitespace-nowrap">
+                  폰트 크기
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    value={indexFontSize}
+                    onChange={(e) => setIndexFontSize(e.target.value)}
+                    className="h-9 w-20 text-[14px]"
+                    min="4"
+                    max="24"
+                    step="0.5"
+                  />
+                  <span className="text-[14px] text-gray-500">pt</span>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -806,6 +912,7 @@ export function usePdfSettings() {
       autoConvert: false,
       autoInterval: 5,
       indexOptions: { ...DEFAULT_INDEX_OPTIONS },
+      indexOrder: DEFAULT_INDEX_ORDER.map((i) => ({ ...i })),
       includeBleed: true,
       includeCropMarks: true,
       includeColorBar: false,
@@ -839,10 +946,24 @@ export function usePdfSettings() {
     if (saved) indexOptions = { ...DEFAULT_INDEX_OPTIONS, ...JSON.parse(saved) };
   } catch { /* 기본값 유지 */ }
 
+  let indexOrder: IndexOrderItem[];
+  try {
+    const savedOrder = map[SETTING_KEYS.INDEX_ORDER];
+    const parsed = savedOrder ? JSON.parse(savedOrder) : null;
+    indexOrder = mergeIndexOrder(parsed, indexOptions);
+  } catch {
+    indexOrder = mergeIndexOrder(null, indexOptions);
+  }
+  // 순서가 저장돼 있으면 옵션 ON/OFF도 순서 기준으로 일관 적용
+  for (const it of indexOrder) {
+    indexOptions[it.key] = it.enabled;
+  }
+
   return {
     autoConvert: map[SETTING_KEYS.AUTO_CONVERT] === 'true',
     autoInterval: parseInt(map[SETTING_KEYS.AUTO_INTERVAL] || '5', 10),
     indexOptions,
+    indexOrder,
     includeBleed: map[SETTING_KEYS.INCLUDE_BLEED] !== 'false',
     includeCropMarks: map[SETTING_KEYS.INCLUDE_CROP_MARKS] !== 'false',
     includeColorBar: map[SETTING_KEYS.INCLUDE_COLOR_BAR] === 'true',

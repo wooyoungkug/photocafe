@@ -18,7 +18,11 @@ import {
   DEFAULT_INDEX_OPTIONS,
   GeneratePrintPdfRequest,
 } from '@/hooks/use-print-pdf';
-import { usePdfSettings } from './PdfSettingsDialog';
+import {
+  usePdfSettings,
+  DEFAULT_INDEX_ORDER,
+  IndexOrderItem,
+} from './PdfSettingsDialog';
 
 interface PdfConvertDialogProps {
   open: boolean;
@@ -28,25 +32,6 @@ interface PdfConvertDialogProps {
   onGenerate: (request: GeneratePrintPdfRequest) => void;
   isGenerating: boolean;
 }
-
-export interface IndexOrderItem {
-  key: keyof IndexOptions;
-  label: string;
-  enabled: boolean;
-}
-
-const DEFAULT_INDEX_ORDER: IndexOrderItem[] = [
-  { key: 'showDateTime', label: '출력날짜+시간', enabled: true },
-  { key: 'showOrderNumber', label: '주문번호', enabled: true },
-  { key: 'showStudioName', label: '스튜디오명', enabled: true },
-  { key: 'showSpec', label: '규격', enabled: true },
-  { key: 'showPaper', label: '용지명', enabled: true },
-  { key: 'showPageInfo', label: '페이지 정보', enabled: true },
-  { key: 'showColorMode', label: '인디고도수', enabled: true },
-  { key: 'showBinding', label: '제본방법', enabled: true },
-  { key: 'showNup', label: 'Nup', enabled: true },
-  { key: 'showImageArea', label: '이미지영역(mm)', enabled: false },
-];
 
 export default function PdfConvertDialog({
   open,
@@ -66,20 +51,17 @@ export default function PdfConvertDialog({
   const [includeCropMarks, setIncludeCropMarks] = useState(true);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
 
-  // 설정이 로드되면 기본값 반영
+  // 설정이 로드되면 기본값 반영 (저장된 순서 + 활성화 상태)
   useEffect(() => {
     if (!pdfSettings.isLoaded) return;
 
     setIncludeBleed(pdfSettings.includeBleed);
     setIncludeCropMarks(pdfSettings.includeCropMarks);
 
-    // 인덱스 옵션 기본값 반영
-    setIndexOrder((prev) =>
-      prev.map((item) => ({
-        ...item,
-        enabled: pdfSettings.indexOptions[item.key] ?? item.enabled,
-      })),
-    );
+    // 저장된 순서 그대로 반영
+    if (pdfSettings.indexOrder?.length) {
+      setIndexOrder(pdfSettings.indexOrder.map((i) => ({ ...i })));
+    }
   }, [pdfSettings.isLoaded]);
 
   const toggleItem = (idx: number) => {
