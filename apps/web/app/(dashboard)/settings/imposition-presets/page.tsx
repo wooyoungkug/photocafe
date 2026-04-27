@@ -35,6 +35,7 @@ import {
   ImpositionRule,
   BindingType,
 } from '@/hooks/use-imposition';
+import { usePdfSettings } from '@/app/(dashboard)/orders/print-queue/components/PdfSettingsDialog';
 
 const BINDING_LABELS: Record<BindingType, string> = {
   compressed: '압축앨범',
@@ -61,6 +62,7 @@ export default function ImpositionPresetsPage() {
   const updateRuleMut = useUpdateImpositionRule();
   const deleteRuleMut = useDeleteImpositionRule();
   const seedMut = useSeedImposition();
+  const pdfSettings = usePdfSettings();
 
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -125,7 +127,7 @@ export default function ImpositionPresetsPage() {
         marginBottom: 5,
         marginLeft: 5,
         gutter: 3,
-        bleed: 3,
+        bleed: pdfSettings.bleedSize,
         grainDirection: 'short',
         rotationPolicy: 'auto',
         isDefault: false,

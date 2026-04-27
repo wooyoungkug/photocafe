@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   Package,
   Search,
   FileText,
+  Clock,
   Eye,
   ChevronLeft,
   ChevronRight,
@@ -98,7 +100,12 @@ function getBindingDirectionLabel(direction?: string): string {
 }
 
 export default function OrderListPage() {
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const pathname = usePathname();
+  const isPendingPage = pathname?.endsWith('/orders/pending') ?? false;
+
+  const [statusFilter, setStatusFilter] = useState<string>(
+    isPendingPage ? 'pending_receipt' : 'all',
+  );
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -226,8 +233,8 @@ export default function OrderListPage() {
       {/* 헤더: 제목 + 상태필터 + 검색 */}
       <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
         <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
-          <FileText className="h-5 w-5" />
-          주문목록
+          {isPendingPage ? <Clock className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
+          {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>

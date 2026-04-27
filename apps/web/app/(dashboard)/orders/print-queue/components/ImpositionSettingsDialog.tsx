@@ -26,7 +26,6 @@ import {
   useDownloadImpositionPdf,
   useDownloadImpositionImagePdf,
   useDownloadImpositionBatchZip,
-  useSpecBleed,
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
@@ -120,7 +119,6 @@ interface AutoSettings {
   marginB: number;
   marginL: number;
   gutter: number;
-  bleed: number;
   rotationPolicy: '0' | '90' | 'auto';
   creaseWidth: number;
   tackMargin: number;
@@ -136,7 +134,6 @@ function computeAutoImposition(seed?: Props['seed']): AutoSettings {
   // Indigo 7900 기본 여백 (물림/비물림쪽 8.5/2.5mm)
   const marginT = 8.5, marginR = 2.5, marginB = 8.5, marginL = 2.5;
   const gutter = 3;
-  const bleed = 0;
 
   return {
     bindingTab,
@@ -144,7 +141,7 @@ function computeAutoImposition(seed?: Props['seed']): AutoSettings {
     sheetW: 315,
     sheetH: 467,
     marginT, marginR, marginB, marginL,
-    gutter, bleed,
+    gutter,
     rotationPolicy: 'auto',
     creaseWidth: 0,
     tackMargin: 12,
@@ -243,8 +240,6 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
   const dlPdf = useDownloadImpositionPdf();
   const dlImagePdf = useDownloadImpositionImagePdf();
   const dlBatchZip = useDownloadImpositionBatchZip();
-  // 규격(specifications) 의 bleed 자동 조회 — seed.productSize 가 있을 때만.
-  const specBleedQuery = useSpecBleed(seed?.productSize);
 
   // 자동 임포지션 적용: seed(제본/규격/페이지)로부터 시트·여백·Nup·오시·타카까지 규칙 기반 자동 산출.
   // 다이얼로그 오픈 또는 대상 항목 변경 시에만 실행 → 사용자의 이후 미세조정은 덮어쓰지 않음.
@@ -273,7 +268,6 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
     setMarginB(auto.marginB);
     setMarginL(auto.marginL);
     setGutter(auto.gutter);
-    setBleed(auto.bleed);
     setRotationPolicy(auto.rotationPolicy);
     setCreaseWidth(auto.creaseWidth);
     setTackMargin(auto.tackMargin);
@@ -288,16 +282,15 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, seed?.orderItemId, seed?.productWidth, seed?.productHeight, seed?.productUnit, seed?.pageCount, seed?.bindingType]);
 
-  // 규격(specifications) 의 bleed 가 로드되면 자동 반영.
-  // 다이얼로그 오픈 + spec 매칭 성공 시 1회 적용. 사용자가 이후 수동으로 바꾼 값은 덮어쓰지 않도록
-  // open 변화 시점에 동기화. (autoApplied 가 true 인 동안만 — 즉, 사용자 미세조정 전)
+  // 시스템 설정의 "기본 블리드 크기" 를 bleed 단일 출처로 사용.
+  // 다이얼로그 오픈 + 설정 로드 완료 시 1회 적용. 사용자가 이후 입력으로 덮어쓰면 그 값을 유지.
   useEffect(() => {
-    if (!open) return;
-    const b = specBleedQuery.data?.bleed;
-    if (b !== null && b !== undefined && autoApplied) {
-      setBleed(b);
+    if (!open || !pdfSettings.isLoaded) return;
+    if (autoApplied) {
+      setBleed(pdfSettings.bleedSize);
     }
-  }, [open, specBleedQuery.data?.bleed, autoApplied]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pdfSettings.isLoaded, autoApplied]);
 
   // ==== 요청 payload ====
   const payload: CalculateImpositionRequest = useMemo(() => ({
