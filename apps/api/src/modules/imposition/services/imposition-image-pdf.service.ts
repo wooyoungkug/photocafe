@@ -114,10 +114,24 @@ export class ImpositionImagePdfService {
       result.sheets.length > 0 && result.sheets[0].placements.some((p) => p.isPair);
     const useSpreadInPair = options.spreadImages === true && isPairLayout;
 
-    // 스프레드 이미지(1up): 좌/우 절반을 각각 별도 패스로 렌더링. 총 페이지 = 2 × sheets.length
-    // 일반 이미지 또는 스프레드+페어: 1 패스만 실행
+    // 스프레드 입력 + 단면(1up) 모드 감지 — pair 박스가 시트에 안 들어가서 폴백된 경우.
+    // calc 의 pageCount = album 페이지 수 = 파일수 × 2 (스프레드 입력이므로).
+    // 시트 N → 파일 ceil(N/2) 의 좌/우 반쪽, half 는 bindingDirection 으로 결정.
+    const fileCount = options.images.length;
+    const useSpreadInSingle =
+      options.spreadImages === true &&
+      !useSpreadInPair &&
+      result.nup === 1 &&
+      fileCount > 0 &&
+      result.pageCount === fileCount * 2;
+
+    // 스프레드 이미지(1up, 페어 없음): 좌/우 절반을 각각 별도 패스로 렌더링.
+    // 단면 폴백 모드(useSpreadInSingle): 시트마다 album 페이지 1장 = 1 PDF 페이지 (1 패스).
+    // 일반 이미지 또는 스프레드+페어: 1 패스만 실행.
     const passes: Array<'left' | 'right' | 'none'> =
-      options.spreadImages && !useSpreadInPair ? ['left', 'right'] : ['none'];
+      options.spreadImages && !useSpreadInPair && !useSpreadInSingle
+        ? ['left', 'right']
+        : ['none'];
 
     // 1up + spreadImages + bindingDirection 지정 시 첫/마지막 시트의 빈 절반 식별
     // - RIGHT_START_LEFT_END: 첫 시트 left = blank, 마지막 시트 right = blank
@@ -152,6 +166,10 @@ export class ImpositionImagePdfService {
             if (useSpreadInPair && p.isPair && p.pages.length === 2) {
               const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
               return imageCache.has(fileKey);
+            }
+            // 스프레드+단면: album 페이지 N → 파일 ceil(N/2)
+            if (useSpreadInSingle) {
+              return p.pages.some((pn) => imageCache.has(Math.ceil(pn / 2)));
             }
             return p.pages.some((pn) => imageCache.has(pn));
           });
@@ -197,6 +215,17 @@ export class ImpositionImagePdfService {
                 drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
               }
             }
+          } else if (useSpreadInSingle) {
+            // 스프레드+단면: album 페이지 N → 파일 ceil(N/2), half 결정.
+            // LEFT_START_RIGHT_END: 1=L, 2=R, 3=L, 4=R, ... (홀수 left)
+            // RIGHT_START_LEFT_END: 1=R, 2=L, 3=R, 4=L, ... (홀수 right)
+            const albumPage = p.pages[0];
+            const fileIdx = Math.ceil(albumPage / 2);
+            const isOdd = albumPage % 2 === 1;
+            const half: 'left' | 'right' = isRightStart
+              ? (isOdd ? 'right' : 'left')
+              : (isOdd ? 'left' : 'right');
+            drawImageFit(page, imageCache, fileIdx, xPt, yPt, wPt, hPt, p.rotation, half);
           } else {
             drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation, pass === 'none' ? undefined : pass);
           }
