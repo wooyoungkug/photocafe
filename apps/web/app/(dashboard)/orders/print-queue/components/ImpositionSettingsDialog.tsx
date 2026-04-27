@@ -503,7 +503,11 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
           toast.success('JDF + PDF 생성 완료');
         }
       } else {
-        toast.error(`생성 실패: ${failed[0]?.error}`);
+        // 사일런트 드랍 방지를 위해 에러는 길게(10초), 본문에 actionable 한 안내까지 표시
+        toast.error('JDF + PDF 생성 실패', {
+          description: failed[0]?.error || '알 수 없는 오류',
+          duration: 10000,
+        });
       }
     } else {
       if (failed.length === 0) {
@@ -513,7 +517,12 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
           toast.success(`${succeeded}건 모두 생성 완료 — ZIP 다운로드 시작`);
         }
       } else {
-        toast.warning(`${succeeded}/${total}건 성공, ${failed.length}건 실패: ${failed.map((f) => f.label).join(', ')}`);
+        // 다건 처리: 실패한 항목별로 라벨/사유를 모두 보여줘야 어떤 주문 PDF 를 재생성해야 할지 판단 가능.
+        const detail = failed.map((f) => `• ${f.label}: ${f.error}`).join('\n');
+        toast.error(`${succeeded}/${total}건 성공, ${failed.length}건 실패`, {
+          description: detail,
+          duration: 15000,
+        });
       }
     }
   };
