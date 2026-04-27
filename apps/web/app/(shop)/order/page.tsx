@@ -1152,7 +1152,7 @@ export default function OrderPage() {
                           <p className="font-bold text-red-700 text-[14px]">주문 실패</p>
                           <div className="text-red-600 mt-1 space-y-1">
                             {orderError.split(', ').map((msg, idx) => (
-                              <p key={idx} className="break-words">• {msg}</p>
+                              <p key={idx} className="break-words whitespace-pre-line">• {msg}</p>
                             ))}
                           </div>
                           <p className="text-red-400 mt-2 text-[11px]">상세 내용은 브라우저 콘솔(F12)에서 확인할 수 있습니다.</p>

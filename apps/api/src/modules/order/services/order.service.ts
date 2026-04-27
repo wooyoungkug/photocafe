@@ -656,7 +656,8 @@ export class OrderService {
       }
       if (uploadedCount === 0) {
         throw new BadRequestException(
-          `업로드된 파일이 만료되었거나 존재하지 않습니다. 파일을 다시 업로드해주세요. (폴더: ${item.folderName || '-'})`,
+          `업로드된 파일이 만료되었거나 존재하지 않습니다.\n` +
+          `장바구니에서 "${item.folderName || '해당 항목'}" 항목을 삭제한 뒤, 상품 페이지에서 파일을 다시 업로드해주세요.`,
         );
       }
     }
