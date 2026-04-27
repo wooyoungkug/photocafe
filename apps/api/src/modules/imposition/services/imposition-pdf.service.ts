@@ -127,18 +127,18 @@ export class ImpositionPdfService {
             // 좌/우 각각 개별 임베드 (원판 페이지는 1 페이지 당 1 콘텐츠 가정)
             const leftIdx = (p.pages[0] - 1);
             const rightIdx = (p.pages[1] - 1);
-            const halfW = (wPt - toPt(result.echo.creaseWidth ?? 0)) / 2;
-            drawEmbedded(page, embedded, leftIdx, xPt, yPt, halfW, hPt, p.rotation);
-            drawEmbedded(
-              page,
-              embedded,
-              rightIdx,
-              xPt + halfW + toPt(result.echo.creaseWidth ?? 0),
-              yPt,
-              halfW,
-              hPt,
-              p.rotation,
-            );
+            const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
+            if (p.rotation === 90) {
+              // 회전 90°: 페어 박스가 세로로 배치되므로 상/하로 분할.
+              // CCW 90° 기준 — 원본 좌측(pages[0])이 시각 하단, 우측(pages[1])이 시각 상단.
+              const halfH = (hPt - creaseWPt) / 2;
+              drawEmbedded(page, embedded, leftIdx, xPt, yPt, wPt, halfH, p.rotation);
+              drawEmbedded(page, embedded, rightIdx, xPt, yPt + halfH + creaseWPt, wPt, halfH, p.rotation);
+            } else {
+              const halfW = (wPt - creaseWPt) / 2;
+              drawEmbedded(page, embedded, leftIdx, xPt, yPt, halfW, hPt, p.rotation);
+              drawEmbedded(page, embedded, rightIdx, xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+            }
           } else {
             const idx = (p.pages[0] - 1);
             drawEmbedded(page, embedded, idx, xPt, yPt, wPt, hPt, p.rotation);
@@ -164,10 +164,16 @@ export class ImpositionPdfService {
           drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
         }
 
-        // 압축앨범 crease (상/하 바깥쪽 tick) — Nup>=2 스프레드 페어일 때만
-        // Nup=1 (compressed single) / perfect / tack / flat 은 오시 없음
-        // 이미지 영역을 가로지르지 않도록 재단선처럼 박스 바깥 위/아래 tick 만 그림
-        if (options.drawCreaseMarks !== false && p.isPair && p.creaseXs && p.creaseXs.length > 0) {
+        // 압축앨범 crease (페어 박스 바깥쪽 tick) — Nup>=2 스프레드 페어일 때만
+        // 회전 0°: 가로 페어 → 세로 오시선(creaseXs), 박스 위/아래 tick
+        // 회전 90°: 세로 페어 → 가로 오시선(creaseYs), 박스 좌/우 tick
+        if (options.drawCreaseMarks !== false && p.isPair && p.creaseYs && p.creaseYs.length > 0) {
+          for (const cyMm of p.creaseYs) {
+            // creaseYs 는 top-left 기준 mm → bottom-left 기준 pt 로 변환
+            const cyPt = sheetHpt - toPt(cyMm);
+            drawCreaseTicksHorizontal(page, cyPt, xPt, xPt + wPt);
+          }
+        } else if (options.drawCreaseMarks !== false && p.isPair && p.creaseXs && p.creaseXs.length > 0) {
           for (const cxMm of p.creaseXs) {
             drawCreaseTicks(page, toPt(cxMm), yPt, yPt + hPt);
           }
@@ -278,6 +284,20 @@ export function drawCreaseTicks(page: PDFPage, cx: number, yBot: number, yTop: n
   drawDashedLine(page, cx, yTop + off, cx, yTop + off + len);
   // 하단: 박스 아래로 len 만큼 뻗는 점선
   drawDashedLine(page, cx, yBot - off, cx, yBot - off - len);
+}
+
+/**
+ * 가로 오시선 tick — 회전 90° 페어 박스 좌/우 바깥쪽에 짧은 가로 점선 tick.
+ *
+ * @param cy   오시 y-좌표 (pt, bottom-left 원점)
+ * @param xLeft  페어박스 좌측 x-좌표 (pt)
+ * @param xRight 페어박스 우측 x-좌표 (pt)
+ */
+export function drawCreaseTicksHorizontal(page: PDFPage, cy: number, xLeft: number, xRight: number) {
+  const len = 5 * MM_TO_PT;
+  const off = 2 * MM_TO_PT;
+  drawDashedLine(page, xLeft - off, cy, xLeft - off - len, cy);
+  drawDashedLine(page, xRight + off, cy, xRight + off + len, cy);
 }
 
 export function drawDashedLine(page: PDFPage, x1: number, y1: number, x2: number, y2: number) {

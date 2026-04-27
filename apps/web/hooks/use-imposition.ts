@@ -14,6 +14,8 @@ export interface ImpositionPlacement {
   rotation: 0 | 90;
   tackEdge?: 'left' | 'right' | 'top' | 'bottom';
   creaseX?: number;
+  creaseY?: number;
+  isPair?: boolean;
 }
 
 export interface ImpositionSheet {

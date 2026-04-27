@@ -465,8 +465,8 @@ function renderPlacement(p: any, i: number, result: ImpositionResult) {
       </text>
 
       {/* 압축앨범 crease — rotation에 따라 방향 결정
-          rotation=0: 수직(가로 중앙) / rotation=90: 수평(세로 중앙) */}
-      {p.creaseX !== undefined && (
+          rotation=0: 수직(가로 중앙, creaseX) / rotation=90: 수평(세로 중앙, creaseY) */}
+      {(p.creaseX !== undefined || p.creaseY !== undefined) && (
         isRotated ? (
           <line
             x1={p.x}

@@ -214,13 +214,16 @@ describe('ImpositionCalcService', () => {
       });
       expect(r.nup).toBeGreaterThanOrEqual(2); // A6 페어는 꽤 커서 4까지 안될 수도
       // 첫 시트의 모든 placement 는 페어이고 각자 중앙 오시 1개
+      // 회전 0°이면 creaseXs, 90°이면 creaseYs 에 들어간다
       r.sheets[0].placements.forEach((pl) => {
         expect(pl.isPair).toBe(true);
         expect(pl.pages).toHaveLength(2);
-        expect(pl.creaseXs).toHaveLength(1);
+        const creases = pl.creaseXs ?? pl.creaseYs;
+        expect(creases).toHaveLength(1);
       });
       // 시트 전체 오시 수 = placements 수
-      expect(r.sheets[0].creaseLines).toHaveLength(r.sheets[0].placements.length);
+      const sheetCreases = r.sheets[0].creaseLines ?? r.sheets[0].creaseLinesY;
+      expect(sheetCreases).toHaveLength(r.sheets[0].placements.length);
     });
   });
 

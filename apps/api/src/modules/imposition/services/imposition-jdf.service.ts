@@ -153,7 +153,13 @@ export class ImpositionJdfService {
       options.bindingType === 'compressed' &&
       result.sheets.some(
         (sh) => (sh.creaseLines && sh.creaseLines.length > 0) ||
-                sh.placements.some((p) => p.isPair && p.creaseXs && p.creaseXs.length > 0),
+                (sh.creaseLinesY && sh.creaseLinesY.length > 0) ||
+                sh.placements.some((p) =>
+                  p.isPair && (
+                    (p.creaseXs && p.creaseXs.length > 0) ||
+                    (p.creaseYs && p.creaseYs.length > 0)
+                  ),
+                ),
       );
     if (hasAnyCrease) {
       rp.ele('FoldingParams', {

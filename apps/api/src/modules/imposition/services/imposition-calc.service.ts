@@ -56,10 +56,14 @@ export interface Placement {
   rotation: 0 | 90;
   /** 타카 edge 정보(타카 모드만) */
   tackEdge?: 'left' | 'right' | 'top' | 'bottom';
-  /** 압축앨범 crease x-좌표 (mm, 시트기준) — Nup>=2에서는 creaseXs 사용 권장 */
+  /** 압축앨범 crease x-좌표 (mm, 시트기준) — 회전 0° 페어. Nup>=2에서는 creaseXs 사용 권장 */
   creaseX?: number;
   /** 압축앨범 Nup>=2 일 때 모든 오시 라인 x-좌표 (mm, 시트기준) */
   creaseXs?: number[];
+  /** 압축앨범 crease y-좌표 (mm, 시트기준) — 회전 90° 페어 (가로 오시선) */
+  creaseY?: number;
+  /** 회전 90° 페어 Nup>=2 일 때 모든 오시 라인 y-좌표 */
+  creaseYs?: number[];
   /** 이 단위박스가 페어(스프레드) 인지 여부. compressed Nup>=2 → true */
   isPair?: boolean;
   /** 테이핑 필요 플래그 (compressed Nup=1 한정) */
@@ -71,8 +75,10 @@ export interface SheetLayout {
   placements: Placement[];
   /** 타카 모드 시트에 적용된 edge */
   tackEdge?: 'left' | 'right' | 'top' | 'bottom';
-  /** 시트 전체 오시 라인 x-좌표 (compressed Nup>=2) — 모든 페어 중앙 */
+  /** 시트 전체 오시 라인 x-좌표 (compressed Nup>=2, 회전 0°) — 모든 페어 중앙 */
   creaseLines?: number[];
+  /** 시트 전체 오시 라인 y-좌표 (compressed Nup>=2, 회전 90°) */
+  creaseLinesY?: number[];
 }
 
 export interface ImpositionResult {
@@ -396,11 +402,19 @@ export class ImpositionCalcService {
           };
 
           if (isPairingMode) {
-            // 스프레드 페어: crease X 는 단위박스 가로 중앙 (회전 0 기준)
-            // 회전 90° 시에도 단위박스 내부의 "페어 중앙" 이므로 x + selUnitW/2 가 올바름
-            const creaseX = x + selUnitW / 2;
-            placement.creaseX = creaseX;
-            placement.creaseXs = [creaseX];
+            // 스프레드 페어 오시선:
+            // - 회전 0°: 페어 박스 가로 중앙 (세로 오시선) → creaseX
+            // - 회전 90°: 페어 박스 세로 중앙 (가로 오시선) → creaseY
+            //   (회전된 슬롯에서 페이지가 위/아래로 분할되므로 오시는 가로 방향)
+            if (best.rotation === 90) {
+              const creaseY = y + selUnitH / 2;
+              placement.creaseY = creaseY;
+              placement.creaseYs = [creaseY];
+            } else {
+              const creaseX = x + selUnitW / 2;
+              placement.creaseX = creaseX;
+              placement.creaseXs = [creaseX];
+            }
             placement.isPair = true;
           }
           if (compressedSingleMode) {
@@ -413,9 +427,14 @@ export class ImpositionCalcService {
         }
       }
 
-      const sheetCreaseLines = isPairingMode
+      const sheetCreaseLines = isPairingMode && best.rotation !== 90
         ? placements
             .map((pl) => pl.creaseX)
+            .filter((v): v is number => v !== undefined)
+        : undefined;
+      const sheetCreaseLinesY = isPairingMode && best.rotation === 90
+        ? placements
+            .map((pl) => pl.creaseY)
             .filter((v): v is number => v !== undefined)
         : undefined;
 
@@ -424,6 +443,7 @@ export class ImpositionCalcService {
         placements,
         tackEdge: bindingType === 'tack' ? sheetTackEdge : undefined,
         creaseLines: sheetCreaseLines,
+        creaseLinesY: sheetCreaseLinesY,
       });
     }
 

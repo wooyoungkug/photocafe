@@ -18,6 +18,7 @@ import { ImpositionResult, MM_TO_PT } from './imposition-calc.service';
 import {
   drawCropMarks,
   drawCreaseTicks,
+  drawCreaseTicksHorizontal,
   drawTackMarginOverlay,
   drawBleedBox,
   drawRegistrationMarks,
@@ -182,11 +183,19 @@ export class ImpositionImagePdfService {
               const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
               drawImageFit(page, imageCache, fileKey, xPt, yPt, wPt, hPt, p.rotation);
             } else {
-              // 압축앨범 비스프레드 페어: 좌/우 절반 각각 배치 (파일 2장)
+              // 압축앨범 비스프레드 페어: 페이지 2장을 페어박스에 분할 배치 (파일 2장)
+              // - 회전 0°: 좌/우 분할 (가로 펼침)
+              // - 회전 90°: 상/하 분할 (세로 펼침). CCW 90° 기준 원본 좌측(pages[0])이 시각 하단.
               const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
-              const halfW = (wPt - creaseWPt) / 2;
-              drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
-              drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+              if (p.rotation === 90) {
+                const halfH = (hPt - creaseWPt) / 2;
+                drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, halfH, p.rotation);
+                drawImageFit(page, imageCache, p.pages[1], xPt, yPt + halfH + creaseWPt, wPt, halfH, p.rotation);
+              } else {
+                const halfW = (wPt - creaseWPt) / 2;
+                drawImageFit(page, imageCache, p.pages[0], xPt, yPt, halfW, hPt, p.rotation);
+                drawImageFit(page, imageCache, p.pages[1], xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
+              }
             }
           } else {
             drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation, pass === 'none' ? undefined : pass);
@@ -202,10 +211,16 @@ export class ImpositionImagePdfService {
             drawBleedBox(page, xPt, yPt, wPt, hPt, bleedPt);
           }
 
-          // 압축앨범 오시선 (crease) — 이미지 영역을 가로지르지 않도록
-          // 페어박스 상/하 바깥쪽에 짧은 tick 만 표시 (재단선 스타일)
+          // 압축앨범 오시선 (crease) — 이미지 영역을 가로지르지 않도록 페어박스 바깥쪽 tick.
+          // 회전 0°: 세로 오시선(creaseXs) → 박스 상/하 tick
+          // 회전 90°: 가로 오시선(creaseYs) → 박스 좌/우 tick
           if (options.drawCreaseMarks !== false) {
-            if (p.isPair && p.creaseXs && p.creaseXs.length > 0) {
+            if (p.isPair && p.creaseYs && p.creaseYs.length > 0) {
+              for (const cyMm of p.creaseYs) {
+                const cyPt = sheetHpt - toPt(cyMm);
+                drawCreaseTicksHorizontal(page, cyPt, xPt, xPt + wPt);
+              }
+            } else if (p.isPair && p.creaseXs && p.creaseXs.length > 0) {
               for (const cxMm of p.creaseXs) {
                 drawCreaseTicks(page, toPt(cxMm), yPt, yPt + hPt);
               }
