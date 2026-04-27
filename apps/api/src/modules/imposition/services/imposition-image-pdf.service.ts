@@ -156,9 +156,15 @@ export class ImpositionImagePdfService {
     // useSpreadInSingle 매핑 shift 값.
     // RIGHT_START 면 첫 파일의 좌측이 splitSpreads 에서 dropped → album 1 이 file 1 의 R 이 됨.
     // 이 경우 album 페이지 N 을 (N+1) 로 shift 시키면 표준 LEFT_START 매핑(L,R,L,R...) 과 정합.
-    // 또한 'RIGHT_START' 부분 문자열 검사로 'RIGHT_START_LEFT_END' 외 변형도 안전하게 잡는다.
+    //
+    // bindingDirection 은 두 가지 형태로 저장될 수 있다:
+    //   1) 긴 enum: 'RIGHT_START_LEFT_END', 'RIGHT_START_RIGHT_END'
+    //   2) 짧은 코드: 'rtl-lend', 'rtl-rend' (rtl = right-to-left = 우시작)
+    // 두 형식 모두 'rtl' 또는 'right_start' 패턴으로 통합 검사.
     const bdUpper = String(options.bindingDirection || '').toUpperCase();
-    const dropFirstLeftShift = bdUpper.includes('RIGHT_START') ? 1 : 0;
+    const isRightStartBinding =
+      bdUpper.includes('RIGHT_START') || bdUpper.startsWith('RTL');
+    const dropFirstLeftShift = isRightStartBinding ? 1 : 0;
 
     for (const pass of passes) {
       for (let sheetIdx = 0; sheetIdx < result.sheets.length; sheetIdx++) {
