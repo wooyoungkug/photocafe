@@ -428,11 +428,35 @@ export function AlbumSplitTool() {
         } else {
           toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
         }
+      } else if ('showDirectoryPicker' in window) {
+        // 폴더 미선택: 원본 파일 위치에서 폴더 선택창 열기 (한 번만 확인)
+        try {
+          const options: any = { mode: 'readwrite' };
+          if (sourceFileHandleRef.current) {
+            options.startIn = sourceFileHandleRef.current; // 원본 파일 위치에서 시작
+          }
+          const dirHandle = await (window as any).showDirectoryPicker(options);
+          setDirectoryHandle(dirHandle);
+          const ok1 = await saveToFolder(dirHandle, leftResult.blob, '첫장.jpg');
+          const ok2 = await saveToFolder(dirHandle, rightResult.blob, '막장.jpg');
+          if (ok1 && ok2) {
+            toast.success(`"${dirHandle.name}" 폴더에 첫장, 막장 저장 완료!`);
+            setTimeout(() => resetTool(true), 1500);
+          } else {
+            toast.error('저장 실패 - 다시 시도해주세요.');
+          }
+        } catch {
+          // 사용자가 폴더 선택 취소 → 다운로드 폴백
+          fallbackDownload(leftResult.blob, '첫장.jpg');
+          fallbackDownload(rightResult.blob, '막장.jpg');
+          toast.info('폴더 선택 취소 — 다운로드 폴더에 저장되었습니다.');
+          setTimeout(() => resetTool(false), 1500);
+        }
       } else {
-        // 폴더 미선택 시 자동 다운로드
+        // File System API 미지원 브라우저 → 다운로드 폴백
         fallbackDownload(leftResult.blob, '첫장.jpg');
         fallbackDownload(rightResult.blob, '막장.jpg');
-        toast.success('첫장, 막장 자동 다운로드 완료! 다운로드 폴더를 확인하세요.');
+        toast.success('첫장, 막장 다운로드 완료!');
         setTimeout(() => resetTool(false), 1500);
       }
     } catch (err) {
