@@ -82,7 +82,7 @@
 
 ### 2-2. 보안 헤더 검증
 - [x] `next.config.ts` 에 보안 헤더 추가 완료 (커밋 0bee9293)
-- [ ] 다음 배포 후 `curl -I https://photocafe.co.kr/` 로 헤더 적용 확인:
+- [x] `curl -I https://photocafe.co.kr/` 로 헤더 적용 확인:
   - `X-Frame-Options: SAMEORIGIN`
   - `X-Content-Type-Options: nosniff`
   - `Referrer-Policy: strict-origin-when-cross-origin`
@@ -117,6 +117,18 @@
 ### 3-4. 백업
 - [x] DB 백업 GPG 암호화 활성 (GitHub Actions, daily 03:30 KST)
 - [ ] 복원 워크플로우 동작 테스트 (1회) — db-migrate.yml 으로 staging 환경에 시험 복원
+
+---
+
+## 3.5 운영 런타임 보안 검증 (2026-04-27)
+
+- [x] `api.photocafe.co.kr` CORS preflight 정상 (`Access-Control-Allow-Origin: https://photocafe.co.kr`, `Allow-Credentials: true`)
+- [x] 쿠키 기반 세션 로그인 정상 (회원/관리자 로그인 시 `access_token`, `refresh_token` 발급)
+- [x] 쿠키 속성 확인 (`HttpOnly`, `Secure`, `SameSite=Lax`)
+- [x] 쿠키 기반 `POST /api/v1/auth/refresh` 정상 동작 확인 (body `{}` + cookie)
+- [x] `POST /api/v1/auth/logout` 시 인증 쿠키 만료 처리 확인
+- [x] 로그아웃 후 `GET /api/v1/auth/me` 가 `401` 반환 확인
+- [x] 관리자 대리로그인(`POST /api/v1/auth/impersonate/:clientId`) 정상 동작 확인
 
 ---
 
@@ -162,3 +174,4 @@
 
 ## 변경 이력
 - 2026-04-26: 최초 작성. 외부 스캔 결과 기반 작성.
+- 2026-04-27: 운영 런타임 검증 결과 반영 (쿠키 세션/refresh/logout/대리로그인, Vercel 보안 헤더 확인).
