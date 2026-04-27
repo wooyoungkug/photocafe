@@ -372,14 +372,8 @@ export default function OrderListPage() {
                     ))}
 
                     {/* 액션 버튼 */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Link href={`/mypage/orders/${order.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full text-xs h-8">
-                          <Eye className="h-3 w-3 mr-1" />
-                          상세보기
-                        </Button>
-                      </Link>
-                      {order.status === 'ready_for_shipping' && (
+                    {order.status === 'ready_for_shipping' && (
+                      <div className="flex items-center gap-2 pt-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -392,8 +386,8 @@ export default function OrderListPage() {
                           <Truck className="h-3 w-3 mr-1" />
                           {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
                         </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -632,28 +626,20 @@ export default function OrderListPage() {
                             className="text-center align-middle"
                             rowSpan={items.length}
                           >
-                            <div className="flex flex-col gap-1">
-                              <Link href={`/mypage/orders/${order.id}`}>
-                                <Button variant="outline" size="sm" className="w-full text-xs h-7">
-                                  <Eye className="h-3 w-3 mr-1" />
-                                  상세보기
-                                </Button>
-                              </Link>
-                              {order.status === 'ready_for_shipping' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="w-full text-xs h-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  onClick={() => {
-                                    setShippingOrder(order);
-                                    setIsShippingDialogOpen(true);
-                                  }}
-                                >
-                                  <Truck className="h-3 w-3 mr-1" />
-                                  {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
-                                </Button>
-                              )}
-                            </div>
+                            {order.status === 'ready_for_shipping' && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-xs h-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => {
+                                  setShippingOrder(order);
+                                  setIsShippingDialogOpen(true);
+                                }}
+                              >
+                                <Truck className="h-3 w-3 mr-1" />
+                                {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
+                              </Button>
+                            )}
                           </TableCell>
                         )}
                       </TableRow>

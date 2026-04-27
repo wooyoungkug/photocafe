@@ -697,7 +697,7 @@ export class PrintPdfService implements OnModuleInit {
         colorMode: colorMode,
         binding: item.bindingType || '-',
         nup: specData.nup || '1up',
-        side: String(item.pageLayout || '').toLowerCase() === 'spread' ? '양면' : '단면',
+        side: String(item.printSide || '').toLowerCase() === 'double' ? '양면' : '단면',
         imageArea: `${Math.round(imgAreaWMm)}×${Math.round(imgAreaHMm)}`,
         salesRep: (item.order.client as any)?.assignedStaff?.[0]?.staff?.name || '',
       };
@@ -791,8 +791,8 @@ export class PrintPdfService implements OnModuleInit {
       const nupCountEarly = resolvedNupOverride
         ? (parseInt(resolvedNupOverride.replace(/\D/g, ''), 10) || 1)
         : (specData.nUpX || 1) * (specData.nUpY || 1);
-      const isSpreadEarly = String(item?.pageLayout || '').toLowerCase() === 'spread';
-      const sideEarly = isSpreadEarly ? '양면' : '단면';
+      const isDoubleSidedEarly = String(item?.printSide || '').toLowerCase() === 'double';
+      const sideEarly = isDoubleSidedEarly ? '양면' : '단면';
       const fileNameEarly = this.buildDownloadFileName(item, {
         colorMode,
         nup: `${nupCountEarly}up`,
@@ -1213,8 +1213,8 @@ export class PrintPdfService implements OnModuleInit {
     const orderNumber = item?.order?.orderNumber || 'order';
     const studio = item?.order?.client?.clientName || '';
     const colorMode = (context.colorMode || '').trim();
-    const isSpread = String(item?.pageLayout || '').toLowerCase() === 'spread';
-    const sideText = isSpread ? '양면' : '단면';
+    const isDoubleSided = String(item?.printSide || '').toLowerCase() === 'double';
+    const sideText = isDoubleSided ? '양면' : '단면';
     const binding = item?.bindingType || '';
     const nup = context.nup || '1up';
 
