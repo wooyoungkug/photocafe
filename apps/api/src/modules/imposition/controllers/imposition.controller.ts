@@ -351,14 +351,19 @@ export class ImpositionController {
         }
         // 2) 주문 페이지 수 ↔ 등록 파일 개수 정합성
         //    펼침면(spread): 파일 1개 = album 2페이지 (스프레드)
-        //      - 단, bindingDirection 에 RIGHT_START 가 있으면 첫 파일의 좌측 절반은 인쇄 제외 (표지)
-        //      - LEFT_END 가 있으면 마지막 파일의 우측 절반 제외 (책등)
+        //      - 단, RIGHT_START(또는 rtl-*)면 첫 파일의 좌측 절반 제외 (표지 빈장)
+        //      - LEFT_END(또는 *-lend)면 마지막 파일의 우측 절반 제외 (책등 빈장)
         //      → 실제 album 페이지 수 = files × 2 − drops
         //      → 따라서 예상 파일 수 = ceil((pages + drops) / 2)
         //    낱장(single):   파일 1개 = album 1페이지 → 예상 파일 = pages
+        //
+        // bindingDirection 은 긴 enum('RIGHT_START_LEFT_END')과 짧은 코드('rtl-lend')
+        // 두 형태가 공존 — 양쪽 모두 잡도록 패턴 매칭.
         const bd = String(item.bindingDirection || '').toUpperCase();
-        const dropFirstLeft = isSpread && bd.includes('RIGHT_START') ? 1 : 0;
-        const dropLastRight = isSpread && bd.includes('LEFT_END') ? 1 : 0;
+        const hasRightStart = bd.includes('RIGHT_START') || bd.startsWith('RTL');
+        const hasLeftEnd = bd.includes('LEFT_END') || bd.endsWith('LEND');
+        const dropFirstLeft = isSpread && hasRightStart ? 1 : 0;
+        const dropLastRight = isSpread && hasLeftEnd ? 1 : 0;
         const drops = dropFirstLeft + dropLastRight;
         const expectedFileCount = isSpread
           ? Math.ceil((item.pages + drops) / 2)
