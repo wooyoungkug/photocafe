@@ -153,6 +153,12 @@ export class ImpositionImagePdfService {
     const isRightStart = options.bindingDirection === 'RIGHT_START_LEFT_END';
     const blankFirstHalf: 'left' | 'right' | null = isRightStart ? 'left' : 'right';
     const blankLastHalf: 'left' | 'right' | null = isRightStart ? 'right' : 'left';
+    // useSpreadInSingle 매핑 shift 값.
+    // RIGHT_START 면 첫 파일의 좌측이 splitSpreads 에서 dropped → album 1 이 file 1 의 R 이 됨.
+    // 이 경우 album 페이지 N 을 (N+1) 로 shift 시키면 표준 LEFT_START 매핑(L,R,L,R...) 과 정합.
+    // 또한 'RIGHT_START' 부분 문자열 검사로 'RIGHT_START_LEFT_END' 외 변형도 안전하게 잡는다.
+    const bdUpper = String(options.bindingDirection || '').toUpperCase();
+    const dropFirstLeftShift = bdUpper.includes('RIGHT_START') ? 1 : 0;
 
     for (const pass of passes) {
       for (let sheetIdx = 0; sheetIdx < result.sheets.length; sheetIdx++) {
@@ -167,9 +173,10 @@ export class ImpositionImagePdfService {
               const fileKey = Math.floor((p.pages[0] - 1) / 2) + 1;
               return imageCache.has(fileKey);
             }
-            // 스프레드+단면: album 페이지 N → 파일 ceil(N/2)
+            // 스프레드+단면: album 페이지 N → 파일 ceil((N+shift)/2)
+            // (shift 는 RIGHT_START 의 첫 파일 L drop 보정 — 위 dropFirstLeftShift 와 동일 공식)
             if (useSpreadInSingle) {
-              return p.pages.some((pn) => imageCache.has(Math.ceil(pn / 2)));
+              return p.pages.some((pn) => imageCache.has(Math.ceil((pn + dropFirstLeftShift) / 2)));
             }
             return p.pages.some((pn) => imageCache.has(pn));
           });
@@ -216,15 +223,24 @@ export class ImpositionImagePdfService {
               }
             }
           } else if (useSpreadInSingle) {
-            // 스프레드+단면: album 페이지 N → 파일 ceil(N/2), half 결정.
-            // LEFT_START_RIGHT_END: 1=L, 2=R, 3=L, 4=R, ... (홀수 left)
-            // RIGHT_START_LEFT_END: 1=R, 2=L, 3=R, 4=L, ... (홀수 right)
+            // 스프레드+단면: album 페이지 N → 파일/half 매핑.
+            // print-pdf 의 splitSpreads 와 정합되도록 bindingDirection 의 drop 규칙을 반영한다.
+            //
+            // LEFT_START_RIGHT_END (drops=0): 첫 파일부터 L,R,L,R,...
+            //   album 1 → file 1 L, album 2 → file 1 R, album 3 → file 2 L, ...
+            //
+            // RIGHT_START_LEFT_END (drops=2): 첫 파일 좌측 drop, 마지막 파일 우측 drop.
+            //   → 첫 파일은 R 만 사용, 한 칸 shift 됨.
+            //   album 1 → file 1 R, album 2 → file 2 L, album 3 → file 2 R, ...
+            //   album 마지막(짝수) → 마지막 파일 L
+            //
+            // 통일 공식: adjusted = album + dropFirstLeft (한 칸 shift).
+            //   fileIdx = ceil(adjusted / 2)
+            //   half = adjusted 가 홀수면 L, 짝수면 R
             const albumPage = p.pages[0];
-            const fileIdx = Math.ceil(albumPage / 2);
-            const isOdd = albumPage % 2 === 1;
-            const half: 'left' | 'right' = isRightStart
-              ? (isOdd ? 'right' : 'left')
-              : (isOdd ? 'left' : 'right');
+            const adjusted = albumPage + dropFirstLeftShift;
+            const fileIdx = Math.ceil(adjusted / 2);
+            const half: 'left' | 'right' = adjusted % 2 === 1 ? 'left' : 'right';
             drawImageFit(page, imageCache, fileIdx, xPt, yPt, wPt, hPt, p.rotation, half);
           } else {
             drawImageFit(page, imageCache, p.pages[0], xPt, yPt, wPt, hPt, p.rotation, pass === 'none' ? undefined : pass);

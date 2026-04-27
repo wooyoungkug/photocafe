@@ -350,15 +350,24 @@ export class ImpositionController {
           );
         }
         // 2) 주문 페이지 수 ↔ 등록 파일 개수 정합성
-        //    펼침면(spread): 파일 1개 = album 2페이지 → 예상 파일 = ceil(pages/2)
+        //    펼침면(spread): 파일 1개 = album 2페이지 (스프레드)
+        //      - 단, bindingDirection 에 RIGHT_START 가 있으면 첫 파일의 좌측 절반은 인쇄 제외 (표지)
+        //      - LEFT_END 가 있으면 마지막 파일의 우측 절반 제외 (책등)
+        //      → 실제 album 페이지 수 = files × 2 − drops
+        //      → 따라서 예상 파일 수 = ceil((pages + drops) / 2)
         //    낱장(single):   파일 1개 = album 1페이지 → 예상 파일 = pages
+        const bd = String(item.bindingDirection || '').toUpperCase();
+        const dropFirstLeft = isSpread && bd.includes('RIGHT_START') ? 1 : 0;
+        const dropLastRight = isSpread && bd.includes('LEFT_END') ? 1 : 0;
+        const drops = dropFirstLeft + dropLastRight;
         const expectedFileCount = isSpread
-          ? Math.ceil(item.pages / 2)
+          ? Math.ceil((item.pages + drops) / 2)
           : item.pages;
         if (allFiles.length !== expectedFileCount) {
           throw new BadRequestException(
-            `[주문 ${item.order.orderNumber}] 주문페이지 ${item.pages}P (${isSpread ? '펼침면' : '낱장'}) ` +
-              `기준 예상 파일 ${expectedFileCount}개와 실제 등록 파일 ${allFiles.length}개가 일치하지 않습니다. ` +
+            `[주문 ${item.order.orderNumber}] 주문페이지 ${item.pages}P (${isSpread ? '펼침면' : '낱장'}, ` +
+              `제본방향 ${item.bindingDirection || '미지정'}) 기준 예상 파일 ${expectedFileCount}개와 ` +
+              `실제 등록 파일 ${allFiles.length}개가 일치하지 않습니다. ` +
               `주문 상세에서 PDF를 다시 생성한 뒤 변환을 재시도해주세요.`,
           );
         }
@@ -599,7 +608,7 @@ export class ImpositionController {
 
   /**
    * 자동저장 폴더 결정 (print-pdf 와 동일 규칙):
-   *   인디고: {base}/{YYMMDD}/인디고/{도수}/{양면|단면}/
+   *   인디고: {base}/{YYMMDD}/인디고/인디고{도수}{양면|단면}/   (예: 인디고6도단면)
    *   잉크젯: {base}/{YYMMDD}/잉크젯/
    */
   private resolveImpositionAutoSaveDir(
@@ -611,13 +620,13 @@ export class ImpositionController {
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
     const datePart = `${yy}${mm}${dd}`;
-    const sanitize = (s: string) => (s || '').replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || '_';
     const isInkjet = String(ctx.printMethod || '').toLowerCase().includes('inkjet');
     if (isInkjet) {
       return path.join(base, datePart, '잉크젯');
     }
-    const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitize(ctx.colorMode) : '4도';
-    return path.join(base, datePart, '인디고', colorSeg, ctx.sideText || '단면');
+    const dosu = (ctx.colorMode || '').match(/(\d+도)/)?.[1] || '4도';
+    const sideSeg = ctx.sideText || '단면';
+    return path.join(base, datePart, '인디고', `인디고${dosu}${sideSeg}`);
   }
 
   /**

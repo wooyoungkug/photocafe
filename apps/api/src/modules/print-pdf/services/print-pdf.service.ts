@@ -1250,19 +1250,19 @@ export class PrintPdfService implements OnModuleInit {
     const safeFileName = sanitizeSeg(ctx.fileName) || 'output.pdf';
 
     if (customPath) {
-      // 폴더 구조: {날짜}/{인디고|잉크젯}/{4도|6도}/{양면|단면}
+      // 폴더 구조:
+      //   인디고: {날짜}/인디고/인디고{도수}{양면|단면}/   (예: 260427/인디고/인디고6도단면)
+      //   잉크젯: {날짜}/잉크젯/
       const isInkjet = (ctx.printMethod || '').toLowerCase().includes('inkjet');
       const methodSeg = isInkjet ? '잉크젯' : '인디고';
       const sideSeg = ctx.side || '단면';
 
       let outputDir: string;
       if (isInkjet) {
-        // 잉크젯: 날짜/잉크젯 (양면/단면 구분 없음)
         outputDir = path.join(customPath, datePart, methodSeg);
       } else {
-        // 인디고: 4도/6도 하위에 양면/단면
-        const colorSeg = ctx.colorMode && ctx.colorMode !== '-' ? sanitizeSeg(ctx.colorMode) : '4도';
-        outputDir = path.join(customPath, datePart, methodSeg, colorSeg, sideSeg);
+        const dosu = (ctx.colorMode || '').match(/(\d+도)/)?.[1] || '4도';
+        outputDir = path.join(customPath, datePart, methodSeg, `인디고${dosu}${sideSeg}`);
       }
       if (!fs.existsSync(outputDir)) {
         fs.mkdirSync(outputDir, { recursive: true });
