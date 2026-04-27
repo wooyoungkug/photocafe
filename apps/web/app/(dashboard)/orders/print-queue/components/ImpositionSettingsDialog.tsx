@@ -26,6 +26,7 @@ import {
   useDownloadImpositionPdf,
   useDownloadImpositionImagePdf,
   useDownloadImpositionBatchZip,
+  useSpecBleed,
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
@@ -42,6 +43,8 @@ type ImpositionSeed = {
   bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
   /** 표시용 라벨 (배치 진행 상태에 사용) */
   label?: string;
+  /** 원본 size 문자열 (예: "8×11인치") — bleed 자동 lookup 용 */
+  productSize?: string;
 };
 
 interface Props {
@@ -240,6 +243,8 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
   const dlPdf = useDownloadImpositionPdf();
   const dlImagePdf = useDownloadImpositionImagePdf();
   const dlBatchZip = useDownloadImpositionBatchZip();
+  // 규격(specifications) 의 bleed 자동 조회 — seed.productSize 가 있을 때만.
+  const specBleedQuery = useSpecBleed(seed?.productSize);
 
   // 자동 임포지션 적용: seed(제본/규격/페이지)로부터 시트·여백·Nup·오시·타카까지 규칙 기반 자동 산출.
   // 다이얼로그 오픈 또는 대상 항목 변경 시에만 실행 → 사용자의 이후 미세조정은 덮어쓰지 않음.
@@ -282,6 +287,17 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
     applyAuto();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, seed?.orderItemId, seed?.productWidth, seed?.productHeight, seed?.productUnit, seed?.pageCount, seed?.bindingType]);
+
+  // 규격(specifications) 의 bleed 가 로드되면 자동 반영.
+  // 다이얼로그 오픈 + spec 매칭 성공 시 1회 적용. 사용자가 이후 수동으로 바꾼 값은 덮어쓰지 않도록
+  // open 변화 시점에 동기화. (autoApplied 가 true 인 동안만 — 즉, 사용자 미세조정 전)
+  useEffect(() => {
+    if (!open) return;
+    const b = specBleedQuery.data?.bleed;
+    if (b !== null && b !== undefined && autoApplied) {
+      setBleed(b);
+    }
+  }, [open, specBleedQuery.data?.bleed, autoApplied]);
 
   // ==== 요청 payload ====
   const payload: CalculateImpositionRequest = useMemo(() => ({

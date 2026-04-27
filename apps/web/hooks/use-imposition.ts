@@ -240,6 +240,19 @@ export function useDownloadImpositionBatchZip() {
   });
 }
 
+/**
+ * 규격명(예: "8x11") 으로 bleed(mm) 조회.
+ * 임포지션 다이얼로그 자동 적용 시 사용.
+ */
+export function useSpecBleed(size: string | undefined) {
+  return useQuery<{ bleed: number | null }>({
+    queryKey: ['imposition-spec-bleed', size],
+    queryFn: () => api.get(`/imposition/spec-bleed?size=${encodeURIComponent(size!)}`),
+    enabled: !!size,
+    staleTime: 60_000,
+  });
+}
+
 // ==================== Rules (v1.1) ====================
 
 export interface ImpositionRule {

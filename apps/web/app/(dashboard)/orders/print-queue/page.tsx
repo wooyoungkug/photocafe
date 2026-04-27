@@ -47,6 +47,7 @@ export default function PrintQueuePage() {
     pageCount?: number;
     bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
     label?: string;
+    productSize?: string;
   };
   const [impositionSeed, setImpositionSeed] = useState<ImpositionSeed | null>(null);
   const [impositionAdditionalSeeds, setImpositionAdditionalSeeds] = useState<ImpositionSeed[]>([]);
@@ -83,6 +84,7 @@ export default function PrintQueuePage() {
       pageCount: item.pages,
       bindingType,
       label: item.orderNumber,
+      productSize: item.size,
     };
   };
 
