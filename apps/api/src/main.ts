@@ -61,9 +61,9 @@ async function bootstrap() {
       }
     }
   } catch {}
-  app.useStaticAssets(uploadPath, { prefix: '/uploads/' });
-  app.useStaticAssets(uploadPath, { prefix: '/upload/' });
-  logger.log(`Static file serving: ${uploadPath}`);
+  // 업로드 파일은 컨트롤러(/api/v1/upload/serve/*) 를 통해서만 제공
+  // Express 정적 서빙은 JWT 인증을 우회하므로 비활성화
+  logger.log(`Upload base path: ${uploadPath}`);
 
   // Global prefix
   app.setGlobalPrefix('api/v1');

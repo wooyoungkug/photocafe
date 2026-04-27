@@ -463,6 +463,9 @@ export class AuthService {
     if (!adminStaff || !adminStaff.isActive) {
       throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
     }
+    if (!adminStaff.isSuperAdmin) {
+      throw new ForbiddenException('최고관리자만 대리 로그인할 수 있습니다');
+    }
 
     const targetStaff = await this.prisma.staff.findUnique({
       where: { id: targetStaffId },

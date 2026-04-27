@@ -282,6 +282,7 @@ export const api = {
     const token = getAccessToken();
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'GET',
+      credentials: 'include',
       headers: {
         ...(token && { Authorization: `Bearer ${token}` }),
       },
