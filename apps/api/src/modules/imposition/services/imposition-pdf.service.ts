@@ -101,6 +101,17 @@ export class ImpositionPdfService {
     const printAreaW = sheetWpt - toPt(m.left + m.right);
     const printAreaH = sheetHpt - toPt(m.top + m.bottom);
 
+    // source PDF가 이미 2up(스프레드 합본) 인지 감지.
+    // 페어 모드(compressed)에서 source 페이지 수 == ceil(album pageCount / 2) 면
+    // 각 source 페이지가 1 album 스프레드(=2 album 페이지)를 포함한 것으로 간주.
+    // 이 경우 페어 박스에 source 1페이지를 통째로 배치 (분할 X) — JDF 프리뷰와 일치.
+    const expectedSpreadCount = Math.ceil(result.pageCount / 2);
+    const isSourceSpread =
+      embedded != null &&
+      result.echo.bindingType === 'compressed' &&
+      embedded.length === expectedSpreadCount &&
+      result.pageCount > expectedSpreadCount;
+
     for (const sheet of result.sheets) {
       const page = out.addPage([sheetWpt, sheetHpt]);
 
@@ -124,17 +135,23 @@ export class ImpositionPdfService {
         // 페이지 임베드
         if (embedded) {
           if (p.isPair && p.pages.length === 2) {
-            // 좌/우 각각 개별 임베드 (원판 페이지는 1 페이지 당 1 콘텐츠 가정)
-            const leftIdx = (p.pages[0] - 1);
-            const rightIdx = (p.pages[1] - 1);
             const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
-            if (p.rotation === 90) {
-              // 회전 90°: 페어 박스가 세로로 배치되므로 상/하로 분할.
+            if (isSourceSpread) {
+              // source PDF가 이미 2up 스프레드 → 페어 박스에 통째로 배치 (분할 X).
+              // 페어 (1,2) → spread idx 0, (3,4) → 1, ...
+              const spreadIdx = Math.floor((p.pages[0] - 1) / 2);
+              drawEmbedded(page, embedded, spreadIdx, xPt, yPt, wPt, hPt, p.rotation);
+            } else if (p.rotation === 90) {
+              // 회전 90°: 페어 박스가 세로로 배치되므로 상/하로 분할 (낱장 입력).
               // CCW 90° 기준 — 원본 좌측(pages[0])이 시각 하단, 우측(pages[1])이 시각 상단.
+              const leftIdx = (p.pages[0] - 1);
+              const rightIdx = (p.pages[1] - 1);
               const halfH = (hPt - creaseWPt) / 2;
               drawEmbedded(page, embedded, leftIdx, xPt, yPt, wPt, halfH, p.rotation);
               drawEmbedded(page, embedded, rightIdx, xPt, yPt + halfH + creaseWPt, wPt, halfH, p.rotation);
             } else {
+              const leftIdx = (p.pages[0] - 1);
+              const rightIdx = (p.pages[1] - 1);
               const halfW = (wPt - creaseWPt) / 2;
               drawEmbedded(page, embedded, leftIdx, xPt, yPt, halfW, hPt, p.rotation);
               drawEmbedded(page, embedded, rightIdx, xPt + halfW + creaseWPt, yPt, halfW, hPt, p.rotation);
