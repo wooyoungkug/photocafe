@@ -322,6 +322,27 @@ export function AlbumSplitTool() {
     }
   }, [fileName]);
 
+  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
+  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
+    if (!('showSaveFilePicker' in window)) return false;
+    try {
+      const options: any = {
+        suggestedName,
+        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
+      };
+      if (sourceFileHandleRef.current) {
+        options.startIn = sourceFileHandleRef.current;
+      }
+      const fileHandle = await (window as any).showSaveFilePicker(options);
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch {
+      return false; // 사용자 취소
+    }
+  }, []);
+
   const handleSplit = useCallback(async () => {
     if (!originalImage) return;
 
@@ -451,27 +472,6 @@ export function AlbumSplitTool() {
   }, [originalImage, originalDPI, cleanup, directoryHandle, deleteOriginalOnSave, doDeleteOriginal, resetTool, fileName, folderFiles, currentFileIndex, scanFolderFiles, loadFileAtIndex, scrollToBottom, saveWithPicker]);
 
   useEffect(() => { handleSplitRef.current = handleSplit; }, [handleSplit]);
-
-  /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
-  const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
-    if (!('showSaveFilePicker' in window)) return false;
-    try {
-      const options: any = {
-        suggestedName,
-        types: [{ description: 'JPEG Image', accept: { 'image/jpeg': ['.jpg', '.jpeg'] } }],
-      };
-      if (sourceFileHandleRef.current) {
-        options.startIn = sourceFileHandleRef.current;
-      }
-      const fileHandle = await (window as any).showSaveFilePicker(options);
-      const writable = await fileHandle.createWritable();
-      await writable.write(blob);
-      await writable.close();
-      return true;
-    } catch {
-      return false; // 사용자 취소
-    }
-  }, []);
 
   const handleSelectDirectory = useCallback(async () => {
     if ('showDirectoryPicker' in window) {
