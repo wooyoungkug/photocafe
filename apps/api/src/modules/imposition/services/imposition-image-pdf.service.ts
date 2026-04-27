@@ -345,12 +345,22 @@ function drawImageFit(
   const natW = img.width;
   const natH = img.height;
 
+  // 방어로직: half 가 지정됐어도 이미지가 스프레드 비율(가로/세로 ≥ 1.4) 이 아니면
+  // 단일페이지 이미지로 간주하여 풀 이미지를 슬롯에 맞춰 그린다 (half 무시).
+  // 케이스: 첫장(01 첫장.jpg)/막장(28 막장.jpg) 등이 단일페이지 비율로 업로드된 경우.
+  // 이 검사가 없으면 절반만 잘려서 표지/마지막장 내용 절반이 잘림.
+  const isSpreadAspect = natW / natH >= 1.4;
+  if ((half === 'left' || half === 'right') && !isSpreadAspect) {
+    // half 무시 — 풀 이미지를 슬롯 중앙에 fit 하여 그림 (아래 표준 fit 분기로 폴스루)
+    half = undefined;
+  }
+
   // 스프레드 절반 클리핑 모드: 이미지를 슬롯에 맞게 스케일하고 슬롯 경계로 클리핑.
   // rotation=0: 이미지 높이를 슬롯 높이에 맞추고 좌/우 절반 노출.
   // rotation=90: 이미지를 CCW 90° 회전 후 슬롯에 맞춤.
   //   - CCW 90° 회전 시 원본 좌측 절반은 회전 후 시각적으로 하단 절반에 위치
   //   - 원본 우측 절반은 회전 후 시각적으로 상단 절반에 위치
-  //   - 슬롯 가로(w)에 회전 후 이미지 가로(drawH=natH*scale)를 맞춤 → scale=w/natH
+  //   - 슬롯 가로(w)에 회전 후 이미지 가로(drawH=natH*scale)를 망춤 → scale=w/natH
   if (half === 'left' || half === 'right') {
     // 클리핑 영역 = 슬롯 정확히 (회전과 무관)
     page.pushOperators(

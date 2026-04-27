@@ -376,6 +376,15 @@ export class ImpositionController {
               `주문 상세에서 PDF를 다시 생성한 뒤 변환을 재시도해주세요.`,
           );
         }
+        // 진단용 정보 (디버깅 가능하도록 warnings 에 추가)
+        // 매핑 미스 발생 시 어떤 bindingDirection 값으로 처리됐는지 사용자가 즉시 확인 가능.
+        if (isSpread) {
+          (result.warnings as any[]).push(
+            `[진단] bindingDirection="${item.bindingDirection ?? '없음'}", ` +
+              `dropFirstLeft=${dropFirstLeft}, dropLastRight=${dropLastRight} ` +
+              `→ shift=${dropFirstLeft} (album 1 → file 1 ${dropFirstLeft === 1 ? 'R' : 'L'})`,
+          );
+        }
 
         const images = allFiles
           .map((f: any, idx: number) => ({
