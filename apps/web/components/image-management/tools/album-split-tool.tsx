@@ -78,6 +78,29 @@ export function AlbumSplitTool() {
     }, 100);
   }, []);
 
+  /** 알려진 폴더 목록에 추가 (중복 방지) */
+  const addKnownDir = useCallback(async (dir: FileSystemDirectoryHandle) => {
+    for (const existing of knownDirsRef.current) {
+      try {
+        if (await existing.isSameEntry(dir)) return;
+      } catch { /* skip */ }
+    }
+    knownDirsRef.current.push(dir);
+  }, []);
+
+  /** 파일 핸들이 알려진 폴더 중 어디에 속하는지 찾기 */
+  const findDirForFile = useCallback(async (
+    fileHandle: FileSystemFileHandle,
+  ): Promise<FileSystemDirectoryHandle | null> => {
+    for (const dir of knownDirsRef.current) {
+      try {
+        const path = await dir.resolve(fileHandle);
+        if (path !== null) return dir;
+      } catch { /* skip */ }
+    }
+    return null;
+  }, []);
+
   const cleanup = useCallback(() => {
     if (leftUrl) URL.revokeObjectURL(leftUrl);
     if (rightUrl) URL.revokeObjectURL(rightUrl);
@@ -324,29 +347,6 @@ export function AlbumSplitTool() {
       return false;
     }
   }, [fileName]);
-
-  /** 알려진 폴더 목록에 추가 (중복 방지) */
-  const addKnownDir = useCallback(async (dir: FileSystemDirectoryHandle) => {
-    for (const existing of knownDirsRef.current) {
-      try {
-        if (await existing.isSameEntry(dir)) return;
-      } catch { /* skip */ }
-    }
-    knownDirsRef.current.push(dir);
-  }, []);
-
-  /** 파일 핸들이 알려진 폴더 중 어디에 속하는지 찾기 */
-  const findDirForFile = useCallback(async (
-    fileHandle: FileSystemFileHandle,
-  ): Promise<FileSystemDirectoryHandle | null> => {
-    for (const dir of knownDirsRef.current) {
-      try {
-        const path = await dir.resolve(fileHandle);
-        if (path !== null) return dir;
-      } catch { /* skip */ }
-    }
-    return null;
-  }, []);
 
   /** showSaveFilePicker로 원본 경로에서 저장 다이얼로그 열기 */
   const saveWithPicker = useCallback(async (blob: Blob, suggestedName: string): Promise<boolean> => {
