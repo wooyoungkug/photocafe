@@ -54,6 +54,11 @@ export class IndexOptionsDto {
   @ApiProperty({ description: '이미지영역(mm) 표시', default: false })
   @IsBoolean()
   showImageArea: boolean = false;
+
+  @ApiProperty({ description: '영업담당자 표시', default: false })
+  @IsBoolean()
+  @IsOptional()
+  showSalesRep?: boolean = false;
 }
 
 // ==================== PDF 생성 요청 ====================

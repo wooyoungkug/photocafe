@@ -573,7 +573,17 @@ export class PrintPdfService implements OnModuleInit {
           files: { orderBy: { sortOrder: 'asc' } },
           order: {
             include: {
-              client: { select: { id: true, clientName: true } },
+              client: {
+                select: {
+                  id: true,
+                  clientName: true,
+                  assignedStaff: {
+                    where: { isPrimary: true },
+                    take: 1,
+                    include: { staff: { select: { name: true } } },
+                  },
+                },
+              },
             },
           },
         },
@@ -689,6 +699,7 @@ export class PrintPdfService implements OnModuleInit {
         nup: specData.nup || '1up',
         side: String(item.pageLayout || '').toLowerCase() === 'spread' ? '양면' : '단면',
         imageArea: `${Math.round(imgAreaWMm)}×${Math.round(imgAreaHMm)}`,
+        salesRep: (item.order.client as any)?.assignedStaff?.[0]?.staff?.name || '',
       };
 
       // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용

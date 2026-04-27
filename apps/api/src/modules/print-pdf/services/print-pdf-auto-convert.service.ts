@@ -164,6 +164,7 @@ export class PrintPdfAutoConvertService {
   /** 시스템설정을 읽어 GeneratePrintPdfDto 구성 */
   private async buildDto(items: Array<{ id: string }>, outputPath: string): Promise<GeneratePrintPdfDto> {
     const indexOptionsRaw = await this.settings.getValue('print_pdf_index_options', '');
+    const indexOrderRaw = await this.settings.getValue('print_pdf_index_order', '');
     let indexOptions: any = {
       showDateTime: true,
       showOrderNumber: true,
@@ -174,9 +175,23 @@ export class PrintPdfAutoConvertService {
       showColorMode: true,
       showBinding: true,
       showNup: true,
+      showSide: true,
+      showSalesRep: false,
     };
+    let indexOrderKeys: string[] | undefined;
     try {
       if (indexOptionsRaw) indexOptions = { ...indexOptions, ...JSON.parse(indexOptionsRaw) };
+    } catch { /* ignore malformed */ }
+    try {
+      if (indexOrderRaw) {
+        const ordered: Array<{ key: string; enabled: boolean }> = JSON.parse(indexOrderRaw);
+        if (Array.isArray(ordered) && ordered.length) {
+          for (const it of ordered) {
+            if (it && typeof it.key === 'string') indexOptions[it.key] = !!it.enabled;
+          }
+          indexOrderKeys = ordered.filter((i) => i?.enabled).map((i) => i.key);
+        }
+      }
     } catch { /* ignore malformed */ }
 
     const includeBleed = (await this.settings.getValue('print_pdf_include_bleed', 'true')) !== 'false';
@@ -194,6 +209,7 @@ export class PrintPdfAutoConvertService {
       includeBleed,
       includeCropMarks,
       nupOverride: defaultNup !== '1up' ? defaultNup : undefined,
+      indexOrderKeys,
       indexPosition,
       ...(canvasEnabled && { canvasWidthMm: canvasWidth, canvasHeightMm: canvasHeight }),
     } as GeneratePrintPdfDto;

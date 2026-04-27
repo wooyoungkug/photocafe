@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -41,6 +42,7 @@ const SETTING_KEYS = {
   AUTO_CONVERT: 'print_pdf_auto_convert',
   AUTO_INTERVAL: 'print_pdf_auto_interval',
   INDEX_OPTIONS: 'print_pdf_index_options',
+  INDEX_ORDER: 'print_pdf_index_order',
   INCLUDE_BLEED: 'print_pdf_include_bleed',
   INCLUDE_CROP_MARKS: 'print_pdf_include_crop_marks',
   DEFAULT_NUP: 'print_pdf_default_nup',
@@ -71,18 +73,52 @@ const SETTING_KEYS = {
 
 const CATEGORY = 'print_pdf';
 
-const INDEX_OPTION_LABELS: { key: keyof IndexOptions; label: string }[] = [
-  { key: 'showDateTime', label: '출력날짜+시간' },
-  { key: 'showOrderNumber', label: '주문번호' },
-  { key: 'showStudioName', label: '스튜디오명' },
-  { key: 'showSpec', label: '규격' },
-  { key: 'showPaper', label: '용지명' },
-  { key: 'showPageInfo', label: '페이지 정보 (현재/총)' },
-  { key: 'showColorMode', label: '인디고도수 (4도/6도)' },
-  { key: 'showBinding', label: '제본방법' },
-  { key: 'showSide', label: '양면/단면' },
-  { key: 'showNup', label: 'Nup' },
+export interface IndexOrderItem {
+  key: keyof IndexOptions;
+  label: string;
+  enabled: boolean;
+}
+
+export const DEFAULT_INDEX_ORDER: IndexOrderItem[] = [
+  { key: 'showSalesRep', label: '영업담당자', enabled: true },
+  { key: 'showDateTime', label: '오늘날짜', enabled: true },
+  { key: 'showOrderNumber', label: '주문번호', enabled: true },
+  { key: 'showStudioName', label: '스튜디오명', enabled: true },
+  { key: 'showPaper', label: '용지명+g', enabled: true },
+  { key: 'showBinding', label: '제본', enabled: true },
+  { key: 'showSide', label: '양면/단면', enabled: true },
+  { key: 'showPageInfo', label: '현재페이지/총페이지', enabled: true },
+  { key: 'showSpec', label: '규격', enabled: false },
+  { key: 'showColorMode', label: '인디고도수 (4도/6도)', enabled: false },
+  { key: 'showNup', label: 'Nup', enabled: false },
+  { key: 'showImageArea', label: '이미지영역(mm)', enabled: false },
 ];
+
+/** 저장된 순서 + 기본 순서 머지: 누락 항목은 뒤에 붙이고, 중복 제거 */
+export function mergeIndexOrder(
+  saved: Array<{ key: string; enabled?: boolean }> | null | undefined,
+  fallbackOptions?: Partial<IndexOptions>,
+): IndexOrderItem[] {
+  const labelByKey = new Map(DEFAULT_INDEX_ORDER.map((i) => [i.key, i.label]));
+  const seen = new Set<string>();
+  const result: IndexOrderItem[] = [];
+  if (Array.isArray(saved)) {
+    for (const it of saved) {
+      const k = it?.key as keyof IndexOptions;
+      if (!k || seen.has(k) || !labelByKey.has(k)) continue;
+      seen.add(k);
+      result.push({ key: k, label: labelByKey.get(k)!, enabled: !!it?.enabled });
+    }
+  }
+  for (const def of DEFAULT_INDEX_ORDER) {
+    if (seen.has(def.key)) continue;
+    const enabled = fallbackOptions
+      ? (fallbackOptions[def.key] ?? def.enabled)
+      : def.enabled;
+    result.push({ ...def, enabled });
+  }
+  return result;
+}
 
 const NUP_OPTIONS = [
   { value: '1up', label: '1up (기본)' },
@@ -118,6 +154,10 @@ export default function PdfSettingsDialog({
   const [autoConvert, setAutoConvert] = useState(false);
   const [autoInterval, setAutoInterval] = useState('5');
   const [indexOptions, setIndexOptions] = useState<IndexOptions>({ ...DEFAULT_INDEX_OPTIONS });
+  const [indexOrder, setIndexOrder] = useState<IndexOrderItem[]>(() =>
+    DEFAULT_INDEX_ORDER.map((i) => ({ ...i })),
+  );
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [includeBleed, setIncludeBleed] = useState(true);
   const [includeCropMarks, setIncludeCropMarks] = useState(true);
   const [defaultNup, setDefaultNup] = useState('1up');
@@ -193,15 +233,58 @@ export default function PdfSettingsDialog({
     setMarkJobMeta(map[SETTING_KEYS.MARK_JOB_META] !== 'false');
 
     // 인덱스 옵션 파싱
+    let parsedOptions: IndexOptions = { ...DEFAULT_INDEX_OPTIONS };
     try {
       const saved = map[SETTING_KEYS.INDEX_OPTIONS];
       if (saved) {
-        setIndexOptions({ ...DEFAULT_INDEX_OPTIONS, ...JSON.parse(saved) });
+        parsedOptions = { ...DEFAULT_INDEX_OPTIONS, ...JSON.parse(saved) };
+        setIndexOptions(parsedOptions);
       }
     } catch {
       // 파싱 실패 시 기본값 유지
     }
+
+    // 인덱스 순서 + 활성화 파싱 (저장된 순서가 없으면 옵션값 기반으로 머지)
+    try {
+      const savedOrder = map[SETTING_KEYS.INDEX_ORDER];
+      const parsed = savedOrder ? JSON.parse(savedOrder) : null;
+      setIndexOrder(mergeIndexOrder(parsed, parsedOptions));
+    } catch {
+      setIndexOrder(mergeIndexOrder(null, parsedOptions));
+    }
   }, [settingsData]);
+
+  const toggleOrderItem = (idx: number) => {
+    setIndexOrder((prev) => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], enabled: !next[idx].enabled };
+      return next;
+    });
+  };
+
+  const moveOrderItem = (idx: number, direction: 'up' | 'down') => {
+    const to = direction === 'up' ? idx - 1 : idx + 1;
+    setIndexOrder((prev) => {
+      if (to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[to]] = [next[to], next[idx]];
+      return next;
+    });
+  };
+
+  const handleOrderDragStart = (idx: number) => setDragIdx(idx);
+  const handleOrderDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    setIndexOrder((prev) => {
+      const next = [...prev];
+      const [dragged] = next.splice(dragIdx, 1);
+      next.splice(idx, 0, dragged);
+      return next;
+    });
+    setDragIdx(idx);
+  };
+  const handleOrderDragEnd = () => setDragIdx(null);
 
   const toggleIndexOption = (key: keyof IndexOptions) => {
     setIndexOptions((prev) => ({ ...prev, [key]: !prev[key] }));

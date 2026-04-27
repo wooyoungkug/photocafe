@@ -49,6 +49,7 @@ export interface IndexOptions {
   showSide: boolean;
   showNup: boolean;
   showImageArea: boolean;
+  showSalesRep: boolean;
 }
 
 export interface GeneratePrintPdfRequest {
@@ -110,6 +111,7 @@ export const DEFAULT_INDEX_OPTIONS: IndexOptions = {
   showSide: true,
   showNup: true,
   showImageArea: false,
+  showSalesRep: false,
 };
 
 // ==================== Hooks ====================
