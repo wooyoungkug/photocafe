@@ -30,20 +30,26 @@ import {
 } from '@/hooks/use-imposition';
 import { usePdfSettings } from './PdfSettingsDialog';
 
+type ImpositionSeed = {
+  orderId: string;
+  orderItemId: string;
+  productWidth?: number;
+  productHeight?: number;
+  /** 표시 단위 힌트 (mm | inch). 앨범 주문은 보통 inch. 미지정 시 mm */
+  productUnit?: 'mm' | 'inch';
+  pageCount?: number;
+  bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
+  /** 표시용 라벨 (배치 진행 상태에 사용) */
+  label?: string;
+};
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 기본값 힌트: 선택된 주문 항목으로부터 */
-  seed?: {
-    orderId: string;
-    orderItemId: string;
-    productWidth?: number;
-    productHeight?: number;
-    /** 표시 단위 힌트 (mm | inch). 앨범 주문은 보통 inch. 미지정 시 mm */
-    productUnit?: 'mm' | 'inch';
-    pageCount?: number;
-    bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
-  };
+  /** 기본값 힌트: 선택된 주문 항목으로부터. 미리보기/설정은 이 항목 기준 */
+  seed?: ImpositionSeed;
+  /** 다중 선택 시 같은 설정으로 일괄 처리할 추가 항목 목록 */
+  additionalSeeds?: ImpositionSeed[];
 }
 
 const SHEET_PRESETS = [
@@ -153,7 +159,7 @@ function findProductPresetKey(productW_mm: number, productH_mm: number): string 
   return found?.key ?? 'custom';
 }
 
-export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: Props) {
+export default function ImpositionSettingsDialog({ open, onOpenChange, seed, additionalSeeds }: Props) {
   // ==== 상태 ====
   const [bindingTab, setBindingTab] = useState<'compressed' | 'tack' | 'perfect'>(
     seed?.bindingType === 'tack' ? 'tack'
@@ -407,33 +413,64 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
       return;
     }
 
-    runMut.mutate(
-      {
-        orderId: seed.orderId,
-        orderItemId: seed.orderItemId,
-        presetId: presetIdToUse,
-        manualNup: manualNup === '' ? undefined : Number(manualNup),
-        marks: {
-          crop: showCrop,
-          bleed: showBleed,
-          registration: showReg,
-          colorBar: showColorBar,
-          jobMeta: showJobMeta,
-          fold: showFold,
-        },
-      },
-      {
-        onSuccess: (job) => {
-          toast.success('JDF + PDF 생성 완료');
+    // 다중 선택 시 같은 설정으로 일괄 실행 (순차 — 서버 부하/UX 안정성).
+    const targets: ImpositionSeed[] = [seed, ...(additionalSeeds ?? [])];
+    const total = targets.length;
+    const marks = {
+      crop: showCrop,
+      bleed: showBleed,
+      registration: showReg,
+      colorBar: showColorBar,
+      jobMeta: showJobMeta,
+      fold: showFold,
+    };
+    const manualNupValue = manualNup === '' ? undefined : Number(manualNup);
+
+    let succeeded = 0;
+    const failed: { label: string; error: string }[] = [];
+
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      const label = t.label || t.orderItemId.slice(0, 8);
+      try {
+        const job = await runMut.mutateAsync({
+          orderId: t.orderId,
+          orderItemId: t.orderItemId,
+          presetId: presetIdToUse,
+          manualNup: manualNupValue,
+          marks,
+        });
+        succeeded++;
+        if (total > 1) {
+          toast.success(`(${i + 1}/${total}) ${label} 생성 완료`);
+        }
+        // 다운로드는 첫 항목만 자동 트리거 (배치 시 N개 동시 다운로드 폭주 방지).
+        // 나머지는 서버 저장본 사용 (운영 흐름) 또는 향후 일괄 zip 다운로드 추가 가능.
+        if (i === 0) {
           dlJdf.mutate(job.id);
           setTimeout(() => dlPdf.mutate(job.id), 500);
           if (job.imagePdfPath) {
             setTimeout(() => dlImagePdf.mutate(job.id), 1000);
           }
-        },
-        onError: (e) => toast.error(`생성 실패: ${e.message}`),
-      },
-    );
+        }
+      } catch (e: any) {
+        failed.push({ label, error: e?.message || '알 수 없는 오류' });
+      }
+    }
+
+    if (total === 1) {
+      if (succeeded === 1) {
+        toast.success('JDF + PDF 생성 완료');
+      } else {
+        toast.error(`생성 실패: ${failed[0]?.error}`);
+      }
+    } else {
+      if (failed.length === 0) {
+        toast.success(`${succeeded}건 모두 생성 완료 (첫 항목만 다운로드, 나머지는 서버 저장됨)`);
+      } else {
+        toast.warning(`${succeeded}/${total}건 성공, ${failed.length}건 실패: ${failed.map(f => f.label).join(', ')}`);
+      }
+    }
   };
 
   const util = result?.utilization ?? 0;
@@ -446,6 +483,11 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed }: P
           <div className="flex items-center justify-between">
             <DialogTitle className="text-[24px] text-black font-normal">
               인디고 임포지션 설정
+              {additionalSeeds && additionalSeeds.length > 0 && (
+                <span className="ml-3 text-[14px] text-black font-normal">
+                  · 일괄 처리 {1 + additionalSeeds.length}건 (같은 설정 적용)
+                </span>
+              )}
             </DialogTitle>
             <div className="flex items-center gap-2 mr-8">
               {autoApplied && (

@@ -38,7 +38,7 @@ export default function PrintQueuePage() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [impositionOpen, setImpositionOpen] = useState(false);
-  const [impositionSeed, setImpositionSeed] = useState<{
+  type ImpositionSeed = {
     orderId: string;
     orderItemId: string;
     productWidth?: number;
@@ -46,17 +46,18 @@ export default function PrintQueuePage() {
     productUnit?: 'mm' | 'inch';
     pageCount?: number;
     bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
-  } | null>(null);
+    label?: string;
+  };
+  const [impositionSeed, setImpositionSeed] = useState<ImpositionSeed | null>(null);
+  const [impositionAdditionalSeeds, setImpositionAdditionalSeeds] = useState<ImpositionSeed[]>([]);
 
-  const openImposition = (item: PrintQueueItem) => {
+  const buildSeed = (item: PrintQueueItem): ImpositionSeed => {
     // size 파싱 ("9x12" 또는 "210x297" 또는 "9 x 12" 등)
     const m = (item.size || '').match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
     const rawW = m ? parseFloat(m[1]) : undefined;
     const rawH = m ? parseFloat(m[2]) : undefined;
 
     // 단위 추정: 두 값 모두 30 이하면 인치(앨범 표준), 그 외는 mm
-    // 인쇄업 앨범 규격 표준이 인치(5×7, 6×8, 8×10, 9×12, 10×12 등)이고,
-    // mm 단위 규격은 보통 100mm 이상이라 30을 경계로 안전하게 분기.
     const isInch =
       rawW !== undefined && rawH !== undefined && rawW <= 30 && rawH <= 30;
     const productUnit: 'mm' | 'inch' = isInch ? 'inch' : 'mm';
@@ -73,7 +74,7 @@ export default function PrintQueuePage() {
           : bt.includes('무선') || bt.includes('perfect') || bt.includes('화보')
             ? 'perfect'
             : 'flat';
-    setImpositionSeed({
+    return {
       orderId: item.orderId,
       orderItemId: item.id,
       productWidth: pw,
@@ -81,7 +82,21 @@ export default function PrintQueuePage() {
       productUnit,
       pageCount: item.pages,
       bindingType,
-    });
+      label: item.orderNumber,
+    };
+  };
+
+  const openImposition = (item: PrintQueueItem) => {
+    setImpositionSeed(buildSeed(item));
+    setImpositionAdditionalSeeds([]);
+    setImpositionOpen(true);
+  };
+
+  const openImpositionMulti = (selected: PrintQueueItem[]) => {
+    if (selected.length === 0) return;
+    const [first, ...rest] = selected;
+    setImpositionSeed(buildSeed(first));
+    setImpositionAdditionalSeeds(rest.map(buildSeed));
     setImpositionOpen(true);
   };
 
@@ -240,21 +255,24 @@ export default function PrintQueuePage() {
             <Button
               onClick={() => {
                 if (selectedIds.length === 0) return;
-                const first = items.find((it) => it.id === selectedIds[0]);
-                if (!first) {
+                const selected = selectedIds
+                  .map((id) => items.find((it) => it.id === id))
+                  .filter((it): it is PrintQueueItem => !!it);
+                if (selected.length === 0) {
                   toast.error('선택 항목을 찾을 수 없습니다.');
                   return;
                 }
-                if (selectedIds.length > 1) {
-                  toast.info(`${selectedIds.length}건 중 첫 항목(${first.orderNumber})의 임포지션 설정을 엽니다. 나머지는 행의 [임포지션] 버튼으로 개별 처리하세요.`);
+                if (selected.length === 1) {
+                  openImposition(selected[0]);
+                } else {
+                  openImpositionMulti(selected);
                 }
-                openImposition(first);
               }}
               disabled={selectedIds.length === 0}
               className="gap-1.5"
             >
               <FileDown className="h-4 w-4" />
-              JDF+PDF 변환
+              JDF+PDF 변환{selectedIds.length > 1 ? ` (${selectedIds.length}건)` : ''}
             </Button>
           </div>
         </CardContent>
@@ -309,9 +327,13 @@ export default function PrintQueuePage() {
         open={impositionOpen}
         onOpenChange={(v) => {
           setImpositionOpen(v);
-          if (!v) setImpositionSeed(null);
+          if (!v) {
+            setImpositionSeed(null);
+            setImpositionAdditionalSeeds([]);
+          }
         }}
         seed={impositionSeed || undefined}
+        additionalSeeds={impositionAdditionalSeeds}
       />
     </div>
   );
