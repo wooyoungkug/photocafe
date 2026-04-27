@@ -388,7 +388,6 @@ export default function PdfSettingsDialog({
                   <Switch
                     checked={saveToLocal}
                     onCheckedChange={setSaveToLocal}
-                    disabled={!!outputPath}
                   />
                 </div>
 
