@@ -195,12 +195,20 @@ export default function PrintQueueTable({
                 <TableCell className="text-center">
                   {(() => {
                     const status = item.pdfStatus || 'pending';
-                    const map: Record<string, { label: string; className: string }> = {
-                      pending: { label: '대기', className: 'bg-gray-100 text-black' },
+                    const isInkjet = (item.printMethod || '').toLowerCase().includes('inkjet');
+                    const indigoMap: Record<string, { label: string; className: string }> = {
+                      pending: { label: 'PDF변환대기', className: 'bg-gray-100 text-black' },
                       in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
-                      completed: { label: '성공', className: 'bg-green-100 text-black' },
-                      failed: { label: '실패', className: 'bg-red-100 text-red-600' },
+                      completed: { label: 'PDF변환성공', className: 'bg-green-100 text-black' },
+                      failed: { label: '변환에러', className: 'bg-red-100 text-red-600' },
                     };
+                    const inkjetMap: Record<string, { label: string; className: string }> = {
+                      pending: { label: '데이타대기', className: 'bg-gray-100 text-black' },
+                      in_progress: { label: '생성중', className: 'bg-blue-100 text-black' },
+                      completed: { label: '출력데이타생성', className: 'bg-green-100 text-black' },
+                      failed: { label: '데이터에러', className: 'bg-red-100 text-red-600' },
+                    };
+                    const map = isInkjet ? inkjetMap : indigoMap;
                     const s = map[status] || map.pending;
                     const showImposition = status === 'pending' || status === 'failed';
                     return (

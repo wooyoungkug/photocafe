@@ -869,19 +869,20 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
       )}
 
-      {/* CMYK 파일 경고 */}
+      {/* CMYK 파일 차단 */}
       {(() => {
         const cmykFiles = folder.files.filter(f => f.colorSpace === 'CMYK');
         if (cmykFiles.length === 0) return null;
         return (
-          <div className="mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
-            <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
+          <div className="mt-3 p-3 bg-red-50 rounded-lg border-2 border-red-400">
+            <div className="flex items-center gap-2 text-red-700 text-sm font-bold">
               <AlertTriangle className="h-4 w-4" />
-              CMYK 컬러 모드 파일 감지 ({cmykFiles.length}개)
+              접수 불가 — CMYK 파일 {cmykFiles.length}개 감지
             </div>
-            <div className="mt-1 text-xs text-red-600">
-              <p>인쇄용으로는 RGB 컬러 모드를 권장합니다. CMYK 파일은 색상이 다르게 출력될 수 있습니다.</p>
-              <p className="mt-1">CMYK 파일: {cmykFiles.map(f => f.fileName).join(', ')}</p>
+            <div className="mt-1 text-xs text-red-700">
+              <p className="font-medium">모든 데이타는 RGB로만 접수 가능합니다.</p>
+              <p className="mt-1">포토샵에서 [이미지 &gt; 모드 &gt; RGB 색상]으로 변환 후 다시 업로드해 주세요.</p>
+              <p className="mt-1 text-red-600">CMYK 파일: {cmykFiles.map(f => f.fileName).join(', ')}</p>
             </div>
           </div>
         );

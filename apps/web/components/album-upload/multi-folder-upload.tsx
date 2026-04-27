@@ -1976,6 +1976,24 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       toast({ title: '데이터 업로드 필요', description: '파일이 업로드되지 않은 주문은 장바구니에 담을 수 없습니다.', variant: 'destructive' });
       return;
     }
+    // CMYK 파일 차단: 모든 데이타는 RGB로 받아야 함
+    const cmykFolders = withFiles
+      .map(f => ({
+        name: f.orderTitle || f.folderName,
+        cmykFiles: f.files.filter(file => file.colorSpace === 'CMYK'),
+      }))
+      .filter(x => x.cmykFiles.length > 0);
+    if (cmykFolders.length > 0) {
+      const detail = cmykFolders
+        .map(x => `• ${x.name}: ${x.cmykFiles.length}개 파일`)
+        .join('\n');
+      toast({
+        title: 'RGB 파일로 다시 접수해 주세요',
+        description: `CMYK 컬러 모드 파일은 접수할 수 없습니다.\n포토샵에서 [이미지 > 모드 > RGB 색상]으로 변환 후 다시 업로드해 주세요.\n\n${detail}`,
+        variant: 'destructive',
+      });
+      return;
+    }
     // 업로드 100% 완료 체크 (미완료 상태로 담으면 서버 temp에 파일이 없어 결제 시 실패)
     const incomplete = withFiles.filter(f =>
       f.immediateUploadStatus !== 'completed'
