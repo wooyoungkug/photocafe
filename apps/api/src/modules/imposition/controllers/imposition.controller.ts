@@ -268,9 +268,11 @@ export class ImpositionController {
         ? `${item.order.orderNumber} | ${item.order.client?.clientName ?? ''} | Job ${jobRecord.id.slice(0, 8)}`
         : null;
 
-      // 정식 PDF — 소스 PDF가 실제로 존재할 때만 생성. 누락 시 빈 PDF 만들지 않음.
+      // 소스 PDF 기반 정식 PDF — 명시적으로 dto.generateSourcePdf === true 일 때만.
+      // 기본은 이미지 기반 PDF(_image) 만 생성하여 1개 출력 유지.
       const hasSource = !!(sourcePdfPath && fs.existsSync(sourcePdfPath));
-      if (hasSource) {
+      const wantSourcePdf = dto.generateSourcePdf === true && hasSource;
+      if (wantSourcePdf) {
         await this.pdf.build(result, {
           sourcePdfPath,
           outputPath: pdfPath,
@@ -320,7 +322,7 @@ export class ImpositionController {
         data: {
           status: 'done',
           jdfPath,
-          pdfPath: hasSource ? pdfPath : null,
+          pdfPath: wantSourcePdf ? pdfPath : null,
           imagePdfPath,
         },
       });
@@ -329,7 +331,7 @@ export class ImpositionController {
         ...jobRecord,
         status: 'done',
         jdfPath,
-        pdfPath: hasSource ? pdfPath : null,
+        pdfPath: wantSourcePdf ? pdfPath : null,
         imagePdfPath,
         warnings: result.warnings,
       };

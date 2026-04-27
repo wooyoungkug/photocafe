@@ -54,10 +54,15 @@ export class RunImpositionDto {
   @IsString()
   sourcePdfPath?: string;
 
-  @ApiPropertyOptional({ description: '이미지 임포지션 PDF 생성 여부 (기본 true). OrderItem.files JPG를 배치한 인쇄용 PDF를 함께 생성한다.' })
+  @ApiPropertyOptional({ description: '이미지 임포지션 PDF 생성 여부 (기본 true). OrderItem.files JPG를 배치한 인쇄용 PDF를 생성한다.' })
   @IsOptional()
   @IsBoolean()
   generateImagePdf?: boolean;
+
+  @ApiPropertyOptional({ description: '소스 PDF 기반 임포지션 PDF 생성 여부 (기본 false). OrderItem.pdfPath 의 사전 빌드 PDF를 임베드하여 생성. 보통 이미지 PDF만 사용하므로 명시적으로 true 일 때만 추가 생성.' })
+  @IsOptional()
+  @IsBoolean()
+  generateSourcePdf?: boolean;
 
   @ApiPropertyOptional({ description: '마크 표시 옵션 (crop/bleed/registration/colorBar/jobMeta)', type: ImpositionMarksDto })
   @IsOptional()
