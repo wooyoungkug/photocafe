@@ -1,0 +1,464 @@
+id,orderId,fromStatus,toStatus,processType,note,processedBy,processedAt
+cmlei22ik0004coa41slv9oe3,cmlei22ij0001coa4y1m3bt9q,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.292
+cmlei22jj0009coa4kxd00skx,cmlei22jj0006coa43sx3jc95,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.327
+cmlei22k5000ecoa4t5q7p02p,cmlei22k5000bcoa4k7d90mo3,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.349
+cmlei22kr000jcoa46itcpbq1,cmlei22kr000gcoa4254l6z0p,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.371
+cmlei22lc000ocoa4fkurqlov,cmlei22lc000lcoa4z05337h8,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.392
+cmlei22lx000tcoa4sqacdk4f,cmlei22lw000qcoa4j6jrruqu,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.413
+cmlei22mi000ycoa4qxei4m7m,cmlei22mh000vcoa41oadyxjz,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.434
+cmlei22n10013coa4xomj37o2,cmlei22n10010coa45clnhoav,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.453
+cmlei22nk0018coa4yyerntvi,cmlei22nk0015coa4wc3moq49,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.472
+cmlei22o2001dcoa4ac7bs8bh,cmlei22o2001acoa4g2vzozpy,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:34:55.491
+cmlei5cxw001fcoa42psqsnq8,cmlei22o2001acoa4g2vzozpy,pending_receipt,pending_receipt,bulk_amount_reset,금액 0원 처리,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:37:28.773
+cmleilfct000414aq9w6qxhh2,cmleilfct000114aqlh7tlmos,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.398
+cmleilfdq000914aqz5b54nld,cmleilfdq000614aqa4qgmd3d,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.43
+cmleilfeb000f14aqud5h6s0k,cmleilfeb000b14aq806r14n7,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.451
+cmleilfew000k14aqgqvh6sp4,cmleilfew000h14aq2ncga188,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.472
+cmleilffg000p14aqqxh5qdin,cmleilffg000m14aq35jarivo,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.492
+cmleilfg1000u14aqnwxd1m4o,cmleilfg1000r14aqk2mbknc4,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.513
+cmleilfgl000z14aqbw3s40nz,cmleilfgl000w14aqnhramooj,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.533
+cmleilfh4001414aq5xk1ju4p,cmleilfh4001114aq48y9pke5,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.553
+cmleilfho001914aqt1998i0k,cmleilfho001614aq9cow7r3p,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.572
+cmleilfi7001e14aqif3gsks6,cmleilfi7001b14aqcviu7r36,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.592
+cmleilfis001j14aq4es9cs77,cmleilfir001g14aq1rtiv5q5,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 01:49:58.612
+cmlen7orm0004sr3qoddifz1k,cmlen7orm0001sr3qmcd841rx,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 03:59:15.489
+cmlen7osl0009sr3qmnjls1an,cmlen7osl0006sr3qvnwoibxr,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 03:59:15.525
+cmleoalxg000414anps2qkwbb,cmleoalxg000114an8m9i925d,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 04:29:31.396
+cmleoaly9000914anqdh9c2ln,cmleoaly9000614anqk53cmjj,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 04:29:31.425
+cmlepd5ke0004xbcou49vgs8g,cmlepd5ke0001xbco6kiqxock,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 04:59:29.774
+cmlepd5l50009xbconf4qb69w,cmlepd5l50006xbcof2y49g24,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-09 04:59:29.802
+cmlg6m6d00005ws513dkmrid8,cmlg6m6d00001ws516ejb766e,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:50:10.356
+cmlg6m6ef000bws51bjriqu57,cmlg6m6ef0007ws51vh4ne6qw,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:50:10.408
+cmlg6m6f0000hws517fgfkaga,cmlg6m6f0000dws511mr6yc6k,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:50:10.429
+cmlg6m6fj000nws514gylc87t,cmlg6m6fj000jws51y9f288of,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:50:10.448
+cmlg6m6g3000tws51tig9l73h,cmlg6m6g3000pws51na8ajy3z,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:50:10.467
+cmlg6qhob000112iwe5cr7t2r,cmlg6m6g3000pws51na8ajy3z,pending_receipt,receipt_completed,bulk_status_change,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:53:31.644
+cmlg6qhog000212iw80uayhfw,cmlg6m6fj000jws51y9f288of,pending_receipt,receipt_completed,bulk_status_change,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:53:31.648
+cmlg6qhoi000312iwt58fqzi6,cmlg6m6ef0007ws51vh4ne6qw,pending_receipt,receipt_completed,bulk_status_change,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:53:31.65
+cmlg6qhoj000412iwotc9z8pd,cmlg6m6f0000dws511mr6yc6k,pending_receipt,receipt_completed,bulk_status_change,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 05:53:31.652
+cmlg90nty000512pqwh6r51s4,cmlg90nty000112pqw0m5p6nd,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-10 06:57:25.414
+cmlga6pvr0001m0k82be3e6va,cmlg90nty000112pqw0m5p6nd,pending_receipt,cancelled,bulk_order_cancelled,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 07:30:07.624
+cmlgangpy0005m4uif2t99t79,cmlgangpx0001m4uirrrzloi5,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 07:43:08.902
+cmlgangqs000em4uivixpjo1x,cmlgangqs000am4uis9ruguwb,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 07:43:08.932
+cmlgangrc000nm4uis2bc260h,cmlgangrc000jm4uiisnf9uxu,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 07:43:08.952
+cmlgangs6000wm4uie0vq7661,cmlgangs6000sm4ui7713no16,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-10 07:43:08.982
+cmlhmuxld000666cxmpj65r82,cmlhmuxld000266cxcumoi7da,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-11 06:12:38.93
+cmlhmuxm7000c66cx9oljy474,cmlhmuxm7000866cx399x0agh,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-11 06:12:38.959
+cmlhmuxms000i66cx7wlyaq6s,cmlhmuxms000e66cx3n1svxox,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-11 06:12:38.98
+cmlhmuxnc000o66cxqhb40746,cmlhmuxnc000k66cx75945m0b,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-11 06:12:39
+cmlhmuxnx000x66cxiau63yz2,cmlhmuxnx000t66cx94ogl2pk,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-11 06:12:39.021
+cmlhmuxoj001966cxkd27zqnr,cmlhmuxoj001566cx8eyurt5r,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-11 06:12:39.043
+cmliskdma0005nmb0lmohq7qg,cmliskdm90001nmb03y3p68m3,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 01:40:10.353
+cmliskdnm000enmb0z97eqrfz,cmliskdnm000anmb0318edlrr,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 01:40:10.402
+cmlit5ur0000lnmb0rb490zk2,cmlgangqs000am4uis9ruguwb,pending_receipt,cancelled,bulk_order_cancelled,테스트,cml63cj8d000610fc52rxd1r8,2026-02-12 01:56:52.332
+cmliu5jt30015ncs9lngj7852,cmliu5jst0001ncs98t8mffih,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 02:24:37.754
+cmliu5jyf0020ncs9i41rxt10,cmliu5jy8001ancs9qtts0akd,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 02:24:37.95
+cmliu5k1e002kncs9xr6p47ib,cmliu5k1c0025ncs9l67cx4uf,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 02:24:38.063
+cmliv3yog0039ncs9pxefpy3k,cmliv3yod002rncs9xy4bylg4,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-12 02:51:23.341
+cmlix17op000nrzu1ujurmasu,cmlix17ol0001rzu14zdkqijq,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-12 03:45:14.276
+cmlix7pbb000urzu1t65tsw6h,cmliv3yod002rncs9xy4bylg4,pending_receipt,receipt_completed,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-12 03:50:17.063
+cmlix889q000wrzu1az4n031o,cmliv3yod002rncs9xy4bylg4,receipt_completed,pending_receipt,bulk_status_change,입금대기 처리,cml63cj8d000610fc52rxd1r8,2026-02-12 03:50:41.63
+cmlix8cz6000yrzu1sri80vit,cmliv3yod002rncs9xy4bylg4,pending_receipt,pending_receipt,bulk_status_change,입금대기 처리,cml63cj8d000610fc52rxd1r8,2026-02-12 03:50:47.73
+cmlix8iwi0010rzu182tdhsq7,cmliv3yod002rncs9xy4bylg4,pending_receipt,receipt_completed,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-12 03:50:55.41
+cmlizqug60001qtkm98k6udw7,cmlix17ol0001rzu14zdkqijq,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 05:01:09.414
+cmlj039720001kqejtuhlhz99,cmlix17ol0001rzu14zdkqijq,receipt_completed,in_production,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-12 05:10:48.398
+cmlj0eatr000okqejqkhcgm20,cmlj0eatm0003kqejqust11ek,,pending_receipt,order_created,,cmkg8vzuf0000at5m0dyaydie,2026-02-12 05:19:23.721
+cmlk955ck0001vfxzf53fbb2f,cmlj0eatm0003kqejqust11ek,pending_receipt,in_production,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-13 02:11:59.444
+cmlkdvct8000gxibgvwvqzcx5,cmlkdvct40001xibg6m0xy7uv,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-13 04:24:20.63
+cmlke13av0015xibgnx00wkas,cmlke13aq000nxibgpmig7b9g,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-13 04:28:48.242
+cmlulmxem0010n0enyvcgcfo4,cmlulmxel000gn0enx5y2sxq0,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 07:59:26.109
+cmlulmxgv001pn0enus0wnhfi,cmlulmxgu0013n0envcpsr1xn,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 07:59:26.19
+cmlulmxiq002en0enapwo5786,cmlulmxip001sn0enphh5nnln,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 07:59:26.257
+cmlume7o0000mlsaq0h7ihxcb,cmlume7nz0002lsaq096lqbik,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 08:20:39.119
+cmlume7p90019lsaqysj21df6,cmlume7p8000plsaq3n3uhupe,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 08:20:39.165
+cmlun27yc000w1tt97nfb1dwl,cmlun27yb00021tt9sjcumln9,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 08:39:19.235
+cmluncomd000wlhkvxxzrc4p6,cmluncomc0002lhkvqka525st,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 08:47:27.396
+cmlunfo4j001ylhkvkhivx6pu,cmlunfo4i0014lhkvplv4ey8l,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 08:49:46.722
+cmlunyw9c0025lhkvm50mqhko,cmlunfo4i0014lhkvplv4ey8l,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.728
+cmlunyw9f0026lhkvwexymi95,cmluncomc0002lhkvqka525st,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.731
+cmlunyw9h0027lhkv6qeqahy5,cmlun27yb00021tt9sjcumln9,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.734
+cmlunyw9j0028lhkv317o6i80,cmlume7p8000plsaq3n3uhupe,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.735
+cmlunyw9l0029lhkvj81e0xnc,cmlume7nz0002lsaq096lqbik,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.737
+cmlunyw9n002alhkv3lrp38v0,cmlulmxip001sn0enphh5nnln,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.739
+cmlunyw9o002blhkvegbxftg5,cmlulmxgu0013n0envcpsr1xn,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.741
+cmlunyw9q002clhkv66qsdkzi,cmlulmxel000gn0enx5y2sxq0,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.742
+cmlunyw9r002dlhkvo2gwkh4y,cmlke13aq000nxibgpmig7b9g,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.743
+cmlunyw9t002elhkvt91amqyh,cmlkdvct40001xibg6m0xy7uv,pending_receipt,receipt_completed,bulk_status_change,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:04:43.745
+cmluo3kr9003blhkvnbae95j0,cmluo3kr8002hlhkvndbtt54t,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:08:22.1
+cmluo5zi7004dlhkvcci1wv59,cmluo5zi7003jlhkvawsvz9cn,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:10:14.527
+cmluo8ckv004jlhkvwkoiiem7,cmlunfo4i0014lhkvplv4ey8l,receipt_completed,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:12:04.784
+cmluoa96f004klhkvwi7h013k,cmluncomc0002lhkvqka525st,receipt_completed,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-20 09:13:33.687
+cmluqbz4a000wn04hqj1ehy4x,cmluqbz490002n04hkttw8vcl,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 10:10:53.193
+cmluqbz5t001tn04h283t9svz,cmluqbz5t000zn04he5f3j1fo,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 10:10:53.249
+cmluqbz6a002en04hcnmff24q,cmluqbz69001zn04hdqew5qgp,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 10:10:53.266
+cmlur5t4v003qn04hycr07xds,cmlur5t4u0037n04ho0hjlx67,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 10:34:05.118
+cmlur5t6t004bn04hg4kq7smq,cmlur5t6s003tn04hud3tt493,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 10:34:05.189
+cmluslrf2002hbog7z9ego1be,cmluslrf1001zbog7vetnh4df,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:14:29.005
+cmluslrgd0033bog7m8reg70l,cmluslrgc002kbog75owzuyjh,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:14:29.053
+cmluslrha003lbog7f7ahalf1,cmluslrh90036bog7690q90tf,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:14:29.086
+cmluslri10044bog71kxevai2,cmluslri1003obog7b1qu1ln0,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:14:29.113
+cmluslriu004pbog7maftruno,cmluslrit004abog73p01hw8p,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:14:29.142
+cmlut7div000ocxxrccjr5t5f,cmlut7diu0004cxxrb9x3jpus,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:31:17.43
+cmlut7dkk001bcxxr7n00102x,cmlut7dkj000rcxxr7foxdlaa,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 11:31:17.491
+cmluum7kk000pip48quqinh6f,cmluum7kj0004ip48nx841wfc,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.171
+cmluum7ob000wip48lrdrxfx7,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.307
+cmluum7oi000yip48mtsxz96e,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.314
+cmluum7om0010ip48znuvymrv,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.319
+cmluum7or0012ip483eutjoek,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.323
+cmluum7ov0014ip48xhnw7zvj,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.327
+cmluum7oy0016ip484kpwqxyp,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.331
+cmluum7p20018ip48cfnjgzck,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.335
+cmluum7p6001aip48ir8ujoty,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.338
+cmluum7pa001cip48v0027m0e,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.342
+cmluum7pd001eip488i90r3ie,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.345
+cmluum7ph001gip48gyv1uz8z,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.349
+cmluum7pl001iip48bnf75ix6,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.353
+cmluum7pp001kip48fqi3qrso,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.357
+cmluum7ps001mip48so28qlsq,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.361
+cmluum7pw001oip488bi64z5q,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.364
+cmluum7q0001qip48il7g3y14,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.368
+cmluum7q3001sip48anwooaig,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 606,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:10:49.372
+cmluv2o0e002gip4897ets86r,cmluv2o0d001vip48pgt6620h,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:36.973
+cmluv2o4e002nip48r1xnnfgc,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.119
+cmluv2o4l002pip48s34a63wa,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.125
+cmluv2o4p002rip48u3up1bhb,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.129
+cmluv2o4t002tip48hjrum7ql,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.134
+cmluv2o4x002vip48ivhhgbxt,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.137
+cmluv2o50002xip48l2qlwybf,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.141
+cmluv2o54002zip483394qpgs,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.144
+cmluv2o580031ip48p534jnn4,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.148
+cmluv2o5b0033ip48n2l67xkn,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.151
+cmluv2o5e0035ip48ijgj92lp,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.155
+cmluv2o5i0037ip489pjqzha9,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.158
+cmluv2o5l0039ip48684k7sv6,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.162
+cmluv2o5p003bip48w1ew0g5e,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.165
+cmlzw04q2000joaxdbvrawziq,cmlzw04q20003oaxd8bmpminr,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 00:48:29.162
+cmluv2o5t003dip48d507nymf,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.169
+cmluv2o5w003fip4846pr6xkp,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.173
+cmluv2o60003hip48u4n36qpp,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.177
+cmluv2o64003jip48p8e4g8sf,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.181
+cmluv2o68003lip48x42qmt93,cmluv2o0d001vip48pgt6620h,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 639,300원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:23:37.185
+cmluv7poo0049ip488sfwr32p,cmluv7pon003oip48kcctzfvq,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.423
+cmluv7pqi004gip4873yo8jau,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.49
+cmluv7pqo004iip488lg6be8s,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.497
+cmluv7pqs004kip480459omrv,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.5
+cmluv7pqw004mip48ae6uwvdu,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.504
+cmluv7pqz004oip48huu2eeu0,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.508
+cmluv7pr3004qip48wxeurfc4,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.512
+cmluv7pr7004sip48xelyyqbo,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.515
+cmluv7pra004uip4881xs5q97,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.519
+cmluv7pre004wip481wd5ieto,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.522
+cmluv7prh004yip48352pwygk,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.525
+cmluv7prl0050ip48cfi0sikt,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.529
+cmluv7pro0052ip48ppqc14v0,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.533
+cmluv7prs0054ip48yn58f02q,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.537
+cmluv7prw0056ip4817oc0bm4,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.54
+cmluv7prz0058ip4803aqijl1,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.544
+cmluv7ps3005aip4825hwlagk,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.547
+cmluv7ps6005cip48q5pjtjtw,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.55
+cmluv7psa005eip486f4i06ht,cmluv2o0d001vip48pgt6620h,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.555
+cmluv7pse005gip48nfsry53w,cmluv7pon003oip48kcctzfvq,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 671,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:27:32.558
+cmluvcosv0069ip48783wr7s3,cmluvcosu005jip481b657pez,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.558
+cmluvcows006gip48wqqsns7s,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.701
+cmluvcox0006iip48hceczbih,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.708
+cmluvcox3006kip483ndq0lrt,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.712
+cmluvcox7006mip48297j5jhg,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.715
+cmluvcoxb006oip48fqpmom44,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.719
+cmluvcoxf006qip48c1dnpfvm,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.723
+cmluvcoxj006sip480xee8ukp,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.727
+cmluvcoxm006uip48gskpds4e,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.731
+cmluvcoxq006wip48dzxdcrjs,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.734
+cmluvcoxt006yip48h14m70zr,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.737
+cmlzw05by0014oaxdvp4urz2w,cmlzw05bx000poaxd64yceqe1,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 00:48:29.949
+cmluvcoxx0070ip48bbn0ufs0,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.741
+cmluvcoy10072ip481eygej4f,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.745
+cmluvcoy40074ip48rxef84dg,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.748
+cmluvcoy70076ip48cuaidykf,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.752
+cmluvcoyb0078ip48xk7x6ehv,cmluv2o0d001vip48pgt6620h,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.755
+cmluvcoyf007aip48vlfd80rm,cmluv7pon003oip48kcctzfvq,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.759
+cmluvcoyi007cip48rqkp9kj7,cmluvcosu005jip481b657pez,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.763
+cmluvcoym007eip488n5e89x9,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.766
+cmluvcoyp007gip483bdkqilp,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.77
+cmluvcoyt007iip48g9n2xn8n,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 711,800원 ≥ 무료배송 기준 90,000원)",cml63cj8d000610fc52rxd1r8,2026-02-20 12:31:24.773
+cmluvkjld008eip48pfvboybk,cmluvkjlc007wip487xorjf8y,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.056
+cmluvkjos008lip48twqj97k7,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.181
+cmluvkjp0008nip48dhgew2cj,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.188
+cmluvkjp3008pip4881buyhn7,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.192
+cmluvkjp7008rip48yci3fb0e,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.196
+cmluvkjpc008tip481n2cx1m4,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.2
+cmluvkjpg008vip48mvvb7c81,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.204
+cmluvkjpj008xip48oy1tmbz0,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.208
+cmluvkjpn008zip489eec6dwv,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.211
+cmluvkjpq0091ip48ecsd62dv,cmluvkjlc007wip487xorjf8y,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.215
+cmluvkjpu0093ip48xcwrdeb6,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.218
+cmluvkjpx0095ip48jkmluo3u,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.222
+cmluvkjq10097ip4815b77rmk,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.225
+cmluvkjq40099ip48wgagy5p3,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.229
+cmluvkjq8009bip48q6p49je8,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.232
+cmluvkjqb009dip48dwk03yu8,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.236
+cmluvkjqf009fip48p3t0gxai,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.239
+cmluvkjqi009hip48zl0cxwbw,cmluv2o0d001vip48pgt6620h,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.242
+cmluvkjql009jip48oq10o3gc,cmluv7pon003oip48kcctzfvq,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.246
+cmluvkjqp009lip48t8j89xsb,cmluvcosu005jip481b657pez,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.249
+cmlzw05r8001woaxdbbm7qc0p,cmlzw05r7001goaxdsokzglw2,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 00:48:30.499
+cmluvkjqt009nip48b5w0fuo4,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.253
+cmluvkjqx009pip48jflu4car,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 739,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:37:31.257
+cmluvqpxl00acip48m8263tgg,cmluvqpxk009sip483h55ol1x,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.208
+cmluvqpze00ajip483ck5wv7r,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.274
+cmluvqpzl00alip48sdc28g9u,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.281
+cmluvqpzp00anip480nspiqm9,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.285
+cmluvqpzt00apip487ehvup5l,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.289
+cmluvqpzw00arip48dxpcsk85,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.293
+cmluvqq0000atip48a5jlkjsx,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.296
+cmluvqq0300avip481a1it6ek,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.3
+cmluvqq0700axip48sbpgt6ro,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.304
+cmluvqq0b00azip48sxya5r2c,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.308
+cmluvqq0f00b1ip48b4lrv19u,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.311
+cmluvqq0i00b3ip485tttn8rr,cmluvkjlc007wip487xorjf8y,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.314
+cmluvqq0m00b5ip485rg2n36l,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.318
+cmluvqq0p00b7ip487kxcazso,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.322
+cmluvqq0t00b9ip48e26qk628,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.325
+cmluvqq0w00bbip481c8686kz,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.328
+cmluvqq0z00bdip48yhw8zz0e,cmluv2o0d001vip48pgt6620h,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.332
+cmluvqq1300bfip48a37dogwd,cmluv7pon003oip48kcctzfvq,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.335
+cmluvqq1700bhip481yzmdaxr,cmluvcosu005jip481b657pez,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.339
+cmluvqq1a00bjip48scyrgxwo,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.343
+cmluvqq1e00blip48pkqgehkd,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.346
+cmluvqq1h00bnip4852qqmdhv,cmluvqpxk009sip483h55ol1x,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.35
+cmluvqq1n00bpip48ctftib5o,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 765,800원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:42:19.356
+cmluvuywn00cbip48wyzo35kx,cmluvuywm00bsip48g76b4669,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.463
+cmnffuxa60079d0ym96q2m00b,cmnffuxa6006nd0ym4qr03de3,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:40:33.534
+cmluvuz0400ciip48m2bjvh2d,cmlume7p8000plsaq3n3uhupe,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.588
+cmluvuz0a00ckip48d3bqjpoa,cmlume7nz0002lsaq096lqbik,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.595
+cmluvuz0e00cmip48xzpf1gt5,cmlulmxip001sn0enphh5nnln,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.599
+cmluvuz0i00coip48f21g51ke,cmlulmxgu0013n0envcpsr1xn,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.603
+cmluvuz0n00cqip48b2r5gdca,cmlulmxel000gn0enx5y2sxq0,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.607
+cmluvuz0q00csip48hjr1ibaw,cmlun27yb00021tt9sjcumln9,receipt_completed,receipt_completed,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.611
+cmluvuz0u00cuip48401ebbiu,cmlur5t4u0037n04ho0hjlx67,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.614
+cmluvuz0x00cwip484walntra,cmluvcosu005jip481b657pez,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.618
+cmluvuz1100cyip48w093ivy9,cmluo5zi7003jlhkvawsvz9cn,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.621
+cmluvuz1500d0ip482pvjsi5q,cmluqbz69001zn04hdqew5qgp,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.625
+cmluvuz1800d2ip48xbhckqoi,cmluvqpxk009sip483h55ol1x,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.629
+cmluvuz1c00d4ip48zr39x4lr,cmlut7diu0004cxxrb9x3jpus,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.632
+cmluvuz1f00d6ip4897e1xh8y,cmluvuywm00bsip48g76b4669,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.636
+cmluvuz1j00d8ip48x8eo6k0e,cmluo3kr8002hlhkvndbtt54t,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.639
+cmluvuz1n00daip485sxsigxi,cmluvkjlc007wip487xorjf8y,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.643
+cmluvuz1q00dcip485eqdok6u,cmluqbz5t000zn04he5f3j1fo,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.646
+cmluvuz1u00deip48t237xp4i,cmluslrh90036bog7690q90tf,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.65
+cmluvuz1x00dgip48ehd3joiv,cmluslri1003obog7b1qu1ln0,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.653
+cmluvuz2100diip48vffgbekg,cmluslrit004abog73p01hw8p,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.657
+cmluvuz2400dkip48osfui3nr,cmlut7dkj000rcxxr7foxdlaa,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.661
+cmluvuz2800dmip484t8bisnc,cmluv2o0d001vip48pgt6620h,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.664
+cmluvuz2b00doip482xek9m9i,cmluv7pon003oip48kcctzfvq,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.667
+cmluvuz2e00dqip48se5vx72i,cmluum7kj0004ip48nx841wfc,pending_receipt,pending_receipt,admin_adjustment,"합배송 배송비 환불: -5,500원 (당일 누적 790,400원 ≥ 무료배송 기준 90,000원)",cmlc48lcw00017cvnisoyrvqk,2026-02-20 12:45:37.671
+cmluwonwn0000es3rlw0ckgcu,cmluvuywm00bsip48g76b4669,pending_receipt,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-20 13:08:42.888
+cmluwoslu0001es3r7jufathz,cmluvqpxk009sip483h55ol1x,pending_receipt,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-20 13:08:48.979
+cmluwow9g0002es3rtjr6lv54,cmluvkjlc007wip487xorjf8y,pending_receipt,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-20 13:08:53.717
+cmluwzzve000ves3ryauk4r8n,cmluwzzvd0005es3robpeuma6,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 13:17:31.609
+cmlux3cpx001les3rgz7ci3j3,cmlux3cpx0016es3r84zvkhyk,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 13:20:08.229
+cmluy77wj000l9dgndwn0fsp2,cmluy77wi00029dgn4jvw2jzw,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-20 13:51:08.226
+cmlykr5o90039lpoajqj807jv,cmlykr5o8002olpoamcsqpoty,,pending_receipt,order_created,,cmkg8vzuf0000at5m0dyaydie,2026-02-23 02:45:48.536
+cmlylaba6003vlpoa1hx2iysr,cmlylaba5003hlpoawr1jo9q2,,pending_receipt,order_created,,cmkg8vzuf0000at5m0dyaydie,2026-02-23 03:00:42.269
+cmlylabpn004llpoappfqumsz,cmlylabpm0047lpoa5pkewr4s,,pending_receipt,order_created,,cmkg8vzuf0000at5m0dyaydie,2026-02-23 03:00:42.827
+cmlylac1y005blpoa0xsbtwok,cmlylac1y004xlpoaucpshxgb,,pending_receipt,order_created,,cmkg8vzuf0000at5m0dyaydie,2026-02-23 03:00:43.27
+cmlylbtg4005nlpoaxlme5l2o,cmlylac1y004xlpoaucpshxgb,pending_receipt,cancelled,order_cancelled,고객 요청 취소,cmkg8vzuf0000at5m0dyaydie,2026-02-23 03:01:52.468
+cmlysbqmi000g101eqg8jpsuw,cmlysbqmh0002101ehkcl1grj,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:17:46.122
+cmlysbr120010101e68o0cagj,cmlysbr12000m101e45y8q2u5,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:17:46.646
+cmlysbre4001q101enhz6s5xd,cmlysbre4001c101eoufml1tx,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:17:47.116
+cmlysbrra002g101ec9f756gr,cmlysbrr90022101eypws9rtp,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:17:47.59
+cmlysbs3j0036101e9642fx5i,cmlysbs3j002s101epure3lpo,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:17:48.031
+cmlyskoxu003y101e1dt1f7fe,cmlyskoxt003k101e8zt2ev09,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:24:43.842
+cmlyskpje004i101e4av4l59r,cmlyskpjd0044101eoprrzsc3,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:24:44.617
+cmlyskpzp0058101er3000jm9,cmlyskpzo004u101er9quo9hq,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:24:45.205
+cmlyskqee005y101eg6uwmu7c,cmlyskqee005k101e6gisw4r1,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:24:45.734
+cmlyskqyu006o101en9tcohod,cmlyskqyu006a101ewe2daypd,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-23 06:24:46.47
+cmlzw4iuj0039oaxd1wh47mat,cmlzw4iuh002aoaxdf531n9jd,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 00:51:54.089
+cmlzw52eq003foaxdhow8z59i,cmlzw05bx000poaxd64yceqe1,pending_receipt,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-24 00:52:19.442
+cmlzw57nf003moaxdtobiomls,cmlzw05r7001goaxdsokzglw2,pending_receipt,cancelled,order_cancelled,고객 요청 취소,cmlc48lcw00017cvnisoyrvqk,2026-02-24 00:52:26.235
+cmlzw57o2003uoaxd8ktufbe5,cmlzw4iuh002aoaxdf531n9jd,pending_receipt,pending_receipt,shipping_recalc,"합배송 환급 취소: 당일 누적 68,800원 < 기준 90,000원",system,2026-02-24 00:52:26.258
+cmlzwljar0089oaxdvj7in88m,cmlzwljar007poaxdu2x234he,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 01:05:07.827
+cmlzwljzn009foaxd17o5eej1,cmlzwljzm008foaxdyt9t072i,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 01:05:08.722
+cmm08sged000h11uealh6m7y3,cmm08sged000711uecobrw7mk,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 06:46:26.052
+cmm08sgpa001s11uedeftxlej,cmm08sgp9000t11ue0twnxh7t,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-24 06:46:26.445
+cmm0brq2h000o7egsk20f4ieu,cmm0brq2f00027egst0gxt8mg,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-24 08:09:50.776
+cmm0bw4lu00167egsj3ym2tlw,cmm0bw4lt000x7egs08bqwot4,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-24 08:13:16.241
+cmm0bw4we002a7egs8vtji0na,cmm0bw4wc001c7egs1isk4b3z,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-24 08:13:16.62
+cmm0bzxtk00377egsijm2i205,cmm0bzxtj002p7egs3hh0hgtu,,pending_receipt,order_created,,cml5w4ssp0001v7vnm48qzlwz,2026-02-24 08:16:14.071
+cmm1adng90007445e8v8ap6m8,cmm0bzxtj002p7egs3hh0hgtu,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 00:18:40.761
+cmm1adngf0008445e2znw7efo,cmm0bw4wc001c7egs1isk4b3z,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 00:18:40.768
+cmm1adngj0009445ek9kfz7qh,cmm0bw4lt000x7egs08bqwot4,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 00:18:40.771
+cmm1adngl000a445eiu9lukk6,cmm0brq2f00027egst0gxt8mg,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 00:18:40.774
+cmm1fuwuy0014ci5iejylmks7,cmm1fuwux0006ci5iz6zrqs90,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 02:52:04.185
+cmm1fvtnd001fci5i8lttqhqu,cmm1fuwux0006ci5iz6zrqs90,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 02:52:46.681
+cmm1g582j002hci5i4ctxxa0d,cmm1g582h001jci5io0fv2x3p,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 03:00:05.274
+cmm1jp3hh0007taekt5qd61jc,cmm1jp3hh0002taekvlqk9jsp,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 04:39:31.301
+cmm1jp3ni000ltaek7j0adaua,cmm1jp3ni000dtaekzxxz9ytl,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 04:39:31.518
+cmm1jp3tz0015taekpjl66azf,cmm1jp3ty000xtaekyxst15kq,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 04:39:31.751
+cmm1jp404001otaeko08z3tmz,cmm1jp403001htaekc1h1d5wr,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 04:39:31.972
+cmm1jp4420027taek1v5v3dh6,cmm1jp4420020taekmgh1pquo,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 04:39:32.114
+cmm1jp47y002otaek9y9phf5e,cmm1jp47y002jtaek3dsxvao7,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-25 04:39:32.254
+cmm1jrzrh00054hwwve8h8f8q,cmm1jp47y002jtaek3dsxvao7,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 04:41:46.445
+cmm1jrzrk00064hww9mleelds,cmm1jp4420020taekmgh1pquo,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 04:41:46.449
+cmm1jrzrn00074hwwor7gzq6l,cmm1jp403001htaekc1h1d5wr,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 04:41:46.451
+cmm1jrzro00084hwwadq560jn,cmm1jp3ty000xtaekyxst15kq,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-25 04:41:46.453
+cmm2rf0zx000so9yx17u5si3z,cmm2rf0zw0008o9yxmdabbbqv,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 01:03:24.62
+cmm2rj9zx001vo9yx3mgrt1ws,cmm2rj9zw0012o9yx0bxg7cd8,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 01:06:42.908
+cmm2rjatd002co9yx1or4roh5,cmm2rjatd0023o9yx0xqlj438,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 01:06:43.969
+cmm2rmlav002wo9yxbuaimq5r,cmm2rjatd0023o9yx0xqlj438,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 01:09:17.527
+cmm2s2pyl0002rt8illctmhyd,cmm2rj9zw0012o9yx0bxg7cd8,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 01:21:50.061
+cmm32nrqt0003f2xfqzl2ags2,cmm2rf0zw0008o9yxmdabbbqv,pending_receipt,receipt_completed,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 06:18:08.309
+cmm36kwir000mv1mknros1zan,cmm36kwiq0002v1mkzzkbubcz,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 08:07:52.994
+cmm37ycyf000k83kyt3rsynhr,cmm37ycye000283kyhjrr72h6,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 08:46:20.438
+cmm3860hg001183kyylmx21tz,cmm3860hf000s83kyigjkyoaw,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 08:52:17.523
+cmm3860s8001m83ky2909xt5c,cmm3860s7001d83kysgk146dz,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-02-26 08:52:17.912
+cmm388dcd002283kyq6zl1so2,cmm3860s7001d83kysgk146dz,pending_receipt,receipt_completed,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 08:54:07.501
+cmm388khf002483kycsnqp3w0,cmm3860s7001d83kysgk146dz,receipt_completed,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 08:54:16.755
+cmm38abtg002b83ky1x9qm8lj,cmm3860s7001d83kysgk146dz,ready_for_shipping,receipt_completed,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 08:55:38.836
+cmm38agsr002d83kytsojsamz,cmm3860s7001d83kysgk146dz,receipt_completed,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-02-26 08:55:45.292
+cmm4b0u0h0006h9uxoiuvby8e,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 이천터미널 (),system,2026-02-27 03:00:00.881
+cmm4b0u0l0008h9uxt0rn4sf3,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 이천터미널 (),system,2026-02-27 03:00:00.886
+cmm4b0u0n000ah9uxack1hx01,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 영천터미널 (),system,2026-02-27 03:00:00.887
+cmm4b0u0o000ch9uxv5z570f4,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 영천터미널 (),system,2026-02-27 03:00:00.888
+cmm4b0u0p000eh9uxp4zj4c0r,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 지역도착 - 남진구 (),system,2026-02-27 03:00:00.889
+cmm4b0uav000hh9uxx7uwm7iu,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 이천터미널 (),system,2026-02-27 03:00:01.255
+cmm4b0uaw000jh9uxm0araioj,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 이천터미널 (),system,2026-02-27 03:00:01.256
+cmm4b0uax000lh9uxtf0k59mc,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 대전터미널 (),system,2026-02-27 03:00:01.257
+cmm4b0uax000nh9uxsugwhev9,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 이동중 - 대전터미널 (),system,2026-02-27 03:00:01.258
+cmm4b0uay000ph9uxf8hiamvr,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 지역도착 - 원청주 (),system,2026-02-27 03:00:01.259
+cmm4b0uaz000rh9uxwg9sd3vj,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 배달중 - 증평 (),system,2026-02-27 03:00:01.259
+cmm4b0uaz000th9uxftmjp83u,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 배달완료 - 증평 (),system,2026-02-27 03:00:01.26
+cmm4b0ub2000vh9uxr1hu1u7x,cmm2rj9zw0012o9yx0bxg7cd8,ready_for_shipping,shipped,delivery_completed,자동 배달완료 확인 (배송추적),system,2026-02-27 03:00:01.263
+cmm4fb5la00027boop32dbm4k,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 배달중 - 남진구 (),system,2026-02-27 05:00:00.911
+cmm4fb5lg00047booqz5knlft,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,ready_for_shipping,tracking_update,[로젠택배] 배달완료 - 남진구 (),system,2026-02-27 05:00:00.917
+cmm4fb5lm00067booilxfsnhp,cmm1jp47y002jtaek3dsxvao7,ready_for_shipping,shipped,delivery_completed,자동 배달완료 확인 (배송추적),system,2026-02-27 05:00:00.922
+cmmaifqhx004ctjo9muaszjvi,cmmaifqhw003vtjo9tsud1pam,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-03 11:14:10.532
+cmmoeo0120005dv27t7xvglpk,cmmaifqhw003vtjo9tsud1pam,pending_receipt,receipt_completed,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-03-13 04:37:24.134
+cmmoeonhh0007dv27oakvcdnx,cmmaifqhw003vtjo9tsud1pam,receipt_completed,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-03-13 04:37:54.534
+cmmzrcn040059eti6tko8w83m,cmmzrcn03004neti6wn6izlm0,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-03-21 03:17:56.979
+cmmzty8en001272mktlcuz20k,cmmzty8em000972mkiedf1y7f,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-03-21 04:30:43.726
+cmmzty9cd002672mkza8a253x,cmmzty9cc001d72mkuzhiqnwv,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-03-21 04:30:44.94
+cmmzugrt4003a72mkhjor72ah,cmmzugrt4002r72mk38hqkhow,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-03-21 04:45:08.68
+cmmzugsi2004572mk0a926stz,cmmzugsi1003n72mk9knz9fvh,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-03-21 04:45:09.577
+cmmzv3j7m007d72mkf7y0rofv,cmmzv3j7l006k72mkxx6zq7jz,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-03-21 05:02:50.625
+cmmzv3k73008c72mk3m4qtfz7,cmmzv3k72007j72mkwvd76gso,,pending_receipt,order_created,,cmlc48lcw00017cvnisoyrvqk,2026-03-21 05:02:51.902
+cmn40fdo0001b129l8posbilu,cmn40fdnz000k129l1m274qad,,pending_receipt,order_created,,cml63cj8d000610fc52rxd1r8,2026-03-24 02:43:06.095
+cmn40gsuh001m129l50c63p45,cmn40fdnz000k129l1m274qad,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-03-24 02:44:12.425
+cmn4kbo0q00163wh490bbvakr,cmn4kbo0p000r3wh4b96syxoc,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-24 12:00:05.21
+cmn4kjb8g001l3wh47c1s8m22,cmn4kbo0p000r3wh4b96syxoc,pending_receipt,ready_for_shipping,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-03-24 12:06:01.888
+cmn8t0k4n001vcc2hadcn89sw,cmn8t0k4m000pcc2hikxdrc2q,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-27 11:14:28.198
+cmn8t0kir0033cc2hqnsx8ls0,cmn8t0kiq0026cc2h40oe0j4i,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-27 11:14:28.706
+cmn8t0kjx004gcc2hfgxh0yqv,cmn8t0kjv003ecc2hf9opq8am,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-27 11:14:28.748
+cmncpzk9k0013ffcvm6v4r4aq,cmncpzk9k000offcv1xndf9ue,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-30 05:00:47.576
+cmncpzkqh001sffcvzbs6daqx,cmncpzkqg001effcvr1h81dyr,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-30 05:00:48.184
+cmncpzks2002iffcvq8qg63wz,cmncpzks10023ffcv1y595aq0,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-30 05:00:48.241
+cmncpzktn0037ffcvxtrb1i9v,cmncpzktm002tffcv83shfe3b,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-30 05:00:48.298
+cmne8iffc006hv9yjz0wbybsd,cmne8iffb0063v9yjtaya5nkp,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-31 06:27:07.032
+cmne8ig1v0077v9yj51jn05av,cmne8ig1u006sv9yjct0nuwcq,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-31 06:27:07.843
+cmne8ig2v0088v9yjgd6d38s8,cmne8ig2v007iv9yjnd5fsrnd,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-31 06:27:07.879
+cmne8ig3x009dv9yjffvn80u6,cmne8ig3w008jv9yj1j2o1i7a,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-03-31 06:27:07.916
+cmnfaxnl2001ebe21c02n3niq,cmnfaxnl1000bbe21nol906dj,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 00:22:42.853
+cmnfaxnyc0029be21had1kg9m,cmnfaxnyb001pbe21mxthvqog,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 00:22:43.332
+cmnfaxnzu0036be21j8gejgot,cmnfaxnzu002kbe21gvcsijie,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 00:22:43.386
+cmnffuwtt003xd0ym1umwepi0,cmnffuwts003id0ymw02ks6x8,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:40:32.944
+cmnffux5t004ld0ymyk3re11r,cmnffux5t0048d0ym2ef5zq1q,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:40:33.377
+cmnffux79005id0ymjhu1snn0,cmnffux79004wd0ym5jciypj6,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:40:33.429
+cmnffux8p006cd0ymyhn21fhh,cmnffux8o005td0yma8geb6by,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:40:33.481
+cmnfgbb38008ed0ymh6ffdcuq,cmnfgbb37007zd0ymebmx3abg,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:53:17.923
+cmnfgfmqo009jd0ymvzuexev3,cmnfgfmqn0092d0ymjqn373p8,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 02:56:39.647
+cmnfimvhd00b5d0ymao1ccy9q,cmnfimvhc00apd0ym84q71n82,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 03:58:16.801
+cmnft0j3k00e6d0ym1bjcwcvm,cmnft0j3j00dqd0ymii1oqwcq,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 08:48:50.096
+cmnft0jhx00f1d0ymv7j2mxz3,cmnft0jhx00ehd0ymen9b0seb,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-01 08:48:50.613
+cmngs30m2000v11ni3u5lraif,cmngs30m1000611nirq45g8sl,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 01:10:32.666
+cmngs310d001g11ni24iycsbr,cmngs310d001611nijmn7udh3,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 01:10:33.181
+cmngs3129002b11nilll3eqvs,cmngs3128001r11nicfxfud9u,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 01:10:33.248
+cmngs3142003111nixihof5t5,cmngs3141002m11niygkir34e,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 01:10:33.314
+cmnh6a5hc005111niji395wse,cmnh6a5hb004m11nipf1v88yh,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 07:48:00.191
+cmnh6a5uf005u11ni4onmtt8q,cmnh6a5uf005e11nix4ngqm5g,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 07:48:00.663
+cmnh6a5w6006m11niz72zfcup,cmnh6a5w6006711ni1bih2vh8,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 07:48:00.726
+cmnh6a5xt007f11nimc4yw92a,cmnh6a5xs006z11ni1xq4dtiy,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 07:48:00.785
+cmnh6a5zg008711nibz2jjizc,cmnh6a5zg007s11ni4w811szk,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 07:48:00.844
+cmnh6uqai009a11ni07nu38wk,cmnh6uqai008v11nizpurlpmf,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:04:00.282
+cmnh6uqpv00a011nijbtpmr2c,cmnh6uqpu009l11niunbp0t24,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:04:00.834
+cmnh6uqrf00ar11ni95h82v9w,cmnh6uqre00ab11ni6o4p6fwt,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:04:00.891
+cmnh6uqt000bh11nilr9or7ww,cmnh6uqsz00b211nii8ks2t5q,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:04:00.948
+cmnh6uqul00c711niuns32g1b,cmnh6uqul00bs11nij175rz3t,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:04:01.005
+cmnh7m8li000lq42hrhur5iq8,cmnh7m8li0006q42hhf7ntae7,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:25:23.718
+cmnh7m905001bq42hk3gm051v,cmnh7m904000wq42h3zuj0v34,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:25:24.244
+cmnh7m91v0022q42h374g4vgu,cmnh7m91u001mq42h2nnemss0,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:25:24.307
+cmnh7m942002sq42hqop6c0x1,cmnh7m941002dq42hb4g8gcq3,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:25:24.385
+cmnh7m95p003iq42hh7l9bw4t,cmnh7m95p0033q42h7uk3kow1,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:25:24.445
+cmnh8jkha000ujzoy39cdaur9,cmnh8jkh90007jzoy6x6olmjk,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:51:18.765
+cmnh8jkt6001kjzoyct4tcyn3,cmnh8jkt50015jzoycp1k4am2,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-02 08:51:19.193
+cmni70rdk001350xbxxmeatby,cmni70rdj000o50xbubryan42,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:56:27.799
+cmni713iq001t50xb8v2625ae,cmni713iq001e50xbq98acxrq,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:56:43.538
+cmni71f9i002j50xboruou0m8,cmni71f9i002450xbivnkb83x,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:56:58.758
+cmni71za0003d50xb2feo5m5x,cmni71za0002y50xb2mnfylf6,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:57:24.696
+cmni72bco004350xbq42sg331,cmni72bcn003o50xbbc5zt1mk,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:57:40.344
+cmni72n3z004t50xb25v0w0kj,cmni72n3z004e50xbyzm21207,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:57:55.583
+cmni72yuc005q50xbczeadpgk,cmni72yuc005450xb8t9nvpvt,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:58:10.788
+cmni73akf006g50xbe7iem4hz,cmni73ake006150xbta45h5pe,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-03 00:58:25.982
+cmnjoja8g0016oej6e8dy6rdx,cmnjoja8g000ooej6hdgbct7k,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 01:54:31.696
+cmnjojmcu001xoej6k57z7yo6,cmnjojmct001hoej6p8hijtp4,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 01:54:47.405
+cmnjojy3m002uoej6hpjt2d8k,cmnjojy3m0028oej6oq2e3tje,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 01:55:02.626
+cmnjp2ef30040oej67krs6x2k,cmnjp2ef2003ioej6qdgv5j6w,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 02:09:23.582
+cmnjp2qk2004roej6kqjsddny,cmnjp2qk2004boej6n8l89ir2,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 02:09:39.314
+cmnjp32bu005boej6ks5dfaw6,cmnjp32bt0052oej6mlsfqfj4,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 02:09:54.57
+cmnjp3e2l0068oej6lqkczhzm,cmnjp3e2k005moej6g05q7vtb,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-04 02:10:09.788
+cmnsjzysk000cnoeit4t6wffn,cmnjp3e2k005moej6g05q7vtb,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-10 06:57:27.524
+cmnslrbda0004b1wexj1ow52s,cmnjp32bt0052oej6mlsfqfj4,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-10 07:46:43.15
+cmnsm8avu0002uy0z48esn2xq,cmnjp2ef2003ioej6qdgv5j6w,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-10 07:59:55.674
+cmo6kw5xg0019nolzlbo9gzt2,cmo6kw5xg000vnolzdlkpjclu,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 02:31:16.228
+cmo6kw6cs001tnolzukno55c2,cmo6kw6cr001fnolzfmsi8iah,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 02:31:16.78
+cmo6ky0270029nolz37iqrctg,cmo6kw6cr001fnolzfmsi8iah,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 02:32:41.935
+cmo6ky02a002anolzc25gqx0p,cmo6kw5xg000vnolzdlkpjclu,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 02:32:41.939
+cmo6nd30d0010gqcdevosx24w,cmo6nd30d000bgqcd3tst5h18,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 03:40:24.829
+cmo6niffw001rgqcdaxtf3ofs,cmo6nd30d000bgqcd3tst5h18,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 03:44:34.221
+21e59c19-8058-4451-acae-1224662c2826,cmluwzzvd0005es3robpeuma6,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 110,000원",system,2026-02-20 13:17:31.609
+b1cc5d5e-25db-46dd-b8b7-23410e0e4044,cmm2rj9zw0012o9yx0bxg7cd8,shipped,shipped,admin_adjustment,"합배송 환급 5,500원",system,2026-02-26 01:06:42.908
+d26151d7-e5ee-4db3-ae61-26f45e53d03b,cmlzwljar007poaxdu2x234he,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 5,500원",system,2026-02-24 01:05:07.827
+7e4724fb-125d-434d-a9c6-fef19b4d2d80,cmm1jp3hh0002taekvlqk9jsp,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 11,000원",system,2026-02-25 04:39:31.301
+54282eb9-e622-4de0-b5f5-c70eb3ec74b0,cmm0bw4lt000x7egs08bqwot4,ready_for_shipping,ready_for_shipping,admin_adjustment,"합배송 환급 5,500원",system,2026-02-24 08:13:16.241
+0b1147e0-25de-4214-ae76-8fc84c4b87fc,cmmzv3j7l006k72mkxx6zq7jz,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 5,500원",system,2026-03-21 05:02:50.625
+eccb7b51-a45d-464d-b571-e95a8335ef82,cmlux3cpx0016es3r84zvkhyk,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 110,000원",system,2026-02-20 13:20:08.229
+eca958ce-8da7-4120-a680-dddda8d6c95b,cmo6nd30d000bgqcd3tst5h18,print_waiting,print_waiting,admin_adjustment,"합배송 환급 5,500원",system,2026-04-20 03:40:24.829
+7117c272-dec6-454a-a59a-3a888161f8ec,cmlyskoxt003k101e8zt2ev09,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 5,500원",system,2026-02-23 06:24:43.842
+cmo6o24mv000mrtknzvjtoi8o,cmo6o24mu0004rtknhbdqise9,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 03:59:53.335
+cmo6o2wg90011rtknciei993q,cmo6nd30d000bgqcd3tst5h18,print_waiting,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 04:00:29.385
+cmo6o36up0015rtknbp6l5a5h,cmo6o24mu0004rtknhbdqise9,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 04:00:42.865
+cmo6o6vpk001urtkny2r2ei18,cmo6o6vpj001frtknd5yvvnlq,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 04:03:35.047
+cmo6o7tsa002artknoxxgbsfu,cmo6o6vpj001frtknd5yvvnlq,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 04:04:19.211
+cmo6tdzh6000lxm9i6qhlnaon,cmo6tdzh50004xm9itet2zvsk,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 06:29:04.602
+cmo6tdzz0001exm9itwm4wvfi,cmo6tdzyz000wxm9i2p4t4oa8,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 06:29:05.244
+cmo6te0hp002hxm9i51reslgb,cmo6te0hp001pxm9ixbtxykq6,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-20 06:29:05.917
+cmo6tgbsu0003101v75472rbp,cmo6te0hp001pxm9ixbtxykq6,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 06:30:53.886
+cmo6tgbsx0004101v9v1spoik,cmo6tdzyz000wxm9i2p4t4oa8,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 06:30:53.89
+cmo6tgbt00005101vtn8v5hr9,cmo6tdzh50004xm9itet2zvsk,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-20 06:30:53.892
+cmo80oxeu001cx6hzmoigog09,cmo80oxet000jx6hzrbetcdti,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 02:41:18.629
+cmo81iygo0012ajuugmklgefl,cmo81iygn0007ajuutepxoord,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 03:04:39.671
+cmo81iygo0013ajuujf70kfv0,cmo81iygn0007ajuutepxoord,pending_receipt,pending_receipt,admin_adjustment,"합배송 환급 5,500원",cmmagsozx0002tjo9f0wsln3v,2026-04-21 03:04:39.671
+cmo81izee0022ajuu22zhlzn0,cmo81izee0019ajuuoljktdlc,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 03:04:40.886
+cmo81kxgs002majuug8vigw80,cmo81izee0019ajuuoljktdlc,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 03:06:11.693
+cmo81kxgw002najuubkvgbujv,cmo81iygn0007ajuutepxoord,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 03:06:11.696
+cmo87b9et0008eql77j1cyo3h,cmo80oxet000jx6hzrbetcdti,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 05:46:38.309
+cmo87kgpa001leql7f187fakf,cmo87kgp9000seql7mbitu4om,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 05:53:47.662
+cmo87khl5002qeql7c9iwrok5,cmo87khl4001weql760jfsy4y,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 05:53:48.808
+cmo87kig1003weql7ndxljupy,cmo87kig00031eql7edjg0ff0,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 05:53:49.92
+cmo87op1o005geql7t89pf81v,cmo87op1n004leql7oewdqel5,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 05:57:05.099
+cmo87pepi0001bjwowhp9k1f4,cmo87op1n004leql7oewdqel5,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 05:57:38.359
+cmo87pepm0002bjwopg83o9xm,cmo87kig00031eql7edjg0ff0,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 05:57:38.362
+cmo87pepo0003bjwo5mti7epg,cmo87khl4001weql760jfsy4y,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 05:57:38.364
+cmo87pepp0004bjwotmpsmyiq,cmo87kgp9000seql7mbitu4om,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 05:57:38.366
+cmo8cytz4000usa3er7famhxz,cmo8cytz3000fsa3eikx6li0a,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 08:24:56.128
+cmo8cyuf3001tsa3e2takqbtc,cmo8cyuf20015sa3eeqb3vmnx,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 08:24:56.702
+cmo8cyv6g002jsa3efmdt6tck,cmo8cyv6f0024sa3enx96t2t7,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 08:24:57.687
+cmo8d0f1h0032sa3efrljcnjp,cmo8cyv6f0024sa3enx96t2t7,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 08:26:10.085
+cmo8d0f1k0033sa3ex8a2cx3l,cmo8cyuf20015sa3eeqb3vmnx,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 08:26:10.088
+cmo8d0f1m0034sa3eieco2iil,cmo8cytz3000fsa3eikx6li0a,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 08:26:10.09
+cmo8gcbnf0017129h0ha6n38q,cmo8gcbne000c129h8jwgz2c5,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 09:59:24.41
+cmo8gccjt002b129h0sqyc7va,cmo8gccjs001i129h33c72gz0,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 09:59:25.576
+cmo8gcdgo003g129hqnvhcb1a,cmo8gcdgo002m129hh4lhidfx,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-21 09:59:26.76
+cmo8gcxpw003u129hhpyi4m4c,cmo8gcdgo002m129hh4lhidfx,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 09:59:53.012
+cmo8gcxpy003v129hxy4hsxn6,cmo8gccjs001i129h33c72gz0,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 09:59:53.015
+cmo8gcxq1003w129hfmlkprgl,cmo8gcbne000c129h8jwgz2c5,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-21 09:59:53.017
+cmo9azvdb000m5pcum0bhxqen,cmo9azvda000d5pcus2l3556w,,pending_receipt,order_created,,cmmagsozx0002tjo9f0wsln3v,2026-04-22 00:17:31.535
+cmo9b0h7l000x5pcu3g13ob8d,cmo9azvda000d5pcus2l3556w,pending_receipt,print_waiting,bulk_status_change,,cml63cj8d000610fc52rxd1r8,2026-04-22 00:17:59.84

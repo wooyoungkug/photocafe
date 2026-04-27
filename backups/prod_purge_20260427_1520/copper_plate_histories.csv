@@ -1,0 +1,9 @@
+id,copperPlateId,actionType,previousStatus,newStatus,previousLocation,newLocation,orderId,orderNumber,description,actionById,actionBy,createdAt
+cmkyz7flu0003mok2g1yd6qse,cmkyz7fln0001mok2a7yw9njx,registered,,stored,,,,,"동판 ""동판"" 등록",cmks8xaa70000n53cud7q38bl,관리자,2026-01-29 04:50:40.195
+cml0cjlny0009zxl52sqbp5t5,cml0cjlnu0007zxl5dmk6zu4i,registered,,stored,,,,,"동판 ""Scotter"" 등록",cmks8xaa70000n53cud7q38bl,관리자,2026-01-30 03:51:49.102
+cml5wlnbn0003glhl3uf2x04q,cml5wlnbj0001glhl6whmp0wn,registered,,stored,,,,,"동판 ""경기졸업음악회"" 등록",cmk5cpt1z0000ijuehpm9vtid,관리자,2026-02-03 01:12:07.764
+cml5z4fx700033w9et4z50rll,cml5z4fx200013w9enoi56zjs,registered,,stored,,,,,"동판 ""경기초등학교"" 등록",cmk5cpt1z0000ijuehpm9vtid,관리자,2026-02-03 02:22:43.867
+cmlhb23r60003wn8cxlkcbroh,cmlhb23qz0001wn8cbvk214fo,registered,,stored,,,,,"동판 ""건국대학교"" 등록",cml63cj8d000610fc52rxd1r8,우영국,2026-02-11 00:42:18.114
+cmmah08nm0006tjo9pcbfbsht,cmmah08nh0004tjo9ufnbpmf7,registered,,stored,,,,,"동판 ""BeMy"" 등록",cml63cj8d000610fc52rxd1r8,우영국,2026-03-03 10:34:07.955
+cmmah3k6e000atjo9f5rvphgy,cmmah3k6c0008tjo9yew1zypn,registered,,stored,,,,,"동판 ""Pia"" 등록",cml63cj8d000610fc52rxd1r8,우영국,2026-03-03 10:36:42.855
+cmmah98vg000etjo9g9r42aoo,cmmah98vd000ctjo90k9vk4d5,registered,,stored,,,,,"동판 ""세미앙"" 등록",cml63cj8d000610fc52rxd1r8,우영국,2026-03-03 10:41:08.141
