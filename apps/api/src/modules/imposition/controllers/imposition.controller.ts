@@ -202,36 +202,6 @@ export class ImpositionController {
       w = w / 2;
     }
 
-    // 규격(specifications) 의 jdfBleedTop/Right/Bottom/Left 를 우선 적용.
-    // 사용자가 임포지션 다이얼로그에서 임시로 0 으로 바꿔도, 운영 흐름은 규격에 정의된 bleed 를 사용해야 함.
-    // 매칭 우선순위: order_items.size 의 숫자 부분(예: "12×15인치" → "12x15") → specifications.name
-    let specBleed: number | null = null;
-    try {
-      const sizeKey = (item.size || '').match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
-      if (sizeKey) {
-        const normalizedSize = `${sizeKey[1]}x${sizeKey[2]}`;
-        const spec = await this.prisma.specification.findFirst({
-          where: { name: normalizedSize },
-          select: {
-            jdfBleedTop: true,
-            jdfBleedRight: true,
-            jdfBleedBottom: true,
-            jdfBleedLeft: true,
-          },
-        });
-        if (spec) {
-          // 단일 bleed 값(ImpositionInput.bleed)으로 사용 — 4면 평균 (대부분 동일).
-          const sides = [spec.jdfBleedTop, spec.jdfBleedRight, spec.jdfBleedBottom, spec.jdfBleedLeft]
-            .map((v) => Number(v ?? 0));
-          if (sides.some((v) => v > 0)) {
-            specBleed = sides.reduce((a, b) => a + b, 0) / sides.length;
-          }
-        }
-      }
-    } catch {
-      // spec 조회 실패는 무시하고 preset 값 사용
-    }
-
     const bindingType = mapBindingType(item.bindingType);
 
     const input: ImpositionInput = {
@@ -245,8 +215,8 @@ export class ImpositionController {
       marginRight: Number(preset.marginRight),
       marginBottom: Number(preset.marginBottom),
       marginLeft: Number(preset.marginLeft),
-      // bleed: 규격에 정의된 값을 우선, 없으면 preset 값 사용
-      bleed: specBleed !== null ? specBleed : Number(preset.bleed),
+      // bleed: 다이얼로그(시스템 설정값)에서 전달된 preset.bleed 를 단일 출처로 사용.
+      bleed: Number(preset.bleed),
       gutter: Number(preset.gutter),
       creaseWidth: preset.creaseWidth ? Number(preset.creaseWidth) : undefined,
       tackMargin: preset.tackMargin ? Number(preset.tackMargin) : undefined,
@@ -410,30 +380,6 @@ export class ImpositionController {
       'Content-Disposition': `attachment; filename="imposition_image_${jobId}.pdf"`,
     });
     return new StreamableFile(fs.createReadStream(job.imagePdfPath));
-  }
-
-  @Get('spec-bleed')
-  @ApiOperation({ summary: '규격명 → bleed(mm) 조회. 다이얼로그 자동 적용용.' })
-  async getSpecBleed(@Query('size') size: string) {
-    if (!size) return { bleed: null as number | null };
-    const sizeKey = size.match(/(\d+(?:\.\d+)?)\s*[x×*]\s*(\d+(?:\.\d+)?)/i);
-    if (!sizeKey) return { bleed: null as number | null };
-    const normalized = `${sizeKey[1]}x${sizeKey[2]}`;
-    const spec = await this.prisma.specification.findFirst({
-      where: { name: normalized },
-      select: {
-        jdfBleedTop: true,
-        jdfBleedRight: true,
-        jdfBleedBottom: true,
-        jdfBleedLeft: true,
-      },
-    });
-    if (!spec) return { bleed: null as number | null };
-    const sides = [spec.jdfBleedTop, spec.jdfBleedRight, spec.jdfBleedBottom, spec.jdfBleedLeft]
-      .map((v) => Number(v ?? 0));
-    if (sides.every((v) => v === 0)) return { bleed: 0 };
-    const avg = sides.reduce((a, b) => a + b, 0) / sides.length;
-    return { bleed: avg };
   }
 
   @Get('jobs/batch-zip')
