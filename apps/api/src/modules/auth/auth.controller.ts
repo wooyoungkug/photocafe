@@ -88,12 +88,15 @@ export class AuthController {
   @Post('refresh')
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '토큰 갱신' })
-  async refresh(@Body() refreshTokenDto: RefreshTokenDto, @Req() req: any, @Res({ passthrough: true }) res: Response) {
+  async refresh(@Body() refreshTokenDto: RefreshTokenDto, @Request() req: any, @Res({ passthrough: true }) res: Response) {
     const refreshToken = refreshTokenDto.refreshToken || req?.cookies?.refresh_token;
     if (!refreshToken) {
       throw new UnauthorizedException('refresh token이 필요합니다.');
     }
     const result = await this.authService.refreshToken(refreshToken);
+    if (!result.refreshToken) {
+      throw new UnauthorizedException('유효한 refresh token을 발급하지 못했습니다.');
+    }
     this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
     return result;
   }
