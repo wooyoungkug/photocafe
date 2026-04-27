@@ -281,8 +281,9 @@ export class ImpositionController {
       });
 
       // 이미지 배치 인쇄용 PDF (OrderItem.files JPG 실제 배치)
+      // 명시적으로 generateImagePdf=true 일 때만 생성 (기본은 정식 PDF만).
       let imagePdfPath: string | undefined;
-      if (dto.generateImagePdf !== false) {
+      if (dto.generateImagePdf === true) {
         // 원본 파일 인덱스(1-based)를 그대로 pageNumber에 매핑해야
         // ImpositionCalcService가 할당한 Placement.pages 번호와 일치.
         // validFiles 필터 후 idx+1 재매핑은 누락 파일 발생 시 번호가 틀어짐.

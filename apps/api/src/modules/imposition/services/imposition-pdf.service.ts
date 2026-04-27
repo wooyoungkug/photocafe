@@ -1,5 +1,19 @@
 import { Injectable } from '@nestjs/common';
-import { PDFDocument, rgb, PDFPage, degrees, PDFFont, StandardFonts } from 'pdf-lib';
+import {
+  PDFDocument,
+  rgb,
+  PDFPage,
+  degrees,
+  PDFFont,
+  StandardFonts,
+  pushGraphicsState,
+  popGraphicsState,
+  moveTo,
+  lineTo,
+  closePath,
+  clip,
+  endPath,
+} from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -137,10 +151,10 @@ export class ImpositionPdfService {
           if (p.isPair && p.pages.length === 2) {
             const creaseWPt = toPt(result.echo.creaseWidth ?? 0);
             if (isSourceSpread) {
-              // source PDF가 이미 2up 스프레드 → 페어 박스에 통째로 배치 (분할 X).
+              // source PDF가 이미 2up 스프레드 → 페어 박스에 trim 영역만 100% 사이즈로 임베드.
               // 페어 (1,2) → spread idx 0, (3,4) → 1, ...
               const spreadIdx = Math.floor((p.pages[0] - 1) / 2);
-              drawEmbedded(page, embedded, spreadIdx, xPt, yPt, wPt, hPt, p.rotation);
+              drawEmbeddedTrim(page, embedded, spreadIdx, xPt, yPt, wPt, hPt, p.rotation);
             } else if (p.rotation === 90) {
               // 회전 90°: 페어 박스가 세로로 배치되므로 상/하로 분할 (낱장 입력).
               // CCW 90° 기준 — 원본 좌측(pages[0])이 시각 하단, 우측(pages[1])이 시각 상단.
@@ -226,6 +240,79 @@ export class ImpositionPdfService {
     }
     return bytes;
   }
+}
+
+/**
+ * 2up 스프레드 소스 PDF 의 trim 영역만 페어 박스에 100% 스케일로 임베드.
+ *
+ * 소스 페이지는 (cropMargin + bleed) 만큼의 외곽 padding 을 포함하므로,
+ * 슬롯(페어 박스) 바깥으로 source 의 (0,0) 을 이동시켜 trim 코너를 슬롯 코너에 정렬한 뒤
+ * 슬롯 영역으로 클립하여 padding 콘텐츠(재단마진/배경)를 화면에 노출시키지 않는다.
+ *
+ * 가정: padding 이 좌우/상하 대칭. (sourceW - trimW)/2, (sourceH - trimH)/2.
+ *       trimW × trimH 는 회전 적용 후 슬롯과 동일.
+ */
+function drawEmbeddedTrim(
+  page: PDFPage,
+  embedded: import('pdf-lib').PDFEmbeddedPage[],
+  idx: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  rotation: 0 | 90,
+) {
+  const pg = embedded[Math.max(0, Math.min(idx, embedded.length - 1))];
+  if (!pg) return;
+  const sourceW = pg.width;
+  const sourceH = pg.height;
+
+  // 회전 적용 후 trim 의 unrotated 치수: rotation=0 → (w, h), rotation=90 → (h, w)
+  const trimW_unrot = rotation === 90 ? h : w;
+  const trimH_unrot = rotation === 90 ? w : h;
+  const padX = (sourceW - trimW_unrot) / 2;
+  const padY = (sourceH - trimH_unrot) / 2;
+
+  // padding 이 음수면(소스가 슬롯보다 작음) trim 임베드 의미 없음 → 일반 fit 으로 폴백
+  if (padX < 0 || padY < 0) {
+    drawEmbedded(page, embedded, idx, x, y, w, h, rotation);
+    return;
+  }
+
+  // 슬롯으로 클립 (외곽 cropMargin/bleed 콘텐츠 차단)
+  page.pushOperators(
+    pushGraphicsState(),
+    moveTo(x, y),
+    lineTo(x + w, y),
+    lineTo(x + w, y + h),
+    lineTo(x, y + h),
+    closePath(),
+    clip(),
+    endPath(),
+  );
+
+  if (rotation === 90) {
+    // CCW 90° 회전 + 100% 스케일.
+    // 슬롯 좌하단 (x,y) 에 trim 좌하단을 정렬하려면:
+    //   anchor = (x + padY + trimH_unrot, y - padX)
+    page.drawPage(pg, {
+      x: x + padY + trimH_unrot,
+      y: y - padX,
+      xScale: 1,
+      yScale: 1,
+      rotate: degrees(90),
+    });
+  } else {
+    // 100% 스케일, source 의 (padX, padY) 가 슬롯의 (x, y) 에 위치하도록 이동.
+    page.drawPage(pg, {
+      x: x - padX,
+      y: y - padY,
+      xScale: 1,
+      yScale: 1,
+    });
+  }
+
+  page.pushOperators(popGraphicsState());
 }
 
 function drawEmbedded(

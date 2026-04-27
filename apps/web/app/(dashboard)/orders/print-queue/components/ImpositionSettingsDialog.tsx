@@ -136,7 +136,7 @@ function computeAutoImposition(seed?: Props['seed']): AutoSettings {
     marginT, marginR, marginB, marginL,
     gutter, bleed,
     rotationPolicy: 'auto',
-    creaseWidth: bindingTab === 'compressed' ? 3 : 0,
+    creaseWidth: 0,
     tackMargin: 12,
     tackEdge: 'left',
   };
