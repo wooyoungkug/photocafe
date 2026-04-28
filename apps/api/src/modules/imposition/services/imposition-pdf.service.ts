@@ -690,11 +690,10 @@ export function drawJobMeta(
   font: PDFFont,
   boldFont: PDFFont,
   sanitize: (s: string) => string,
+  highlightOrderNumber?: string | null,
 ) {
   const safeText = sanitize(text);
-  // 한글 폰트 여부에 따라 '시트' 또는 'Sheet' 사용
   const sheetWord = sanitize('시트 ') || 'Sheet ';
-  const prefix = safeText ? `${safeText} | ${sheetWord}` : sheetWord;
   const currentStr = sheetNum.toString();
   const suffix = `/${sheetTotal}`;
 
@@ -707,12 +706,51 @@ export function drawJobMeta(
   const y = paY + paH - 10;
   const darkColor = rgb(0.1, 0.1, 0.1);
   const blueColor = rgb(0, 0.45, 0.85);
+  const redColor = rgb(0.85, 0.1, 0.1);
+  const sepText = ' | ';
+  const sepWidth = font.widthOfTextAtSize(sepText, fontSize);
+  const safeOrderNum = highlightOrderNumber ? sanitize(highlightOrderNumber) : '';
 
-  page.drawText(prefix, { x, y, size: fontSize, color: darkColor, font });
+  // 본문 segments: safeText 를 ' | ' 로 분리 → 주문번호는 빨강, 나머지는 검정
+  // segments 사이의 ' | ' 구분기호는 파랑.
+  let cursor = x;
+  const segments = safeText ? safeText.split(' | ') : [];
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    const isOrderNum = !!safeOrderNum && seg === safeOrderNum;
+    page.drawText(seg, {
+      x: cursor,
+      y,
+      size: fontSize,
+      color: isOrderNum ? redColor : darkColor,
+      font,
+    });
+    cursor += font.widthOfTextAtSize(seg, fontSize);
+    // 다음 세그먼트 또는 sheetWord 앞에 파란 구분기호
+    page.drawText(sepText, {
+      x: cursor,
+      y,
+      size: fontSize,
+      color: blueColor,
+      font,
+    });
+    cursor += sepWidth;
+  }
 
-  const prefixWidth = font.widthOfTextAtSize(prefix, fontSize);
-  page.drawText(currentStr, { x: x + prefixWidth, y, size: currentFontSize, color: blueColor, font: boldFont });
+  // "시트 " (한글 또는 ASCII fallback) — 본문과 동일 색상
+  page.drawText(sheetWord, { x: cursor, y, size: fontSize, color: darkColor, font });
+  cursor += font.widthOfTextAtSize(sheetWord, fontSize);
 
-  const currentWidth = boldFont.widthOfTextAtSize(currentStr, currentFontSize);
-  page.drawText(suffix, { x: x + prefixWidth + currentWidth, y, size: fontSize, color: darkColor, font });
+  // 현재 시트번호 — 파란 굵은 글씨 + 2pt 큼
+  page.drawText(currentStr, {
+    x: cursor,
+    y,
+    size: currentFontSize,
+    color: blueColor,
+    font: boldFont,
+  });
+  cursor += boldFont.widthOfTextAtSize(currentStr, currentFontSize);
+
+  // "/총개수"
+  page.drawText(suffix, { x: cursor, y, size: fontSize, color: darkColor, font });
 }
