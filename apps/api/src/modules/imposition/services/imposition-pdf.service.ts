@@ -700,8 +700,8 @@ export function drawJobMeta(
   const suffix = `/${sheetTotal}`;
 
   const fontSize = 7;
-  // 현재 시트번호는 강조를 위해 본문보다 2pt 크게 표시
-  const currentFontSize = fontSize + 2;
+  // 강조 텍스트(주문번호, 시트번호) 는 본문보다 2pt 크게 표시
+  const emphFontSize = fontSize + 2;
   // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
   // x 오프셋을 18pt 이상 두고 시작
   const x = paX + 18;
@@ -709,31 +709,43 @@ export function drawJobMeta(
   const darkColor = rgb(0.1, 0.1, 0.1);
   const blueColor = rgb(0, 0.45, 0.85);
   const redColor = rgb(0.85, 0.1, 0.1);
-  const sepText = ' | ';
+  const sepText = ' ★ ';
   const sepWidth = font.widthOfTextAtSize(sepText, fontSize);
   const safeOrderNum = highlightOrderNumber ? sanitize(highlightOrderNumber) : '';
 
-  // 본문 segments: safeText 를 ' | ' 로 분리 → 주문번호는 빨강, 나머지는 검정
-  // segments 사이의 ' | ' 구분기호는 파랑.
+  // 본문 segments: safeText 를 ' | ' 로 분리.
+  // 주문번호는 파란 굵은 +2pt, 나머지는 검정 본문.
+  // 세그먼트 사이의 구분기호는 빨강 별표(★).
   let cursor = x;
   const segments = safeText ? safeText.split(' | ') : [];
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i];
     const isOrderNum = !!safeOrderNum && seg === safeOrderNum;
-    page.drawText(seg, {
-      x: cursor,
-      y,
-      size: fontSize,
-      color: isOrderNum ? redColor : darkColor,
-      font,
-    });
-    cursor += font.widthOfTextAtSize(seg, fontSize);
-    // 다음 세그먼트 또는 sheetWord 앞에 파란 구분기호
+    if (isOrderNum) {
+      page.drawText(seg, {
+        x: cursor,
+        y,
+        size: emphFontSize,
+        color: blueColor,
+        font: boldFont,
+      });
+      cursor += boldFont.widthOfTextAtSize(seg, emphFontSize);
+    } else {
+      page.drawText(seg, {
+        x: cursor,
+        y,
+        size: fontSize,
+        color: darkColor,
+        font,
+      });
+      cursor += font.widthOfTextAtSize(seg, fontSize);
+    }
+    // 다음 세그먼트 또는 sheetWord 앞에 빨간 ★ 구분기호
     page.drawText(sepText, {
       x: cursor,
       y,
       size: fontSize,
-      color: blueColor,
+      color: redColor,
       font,
     });
     cursor += sepWidth;
@@ -747,11 +759,11 @@ export function drawJobMeta(
   page.drawText(currentStr, {
     x: cursor,
     y,
-    size: currentFontSize,
+    size: emphFontSize,
     color: blueColor,
     font: boldFont,
   });
-  cursor += boldFont.widthOfTextAtSize(currentStr, currentFontSize);
+  cursor += boldFont.widthOfTextAtSize(currentStr, emphFontSize);
 
   // "/총개수"
   page.drawText(suffix, { x: cursor, y, size: fontSize, color: darkColor, font });

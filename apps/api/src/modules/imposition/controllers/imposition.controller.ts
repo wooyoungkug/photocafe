@@ -300,6 +300,7 @@ export class ImpositionController {
             size: item.size,
             pages: item.pages,
             colorMode,
+            printMethod: item.printMethod,
             sideText,
             nupText,
             bindingType: item.bindingType,
@@ -625,6 +626,7 @@ export class ImpositionController {
     size?: string | null;
     pages?: number | null;
     colorMode?: string | null;
+    printMethod?: string | null;
     sideText: string;
     nupText: string;
     bindingType?: string | null;
@@ -642,7 +644,20 @@ export class ImpositionController {
     if (ctx.sideText) parts.push(ctx.sideText);
     if (ctx.pages) parts.push(`${ctx.pages}P`);
     if (ctx.size) parts.push(ctx.size);
-    if (ctx.colorMode && ctx.colorMode !== '-') parts.push(ctx.colorMode);
+    // 도수(컬러모드) 표기:
+    //   인디고 출력 → "인디고{N}도" (예: "인디고6도") — 양면/단면 표기는 별도 sideText 로 표기되므로 중복 제거
+    //   잉크젯/기타 → 원본 colorMode 그대로
+    if (ctx.colorMode && ctx.colorMode !== '-') {
+      const isIndigo =
+        String(ctx.printMethod || '').toLowerCase().includes('indigo') ||
+        ctx.colorMode.includes('인디고');
+      const dosuMatch = ctx.colorMode.match(/(\d+도)/);
+      if (isIndigo && dosuMatch) {
+        parts.push(`인디고${dosuMatch[1]}`);
+      } else {
+        parts.push(ctx.colorMode);
+      }
+    }
     parts.push(ctx.nupText);
     return parts.join(' | ');
   }
