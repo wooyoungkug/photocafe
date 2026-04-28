@@ -736,6 +736,138 @@ export class CSAdvancedService {
     };
   }
 
+  // ==================== 시계열 통계 (일별/월별/연도별) ====================
+
+  async getTimeSeriesStats(period: 'daily' | 'monthly' | 'yearly' = 'daily') {
+    const now = new Date();
+    let bucketCount: number;
+    let truncUnit: 'day' | 'month' | 'year';
+    let startDate: Date;
+
+    if (period === 'daily') {
+      bucketCount = 30;
+      truncUnit = 'day';
+      startDate = new Date(now);
+      startDate.setHours(0, 0, 0, 0);
+      startDate.setDate(startDate.getDate() - (bucketCount - 1));
+    } else if (period === 'monthly') {
+      bucketCount = 12;
+      truncUnit = 'month';
+      startDate = new Date(now.getFullYear(), now.getMonth() - (bucketCount - 1), 1);
+    } else {
+      bucketCount = 5;
+      truncUnit = 'year';
+      startDate = new Date(now.getFullYear() - (bucketCount - 1), 0, 1);
+    }
+
+    // 단일 raw 쿼리로 버킷별 집계 (status는 모두 동일 시점 기준 = 현재 status)
+    type Row = {
+      bucket: Date;
+      new_count: bigint;
+      open_count: bigint;
+      in_progress_count: bigint;
+      resolved_count: bigint;
+      closed_count: bigint;
+      avg_resolution_min: number | null;
+    };
+
+    const rows = await this.prisma.$queryRawUnsafe<Row[]>(
+      `
+      SELECT
+        DATE_TRUNC($1, "consultedAt") AS bucket,
+        COUNT(*)::bigint AS new_count,
+        COUNT(*) FILTER (WHERE status = 'open')::bigint AS open_count,
+        COUNT(*) FILTER (WHERE status = 'in_progress')::bigint AS in_progress_count,
+        COUNT(*) FILTER (WHERE status = 'resolved')::bigint AS resolved_count,
+        COUNT(*) FILTER (WHERE status = 'closed')::bigint AS closed_count,
+        AVG(EXTRACT(EPOCH FROM ("resolvedAt" - "consultedAt")) / 60)
+          FILTER (WHERE "resolvedAt" IS NOT NULL) AS avg_resolution_min
+      FROM consultations
+      WHERE "consultedAt" >= $2
+      GROUP BY bucket
+      ORDER BY bucket ASC
+      `,
+      truncUnit,
+      startDate,
+    );
+
+    // 버킷 키 → 행 매핑
+    const rowMap = new Map<string, Row>();
+    for (const r of rows) {
+      const key = this.bucketKey(r.bucket, period);
+      rowMap.set(key, r);
+    }
+
+    // 빈 기간 0으로 채우기
+    const buckets = [];
+    for (let i = 0; i < bucketCount; i++) {
+      const bucketDate = this.addBucketUnit(startDate, i, period);
+      const key = this.bucketKey(bucketDate, period);
+      const r = rowMap.get(key);
+      buckets.push({
+        date: key,
+        label: this.bucketLabel(bucketDate, period),
+        newCount: r ? Number(r.new_count) : 0,
+        openCount: r ? Number(r.open_count) : 0,
+        inProgressCount: r ? Number(r.in_progress_count) : 0,
+        resolvedCount: r ? Number(r.resolved_count) : 0,
+        closedCount: r ? Number(r.closed_count) : 0,
+        avgResolutionMin: r && r.avg_resolution_min != null ? Math.round(r.avg_resolution_min) : 0,
+      });
+    }
+
+    // 분류 Top 5 (전체 기간 범위 내)
+    const topCategoriesRaw = await this.prisma.consultation.groupBy({
+      by: ['categoryId'],
+      where: { consultedAt: { gte: startDate } },
+      _count: { _all: true },
+      orderBy: { _count: { categoryId: 'desc' } },
+      take: 5,
+    });
+
+    const categoryIds = topCategoriesRaw.map((c: any) => c.categoryId).filter((id: any) => !!id);
+    const categories = await this.prisma.consultationCategory.findMany({
+      where: { id: { in: categoryIds } },
+    });
+    const catMap = new Map(categories.map((c: any) => [c.id, c]));
+    const topCategories = topCategoriesRaw
+      .filter((c: any) => c.categoryId && catMap.has(c.categoryId))
+      .map((c: any) => {
+        const cat: any = catMap.get(c.categoryId);
+        return {
+          categoryId: c.categoryId,
+          name: cat?.name ?? '미분류',
+          count: c._count._all,
+          colorCode: cat?.colorCode ?? '#6B7280',
+        };
+      });
+
+    return { period, buckets, topCategories };
+  }
+
+  private bucketKey(date: Date, period: 'daily' | 'monthly' | 'yearly'): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    if (period === 'daily') return `${y}-${m}-${d}`;
+    if (period === 'monthly') return `${y}-${m}`;
+    return String(y);
+  }
+
+  private bucketLabel(date: Date, period: 'daily' | 'monthly' | 'yearly'): string {
+    if (period === 'daily') return `${date.getMonth() + 1}/${date.getDate()}`;
+    if (period === 'monthly') return `${date.getFullYear()}.${String(date.getMonth() + 1).padStart(2, '0')}`;
+    return String(date.getFullYear());
+  }
+
+  private addBucketUnit(start: Date, offset: number, period: 'daily' | 'monthly' | 'yearly'): Date {
+    const d = new Date(start);
+    if (period === 'daily') d.setDate(d.getDate() + offset);
+    else if (period === 'monthly') d.setMonth(d.getMonth() + offset);
+    else d.setFullYear(d.getFullYear() + offset);
+    return d;
+  }
+
   // 고객 타임라인
   async getClientTimeline(clientId: string, query: ClientTimelineQueryDto) {
     const { page = 1, limit = 20, eventTypes } = query;

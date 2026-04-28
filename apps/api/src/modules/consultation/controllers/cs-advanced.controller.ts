@@ -41,6 +41,13 @@ export class CSAdvancedController {
     return this.csService.getDashboardStats(query);
   }
 
+  @Get('stats/timeseries')
+  @ApiOperation({ summary: 'CS 일별/월별/연도별 시계열 통계' })
+  @ApiQuery({ name: 'period', required: false, enum: ['daily', 'monthly', 'yearly'] })
+  async getTimeSeriesStats(@Query('period') period?: 'daily' | 'monthly' | 'yearly') {
+    return this.csService.getTimeSeriesStats(period ?? 'daily');
+  }
+
   // ==================== 태그 관리 ====================
 
   @Get('tags')

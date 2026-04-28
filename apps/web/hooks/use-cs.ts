@@ -34,6 +34,8 @@ import {
   ClientTimeline,
   SurveyStats,
   ChannelStats,
+  CSTimeSeriesPeriod,
+  CSTimeSeriesResponse,
 } from '@/lib/types/cs';
 
 const CONSULTATIONS_KEY = 'consultations';
@@ -190,6 +192,14 @@ export function useCSDashboard(params?: { startDate?: string; endDate?: string; 
     queryKey: [CS_DASHBOARD_KEY, params],
     queryFn: () => api.get<DashboardStats>('/cs/dashboard', params as Record<string, any>),
     refetchInterval: 60000, // 1분마다 갱신
+  });
+}
+
+export function useCSTimeSeries(period: CSTimeSeriesPeriod = 'daily') {
+  return useQuery({
+    queryKey: ['cs-timeseries', period],
+    queryFn: () => api.get<CSTimeSeriesResponse>('/cs/stats/timeseries', { period }),
+    staleTime: 60000,
   });
 }
 

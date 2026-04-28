@@ -416,6 +416,30 @@ export interface SurveyStats {
   recommendRate: number;
 }
 
+export type CSTimeSeriesPeriod = 'daily' | 'monthly' | 'yearly';
+
+export interface CSTimeSeriesBucket {
+  date: string;
+  label: string;
+  newCount: number;
+  openCount: number;
+  inProgressCount: number;
+  resolvedCount: number;
+  closedCount: number;
+  avgResolutionMin: number;
+}
+
+export interface CSTimeSeriesResponse {
+  period: CSTimeSeriesPeriod;
+  buckets: CSTimeSeriesBucket[];
+  topCategories: {
+    categoryId: string;
+    name: string;
+    count: number;
+    colorCode: string;
+  }[];
+}
+
 export interface ClientTimeline {
   client: {
     id: string;

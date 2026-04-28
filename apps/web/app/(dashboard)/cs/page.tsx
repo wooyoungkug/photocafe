@@ -29,6 +29,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { useCSDashboard, useAlerts, useAtRiskCustomers, useConsultations } from '@/hooks/use-cs';
+import { CSTimeSeriesSection } from './components/CSTimeSeriesSection';
 import Link from 'next/link';
 
 export default function CSDashboardPage() {
@@ -244,6 +245,9 @@ export default function CSDashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* 시계열 통계 (일/월/연) */}
+      <CSTimeSeriesSection />
 
       {/* 메인 콘텐츠 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

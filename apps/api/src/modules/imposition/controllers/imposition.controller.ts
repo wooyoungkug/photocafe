@@ -647,13 +647,17 @@ export class ImpositionController {
     const pad = (n: number) => String(n).padStart(2, '0');
     const dt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
 
-    // colorMode 표기 변환 — 인디고 출력은 "인디고{N}도" 로 정규화
+    // colorMode 표기 변환 — 인디고 출력은 "인디고{N}도" 로 정규화.
+    // 판별: printMethod 명시(indigo) > 또는 colorMode 안에 "{N}도" 패턴 존재 (잉크젯이 아닐 때).
+    // 자동저장 폴더 명명(인디고6도단면 등)과 동일한 규칙: 잉크젯이 아니면 인디고로 간주.
     const colorModeText = (() => {
       if (!ctx.colorMode || ctx.colorMode === '-') return '';
-      const isIndigo =
-        String(ctx.printMethod || '').toLowerCase().includes('indigo') ||
-        ctx.colorMode.includes('인디고');
       const dosuMatch = ctx.colorMode.match(/(\d+도)/);
+      const pm = String(ctx.printMethod || '').toLowerCase();
+      const isInkjet = pm.includes('inkjet') || ctx.colorMode.includes('잉크젯');
+      const isIndigo =
+        !isInkjet &&
+        (pm.includes('indigo') || ctx.colorMode.includes('인디고') || !!dosuMatch);
       if (isIndigo && dosuMatch) return `인디고${dosuMatch[1]}`;
       return ctx.colorMode;
     })();
