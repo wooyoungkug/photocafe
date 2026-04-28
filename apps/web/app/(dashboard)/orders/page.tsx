@@ -216,11 +216,11 @@ export default function OrderListPage() {
         refreshToken: res.refreshToken,
       }));
 
-      // 미리 열어둔 탭으로 쇼핑몰 이동
+      // 미리 열어둔 탭으로 쇼핑몰 주문내역 이동
       if (newTab) {
-        newTab.location.href = '/';
+        newTab.location.href = '/mypage/orders';
       } else {
-        window.open('/', '_blank');
+        window.open('/mypage/orders', '_blank');
       }
     } catch {
       if (newTab) newTab.close();
