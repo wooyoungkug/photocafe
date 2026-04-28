@@ -154,7 +154,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             <>
               <Link href="/dashboard" className="hidden lg:flex shrink-0 items-center gap-2">
                 <Image
-                  src="/images/logo.png"
+                  src="/images/photocafe.png"
                   alt="Photocafe"
                   width={140}
                   height={36}
