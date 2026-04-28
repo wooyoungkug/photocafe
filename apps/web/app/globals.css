@@ -111,11 +111,13 @@
 th,
 [role="columnheader"] {
   font-size: var(--fs-table-head, 13px) !important;
+  background-color: yellow !important; /* DEBUG: 이 색이 보이면 규칙 적용 중 */
 }
 td,
 [role="cell"],
 [role="gridcell"] {
   font-size: var(--fs-table-body, 14px) !important;
+  background-color: lightblue !important; /* DEBUG */
 }
 
 @layer utilities {
