@@ -90,7 +90,7 @@ export function CSTimeSeriesSection() {
                   <XAxis dataKey="label" stroke="#64748b" fontSize={11} />
                   <YAxis stroke="#64748b" fontSize={11} allowDecimals={false} />
                   <Tooltip
-                    formatter={(v: number) => [`${v}건`, '신규 접수']}
+                    formatter={(v: number | undefined) => [`${v ?? 0}건`, '신규 접수'] as [string, string]}
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e2e8f0',
@@ -183,7 +183,7 @@ export function CSTimeSeriesSection() {
                   <XAxis dataKey="label" stroke="#64748b" fontSize={11} />
                   <YAxis stroke="#64748b" fontSize={11} />
                   <Tooltip
-                    formatter={(v: number) => [`${v}분`, '평균 해결시간']}
+                    formatter={(v: number | undefined) => [`${v ?? 0}분`, '평균 해결시간'] as [string, string]}
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e2e8f0',
@@ -238,7 +238,7 @@ export function CSTimeSeriesSection() {
                     width={100}
                   />
                   <Tooltip
-                    formatter={(v: number) => [`${v}건`, '상담 수']}
+                    formatter={(v: number | undefined) => [`${v ?? 0}건`, '상담 수'] as [string, string]}
                     contentStyle={{
                       backgroundColor: 'white',
                       border: '1px solid #e2e8f0',
