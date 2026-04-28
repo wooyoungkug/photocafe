@@ -98,7 +98,14 @@ export class LeaveRequestService {
     });
 
     if (!balance) {
-      throw new BadRequestException(`${year}년 ${dto.leaveTypeCode} 잔여 일수가 없습니다. 관리자에게 문의하세요.`);
+      const leaveType = await this.prisma.leaveType.findUnique({
+        where: { code: dto.leaveTypeCode },
+        select: { name: true },
+      });
+      const typeLabel = leaveType?.name ?? dto.leaveTypeCode;
+      throw new BadRequestException(
+        `${year}년 ${typeLabel} 잔여 일수가 등록되어 있지 않습니다. 관리자에게 잔여일수 등록을 요청하세요. (휴가관리 > 잔여일수 관리)`,
+      );
     }
 
     const remaining = balance.totalDays + balance.adjustedDays - balance.usedDays;

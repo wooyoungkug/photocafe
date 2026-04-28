@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { PinBar } from "@/components/layout/pin-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Toaster } from "@/components/ui/toaster";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { usePageView } from "@/hooks/use-page-view";
 import { useNotificationConfig } from "@/hooks/use-notification-config";
 import { useCurrentUser } from "@/hooks/use-auth";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import {
   Sheet,
   SheetContent,
@@ -26,6 +28,9 @@ export function DashboardLayoutClient({
   usePageView();
   useNotificationConfig();
   const { user } = useCurrentUser();
+  const { data: prefs } = useUserPreferences();
+  const layoutMode = prefs?.layoutMode ?? "top";
+  const isTopMode = layoutMode === "top";
 
   // 브라우저 탭 타이틀에 스튜디오명 표시
   useEffect(() => {
@@ -88,10 +93,13 @@ export function DashboardLayoutClient({
     });
   }, []);
 
+  // 사이드바 표시 여부: 모바일은 항상 Sheet, 데스크탑은 side 모드일 때만
+  const showDesktopSidebar = !isTopMode;
+
   return (
     <AuthGuard requireAdmin={true}>
       <div className="flex h-dvh h-screen overflow-hidden bg-slate-50">
-        {/* 모바일: Sheet 드로어 */}
+        {/* 모바일: Sheet 드로어 (top 모드/side 모드 공통) */}
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetContent
             side="left"
@@ -105,42 +113,53 @@ export function DashboardLayoutClient({
           </SheetContent>
         </Sheet>
 
-        {/* 데스크탑: 인라인 사이드바 */}
-        <aside
-          className={cn(
-            "hidden lg:block transition-all duration-300 ease-in-out shrink-0",
-            sidebarCollapsed ? "w-0 overflow-hidden" : "w-72"
-          )}
-        >
-          <Sidebar isMobile={false} />
-        </aside>
+        {/* 데스크탑: 사이드바 (side 모드 전용) */}
+        {showDesktopSidebar && (
+          <aside
+            className={cn(
+              "hidden lg:block transition-all duration-300 ease-in-out shrink-0",
+              sidebarCollapsed ? "w-0 overflow-hidden" : "w-72"
+            )}
+          >
+            <Sidebar isMobile={false} />
+          </aside>
+        )}
 
-        {/* 사이드바 토글 버튼 (데스크탑) */}
-        <button
-          type="button"
-          onClick={toggleSidebarCollapsed}
-          className={cn(
-            "hidden lg:flex fixed z-[60] top-[5.5rem] items-center justify-center w-6 h-12",
-            "bg-slate-800/90 hover:bg-indigo-600 text-white/80 hover:text-white",
-            "rounded-r-md shadow-lg backdrop-blur-sm",
-            "transition-all duration-300 group",
-            sidebarCollapsed ? "left-0" : "left-72"
-          )}
-          title={sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기"}
-        >
-          {sidebarCollapsed ? (
-            <PanelLeft className="h-4 w-4 group-hover:scale-110 transition-transform" />
-          ) : (
-            <PanelLeftClose className="h-4 w-4 group-hover:scale-110 transition-transform" />
-          )}
-        </button>
+        {/* 사이드바 토글 버튼 (side 모드 데스크탑 전용) */}
+        {showDesktopSidebar && (
+          <button
+            type="button"
+            onClick={toggleSidebarCollapsed}
+            className={cn(
+              "hidden lg:flex fixed z-[60] top-[5.5rem] items-center justify-center w-6 h-12",
+              "bg-slate-800/90 hover:bg-indigo-600 text-white/80 hover:text-white",
+              "rounded-r-md shadow-lg backdrop-blur-sm",
+              "transition-all duration-300 group",
+              sidebarCollapsed ? "left-0" : "left-72"
+            )}
+            title={sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기"}
+          >
+            {sidebarCollapsed ? (
+              <PanelLeft className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4 group-hover:scale-110 transition-transform" />
+            )}
+          </button>
+        )}
 
         {/* 메인 콘텐츠 */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <Header
             onMenuClick={() => setSheetOpen(true)}
             showMenuButton={isMobile}
+            layoutMode={layoutMode}
           />
+          {/* Top 모드: 핀 바 (데스크탑 전용) */}
+          {isTopMode && (
+            <div className="hidden lg:block">
+              <PinBar />
+            </div>
+          )}
           <main className="flex-1 overflow-y-auto bg-slate-50/80 p-3 sm:p-4 lg:p-6">
             {children}
           </main>

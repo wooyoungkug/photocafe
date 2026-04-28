@@ -39,6 +39,7 @@ import { useDepartments } from '@/hooks/use-staff';
 
 const LEAVE_TYPE_COLORS: Record<string, { dot: string; label: string }> = {
   annual: { dot: 'bg-blue-500', label: '연차' },
+  year: { dot: 'bg-blue-500', label: '연차' },
   half_am: { dot: 'bg-green-500', label: '오전반차' },
   half_pm: { dot: 'bg-green-500', label: '오후반차' },
   half: { dot: 'bg-green-500', label: '반차' },
@@ -70,14 +71,23 @@ export default function LeaveCalendarPage() {
   });
 
   // 날짜별 엔트리 그룹핑
+  // API 응답: { calendar: [{ date, leaves: [{ staffId, staffName, leaveTypeCode, days, ... }] }] }
   const entriesByDate = useMemo(() => {
     const map: Record<string, LeaveCalendarEntry[]> = {};
-    if (calendarData) {
-      calendarData.forEach((entry) => {
-        const dateKey = entry.date.substring(0, 10);
-        if (!map[dateKey]) map[dateKey] = [];
-        map[dateKey].push(entry);
-      });
+    const days = (calendarData as any)?.calendar;
+    if (Array.isArray(days)) {
+      for (const day of days) {
+        const dateKey = String(day.date).substring(0, 10);
+        const leaves = Array.isArray(day.leaves) ? day.leaves : [];
+        map[dateKey] = leaves.map((l: any) => ({
+          date: dateKey,
+          staffId: l.staffId,
+          staffName: l.staffName,
+          leaveTypeCode: l.leaveTypeCode,
+          leaveTypeName: l.leaveTypeName ?? l.leaveTypeCode,
+          days: l.days,
+        }));
+      }
     }
     return map;
   }, [calendarData]);

@@ -78,13 +78,17 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key === "k") {
       e.preventDefault();
-      searchInputRef.current?.focus();
+      if (isTopMode) {
+        setIsMobileSearchOpen(true);
+      } else {
+        searchInputRef.current?.focus();
+      }
     }
     if (e.key === "Escape" && isSearchFocused) {
       searchInputRef.current?.blur();
       setIsSearchFocused(false);
     }
-  }, [isSearchFocused]);
+  }, [isSearchFocused, isTopMode]);
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
@@ -240,6 +244,43 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             <TooltipContent side="bottom">새 탭에서 쇼핑몰 열기</TooltipContent>
           </Tooltip>
 
+          {/* Layout toggle (desktop only) */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => {
+                  const next: "top" | "side" = isTopMode ? "side" : "top";
+                  updatePrefs.mutate({ layoutMode: next });
+                }}
+                className="hidden lg:inline-flex p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150"
+                aria-label="레이아웃 전환"
+              >
+                {isTopMode ? <PanelLeft className="h-5 w-5" /> : <PanelTop className="h-5 w-5" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {isTopMode ? "좌측 사이드바로 전환" : "상단 메뉴바로 전환"}
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Top mode: search button (opens slide-down search panel) */}
+          {isTopMode && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSearchOpen((prev) => !prev)}
+                  className="hidden lg:inline-flex p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100/80 transition-all"
+                  aria-label="검색"
+                >
+                  <Search className="h-5 w-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">검색 (Ctrl+K)</TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Notification button */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -367,9 +408,9 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
         </div>
       </header>
 
-      {/* Mobile search bar - slides down below header */}
+      {/* Mobile/top-mode search bar - slides down below header */}
       {isMobileSearchOpen && (
-        <div className="md:hidden border-b border-slate-200/80 bg-white px-3 py-2 animate-in slide-in-from-top-2 duration-200">
+        <div className={`${isTopMode ? "" : "md:hidden"} border-b border-slate-200/80 bg-white px-3 py-2 animate-in slide-in-from-top-2 duration-200`}>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
