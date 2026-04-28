@@ -185,10 +185,7 @@ export class ImpositionController {
             client: {
               select: {
                 clientName: true,
-                assignedStaff: {
-                  include: { staff: { select: { name: true } } },
-                  take: 1,
-                },
+                assignedManager: true,
               },
             },
           },
@@ -283,8 +280,17 @@ export class ImpositionController {
       const colorMode = await this.resolveColorMode(item);
       const sideText = String(item.printSide || '').toLowerCase() === 'double' ? '양면' : '단면';
       const nupText = `${result.nup}up`;
-      const salesRep =
-        (item.order.client as any)?.assignedStaff?.[0]?.staff?.name ?? '';
+      // 영업담당자 조회 — Client.assignedManager 는 staff.id 를 저장하는 문자열 필드.
+      // (assignedStaff 관계는 별도 다중 배정용. UI/저장은 assignedManager 단일 필드 사용.)
+      const assignedManagerId = (item.order.client as any)?.assignedManager as string | null | undefined;
+      let salesRep = '';
+      if (assignedManagerId) {
+        const staff = await this.prisma.staff.findUnique({
+          where: { id: assignedManagerId },
+          select: { name: true },
+        });
+        salesRep = staff?.name ?? '';
+      }
       const jobMetaText = marks.jobMeta !== false
         ? this.buildRichJobMetaText({
             salesRep,

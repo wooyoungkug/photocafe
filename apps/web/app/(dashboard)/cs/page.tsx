@@ -118,14 +118,14 @@ export default function CSDashboardPage() {
         </div>
       </div>
 
-      {/* 주요 지표 카드 */}
+      {/* 주요 지표 카드: 접수 → 처리중 → 해결 → 종료 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 border-blue-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-600">총 상담</p>
-                <p className="text-3xl font-bold text-blue-700">{stats?.totalCount ?? 0}</p>
+                <p className="text-sm font-medium text-blue-600">접수</p>
+                <p className="text-3xl font-bold text-blue-700">{stats?.openCount ?? 0}</p>
                 <p className="text-xs text-blue-600 mt-1">
                   오늘 {stats?.todayCount ?? 0}건
                 </p>
@@ -137,20 +137,18 @@ export default function CSDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100/50 border-orange-200">
+        <Card className="bg-gradient-to-br from-yellow-50 to-yellow-100/50 border-yellow-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-600">처리 대기</p>
-                <p className="text-3xl font-bold text-orange-700">
-                  {(stats?.openCount ?? 0) + (stats?.inProgressCount ?? 0)}
-                </p>
-                <p className="text-xs text-orange-600 mt-1">
+                <p className="text-sm font-medium text-yellow-700">처리중</p>
+                <p className="text-3xl font-bold text-yellow-800">{stats?.inProgressCount ?? 0}</p>
+                <p className="text-xs text-yellow-700 mt-1">
                   긴급 {stats?.urgentCount ?? 0}건
                 </p>
               </div>
-              <div className="p-3 bg-orange-500/10 rounded-xl">
-                <Clock className="h-8 w-8 text-orange-600" />
+              <div className="p-3 bg-yellow-500/10 rounded-xl">
+                <Clock className="h-8 w-8 text-yellow-600" />
               </div>
             </div>
           </CardContent>
@@ -160,10 +158,8 @@ export default function CSDashboardPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-600">해결 완료</p>
-                <p className="text-3xl font-bold text-green-700">
-                  {(stats?.resolvedCount ?? 0) + (stats?.closedCount ?? 0)}
-                </p>
+                <p className="text-sm font-medium text-green-600">해결</p>
+                <p className="text-3xl font-bold text-green-700">{stats?.resolvedCount ?? 0}</p>
                 <p className="text-xs text-green-600 mt-1">
                   평균 {stats?.avgResolutionTime ?? 0}분
                 </p>
@@ -175,18 +171,18 @@ export default function CSDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-red-50 to-red-100/50 border-red-200">
+        <Card className="bg-gradient-to-br from-slate-50 to-slate-100/50 border-slate-200">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-600">주의 필요</p>
-                <p className="text-3xl font-bold text-red-700">{stats?.unreadAlerts ?? 0}</p>
-                <p className="text-xs text-red-600 mt-1">
-                  이탈위험 {stats?.atRiskCustomers ?? 0}명
+                <p className="text-sm font-medium text-slate-600">종료</p>
+                <p className="text-3xl font-bold text-slate-700">{stats?.closedCount ?? 0}</p>
+                <p className="text-xs text-slate-600 mt-1">
+                  누적 {stats?.totalCount ?? 0}건
                 </p>
               </div>
-              <div className="p-3 bg-red-500/10 rounded-xl">
-                <AlertTriangle className="h-8 w-8 text-red-600" />
+              <div className="p-3 bg-slate-500/10 rounded-xl">
+                <CheckCircle className="h-8 w-8 text-slate-600" />
               </div>
             </div>
           </CardContent>
