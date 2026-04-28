@@ -1968,6 +1968,23 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
   };
 
   const handleAddToCart = () => {
+    // 업로드된(파일 존재) 폴더 중 미승인된 폴더가 하나라도 있으면 진행 차단.
+    // 모든 업로드 폴더에 대해 사용자의 승인이 끝나야 다음 단계로 넘어갈 수 있음.
+    const uploadedNotApproved = folders.filter(
+      (f) => f.files.length > 0 && !f.isSelected,
+    );
+    if (uploadedNotApproved.length > 0) {
+      const names = uploadedNotApproved
+        .map((f) => `• ${f.orderTitle || f.folderName}`)
+        .join('\n');
+      toast({
+        title: '승인 미완료 폴더 있음',
+        description: `업로드된 모든 폴더의 승인이 완료되어야 진행할 수 있습니다.\n\n${names}`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const selected = getSelectedFolders();
     if (selected.length === 0) return;
     // 파일이 없는 폴더 제외

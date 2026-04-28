@@ -643,6 +643,42 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   const isUploadComplete = !folder.immediateUploadStatus || folder.immediateUploadStatus === 'completed';
   const canSelect = hasValidStatus && folder.specFoundInDB !== false && specCompatibility.compatible && isUploadComplete;
 
+  // 업로드 완료 자동 승인:
+  // 업로드 진행 상태가 incomplete → completed 로 전환되고 다른 승인 조건이 모두 만족할 때
+  // 사용자가 일일이 [승인·닫기] 버튼을 누르지 않아도 자동으로 폴더를 선택+썸네일 패널 닫기.
+  // 단, 한 번 트리거 후 동일 업로드 사이클에서 재실행되지 않도록 ref 로 가드한다
+  // (사용자가 명시적으로 unselect 했을 때 다시 자동 선택되는 것 방지).
+  const autoApprovedRef = useRef(false);
+  useEffect(() => {
+    const isNowComplete = folder.immediateUploadStatus === 'completed';
+    // 새로운 업로드 시작(uploading/pending) 시 가드 리셋
+    if (folder.immediateUploadStatus && folder.immediateUploadStatus !== 'completed') {
+      autoApprovedRef.current = false;
+      return;
+    }
+    if (
+      isNowComplete &&
+      canSelect &&
+      !folder.isSelected &&
+      isThumbnailOpen &&
+      !autoApprovedRef.current
+    ) {
+      autoApprovedRef.current = true;
+      setIsThumbnailOpen(false);
+      setFolderSelected(folder.id, true);
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }, [
+    folder.immediateUploadStatus,
+    canSelect,
+    folder.isSelected,
+    isThumbnailOpen,
+    folder.id,
+    setFolderSelected,
+  ]);
+
   // 출력구분 결정: 사용자가 직접 선택한 값 우선, 없으면 상품 printType 또는 pageLayout 기반 추론
   const resolvedPrintSide = useMemo(() => {
     // 사용자가 직접 선택한 값이 있으면 우선
@@ -2127,13 +2163,16 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
       )}
 
-      {/* 승인·닫기 버튼 (하단) */}
+      {/* 승인·닫기 버튼 (하단) — 업로드 완료 후에만 활성화 */}
       {isThumbnailOpen && (
         <div className="mt-3 flex justify-center">
           <Button
             variant="outline"
             size="sm"
+            disabled={!isUploadComplete}
+            title={!isUploadComplete ? '업로드 완료 후 승인할 수 있습니다' : undefined}
             onClick={() => {
+              if (!isUploadComplete) return;
               setIsThumbnailOpen(false);
               if (canSelect && !folder.isSelected) {
                 setFolderSelected(folder.id, true);
@@ -2145,7 +2184,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             className="text-xs"
           >
             <Check className="h-3 w-3 mr-1" />
-            {t('approve')} • {tc('close')}
+            {!isUploadComplete
+              ? '업로드 진행 중...'
+              : `${t('approve')} • ${tc('close')}`}
           </Button>
         </div>
       )}
