@@ -96,7 +96,9 @@ export class StaffService {
       ...(branchId && { branchId }),
       ...(departmentId && { departmentId }),
       ...(teamId && { teamId }),
-      ...(isActive !== undefined && { isActive }),
+      // 기본은 활성 직원만 표시 (소프트 삭제된 직원 자동 제외).
+      // isActive=false 명시 시 비활성 직원만, isActive 미지정 시 활성만.
+      isActive: isActive !== undefined ? isActive : true,
     };
 
     const [data, total] = await Promise.all([
@@ -373,8 +375,16 @@ export class StaffService {
   async delete(id: string) {
     await this.findOne(id);
 
-    await this.prisma.staff.delete({
+    // 직원은 휴가신청/결재/거래처담당 등 다수의 외래키 관계를 가지므로 hard delete 시
+    // FK 제약 위반이 발생한다. 이력 보존이 중요한 직원 데이터는 소프트 삭제가 표준.
+    // findAll() 기본 필터(isActive=true) 로 목록에서 자동 제외되며,
+    // 휴가/감사 이력에서 staff.id 참조는 그대로 유지된다.
+    await this.prisma.staff.update({
       where: { id },
+      data: {
+        isActive: false,
+        status: 'inactive',
+      },
     });
 
     return { success: true, message: '직원이 삭제되었습니다' };
