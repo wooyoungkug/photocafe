@@ -46,7 +46,7 @@ export const TYPOGRAPHY_LABELS: Record<keyof typeof TYPOGRAPHY_KEYS, string> = {
   pin: "핀(즐겨찾기) 바",
 };
 
-const VAR_MAP: Record<keyof typeof TYPOGRAPHY_KEYS, string> = {
+export const TYPOGRAPHY_VAR_MAP: Record<keyof typeof TYPOGRAPHY_KEYS, string> = {
   body: "--fs-body",
   title: "--fs-title",
   heading: "--fs-heading",
@@ -61,6 +61,125 @@ const RANGE = { min: 10, max: 32 } as const;
 function clamp(value: number, fallback: number): number {
   if (!Number.isFinite(value) || value <= 0) return fallback;
   return Math.max(RANGE.min, Math.min(RANGE.max, Math.round(value)));
+}
+
+/**
+ * 주어진 값들을 :root CSS 변수에 즉시 주입.
+ * - DB 저장 없이 화면 미리보기 용도
+ * - 페이지 새로고침/재마운트 시 useTypographyApply 가 다시 DB 값으로 덮어씀
+ */
+export function applyTypographyVars(values: Partial<Record<keyof typeof TYPOGRAPHY_KEYS, number>>) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  (Object.keys(values) as Array<keyof typeof TYPOGRAPHY_KEYS>).forEach((tokenKey) => {
+    const fallback = TYPOGRAPHY_DEFAULTS[tokenKey];
+    const px = clamp(values[tokenKey] ?? fallback, fallback);
+    root.style.setProperty(TYPOGRAPHY_VAR_MAP[tokenKey], `${px}px`);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// 메뉴 토큰 완서(볼드/기울기/컬러) — 4개 토큰만 지원
+// ---------------------------------------------------------------------------
+
+export type MenuStyleToken = "menuMain" | "menuSub" | "menuMegaHeader" | "pin";
+
+export const MENU_STYLE_TOKENS: MenuStyleToken[] = [
+  "menuMain",
+  "menuSub",
+  "menuMegaHeader",
+  "pin",
+];
+
+const MENU_CLASS_MAP: Record<MenuStyleToken, string> = {
+  menuMain: ".fs-menu-main",
+  menuSub: ".fs-menu-sub",
+  menuMegaHeader: ".fs-menu-mega-header",
+  pin: ".fs-pin",
+};
+
+export interface MenuStyleValues {
+  bold?: boolean;
+  italic?: boolean;
+  color?: string; // "" or undefined = 기본값 사용
+}
+
+export const MENU_STYLE_KEYS = {
+  menuMain: { bold: "typography.menu_main.bold", italic: "typography.menu_main.italic", color: "typography.menu_main.color" },
+  menuSub: { bold: "typography.menu_sub.bold", italic: "typography.menu_sub.italic", color: "typography.menu_sub.color" },
+  menuMegaHeader: { bold: "typography.menu_mega_header.bold", italic: "typography.menu_mega_header.italic", color: "typography.menu_mega_header.color" },
+  pin: { bold: "typography.pin.bold", italic: "typography.pin.italic", color: "typography.pin.color" },
+} as const;
+
+const STYLE_TAG_ID = "typography-menu-style-overrides";
+
+/**
+ * 메뉴 토큰별 볼드/기울기/컬러 오버라이드를 <style> 태그에 주입.
+ * 기본값(false/false/empty)인 경우 규칙을 emit 하지 않아 기존 Tailwind 클래스가 그대로 동작.
+ */
+export function applyMenuStyleOverrides(values: Partial<Record<MenuStyleToken, MenuStyleValues>>) {
+  if (typeof document === "undefined") return;
+  let css = "";
+  for (const token of MENU_STYLE_TOKENS) {
+    const v = values[token];
+    if (!v) continue;
+    const decls: string[] = [];
+    if (v.bold === true) decls.push("font-weight: 700 !important;");
+    if (v.italic === true) decls.push("font-style: italic !important;");
+    if (v.color && v.color.trim()) decls.push(`color: ${v.color} !important;`);
+    if (decls.length === 0) continue;
+    css += `${MENU_CLASS_MAP[token]} { ${decls.join(" ")} }\n`;
+  }
+  let el = document.getElementById(STYLE_TAG_ID) as HTMLStyleElement | null;
+  if (!el) {
+    el = document.createElement("style");
+    el.id = STYLE_TAG_ID;
+    document.head.appendChild(el);
+  }
+  el.textContent = css;
+}
+
+function parseBool(v: string | undefined): boolean {
+  return v === "true" || v === "1";
+}
+
+/**
+ * 메뉴 스타일 값을 SystemSetting 에서 읽어 <style> 태그에 주입.
+ * 대시보드 레이아웃에서 useTypographyApply 와 함께 호출됨.
+ */
+export function useMenuStyleApply() {
+  const { data: settings } = useSystemSettings("typography");
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const map = settings ? settingsToMap(settings) : {};
+    const values: Partial<Record<MenuStyleToken, MenuStyleValues>> = {};
+    for (const token of MENU_STYLE_TOKENS) {
+      const keys = MENU_STYLE_KEYS[token];
+      values[token] = {
+        bold: parseBool(map[keys.bold]),
+        italic: parseBool(map[keys.italic]),
+        color: map[keys.color] ?? "",
+      };
+    }
+    applyMenuStyleOverrides(values);
+  }, [settings]);
+}
+
+/** 현재 메뉴 스타일 값 읽기 (설정 화면에서 사용) */
+export function useMenuStyleValues(): Record<MenuStyleToken, MenuStyleValues> {
+  const { data: settings } = useSystemSettings("typography");
+  const map = settings ? settingsToMap(settings) : {};
+  const result = {} as Record<MenuStyleToken, MenuStyleValues>;
+  for (const token of MENU_STYLE_TOKENS) {
+    const keys = MENU_STYLE_KEYS[token];
+    result[token] = {
+      bold: parseBool(map[keys.bold]),
+      italic: parseBool(map[keys.italic]),
+      color: map[keys.color] ?? "",
+    };
+  }
+  return result;
 }
 
 /**
@@ -80,7 +199,7 @@ export function useTypographyApply() {
       const fallback = TYPOGRAPHY_DEFAULTS[tokenKey];
       const raw = getNumericValue(map, settingKey, fallback);
       const px = clamp(raw, fallback);
-      root.style.setProperty(VAR_MAP[tokenKey], `${px}px`);
+      root.style.setProperty(TYPOGRAPHY_VAR_MAP[tokenKey], `${px}px`);
     });
   }, [settings]);
 }

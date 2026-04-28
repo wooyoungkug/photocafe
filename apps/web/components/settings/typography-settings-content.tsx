@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Save, RotateCcw, Type } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Save, RotateCcw, Type, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import {
   TYPOGRAPHY_KEYS,
@@ -13,7 +14,15 @@ import {
   TYPOGRAPHY_LABELS,
   TYPOGRAPHY_RANGE,
   useTypographyValues,
+  applyTypographyVars,
+  MENU_STYLE_KEYS,
+  MENU_STYLE_TOKENS,
+  type MenuStyleToken,
+  type MenuStyleValues,
+  useMenuStyleValues,
+  applyMenuStyleOverrides,
 } from "@/hooks/use-typography";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useBulkUpdateSettings } from "@/hooks/use-system-settings";
 
 type TokenKey = keyof typeof TYPOGRAPHY_KEYS;
@@ -39,6 +48,8 @@ export default function TypographySettingsContent() {
 
   const [draft, setDraft] = useState<Record<TokenKey, number>>(current);
   const [dirty, setDirty] = useState(false);
+  const [livePreview, setLivePreview] = useState(false);
+  const [previewActive, setPreviewActive] = useState(false);
 
   // 서버 값 로드 시 draft 동기화 (사용자가 편집 중이 아니면)
   useEffect(() => {
@@ -58,7 +69,29 @@ export default function TypographySettingsContent() {
 
   const handleChange = (key: TokenKey, value: number) => {
     setDirty(true);
-    setDraft((prev) => ({ ...prev, [key]: value }));
+    setDraft((prev) => {
+      const next = { ...prev, [key]: value };
+      if (livePreview) {
+        applyTypographyVars(next);
+        setPreviewActive(true);
+      }
+      return next;
+    });
+  };
+
+  const handleApplyPreview = () => {
+    applyTypographyVars(draft);
+    setPreviewActive(true);
+    toast.success("화면에 바로 적용했습니다 (저장 전)", {
+      description: "저장하지 않으면 새로고침 시 원래 값으로 돌아갑니다.",
+    });
+  };
+
+  const handleCancelPreview = () => {
+    applyTypographyVars(current);
+    setDraft(current);
+    setDirty(false);
+    setPreviewActive(false);
   };
 
   const handleSave = async () => {
@@ -70,7 +103,10 @@ export default function TypographySettingsContent() {
     }));
     try {
       await bulkUpdate.mutateAsync(payload);
+      // 저장 후에도 미리보기 변수가 즉시 반영되도록 적용 (서버 refetch 전에)
+      applyTypographyVars(draft);
       setDirty(false);
+      setPreviewActive(false);
     } catch (err) {
       toast.error("저장 실패");
     }
@@ -79,6 +115,10 @@ export default function TypographySettingsContent() {
   const handleResetAll = () => {
     setDraft({ ...TYPOGRAPHY_DEFAULTS });
     setDirty(true);
+    if (livePreview) {
+      applyTypographyVars({ ...TYPOGRAPHY_DEFAULTS });
+      setPreviewActive(true);
+    }
   };
 
   const renderTokenRow = (key: TokenKey) => {
@@ -170,6 +210,32 @@ export default function TypographySettingsContent() {
             </div>
           </section>
 
+          {/* 라이브 미리보기 토글 */}
+          <div className="flex items-center justify-between rounded-md border bg-slate-50 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-slate-500" />
+              <div>
+                <Label htmlFor="live-preview" className="text-[14px] font-bold text-black cursor-pointer">
+                  변경 즉시 화면에 반영
+                </Label>
+                <p className="text-[14px] text-slate-500">
+                  켜면 입력하는 동안 실시간으로 적용됩니다 (저장 전까지 임시).
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="live-preview"
+              checked={livePreview}
+              onCheckedChange={(v) => {
+                setLivePreview(v);
+                if (v) {
+                  applyTypographyVars(draft);
+                  setPreviewActive(true);
+                }
+              }}
+            />
+          </div>
+
           {/* 액션 */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
             <Button
@@ -182,10 +248,33 @@ export default function TypographySettingsContent() {
               전체 기본값으로 초기화
             </Button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {dirty && (
                 <span className="text-[14px] text-amber-600">변경된 사항이 있습니다</span>
               )}
+              {previewActive && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={handleCancelPreview}
+                  className="gap-2 text-slate-600"
+                  title="저장하지 않은 미리보기 취소"
+                >
+                  <EyeOff className="h-4 w-4" />
+                  미리보기 취소
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleApplyPreview}
+                disabled={!dirty}
+                className="gap-2"
+                title="저장 없이 화면에만 즉시 적용"
+              >
+                <Eye className="h-4 w-4" />
+                바로 적용
+              </Button>
               <Button
                 type="button"
                 onClick={handleSave}
