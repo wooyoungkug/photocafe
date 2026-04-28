@@ -556,41 +556,34 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '최고관리자가 특정 직원으로 대리 로그인' })
-  async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any, @Res({ passthrough: true }) res: Response) {
+  async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any) {
     if (req.user.type !== 'staff') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
-    const result = await this.authService.impersonateStaff(staffId, req.user.sub);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
-    return result;
+    return this.authService.impersonateStaff(staffId, req.user.sub);
   }
 
   @Post('impersonate-employee/:employmentId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '스튜디오 최고관리자가 소속 직원으로 대리 로그인' })
-  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any, @Res({ passthrough: true }) res: Response) {
+  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any) {
     if (req.user.type !== 'employee' && req.user.type !== 'client') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
-    // client 타입이면 sub === clientId (소유자의 client.id)
     const clientId = req.user.clientId || req.user.sub;
-    const result = await this.authService.impersonateEmployee(employmentId, req.user.sub, clientId);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
-    return result;
+    return this.authService.impersonateEmployee(employmentId, req.user.sub, clientId);
   }
 
   @Post('impersonate/:clientId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
-  async impersonateClient(@Param('clientId') clientId: string, @Request() req: any, @Res({ passthrough: true }) res: Response) {
+  async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
     if (req.user.type !== 'staff') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
-    const result = await this.authService.impersonateClient(clientId, req.user.sub);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
-    return result;
+    return this.authService.impersonateClient(clientId, req.user.sub);
   }
 
   @Patch('reset-client-password/:id')

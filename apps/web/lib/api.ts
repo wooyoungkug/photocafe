@@ -122,6 +122,18 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  // impersonate 탭이면 Bearer 헤더로 전송 (관리자 쿠키를 건드리지 않기 위해)
+  let impersonateAuth: Record<string, string> = {};
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = sessionStorage.getItem('impersonate-tokens');
+      if (raw) {
+        const tokens = JSON.parse(raw);
+        if (tokens?.accessToken) impersonateAuth = { Authorization: `Bearer ${tokens.accessToken}` };
+      }
+    } catch { /* ignore */ }
+  }
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -130,6 +142,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...impersonateAuth,
         ...fetchOptions.headers,
       },
     });

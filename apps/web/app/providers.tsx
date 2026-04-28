@@ -102,6 +102,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('impersonate-data');
         useAuthStore.getState().setAuth({ user: data.user, rememberMe: false });
         sessionStorage.setItem('impersonate-session', 'true');
+        // 토큰을 sessionStorage(탭 전용)에 보관 → api.ts에서 Bearer 헤더로 전송
+        if (data.accessToken) {
+          sessionStorage.setItem('impersonate-tokens', JSON.stringify({
+            accessToken: data.accessToken,
+            refreshToken: data.refreshToken ?? '',
+          }));
+        }
       } catch {
         localStorage.removeItem('impersonate-data');
       }
