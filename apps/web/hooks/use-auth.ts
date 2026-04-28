@@ -76,10 +76,12 @@ export function useVerifyEmail() {
 export function useLogout() {
   const router = useRouter();
   const logout = useAuthStore((state) => state.logout);
+  const user = useAuthStore((state) => state.user);
 
   return () => {
+    const isAdmin = user?.role === 'admin' || user?.role === 'staff';
     logout();
-    router.push('/login');
+    router.push(isAdmin ? '/admin-login' : '/login');
   };
 }
 
