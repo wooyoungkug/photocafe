@@ -31,6 +31,15 @@
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
+
+    /* Typography tokens (px) - 기초정보 설정에서 변경 가능 */
+    --fs-body: 14px;          /* 본문 */
+    --fs-title: 18px;         /* 제목 */
+    --fs-heading: 24px;       /* 큰제목 */
+    --fs-menu-main: 14px;     /* 상단 대메뉴 */
+    --fs-menu-sub: 14px;      /* 서브메뉴 항목 */
+    --fs-menu-mega-header: 12px; /* 메가메뉴 그룹 헤더 */
+    --fs-pin: 14px;           /* 핀 바 */
   }
 
   .dark {
@@ -80,6 +89,21 @@
     appearance: textfield;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Typography overrides — CLAUDE.md 본문/제목/큰제목 규칙을
+   CSS 변수로 매핑하여 기초정보 설정에서 동적 조절 가능하게 함.
+   기존 컴포넌트가 쓰는 text-[14px]/[18px]/[24px] 그대로 호환.
+   ───────────────────────────────────────────────────────────── */
+.text-\[14px\] { font-size: var(--fs-body, 14px); }
+.text-\[18px\] { font-size: var(--fs-title, 18px); }
+.text-\[24px\] { font-size: var(--fs-heading, 24px); }
+
+/* 상단 메뉴/핀 바 전용 토큰 (위 본문 토큰과 별도로 세밀 조절) */
+.fs-menu-main { font-size: var(--fs-menu-main, 14px); }
+.fs-menu-sub { font-size: var(--fs-menu-sub, 14px); }
+.fs-menu-mega-header { font-size: var(--fs-menu-mega-header, 12px); }
+.fs-pin { font-size: var(--fs-pin, 14px); }
 
 @layer utilities {
   .gradient-primary {

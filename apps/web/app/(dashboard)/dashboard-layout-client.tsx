@@ -12,6 +12,7 @@ import { usePageView } from "@/hooks/use-page-view";
 import { useNotificationConfig } from "@/hooks/use-notification-config";
 import { useCurrentUser } from "@/hooks/use-auth";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { useTypographyApply } from "@/hooks/use-typography";
 import {
   Sheet,
   SheetContent,
@@ -27,6 +28,7 @@ export function DashboardLayoutClient({
 }) {
   usePageView();
   useNotificationConfig();
+  useTypographyApply();
   const { user } = useCurrentUser();
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";

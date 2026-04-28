@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell, Users, Factory } from "lucide-react";
+import { Building2, Printer, Truck, ListChecks, Server, Save, RotateCcw, HardDrive, FolderOpen, AlertTriangle, Bell, Users, Factory, Type } from "lucide-react";
 import DeliverySettingsContent from "@/components/settings/delivery-settings-content";
 import NotificationSettingsContent from "@/components/settings/notification-settings-content";
 import ProcessTemplateEditor from "@/components/settings/process-template-editor";
+import TypographySettingsContent from "@/components/settings/typography-settings-content";
 import {
   useSystemSettings,
   useBulkUpdateSettings,
@@ -238,7 +239,7 @@ export default function BasicSettingsPage() {
       </div>
 
       <Tabs defaultValue="company" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-8 lg:w-[1200px]">
+        <TabsList className="grid w-full grid-cols-9 lg:w-[1320px]">
           <TabsTrigger value="company" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden sm:inline">회사정보</span>
@@ -270,6 +271,10 @@ export default function BasicSettingsPage() {
           <TabsTrigger value="server" className="flex items-center gap-2">
             <Server className="h-4 w-4" />
             <span className="hidden sm:inline">서버설정</span>
+          </TabsTrigger>
+          <TabsTrigger value="typography" className="flex items-center gap-2">
+            <Type className="h-4 w-4" />
+            <span className="hidden sm:inline">타이포그래피</span>
           </TabsTrigger>
         </TabsList>
 
