@@ -303,7 +303,7 @@ export class ImpositionImagePdfService {
           drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
         }
         if (effectiveMeta && meta) {
-          drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+          drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, effectiveMeta, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.boldFont, meta.sanitize);
         }
       }
     }

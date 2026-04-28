@@ -33,24 +33,43 @@ function resolveKoreanFontPath(): string | null {
   return null;
 }
 
+function resolveKoreanBoldFontPath(): string | null {
+  const candidates = [
+    path.resolve(process.cwd(), 'fonts', 'NanumGothicBold.ttf'),
+    path.resolve(__dirname, '../../../../fonts/NanumGothicBold.ttf'),
+    path.resolve(__dirname, '../../../../../fonts/NanumGothicBold.ttf'),
+    '/app/fonts/NanumGothicBold.ttf',
+  ];
+  for (const p of candidates) {
+    if (fs.existsSync(p)) return p;
+  }
+  return null;
+}
+
 /**
  * jobMetaText 용 폰트 임베드.
  * 한글 폰트가 있으면 NanumGothic(subset), 없으면 Helvetica + ASCII 강제 필터.
  */
 export async function embedMetaFont(
   doc: PDFDocument,
-): Promise<{ font: PDFFont; sanitize: (s: string) => string }> {
+): Promise<{ font: PDFFont; boldFont: PDFFont; sanitize: (s: string) => string }> {
   const fontPath = resolveKoreanFontPath();
   if (fontPath) {
     doc.registerFontkit(fontkit);
     const bytes = fs.readFileSync(fontPath);
     const font = await doc.embedFont(bytes, { subset: true });
-    return { font, sanitize: (s) => s };
+    const boldPath = resolveKoreanBoldFontPath();
+    const boldFont = boldPath
+      ? await doc.embedFont(fs.readFileSync(boldPath), { subset: true })
+      : font;
+    return { font, boldFont, sanitize: (s) => s };
   }
   const font = await doc.embedFont(StandardFonts.Helvetica);
+  const boldFont = await doc.embedFont(StandardFonts.HelveticaBold);
   // WinAnsi 외 문자(한글 포함) 제거 — 없으면 공란
   return {
     font,
+    boldFont,
     sanitize: (s) => s.replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim(),
   };
 }
@@ -230,7 +249,7 @@ export class ImpositionPdfService {
         drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
       }
       if (options.jobMetaText && meta) {
-        drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.sanitize);
+        drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, options.jobMetaText, sheet.sheetIndex + 1, result.sheetCount, meta.font, meta.boldFont, meta.sanitize);
       }
     }
 
@@ -665,20 +684,29 @@ export function drawJobMeta(
   sheetNum: number,
   sheetTotal: number,
   font: PDFFont,
+  boldFont: PDFFont,
   sanitize: (s: string) => string,
 ) {
-  // 폰트가 한글 미지원(Helvetica)이면 sanitize 가 비ASCII 제거
-  // — 공란이면 시트번호만이라도 표시
   const safeText = sanitize(text);
-  const sheetLabel = sanitize(`시트 ${sheetNum}/${sheetTotal}`) || `Sheet ${sheetNum}/${sheetTotal}`;
-  const label = safeText ? `${safeText} | ${sheetLabel}` : sheetLabel;
+  // 한글 폰트 여부에 따라 '시트' 또는 'Sheet' 사용
+  const sheetWord = sanitize('시트 ') || 'Sheet ';
+  const prefix = safeText ? `${safeText} | ${sheetWord}` : sheetWord;
+  const currentStr = sheetNum.toString();
+  const suffix = `/${sheetTotal}`;
+
+  const fontSize = 7;
   // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
   // x 오프셋을 18pt 이상 두고 시작
-  page.drawText(label, {
-    x: paX + 18,
-    y: paY + paH - 10,
-    size: 7,
-    color: rgb(0.1, 0.1, 0.1),
-    font,
-  });
+  const x = paX + 18;
+  const y = paY + paH - 10;
+  const darkColor = rgb(0.1, 0.1, 0.1);
+  const blueColor = rgb(0, 0.45, 0.85);
+
+  page.drawText(prefix, { x, y, size: fontSize, color: darkColor, font });
+
+  const prefixWidth = font.widthOfTextAtSize(prefix, fontSize);
+  page.drawText(currentStr, { x: x + prefixWidth, y, size: fontSize, color: blueColor, font: boldFont });
+
+  const currentWidth = boldFont.widthOfTextAtSize(currentStr, fontSize);
+  page.drawText(suffix, { x: x + prefixWidth + currentWidth, y, size: fontSize, color: darkColor, font });
 }
