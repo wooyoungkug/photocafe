@@ -42,11 +42,15 @@ const TOKEN_DESCRIPTIONS: Record<TokenKey, string> = {
   pin: "핀(즐겨찾기) 바 항목",
 };
 
+const EMPTY_STYLE: MenuStyleValues = { bold: false, italic: false, color: "" };
+
 export default function TypographySettingsContent() {
   const current = useTypographyValues();
+  const currentStyles = useMenuStyleValues();
   const bulkUpdate = useBulkUpdateSettings();
 
   const [draft, setDraft] = useState<Record<TokenKey, number>>(current);
+  const [styleDraft, setStyleDraft] = useState<Record<MenuStyleToken, MenuStyleValues>>(currentStyles);
   const [dirty, setDirty] = useState(false);
   const [livePreview, setLivePreview] = useState(false);
   const [previewActive, setPreviewActive] = useState(false);
@@ -55,6 +59,7 @@ export default function TypographySettingsContent() {
   useEffect(() => {
     if (!dirty) {
       setDraft(current);
+      setStyleDraft(currentStyles);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -65,6 +70,18 @@ export default function TypographySettingsContent() {
     current.menuSub,
     current.menuMegaHeader,
     current.pin,
+    currentStyles.menuMain.bold,
+    currentStyles.menuMain.italic,
+    currentStyles.menuMain.color,
+    currentStyles.menuSub.bold,
+    currentStyles.menuSub.italic,
+    currentStyles.menuSub.color,
+    currentStyles.menuMegaHeader.bold,
+    currentStyles.menuMegaHeader.italic,
+    currentStyles.menuMegaHeader.color,
+    currentStyles.pin.bold,
+    currentStyles.pin.italic,
+    currentStyles.pin.color,
   ]);
 
   const handleChange = (key: TokenKey, value: number) => {
@@ -79,8 +96,21 @@ export default function TypographySettingsContent() {
     });
   };
 
+  const handleStyleChange = (token: MenuStyleToken, patch: Partial<MenuStyleValues>) => {
+    setDirty(true);
+    setStyleDraft((prev) => {
+      const next = { ...prev, [token]: { ...prev[token], ...patch } };
+      if (livePreview) {
+        applyMenuStyleOverrides(next);
+        setPreviewActive(true);
+      }
+      return next;
+    });
+  };
+
   const handleApplyPreview = () => {
     applyTypographyVars(draft);
+    applyMenuStyleOverrides(styleDraft);
     setPreviewActive(true);
     toast.success("화면에 바로 적용했습니다 (저장 전)", {
       description: "저장하지 않으면 새로고침 시 원래 값으로 돌아갑니다.",
@@ -89,22 +119,44 @@ export default function TypographySettingsContent() {
 
   const handleCancelPreview = () => {
     applyTypographyVars(current);
+    applyMenuStyleOverrides(currentStyles);
     setDraft(current);
+    setStyleDraft(currentStyles);
     setDirty(false);
     setPreviewActive(false);
   };
 
   const handleSave = async () => {
-    const payload = ALL_TOKENS.map((tokenKey) => ({
+    const sizePayload = ALL_TOKENS.map((tokenKey) => ({
       key: TYPOGRAPHY_KEYS[tokenKey],
       value: String(draft[tokenKey]),
       category: "typography",
       label: TYPOGRAPHY_LABELS[tokenKey],
     }));
+    const stylePayload = MENU_STYLE_TOKENS.flatMap((token) => [
+      {
+        key: MENU_STYLE_KEYS[token].bold,
+        value: String(!!styleDraft[token].bold),
+        category: "typography",
+        label: `${TYPOGRAPHY_LABELS[token]} 볼드`,
+      },
+      {
+        key: MENU_STYLE_KEYS[token].italic,
+        value: String(!!styleDraft[token].italic),
+        category: "typography",
+        label: `${TYPOGRAPHY_LABELS[token]} 기울기`,
+      },
+      {
+        key: MENU_STYLE_KEYS[token].color,
+        value: styleDraft[token].color ?? "",
+        category: "typography",
+        label: `${TYPOGRAPHY_LABELS[token]} 색상`,
+      },
+    ]);
     try {
-      await bulkUpdate.mutateAsync(payload);
-      // 저장 후에도 미리보기 변수가 즉시 반영되도록 적용 (서버 refetch 전에)
+      await bulkUpdate.mutateAsync([...sizePayload, ...stylePayload]);
       applyTypographyVars(draft);
+      applyMenuStyleOverrides(styleDraft);
       setDirty(false);
       setPreviewActive(false);
     } catch (err) {
@@ -114,21 +166,32 @@ export default function TypographySettingsContent() {
 
   const handleResetAll = () => {
     setDraft({ ...TYPOGRAPHY_DEFAULTS });
+    const emptyStyles = MENU_STYLE_TOKENS.reduce((acc, t) => {
+      acc[t] = { ...EMPTY_STYLE };
+      return acc;
+    }, {} as Record<MenuStyleToken, MenuStyleValues>);
+    setStyleDraft(emptyStyles);
     setDirty(true);
     if (livePreview) {
       applyTypographyVars({ ...TYPOGRAPHY_DEFAULTS });
+      applyMenuStyleOverrides(emptyStyles);
       setPreviewActive(true);
     }
   };
+
+  const isMenuToken = (k: TokenKey): k is MenuStyleToken =>
+    MENU_STYLE_TOKENS.includes(k as MenuStyleToken);
 
   const renderTokenRow = (key: TokenKey) => {
     const value = draft[key];
     const def = TYPOGRAPHY_DEFAULTS[key];
     const isChanged = value !== def;
+    const menuStyle = isMenuToken(key) ? styleDraft[key] : null;
+    const previewColor = menuStyle?.color || undefined;
     return (
       <div
         key={key}
-        className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] items-center gap-3 py-3 border-b last:border-b-0"
+        className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto_auto] items-center gap-3 py-3 border-b last:border-b-0"
       >
         <div className="min-w-0">
           <Label htmlFor={`fs-${key}`} className="text-[14px] font-bold text-black">
@@ -137,6 +200,7 @@ export default function TypographySettingsContent() {
           <p className="text-[14px] text-slate-500 mt-0.5">{TOKEN_DESCRIPTIONS[key]}</p>
         </div>
 
+        {/* 크기 입력 */}
         <div className="flex items-center gap-2">
           <Input
             id={`fs-${key}`}
@@ -150,11 +214,65 @@ export default function TypographySettingsContent() {
           <span className="text-[14px] text-slate-500 w-6">px</span>
         </div>
 
+        {/* 메뉴 토큰 전용: 볼드/기울기/컬러 */}
+        {menuStyle ? (
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <Checkbox
+                checked={!!menuStyle.bold}
+                onCheckedChange={(c) =>
+                  handleStyleChange(key as MenuStyleToken, { bold: !!c })
+                }
+              />
+              <span className="text-[14px] font-bold text-black">B</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <Checkbox
+                checked={!!menuStyle.italic}
+                onCheckedChange={(c) =>
+                  handleStyleChange(key as MenuStyleToken, { italic: !!c })
+                }
+              />
+              <span className="text-[14px] italic text-black">I</span>
+            </label>
+            <div className="flex items-center gap-1">
+              <input
+                type="color"
+                value={menuStyle.color || "#000000"}
+                onChange={(e) =>
+                  handleStyleChange(key as MenuStyleToken, { color: e.target.value })
+                }
+                className="h-7 w-7 rounded border cursor-pointer p-0"
+                title="색상 선택"
+              />
+              {menuStyle.color && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleStyleChange(key as MenuStyleToken, { color: "" })}
+                  className="text-[14px] text-slate-500 px-1.5"
+                  title="기본 색상으로 되돌리기"
+                >
+                  <RotateCcw className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div /> /* grid 칸 유지 */
+        )}
+
         <div className="flex items-center gap-2">
           {/* 미리보기 */}
           <div
-            className="px-3 py-1.5 rounded border bg-slate-50 text-black font-normal min-w-[80px] text-center"
-            style={{ fontSize: `${value}px` }}
+            className="px-3 py-1.5 rounded border bg-slate-50 min-w-[100px] text-center"
+            style={{
+              fontSize: `${value}px`,
+              fontWeight: menuStyle?.bold ? 700 : 400,
+              fontStyle: menuStyle?.italic ? "italic" : "normal",
+              color: previewColor || "#000",
+            }}
           >
             가나다 ABC
           </div>
@@ -203,7 +321,7 @@ export default function TypographySettingsContent() {
           <section>
             <h3 className="text-[14px] font-bold text-black mb-1">상단 메뉴/핀 바 토큰</h3>
             <p className="text-[14px] text-slate-500 mb-2">
-              상단 메뉴바 영역 한정으로 적용됩니다.
+              상단 메뉴바 영역 한정으로 적용. 크기 외 <strong>B</strong>(볼드)/<strong>I</strong>(기울기)/색상도 조절 가능합니다.
             </p>
             <div className="rounded-md border bg-white px-4">
               {MENU_TOKENS.map(renderTokenRow)}
