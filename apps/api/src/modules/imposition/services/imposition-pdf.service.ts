@@ -59,8 +59,12 @@ export async function embedMetaFont(
     const bytes = fs.readFileSync(fontPath);
     const font = await doc.embedFont(bytes, { subset: true });
     const boldPath = resolveKoreanBoldFontPath();
+    // NOTE: boldFont 는 subset: false 로 전체 임베드.
+    // pdf-lib + fontkit 이 NanumGothicBold.ttf 서브셋팅 시 일부 GID(1,2,7,9,10 = 디지트 1,2,7,9,0)의
+    // glyph 데이터를 손상시키는 버그가 있어 시트번호 중 일부가 빈 글리프로 렌더됨(3,4,5만 보임).
+    // 전체 임베드 시 PDF당 약 4.6MB 증가하지만 안정적으로 모든 디지트 렌더 보장.
     const boldFont = boldPath
-      ? await doc.embedFont(fs.readFileSync(boldPath), { subset: true })
+      ? await doc.embedFont(fs.readFileSync(boldPath))
       : font;
     return { font, boldFont, sanitize: (s) => s };
   }
