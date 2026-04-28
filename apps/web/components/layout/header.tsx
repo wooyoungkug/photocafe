@@ -154,12 +154,12 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             <>
               <Link href="/dashboard" className="hidden lg:flex shrink-0 items-center gap-2">
                 <Image
-                  src="/printing114-logo.svg"
-                  alt="printing114"
-                  width={120}
-                  height={32}
+                  src="/images/logo.png"
+                  alt="Photocafe"
+                  width={140}
+                  height={36}
                   priority
-                  className="h-7 w-auto"
+                  className="h-8 w-auto"
                 />
               </Link>
               <div className="hidden lg:flex flex-1 min-w-0 ml-2">
