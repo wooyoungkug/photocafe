@@ -94,6 +94,19 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Zustand persist 수동 하이드레이션 및 토큰 검증 (SSR 호환)
   useEffect(() => {
+    // 대리로그인 데이터가 있으면 rehydrate 전에 먼저 처리 (admin 세션이 덮어쓰는 문제 방지)
+    const raw = typeof window !== 'undefined' ? localStorage.getItem('impersonate-data') : null;
+    if (raw) {
+      try {
+        const data = JSON.parse(raw);
+        localStorage.removeItem('impersonate-data');
+        useAuthStore.getState().setAuth({ user: data.user, rememberMe: false });
+        sessionStorage.setItem('impersonate-session', 'true');
+      } catch {
+        localStorage.removeItem('impersonate-data');
+      }
+    }
+
     useAuthStore.persist.rehydrate();
 
     scheduleTokenRefresh();
