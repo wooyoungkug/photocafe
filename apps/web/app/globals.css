@@ -40,6 +40,8 @@
     --fs-menu-sub: 14px;      /* 서브메뉴 항목 */
     --fs-menu-mega-header: 12px; /* 메가메뉴 그룹 헤더 */
     --fs-pin: 14px;           /* 핀 바 */
+    --fs-table-head: 13px;    /* 표 헤더 */
+    --fs-table-body: 14px;    /* 표 셀(데이터) */
   }
 
   .dark {
@@ -104,6 +106,17 @@
 .fs-menu-sub { font-size: var(--fs-menu-sub, 14px); }
 .fs-menu-mega-header { font-size: var(--fs-menu-mega-header, 12px); }
 .fs-pin { font-size: var(--fs-pin, 14px); }
+
+/* 표(테이블) 영역 토큰 — 시멘틱 th/td + ARIA grid 셀 모두 적용 */
+th,
+[role="columnheader"] {
+  font-size: var(--fs-table-head, inherit);
+}
+td,
+[role="cell"],
+[role="gridcell"] {
+  font-size: var(--fs-table-body, inherit);
+}
 
 @layer utilities {
   .gradient-primary {

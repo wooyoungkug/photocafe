@@ -24,6 +24,8 @@ export const TYPOGRAPHY_KEYS = {
   menuSub: "typography.menu_sub",
   menuMegaHeader: "typography.menu_mega_header",
   pin: "typography.pin",
+  tableHead: "typography.table_head",
+  tableBody: "typography.table_body",
 } as const;
 
 export const TYPOGRAPHY_DEFAULTS: Record<keyof typeof TYPOGRAPHY_KEYS, number> = {
@@ -34,6 +36,8 @@ export const TYPOGRAPHY_DEFAULTS: Record<keyof typeof TYPOGRAPHY_KEYS, number> =
   menuSub: 14,
   menuMegaHeader: 12,
   pin: 14,
+  tableHead: 13,
+  tableBody: 14,
 };
 
 export const TYPOGRAPHY_LABELS: Record<keyof typeof TYPOGRAPHY_KEYS, string> = {
@@ -44,6 +48,8 @@ export const TYPOGRAPHY_LABELS: Record<keyof typeof TYPOGRAPHY_KEYS, string> = {
   menuSub: "서브메뉴 항목",
   menuMegaHeader: "메가메뉴 그룹 헤더",
   pin: "핀(즐겨찾기) 바",
+  tableHead: "표 헤더",
+  tableBody: "표 셀(데이터)",
 };
 
 export const TYPOGRAPHY_VAR_MAP: Record<keyof typeof TYPOGRAPHY_KEYS, string> = {
@@ -54,6 +60,8 @@ export const TYPOGRAPHY_VAR_MAP: Record<keyof typeof TYPOGRAPHY_KEYS, string> = 
   menuSub: "--fs-menu-sub",
   menuMegaHeader: "--fs-menu-mega-header",
   pin: "--fs-pin",
+  tableHead: "--fs-table-head",
+  tableBody: "--fs-table-body",
 };
 
 const RANGE = { min: 10, max: 32 } as const;
@@ -79,23 +87,37 @@ export function applyTypographyVars(values: Partial<Record<keyof typeof TYPOGRAP
 }
 
 // ---------------------------------------------------------------------------
-// 메뉴 토큰 완서(볼드/기울기/컬러) — 4개 토큰만 지원
+// 완서(볼드/기울기/컬러) 토큰 — 메뉴 4개 + 표 2개
 // ---------------------------------------------------------------------------
 
-export type MenuStyleToken = "menuMain" | "menuSub" | "menuMegaHeader" | "pin";
+export type MenuStyleToken =
+  | "menuMain"
+  | "menuSub"
+  | "menuMegaHeader"
+  | "pin"
+  | "tableHead"
+  | "tableBody";
 
 export const MENU_STYLE_TOKENS: MenuStyleToken[] = [
   "menuMain",
   "menuSub",
   "menuMegaHeader",
   "pin",
+  "tableHead",
+  "tableBody",
 ];
 
+/**
+ * 각 토큰을 적용할 CSS 셀렉터.
+ * 표 토큰은 시멘틱 th/td 와 ARIA grid 역할을 모두 포함하여 shadcn Table 등 호환.
+ */
 const MENU_CLASS_MAP: Record<MenuStyleToken, string> = {
   menuMain: ".fs-menu-main",
   menuSub: ".fs-menu-sub",
   menuMegaHeader: ".fs-menu-mega-header",
   pin: ".fs-pin",
+  tableHead: 'th, [role="columnheader"]',
+  tableBody: 'td, [role="cell"], [role="gridcell"]',
 };
 
 export interface MenuStyleValues {
@@ -109,6 +131,8 @@ export const MENU_STYLE_KEYS = {
   menuSub: { bold: "typography.menu_sub.bold", italic: "typography.menu_sub.italic", color: "typography.menu_sub.color" },
   menuMegaHeader: { bold: "typography.menu_mega_header.bold", italic: "typography.menu_mega_header.italic", color: "typography.menu_mega_header.color" },
   pin: { bold: "typography.pin.bold", italic: "typography.pin.italic", color: "typography.pin.color" },
+  tableHead: { bold: "typography.table_head.bold", italic: "typography.table_head.italic", color: "typography.table_head.color" },
+  tableBody: { bold: "typography.table_body.bold", italic: "typography.table_body.italic", color: "typography.table_body.color" },
 } as const;
 
 const STYLE_TAG_ID = "typography-menu-style-overrides";

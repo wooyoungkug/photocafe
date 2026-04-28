@@ -31,15 +31,18 @@ const ALL_TOKENS = Object.keys(TYPOGRAPHY_KEYS) as TokenKey[];
 
 const GLOBAL_TOKENS: TokenKey[] = ["body", "title", "heading"];
 const MENU_TOKENS: TokenKey[] = ["menuMain", "menuSub", "menuMegaHeader", "pin"];
+const TABLE_TOKENS: TokenKey[] = ["tableHead", "tableBody"];
 
 const TOKEN_DESCRIPTIONS: Record<TokenKey, string> = {
-  body: "일반 텍스트, 폼 라벨, 표 셀 등",
+  body: "일반 텍스트, 폼 라벨 등",
   title: "페이지 제목, 카드 헤더, 섹션 제목",
   heading: "큰 제목, 대시보드 KPI 숫자 등",
   menuMain: "상단 가로 메뉴바의 대메뉴 (대시보드, 주문관리…)",
   menuSub: "메가메뉴/드롭다운 안의 서브메뉴 항목",
   menuMegaHeader: "메가메뉴 그룹 컬럼 헤더 (매출관리, 매입관리…)",
   pin: "핀(즐겨찾기) 바 항목",
+  tableHead: "주문목록·회원목록 등 모든 표의 헤더 (주문일/주문번호…)",
+  tableBody: "표 데이터 셀 (주문 내용, 회원명 등)",
 };
 
 const EMPTY_STYLE: MenuStyleValues = { bold: false, italic: false, color: "" };
@@ -82,6 +85,12 @@ export default function TypographySettingsContent() {
     currentStyles.pin.bold,
     currentStyles.pin.italic,
     currentStyles.pin.color,
+    currentStyles.tableHead.bold,
+    currentStyles.tableHead.italic,
+    currentStyles.tableHead.color,
+    currentStyles.tableBody.bold,
+    currentStyles.tableBody.italic,
+    currentStyles.tableBody.color,
   ]);
 
   const handleChange = (key: TokenKey, value: number) => {
@@ -325,6 +334,18 @@ export default function TypographySettingsContent() {
             </p>
             <div className="rounded-md border bg-white px-4">
               {MENU_TOKENS.map(renderTokenRow)}
+            </div>
+          </section>
+
+          {/* 표(테이블) 토큰 */}
+          <section>
+            <h3 className="text-[14px] font-bold text-black mb-1">표(테이블) 토큰</h3>
+            <p className="text-[14px] text-slate-500 mb-2">
+              주문목록·회원목록·견적목록 등 시스템 전체 모든 표에 적용됩니다 (시멘틱 th/td 기준).
+              크기 외 <strong>B</strong>(볼드)/<strong>I</strong>(기울기)/색상도 조절 가능합니다.
+            </p>
+            <div className="rounded-md border bg-white px-4">
+              {TABLE_TOKENS.map(renderTokenRow)}
             </div>
           </section>
 
