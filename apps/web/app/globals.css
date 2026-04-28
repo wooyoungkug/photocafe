@@ -107,15 +107,17 @@
 .fs-menu-mega-header { font-size: var(--fs-menu-mega-header, 12px); }
 .fs-pin { font-size: var(--fs-pin, 14px); }
 
-/* 표(테이블) 영역 토큰 — 시멘틱 th/td + ARIA grid 셀 모두 적용 */
+/* 표(테이블) 영역 토큰 — 시멘틱 th/td + ARIA grid 셀 모두 적용
+   !important 사용 이유: 페이지마다 박혀 있는 .text-xs/.text-sm Tailwind 클래스가
+   th/td 요소 선택자보다 우선이라, 사용자 설정값이 묻혀버리는 문제 방지. */
 th,
 [role="columnheader"] {
-  font-size: var(--fs-table-head, inherit);
+  font-size: var(--fs-table-head, 13px) !important;
 }
 td,
 [role="cell"],
 [role="gridcell"] {
-  font-size: var(--fs-table-body, inherit);
+  font-size: var(--fs-table-body, 14px) !important;
 }
 
 @layer utilities {
