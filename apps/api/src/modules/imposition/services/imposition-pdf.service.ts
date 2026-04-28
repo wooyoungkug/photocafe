@@ -95,6 +95,8 @@ export interface PdfBuildOptions {
   drawFoldLines?: boolean;
   /** JobID/스튜디오명 메타 텍스트 */
   jobMetaText?: string | null;
+  /** 주문번호 — 메타 텍스트 안에서 빨간색으로 강조하기 위한 토큰 */
+  jobMetaOrderNumber?: string | null;
   /** 임포지션 PDF 저장 경로 (선택) */
   outputPath?: string;
 }
@@ -253,7 +255,7 @@ export class ImpositionPdfService {
         drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
       }
       if (options.jobMetaText && meta) {
-        drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, options.jobMetaText, sheet.sheetIndex, result.sheetCount, meta.font, meta.boldFont, meta.sanitize);
+        drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, options.jobMetaText, sheet.sheetIndex, result.sheetCount, meta.font, meta.boldFont, meta.sanitize, options.jobMetaOrderNumber);
       }
     }
 

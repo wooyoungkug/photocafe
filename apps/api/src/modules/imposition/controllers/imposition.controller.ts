@@ -314,6 +314,7 @@ export class ImpositionController {
           drawColorBar: marks.colorBar !== false,
           drawFoldLines: marks.fold !== false,
           jobMetaText,
+          jobMetaOrderNumber: item.order.orderNumber,
         });
       }
 
@@ -419,6 +420,7 @@ export class ImpositionController {
             drawColorBar: marks.colorBar !== false,
             drawFoldLines: marks.fold !== false,
             jobMetaText,
+            jobMetaOrderNumber: item.order.orderNumber,
             spreadImages: isSpread,
             bindingDirection: item.bindingDirection,
           });

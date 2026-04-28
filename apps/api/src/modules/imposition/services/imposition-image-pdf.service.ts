@@ -45,6 +45,8 @@ export interface ImagePdfOptions {
   drawColorBar?: boolean;     // default: true
   drawFoldLines?: boolean;    // default: true (Nup>=2 일 때만 실제 그려짐)
   jobMetaText?: string | null;  // 있으면 상단에 표시
+  /** 주문번호 — 메타 텍스트 안에서 빨간색으로 강조하기 위한 토큰 */
+  jobMetaOrderNumber?: string | null;
   outputPath?: string;
   /**
    * 펼침면(spread) 이미지 처리 여부.
@@ -303,7 +305,7 @@ export class ImpositionImagePdfService {
           drawFoldLines(page, sheet.placements, result.sheetWidth, result.sheetHeight);
         }
         if (effectiveMeta && meta) {
-          drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, effectiveMeta, sheet.sheetIndex, result.sheetCount, meta.font, meta.boldFont, meta.sanitize);
+          drawJobMeta(page, printAreaX, printAreaY, printAreaW, printAreaH, effectiveMeta, sheet.sheetIndex, result.sheetCount, meta.font, meta.boldFont, meta.sanitize, options.jobMetaOrderNumber);
         }
       }
     }
