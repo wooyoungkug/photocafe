@@ -718,12 +718,40 @@ export default function OrderDetailPage() {
                                     const v = px / dpi;
                                     return Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, '');
                                   };
-                                  const renderThumb = (file: typeof thumbnailFiles[number], pageLabel: string, globalIdx: number) => {
+                                  // 펼침면 좌/우 실제 페이지 번호 계산 (folder-card / cart-thumbnail-gallery 동일 로직)
+                                  const calcSpreadPages = (fileIndex: number, totalFiles: number, dir: string): { left: number | null; right: number | null } => {
+                                    switch (dir) {
+                                      case 'LEFT_START_RIGHT_END':
+                                        return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
+                                      case 'LEFT_START_LEFT_END':
+                                        return fileIndex === totalFiles - 1
+                                          ? { left: fileIndex * 2 + 1, right: null }
+                                          : { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
+                                      case 'RIGHT_START_LEFT_END':
+                                        if (fileIndex === 0) return { left: null, right: 1 };
+                                        if (fileIndex === totalFiles - 1 && totalFiles > 1) return { left: fileIndex * 2, right: null };
+                                        return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
+                                      case 'RIGHT_START_RIGHT_END':
+                                        if (fileIndex === 0) return { left: null, right: 1 };
+                                        return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
+                                      default:
+                                        return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
+                                    }
+                                  };
+
+                                  const renderThumb = (
+                                    file: typeof thumbnailFiles[number],
+                                    pageLabel: string,
+                                    globalIdx: number,
+                                    opts?: { badgePosition?: 'left' | 'right'; spreadBadges?: { left: number | null; right: number | null } }
+                                  ) => {
                                     const aspectPct = file.width > 0 && file.height > 0
                                       ? (file.height / file.width) * 100
                                       : 133;
                                     const wIn = fmtInch(file.width, file.dpi);
                                     const hIn = fmtInch(file.height, file.dpi);
+                                    const badgePos = opts?.badgePosition ?? 'left';
+                                    const spreadBadges = opts?.spreadBadges;
                                     return (
                                       <div key={file.id} className="flex flex-col">
                                         <div
@@ -746,9 +774,20 @@ export default function OrderDetailPage() {
                                           <div className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center" style={{ display: 'none' }}>
                                             <span className="text-[10px] text-gray-400 px-1 text-center truncate max-w-full">{file.fileName}</span>
                                           </div>
-                                          <div className="absolute top-1 left-1 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center text-white text-[10px] font-medium bg-red-600">
-                                            {pageLabel}
-                                          </div>
+                                          {spreadBadges ? (
+                                            <>
+                                              <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                                                {spreadBadges.left !== null ? spreadBadges.left : '空'}
+                                              </div>
+                                              <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                                                {spreadBadges.right !== null ? spreadBadges.right : '空'}
+                                              </div>
+                                            </>
+                                          ) : (
+                                            <div className={cn('absolute top-1 min-w-[20px] h-5 px-1 rounded-full flex items-center justify-center text-white text-[10px] font-medium bg-red-600', badgePos === 'right' ? 'right-1' : 'left-1')}>
+                                              {pageLabel}
+                                            </div>
+                                          )}
                                           {file.storageStatus === 'deleted' && (
                                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                                               <span className="text-white text-[10px] font-medium">삭제됨</span>
@@ -776,16 +815,22 @@ export default function OrderDetailPage() {
                                       <div
                                         className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20"
                                         style={{ paddingTop: `${aspectPct}%` }}
-                                      />
+                                      >
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                          <span className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-white text-[10px] font-medium">空</span>
+                                        </div>
+                                      </div>
                                     </div>
                                   );
 
                                   if (item.pageLayout === 'spread') {
-                                    // 펼침면: 파일 1개 = 스프레드 1개
+                                    // 펼침면: 파일 1개 = 스프레드 1개, 좌/우 페이지 번호 각각 표시
+                                    const spreadDir = item.bindingDirection || 'LEFT_START_RIGHT_END';
                                     return (
                                       <div className="grid grid-cols-4 gap-3 p-2 bg-gray-50 rounded-lg border">
                                         {thumbnailFiles.map((file, idx) => {
                                           const pageLabel = getSpreadPageLabel(idx, thumbnailFiles.length, item.pageLayout, item.bindingDirection);
+                                          const pages = calcSpreadPages(idx, thumbnailFiles.length, spreadDir);
                                           return (
                                             <div
                                               key={file.id}
@@ -794,7 +839,7 @@ export default function OrderDetailPage() {
                                               <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
                                                 S{idx + 1} (p{pageLabel})
                                               </div>
-                                              {renderThumb(file, pageLabel, idx)}
+                                              {renderThumb(file, pageLabel, idx, { spreadBadges: pages })}
                                             </div>
                                           );
                                         })}
@@ -855,10 +900,10 @@ export default function OrderDetailPage() {
                                             </div>
                                             <div className="grid grid-cols-2 gap-1">
                                               {spread.left.type === 'page' && leftFile
-                                                ? renderThumb(leftFile, String(leftPage), spread.left.fileIndex)
+                                                ? renderThumb(leftFile, String(leftPage), spread.left.fileIndex, { badgePosition: 'left' })
                                                 : renderBlankSlot(`s${spreadIdx}-l`, defaultAspect)}
                                               {spread.right.type === 'page' && rightFile
-                                                ? renderThumb(rightFile, String(rightPage), spread.right.fileIndex)
+                                                ? renderThumb(rightFile, String(rightPage), spread.right.fileIndex, { badgePosition: 'right' })
                                                 : renderBlankSlot(`s${spreadIdx}-r`, defaultAspect)}
                                             </div>
                                           </div>
