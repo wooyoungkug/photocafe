@@ -180,7 +180,19 @@ export class ImpositionController {
     const item = await this.prisma.orderItem.findUnique({
       where: { id: itemId },
       include: {
-        order: { include: { client: { select: { clientName: true } } } },
+        order: {
+          include: {
+            client: {
+              select: {
+                clientName: true,
+                assignedStaff: {
+                  include: { staff: { select: { name: true } } },
+                  take: 1,
+                },
+              },
+            },
+          },
+        },
         files: { orderBy: { sortOrder: 'asc' } },
       },
     });
@@ -271,8 +283,11 @@ export class ImpositionController {
       const colorMode = await this.resolveColorMode(item);
       const sideText = String(item.printSide || '').toLowerCase() === 'double' ? '양면' : '단면';
       const nupText = `${result.nup}up`;
+      const salesRep =
+        (item.order.client as any)?.assignedStaff?.[0]?.staff?.name ?? '';
       const jobMetaText = marks.jobMeta !== false
         ? this.buildRichJobMetaText({
+            salesRep,
             orderNumber: item.order.orderNumber,
             studio: item.order.client?.clientName ?? '',
             paper: item.paper,
@@ -595,6 +610,7 @@ export class ImpositionController {
    *   날짜시간 | 주문번호 | 스튜디오 | 용지 | 제본 | 양/단면 | P | 규격 | 도수 | Nup
    */
   private buildRichJobMetaText(ctx: {
+    salesRep?: string | null;
     orderNumber: string;
     studio: string;
     paper?: string | null;
@@ -608,7 +624,10 @@ export class ImpositionController {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const dt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    const parts: string[] = [dt, ctx.orderNumber];
+    const parts: string[] = [];
+    // 인덱스 표기 항목 1번: 영업담당자 (가장 먼저 표시)
+    if (ctx.salesRep) parts.push(ctx.salesRep);
+    parts.push(dt, ctx.orderNumber);
     if (ctx.studio) parts.push(ctx.studio);
     if (ctx.paper) parts.push(ctx.paper);
     if (ctx.bindingType) parts.push(ctx.bindingType);
