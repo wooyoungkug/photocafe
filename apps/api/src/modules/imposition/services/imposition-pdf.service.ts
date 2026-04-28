@@ -699,6 +699,8 @@ export function drawJobMeta(
   const suffix = `/${sheetTotal}`;
 
   const fontSize = 7;
+  // 현재 시트번호는 강조를 위해 본문보다 2pt 크게 표시
+  const currentFontSize = fontSize + 2;
   // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
   // x 오프셋을 18pt 이상 두고 시작
   const x = paX + 18;
@@ -709,8 +711,8 @@ export function drawJobMeta(
   page.drawText(prefix, { x, y, size: fontSize, color: darkColor, font });
 
   const prefixWidth = font.widthOfTextAtSize(prefix, fontSize);
-  page.drawText(currentStr, { x: x + prefixWidth, y, size: fontSize, color: blueColor, font: boldFont });
+  page.drawText(currentStr, { x: x + prefixWidth, y, size: currentFontSize, color: blueColor, font: boldFont });
 
-  const currentWidth = boldFont.widthOfTextAtSize(currentStr, fontSize);
+  const currentWidth = boldFont.widthOfTextAtSize(currentStr, currentFontSize);
   page.drawText(suffix, { x: x + prefixWidth + currentWidth, y, size: fontSize, color: darkColor, font });
 }
