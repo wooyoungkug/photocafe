@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Bell,
@@ -13,8 +15,12 @@ import {
   Store,
   X,
   ArrowLeftRight,
+  PanelTop,
+  PanelLeft,
 } from "lucide-react";
 import { useLogout, useCurrentUser, useChangePassword, useIsImpersonating, useEndImpersonation } from "@/hooks/use-auth";
+import { useUserPreferences, useUpdatePreferences } from "@/hooks/use-user-preferences";
+import { TopNav } from "./top-nav";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -45,14 +51,18 @@ import { toast } from "sonner";
 interface HeaderProps {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
+  layoutMode?: "top" | "side";
 }
 
-export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
+export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: HeaderProps) {
   const { user } = useCurrentUser();
   const logout = useLogout();
   const isImpersonating = useIsImpersonating();
   const endImpersonation = useEndImpersonation();
   const changePassword = useChangePassword();
+  const { data: prefs } = useUserPreferences();
+  const updatePrefs = useUpdatePreferences();
+  const isTopMode = layoutMode === "top";
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
@@ -117,7 +127,7 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
     <TooltipProvider delayDuration={300}>
       <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/80 bg-white/70 backdrop-blur-xl px-3 sm:px-4 lg:px-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
         {/* Left section */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Mobile menu button */}
           {showMenuButton && (
             <Tooltip>
@@ -135,8 +145,27 @@ export function Header({ onMenuClick, showMenuButton }: HeaderProps) {
             </Tooltip>
           )}
 
-          {/* Search bar - tablet and above */}
-          <div className="relative group hidden md:block">
+          {/* Top mode: Logo + TopNav (desktop only) */}
+          {isTopMode && (
+            <>
+              <Link href="/dashboard" className="hidden lg:flex shrink-0 items-center gap-2">
+                <Image
+                  src="/printing114-logo.svg"
+                  alt="printing114"
+                  width={120}
+                  height={32}
+                  priority
+                  className="h-7 w-auto"
+                />
+              </Link>
+              <div className="hidden lg:flex flex-1 min-w-0 ml-2">
+                <TopNav />
+              </div>
+            </>
+          )}
+
+          {/* Search bar - tablet and above (top 모드에선 숨김) */}
+          <div className={isTopMode ? "hidden" : "relative group hidden md:block"}>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-indigo-500" />
             <input
               ref={searchInputRef}

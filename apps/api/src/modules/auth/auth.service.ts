@@ -294,6 +294,56 @@ export class AuthService {
     return user;
   }
 
+  // ========== UI 환경설정 (핀 메뉴 / 레이아웃 모드) ==========
+
+  async getStaffPreferences(userId: string, type?: string) {
+    if (type !== 'staff') {
+      // 비-스태프(클라이언트/회원)는 기본값만 반환
+      return { pinnedMenus: [], layoutMode: 'top' as const };
+    }
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: userId },
+      select: { pinnedMenus: true, layoutMode: true },
+    } as any);
+    if (!staff) {
+      throw new UnauthorizedException('Staff not found');
+    }
+    const s = staff as any;
+    return {
+      pinnedMenus: (s.pinnedMenus as string[]) ?? [],
+      layoutMode: ((s.layoutMode as string) ?? 'top') as 'top' | 'side',
+    };
+  }
+
+  async updateStaffPreferences(
+    userId: string,
+    type: string | undefined,
+    dto: { pinnedMenus?: string[]; layoutMode?: 'top' | 'side' },
+  ) {
+    if (type !== 'staff') {
+      throw new ForbiddenException('Only staff can update preferences');
+    }
+    const data: any = {};
+    if (Array.isArray(dto.pinnedMenus)) {
+      // href 형식 검증: '/' 시작, 200자 미만, 최대 30개
+      const cleaned = dto.pinnedMenus
+        .filter((h) => typeof h === 'string' && h.startsWith('/') && h.length < 200)
+        .slice(0, 30);
+      data.pinnedMenus = cleaned;
+    }
+    if (dto.layoutMode === 'top' || dto.layoutMode === 'side') {
+      data.layoutMode = dto.layoutMode;
+    }
+    if (Object.keys(data).length === 0) {
+      return this.getStaffPreferences(userId, type);
+    }
+    await this.prisma.staff.update({
+      where: { id: userId },
+      data,
+    } as any);
+    return this.getStaffPreferences(userId, type);
+  }
+
   // ========== OAuth 유틸 ==========
 
   private normalizeOAuthBirthday(birthday?: string, birthyear?: string): string | undefined {

@@ -188,6 +188,8 @@ model Staff {
   menuPermissions         Json?
   categoryPermissions     Json?
   processPermissions      Json?
+  pinnedMenus             String[]      @default([])
+  layoutMode              String        @default("top")
   isActive                Boolean       @default(true)
   lastLoginAt             DateTime?
   lastLoginIp             String?

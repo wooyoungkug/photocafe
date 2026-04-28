@@ -124,6 +124,25 @@ export class AuthController {
     );
   }
 
+  @Get('me/preferences')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'UI 환경설정 조회 (핀 메뉴, 레이아웃 모드)' })
+  async getPreferences(@Request() req: any) {
+    return this.authService.getStaffPreferences(req.user.sub, req.user.type);
+  }
+
+  @Patch('me/preferences')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'UI 환경설정 수정 (핀 메뉴, 레이아웃 모드)' })
+  async updatePreferences(
+    @Body() dto: { pinnedMenus?: string[]; layoutMode?: 'top' | 'side' },
+    @Request() req: any,
+  ) {
+    return this.authService.updateStaffPreferences(req.user.sub, req.user.type, dto);
+  }
+
   // ========== 컨텍스트 선택 ==========
 
   @Public()
