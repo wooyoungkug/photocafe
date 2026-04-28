@@ -2163,16 +2163,14 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
       )}
 
-      {/* 승인·닫기 버튼 (하단) — 업로드 완료 후에만 활성화 */}
-      {isThumbnailOpen && (
+      {/* 승인·닫기 버튼 (하단) — 업로드가 완료된 후에만 노출.
+          업로드 진행 중에는 사용자가 잘못 누를 수 없도록 버튼 자체를 숨긴다. */}
+      {isThumbnailOpen && isUploadComplete && (
         <div className="mt-3 flex justify-center">
           <Button
             variant="outline"
             size="sm"
-            disabled={!isUploadComplete}
-            title={!isUploadComplete ? '업로드 완료 후 승인할 수 있습니다' : undefined}
             onClick={() => {
-              if (!isUploadComplete) return;
               setIsThumbnailOpen(false);
               if (canSelect && !folder.isSelected) {
                 setFolderSelected(folder.id, true);
@@ -2184,9 +2182,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             className="text-xs"
           >
             <Check className="h-3 w-3 mr-1" />
-            {!isUploadComplete
-              ? '업로드 진행 중...'
-              : `${t('approve')} • ${tc('close')}`}
+            {t('approve')} • {tc('close')}
           </Button>
         </div>
       )}
