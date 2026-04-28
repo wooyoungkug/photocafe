@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Package,
@@ -199,7 +198,7 @@ export default function OrderListPage() {
   };
 
   // 회원 임퍼스네이션: 해당 거래처로 쇼핑몰 로그인 (관리자 토큰 보존)
-  const handleImpersonate = async (clientId: string) => {
+  const handleImpersonate = async (clientId: string, orderId?: string) => {
     // 팝업 차단 방지: async/await 이전, 사용자 제스처 컨텍스트에서 새 탭 먼저 열기
     const newTab = window.open('about:blank', '_blank');
     try {
@@ -216,11 +215,12 @@ export default function OrderListPage() {
         refreshToken: res.refreshToken,
       }));
 
-      // 미리 열어둔 탭으로 쇼핑몰 주문내역 이동
+      // 미리 열어둔 탭으로 이동 — orderId 있으면 해당 주문 상세, 없으면 주문목록
+      const dest = orderId ? `/mypage/orders/${orderId}` : '/mypage/orders';
       if (newTab) {
-        newTab.location.href = '/mypage/orders';
+        newTab.location.href = dest;
       } else {
-        window.open('/mypage/orders', '_blank');
+        window.open(dest, '_blank');
       }
     } catch {
       if (newTab) newTab.close();
@@ -310,12 +310,13 @@ export default function OrderListPage() {
                           <div className="text-[11px] text-muted-foreground">
                             {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
                           </div>
-                          <Link
-                            href={`/mypage/orders/${order.id}`}
-                            className="text-sm font-semibold text-foreground hover:underline"
+                          <button
+                            type="button"
+                            onClick={() => handleImpersonate(order.clientId, order.id)}
+                            className="text-sm font-semibold text-foreground hover:underline text-left"
                           >
                             {order.orderNumber}
-                          </Link>
+                          </button>
                           <div className="flex items-center gap-1 mt-0.5">
                             {order.isUrgent && (
                               <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
@@ -466,12 +467,13 @@ export default function OrderListPage() {
                               <div className="text-xs text-muted-foreground whitespace-nowrap">
                                 {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
                               </div>
-                              <Link
-                                href={`/mypage/orders/${order.id}`}
-                                className="text-xs font-semibold text-foreground hover:underline whitespace-nowrap"
+                              <button
+                                type="button"
+                                onClick={() => handleImpersonate(order.clientId, order.id)}
+                                className="text-xs font-semibold text-foreground hover:underline whitespace-nowrap text-left"
                               >
                                 {order.orderNumber}
-                              </Link>
+                              </button>
                               {order.isUrgent && (
                                 <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
                               )}
