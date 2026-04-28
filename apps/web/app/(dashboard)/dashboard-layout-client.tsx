@@ -157,12 +157,10 @@ export function DashboardLayoutClient({
             showMenuButton={isMobile}
             layoutMode={layoutMode}
           />
-          {/* Top 모드: 핀 바 (데스크탑 전용) */}
-          {isTopMode && (
-            <div className="hidden lg:block">
-              <PinBar />
-            </div>
-          )}
+          {/* 핀 바 (데스크탑 전용, 모든 레이아웃 모드에서 표시) */}
+          <div className="hidden lg:block">
+            <PinBar />
+          </div>
           <main className="flex-1 overflow-y-auto bg-slate-50/80 p-3 sm:p-4 lg:p-6">
             {children}
           </main>
