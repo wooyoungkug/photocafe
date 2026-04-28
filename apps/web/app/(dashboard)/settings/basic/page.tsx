@@ -887,6 +887,11 @@ export default function BasicSettingsPage() {
             </Button>
           </div>
         </TabsContent>
+
+        {/* 타이포그래피 탭 */}
+        <TabsContent value="typography" className="space-y-4">
+          <TypographySettingsContent />
+        </TabsContent>
       </Tabs>
     </div>
   );
