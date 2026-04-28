@@ -291,6 +291,10 @@ export class ImpositionController {
         });
         salesRep = staff?.name ?? '';
       }
+      // 인덱스 표기 항목 설정 읽기 (시스템설정 기반, 사용자가 dialog 에서 토글/순서 변경)
+      const { indexOptions, indexOrderKeys } = await this.loadIndexSettings();
+      // 이미지영역(mm) — 단면 트림 사이즈 그대로 사용
+      const imageArea = w && h ? `${Math.round(w)}×${Math.round(h)}` : '';
       const jobMetaText = marks.jobMeta !== false
         ? this.buildRichJobMetaText({
             salesRep,
@@ -304,7 +308,8 @@ export class ImpositionController {
             sideText,
             nupText,
             bindingType: item.bindingType,
-          })
+            imageArea,
+          }, indexOptions, indexOrderKeys)
         : null;
 
       // 소스 PDF 기반 정식 PDF — 명시적으로 dto.generateSourcePdf === true 일 때만.
@@ -618,6 +623,12 @@ export class ImpositionController {
    * print-pdf 의 IndexData 와 동일한 정보 구성:
    *   날짜시간 | 주문번호 | 스튜디오 | 용지 | 제본 | 양/단면 | P | 규격 | 도수 | Nup
    */
+  /**
+   * 인디고 출력 머리말 메타텍스트.
+   * 시스템설정의 "인덱스 표기 항목" (print_pdf_index_options + print_pdf_index_order)
+   * 기준으로 사용자가 토글한 항목만, 사용자가 정한 순서로 출력한다.
+   * showPageInfo(현재페이지/총페이지) 는 drawJobMeta 가 별도 처리하므로 여기선 생략.
+   */
   private buildRichJobMetaText(ctx: {
     salesRep?: string | null;
     orderNumber: string;
@@ -630,36 +641,106 @@ export class ImpositionController {
     sideText: string;
     nupText: string;
     bindingType?: string | null;
-  }): string {
+    imageArea?: string | null;
+  }, indexOptions: Record<string, boolean>, indexOrderKeys?: string[]): string {
     const now = new Date();
     const pad = (n: number) => String(n).padStart(2, '0');
     const dt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-    const parts: string[] = [];
-    // 인덱스 표기 항목 1번: 영업담당자 (가장 먼저 표시)
-    if (ctx.salesRep) parts.push(ctx.salesRep);
-    parts.push(dt, ctx.orderNumber);
-    if (ctx.studio) parts.push(ctx.studio);
-    if (ctx.paper) parts.push(ctx.paper);
-    if (ctx.bindingType) parts.push(ctx.bindingType);
-    if (ctx.sideText) parts.push(ctx.sideText);
-    if (ctx.pages) parts.push(`${ctx.pages}P`);
-    if (ctx.size) parts.push(ctx.size);
-    // 도수(컬러모드) 표기:
-    //   인디고 출력 → "인디고{N}도" (예: "인디고6도") — 양면/단면 표기는 별도 sideText 로 표기되므로 중복 제거
-    //   잉크젯/기타 → 원본 colorMode 그대로
-    if (ctx.colorMode && ctx.colorMode !== '-') {
+
+    // colorMode 표기 변환 — 인디고 출력은 "인디고{N}도" 로 정규화
+    const colorModeText = (() => {
+      if (!ctx.colorMode || ctx.colorMode === '-') return '';
       const isIndigo =
         String(ctx.printMethod || '').toLowerCase().includes('indigo') ||
         ctx.colorMode.includes('인디고');
       const dosuMatch = ctx.colorMode.match(/(\d+도)/);
-      if (isIndigo && dosuMatch) {
-        parts.push(`인디고${dosuMatch[1]}`);
-      } else {
-        parts.push(ctx.colorMode);
-      }
+      if (isIndigo && dosuMatch) return `인디고${dosuMatch[1]}`;
+      return ctx.colorMode;
+    })();
+
+    // 키 → 표시 텍스트 매핑 (showPageInfo 는 drawJobMeta 가 처리)
+    const keyValueMap: Record<string, string> = {
+      showSalesRep: ctx.salesRep || '',
+      showDateTime: dt,
+      showOrderNumber: ctx.orderNumber || '',
+      showStudioName: ctx.studio || '',
+      showPaper: ctx.paper || '',
+      showBinding: ctx.bindingType && ctx.bindingType !== '-' ? ctx.bindingType : '',
+      showColorMode: colorModeText,
+      showSide: ctx.sideText || '',
+      showSpec: ctx.size || '',
+      showNup: ctx.nupText || '',
+      showImageArea: ctx.imageArea ? `${ctx.imageArea}mm` : '',
+    };
+
+    // 기본 순서 (사용자 설정 없을 때) — dialog 의 디폴트 순서와 정합
+    const defaultOrder = [
+      'showSalesRep',
+      'showDateTime',
+      'showOrderNumber',
+      'showStudioName',
+      'showPaper',
+      'showBinding',
+      'showColorMode',
+      'showSide',
+      'showSpec',
+      'showNup',
+      'showImageArea',
+    ];
+
+    const orderedKeys = (indexOrderKeys && indexOrderKeys.length > 0)
+      ? indexOrderKeys
+      : defaultOrder;
+
+    const parts: string[] = [];
+    for (const key of orderedKeys) {
+      if (key === 'showPageInfo') continue; // drawJobMeta 가 "시트 N/M" 으로 처리
+      if (!indexOptions[key]) continue;
+      const val = keyValueMap[key];
+      if (val) parts.push(val);
     }
-    parts.push(ctx.nupText);
     return parts.join(' | ');
+  }
+
+  /** 시스템설정에서 인덱스 표기 옵션과 순서를 읽어 정규화된 값으로 반환 */
+  private async loadIndexSettings(): Promise<{
+    indexOptions: Record<string, boolean>;
+    indexOrderKeys?: string[];
+  }> {
+    const indexOptionsRaw = await this.settings.getValue('print_pdf_index_options', '');
+    const indexOrderRaw = await this.settings.getValue('print_pdf_index_order', '');
+    const indexOptions: Record<string, boolean> = {
+      showSalesRep: true,
+      showDateTime: true,
+      showOrderNumber: true,
+      showStudioName: true,
+      showPaper: true,
+      showBinding: true,
+      showColorMode: true,
+      showSide: true,
+      showSpec: true,
+      showNup: true,
+      showImageArea: false,
+      showPageInfo: true,
+    };
+    let indexOrderKeys: string[] | undefined;
+    try {
+      if (indexOptionsRaw) {
+        Object.assign(indexOptions, JSON.parse(indexOptionsRaw));
+      }
+    } catch { /* malformed — fall back to defaults */ }
+    try {
+      if (indexOrderRaw) {
+        const ordered: Array<{ key: string; enabled: boolean }> = JSON.parse(indexOrderRaw);
+        if (Array.isArray(ordered) && ordered.length) {
+          for (const it of ordered) {
+            if (it && typeof it.key === 'string') indexOptions[it.key] = !!it.enabled;
+          }
+          indexOrderKeys = ordered.filter((i) => i?.enabled).map((i) => i.key);
+        }
+      }
+    } catch { /* malformed */ }
+    return { indexOptions, indexOrderKeys };
   }
 
   /**
