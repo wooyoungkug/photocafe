@@ -145,6 +145,30 @@ export class PrintPdfController {
       }
     }
 
+    // 3차 폴백: PdfJobItem 에 저장된 최근 경로 시도
+    // OrderItem.pdfPath 는 최초 생성 시점 경로 → 설정 변경/파일 이동 후 stale 될 수 있음.
+    // PdfJobItem 은 각 Job 실행마다 경로를 기록하므로 더 최신일 가능성이 높음.
+    if (!fs.existsSync(abs)) {
+      const recentItems = await this.printPdfService['prisma'].pdfJobItem.findMany({
+        where: { orderItemId, status: 'completed', pdfPath: { not: null } },
+        orderBy: { updatedAt: 'desc' },
+        take: 5,
+        select: { pdfPath: true },
+      });
+      for (const ji of recentItems) {
+        if (!ji.pdfPath) continue;
+        const jiAbs = toAbs(ji.pdfPath);
+        if (fs.existsSync(jiAbs)) {
+          this.logger.log(`pdfPath 복구 (PdfJobItem): ${item.pdfPath} → ${ji.pdfPath}`);
+          await this.printPdfService['prisma'].orderItem
+            .update({ where: { id: orderItemId }, data: { pdfPath: ji.pdfPath } })
+            .catch(() => {});
+          abs = jiAbs;
+          break;
+        }
+      }
+    }
+
     if (!fs.existsSync(abs)) {
       throw new NotFoundException('PDF 파일이 디스크에 존재하지 않습니다. 재생성이 필요합니다.');
     }
