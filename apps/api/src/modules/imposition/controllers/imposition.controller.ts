@@ -39,6 +39,7 @@ import {
 import { PrismaClient } from '@prisma/client';
 import { seedImposition } from '../seed-imposition';
 import { B2StorageService } from '../../upload/services/b2-storage.service';
+import { PrintPdfSlipPrinterService } from '../../print-pdf/services/print-pdf-slip-printer.service';
 
 const IMPOSITION_OUTPUT_DIR = path.join(process.cwd(), 'uploads', 'imposition');
 
@@ -56,6 +57,7 @@ export class ImpositionController {
     private readonly prisma: PrismaService,
     private readonly settings: SystemSettingsService,
     private readonly b2Storage: B2StorageService,
+    private readonly slipPrinter: PrintPdfSlipPrinterService,
   ) {
     if (!fs.existsSync(IMPOSITION_OUTPUT_DIR)) {
       fs.mkdirSync(IMPOSITION_OUTPUT_DIR, { recursive: true });
@@ -511,6 +513,24 @@ export class ImpositionController {
           pdfPath: wantSourcePdf ? pdfPath : null,
           imagePdfPath,
         },
+      });
+
+      // 작업지시서(슬립) 자동 인쇄 — 설정에서 활성화된 경우에만 실행
+      this.slipPrinter.printSlipIfEnabled({
+        orderNumber: item.order.orderNumber,
+        studioName: item.order.client?.clientName ?? '',
+        fileName: imagePdfPath ? path.basename(imagePdfPath) : (item.productName ?? ''),
+        paper: item.paper ?? '',
+        spec: item.size ?? '',
+        pages: item.pages ?? 0,
+        colorMode,
+        side: sideText,
+        binding: item.bindingType ?? '',
+        nup: nupText,
+        outputPath: autoSavedPath ?? imagePdfPath ?? '',
+        printMethod: item.printMethod ?? undefined,
+      }).catch((err: any) => {
+        // 슬립 인쇄 실패는 응답에 영향 없음 (이미 logger.error 호출됨)
       });
 
       return {
