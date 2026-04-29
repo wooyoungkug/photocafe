@@ -1218,106 +1218,109 @@ export function OrderQuickEditDialog({
 
                       <Separator />
 
-                      {/* 단가 breakdown (상품옵션 기반 자동 계산) */}
-                      <div className="rounded-md border p-3 bg-white">
-                        <ItemPriceBreakdownPanel
-                          item={item}
-                          edit={edit}
-                          clientId={displayOrder.clientId}
-                          onUnitPriceCalculated={(calculated) => {
-                            setItemEdits((prev) => {
-                              const cur = prev[item.id];
-                              if (!cur || cur.manualUnitPrice) return prev;
-                              if (cur.unitPrice === calculated) return prev;
-                              return {
-                                ...prev,
-                                [item.id]: { ...cur, unitPrice: calculated },
-                              };
-                            });
-                          }}
-                        />
-                      </div>
-
-                      {/* Quantity / Unit price / Subtotal */}
-                      <div className="flex flex-wrap gap-4 items-end">
-                        {/* 페이지 (자동 계산) */}
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">페이지</Label>
-                          <div className="w-20 h-8 px-3 flex items-center rounded-md border bg-slate-50 text-sm text-slate-700 select-none">
-                            {item.pages}p
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">
-                            부수
-                          </Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={edit.quantity}
-                            onChange={(e) =>
-                              setItemEdits((prev) => ({
-                                ...prev,
-                                [item.id]: {
-                                  ...prev[item.id],
-                                  quantity: Math.max(
-                                    1,
-                                    Number(e.target.value)
-                                  ),
-                                },
-                              }))
-                            }
-                            className="w-24 h-8 text-sm"
+                      {/* 단가 breakdown + 수량/단가 2열 레이아웃 */}
+                      <div className="grid grid-cols-2 gap-4 items-start">
+                        {/* 왼쪽: 단가 breakdown (상품옵션 기반 자동 계산) */}
+                        <div className="rounded-md border p-3 bg-white">
+                          <ItemPriceBreakdownPanel
+                            item={item}
+                            edit={edit}
+                            clientId={displayOrder.clientId}
+                            onUnitPriceCalculated={(calculated) => {
+                              setItemEdits((prev) => {
+                                const cur = prev[item.id];
+                                if (!cur || cur.manualUnitPrice) return prev;
+                                if (cur.unitPrice === calculated) return prev;
+                                return {
+                                  ...prev,
+                                  [item.id]: { ...cur, unitPrice: calculated },
+                                };
+                              });
+                            }}
                           />
                         </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Label className="text-xs text-muted-foreground">단가</Label>
-                            <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer select-none">
-                              <Checkbox
-                                checked={edit.manualUnitPrice ?? false}
-                                onCheckedChange={(checked) =>
+
+                        {/* 오른쪽: 페이지/부수/단가/소계 */}
+                        <div className="rounded-md border p-3 bg-white flex flex-col gap-3">
+                          <div className="flex flex-wrap gap-3 items-end">
+                            {/* 페이지 (자동 계산) */}
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">페이지</Label>
+                              <div className="w-20 h-8 px-3 flex items-center rounded-md border bg-slate-50 text-sm text-slate-700 select-none">
+                                {item.pages}p
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-muted-foreground">부수</Label>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={edit.quantity}
+                                onChange={(e) =>
                                   setItemEdits((prev) => ({
                                     ...prev,
                                     [item.id]: {
                                       ...prev[item.id],
-                                      manualUnitPrice: checked === true,
+                                      quantity: Math.max(
+                                        1,
+                                        Number(e.target.value)
+                                      ),
                                     },
                                   }))
                                 }
+                                className="w-24 h-8 text-sm"
                               />
-                              수동 단가
-                            </label>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground">단가</Label>
+                                <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer select-none">
+                                  <Checkbox
+                                    checked={edit.manualUnitPrice ?? false}
+                                    onCheckedChange={(checked) =>
+                                      setItemEdits((prev) => ({
+                                        ...prev,
+                                        [item.id]: {
+                                          ...prev[item.id],
+                                          manualUnitPrice: checked === true,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                  수동 단가
+                                </label>
+                              </div>
+                              <Input
+                                type="text"
+                                inputMode="numeric"
+                                value={edit.unitPrice.toLocaleString()}
+                                readOnly={!edit.manualUnitPrice}
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/,/g, '');
+                                  if (raw === '' || /^\d+$/.test(raw)) {
+                                    setItemEdits((prev) => ({
+                                      ...prev,
+                                      [item.id]: {
+                                        ...prev[item.id],
+                                        unitPrice: Math.max(0, Number(raw) || 0),
+                                      },
+                                    }));
+                                  }
+                                }}
+                                onFocus={(e) => e.target.select()}
+                                className={cn(
+                                  'w-32 h-8 text-sm',
+                                  !edit.manualUnitPrice && 'bg-slate-50 text-slate-700',
+                                )}
+                              />
+                            </div>
                           </div>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            value={edit.unitPrice.toLocaleString()}
-                            readOnly={!edit.manualUnitPrice}
-                            onChange={(e) => {
-                              const raw = e.target.value.replace(/,/g, '');
-                              if (raw === '' || /^\d+$/.test(raw)) {
-                                setItemEdits((prev) => ({
-                                  ...prev,
-                                  [item.id]: {
-                                    ...prev[item.id],
-                                    unitPrice: Math.max(0, Number(raw) || 0),
-                                  },
-                                }));
-                              }
-                            }}
-                            onFocus={(e) => e.target.select()}
-                            className={cn(
-                              'w-32 h-8 text-sm',
-                              !edit.manualUnitPrice && 'bg-slate-50 text-slate-700',
-                            )}
-                          />
-                        </div>
-                        <div className="text-sm font-medium text-right flex-1 whitespace-nowrap">
-                          소계:{' '}
-                          <span className="text-blue-600">
-                            {(edit.unitPrice * edit.quantity).toLocaleString()}원
-                          </span>
+                          <div className="text-sm font-medium text-right whitespace-nowrap border-t pt-2">
+                            소계:{' '}
+                            <span className="text-blue-600">
+                              {(edit.unitPrice * edit.quantity).toLocaleString()}원
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
