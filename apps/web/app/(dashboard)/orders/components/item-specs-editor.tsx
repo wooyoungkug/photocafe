@@ -570,7 +570,7 @@ export function ItemSpecsEditor({
       {finishingOptions.length > 0 && (
         <div className="space-y-1 col-span-2">
           <Label className="text-[12px] text-slate-600">후가공 (복수선택)</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 p-2 rounded-md border bg-white">
+          <div className="grid grid-cols-3 gap-1.5 p-2 rounded-md border bg-white">
             {finishingOptions.map((f) => {
               const checked = currentFinishingOptions.includes(f.name);
               return (
