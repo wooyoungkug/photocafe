@@ -691,12 +691,12 @@ export function OrderQuickEditDialog({
   const productTotal = grossTotal - tax;           // 부가세 제외 상품금액 (×0.9)
   const shippingFee = Number(displayOrder.shippingFee) || 0;
   const totalBeforeDiscount = grossTotal + shippingFee;   // tax는 이미 포함됨
-  const finalTotal = Math.max(0, totalBeforeDiscount - discountAmount);
+  const finalTotal = Math.max(0, totalBeforeDiscount + discountAmount);
 
   // ==================== Change detection ====================
 
   const hasChanges = () => {
-    if (discountAmount > 0) return true;
+    if (discountAmount !== 0) return true;
     if (editMessage.trim()) return true;
     if (assignPrintOperatorId !== null) return true;
     return displayOrder.items.some((item) => {
@@ -808,7 +808,7 @@ export function OrderQuickEditDialog({
       await editWithAudit.mutateAsync({
         id: displayOrder.id,
         data: {
-          adjustmentAmount: discountAmount > 0 ? discountAmount : undefined,
+          adjustmentAmount: discountAmount !== 0 ? -discountAmount : undefined,
           adjustmentReason: discountReason || undefined,
           itemUpdates: itemUpdates.length > 0 ? itemUpdates : undefined,
           message: editMessage.trim() || undefined,
@@ -1349,10 +1349,16 @@ export function OrderQuickEditDialog({
                             <span className="text-right">{tax.toLocaleString()}원</span>
                             <span className="text-muted-foreground">배송비</span>
                             <span className="text-right">{shippingFee.toLocaleString()}원</span>
-                            {discountAmount > 0 && (
+                            {discountAmount < 0 && (
                               <>
                                 <span className="text-red-600">할인금액</span>
-                                <span className="text-right text-red-600">-{discountAmount.toLocaleString()}원</span>
+                                <span className="text-right text-red-600">-{Math.abs(discountAmount).toLocaleString()}원</span>
+                              </>
+                            )}
+                            {discountAmount > 0 && (
+                              <>
+                                <span className="text-emerald-700">추가금액</span>
+                                <span className="text-right text-emerald-700">+{discountAmount.toLocaleString()}원</span>
                               </>
                             )}
                             <Separator className="col-span-2 my-0.5" />
@@ -1373,20 +1379,22 @@ export function OrderQuickEditDialog({
                 <h4 className="font-semibold text-sm">할인/금액 조정</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <Label className="text-xs">할인금액</Label>
+                    <Label className="text-xs">
+                      금액 조정{' '}
+                      <span className="text-muted-foreground font-normal">(- 입력 시 할인 · + 입력 시 추가)</span>
+                    </Label>
                     <Input
                       type="number"
-                      min={0}
-                      value={discountAmount}
+                      value={discountAmount === 0 ? '' : discountAmount}
                       onChange={(e) =>
-                        setDiscountAmount(Math.max(0, Number(e.target.value)))
+                        setDiscountAmount(e.target.value === '' ? 0 : Number(e.target.value))
                       }
-                      placeholder="0"
+                      placeholder="0  (예: -5000 할인 / 3000 추가)"
                       className="h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">할인사유</Label>
+                    <Label className="text-xs">조정 사유</Label>
                     <Textarea
                       value={discountReason}
                       onChange={(e) => setDiscountReason(e.target.value)}
