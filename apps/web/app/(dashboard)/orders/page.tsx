@@ -535,7 +535,7 @@ export default function OrderListPage() {
                                   setQuickEditOrder(order);
                                   setIsQuickEditOpen(true);
                                 }}
-                                className="text-sm font-semibold text-foreground hover:underline whitespace-nowrap text-left"
+                                className="text-sm font-normal text-foreground hover:underline whitespace-nowrap text-left"
                                 title="주문 사양 편집"
                               >
                                 {order.orderNumber}
@@ -557,7 +557,7 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                             onClick={() => handleImpersonate(order.clientId)}
                           >
-                            <div className="text-sm font-medium text-foreground hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
+                            <div className="text-sm font-normal text-foreground hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
                               {order.client?.clientName}
                               <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                             </div>
@@ -569,7 +569,7 @@ export default function OrderListPage() {
 
                         {/* 상품명 */}
                         <TableCell className="whitespace-nowrap">
-                          <p className="text-sm font-medium leading-tight">
+                          <p className="text-sm font-normal leading-tight">
                             {item.productName?.split(' - ')?.[0] || item.productName}
                           </p>
                         </TableCell>
@@ -583,7 +583,7 @@ export default function OrderListPage() {
                           }}
                         >
                           <div className="space-y-0.5">
-                            <div className="text-sm font-medium truncate text-foreground hover:underline" title={item.folderName || item.productName}>
+                            <div className="text-sm font-normal truncate text-foreground hover:underline" title={item.folderName || item.productName}>
                               {item.folderName || item.productName}
                             </div>
                             <div className="text-[13px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.fabricName ? `원단:${item.fabricName}` : '', item.foilName ? `동판:${item.foilName}` : '', item.foilColor ? `박:${item.foilColor}` : '', item.foilPosition ? `위치:${item.foilPosition}` : ''].filter(Boolean).join(' / ')}>
@@ -657,7 +657,7 @@ export default function OrderListPage() {
                         {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-right align-middle font-bold text-base whitespace-nowrap"
+                            className="text-right align-middle font-normal text-base whitespace-nowrap"
                             rowSpan={items.length}
                           >
                             {Math.round(Number(order.finalAmount)).toLocaleString()}원
@@ -671,7 +671,7 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                           >
                             <div className="space-y-1">
-                              <Badge className={cn('text-sm font-semibold whitespace-nowrap', statusBadge.className)}>
+                              <Badge className={cn('text-sm font-normal whitespace-nowrap', statusBadge.className)}>
                                 {statusBadge.label}
                               </Badge>
                               <div
