@@ -699,7 +699,7 @@ export function drawJobMeta(
   const currentStr = sheetNum.toString();
   const suffix = `/${sheetTotal}`;
 
-  const fontSize = 7;
+  const fontSize = 5;
   // 강조 텍스트(주문번호, 시트번호) 는 본문보다 2pt 크게 표시
   const emphFontSize = fontSize + 2;
   // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
