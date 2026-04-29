@@ -14,6 +14,7 @@ import { useCurrentUser } from "@/hooks/use-auth";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { useTypographyApply, useMenuStyleApply } from "@/hooks/use-typography";
 import { usePushSubscription } from "@/hooks/use-push-subscription";
+import { Bell, X } from "lucide-react";
 import {
   Sheet,
   SheetContent,
@@ -32,8 +33,8 @@ export function DashboardLayoutClient({
   useTypographyApply();
   useMenuStyleApply();
   const { user, isAuthenticated } = useCurrentUser();
-  // 로그인된 직원에 한해 Web Push 구독 자동 등록
-  usePushSubscription(isAuthenticated);
+  const { needsBanner, requestPermission } = usePushSubscription(isAuthenticated);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";
   const isTopMode = layoutMode === "top";
@@ -168,6 +169,31 @@ export function DashboardLayoutClient({
           <div className="hidden lg:block">
             <PinBar />
           </div>
+          {/* 웹 푸시 알림 허용 배너 */}
+          {needsBanner && !bannerDismissed && (
+            <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200 text-[13px] text-blue-800">
+              <Bell className="h-4 w-4 shrink-0 text-blue-500" />
+              <span className="flex-1">담당자 알림을 받으려면 브라우저 알림을 허용해 주세요.</span>
+              <button
+                type="button"
+                onClick={async () => {
+                  const ok = await requestPermission();
+                  if (!ok) setBannerDismissed(true);
+                }}
+                className="px-3 py-1 rounded bg-blue-500 text-white text-[12px] hover:bg-blue-600 shrink-0"
+              >
+                알림 허용
+              </button>
+              <button
+                type="button"
+                onClick={() => setBannerDismissed(true)}
+                className="p-1 rounded hover:bg-blue-100"
+                aria-label="닫기"
+              >
+                <X className="h-3.5 w-3.5 text-blue-400" />
+              </button>
+            </div>
+          )}
           <main className="flex-1 overflow-y-auto bg-slate-50/80 p-3 sm:p-4 lg:p-6">
             {children}
           </main>
