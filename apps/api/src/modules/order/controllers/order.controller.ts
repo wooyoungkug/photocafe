@@ -62,7 +62,18 @@ export class OrderController {
       }
     }
 
-    return this.orderService.findAll({ skip, take: limit, ...filters });
+    // staff 타입: salesViewScope='own' 이면 본인 담당 거래처의 주문만 조회
+    let clientAssignedStaffId: string | undefined;
+    if (req.user?.type === 'staff') {
+      clientAssignedStaffId = await this.orderService.getStaffSalesScopeId(req.user.sub);
+    }
+
+    return this.orderService.findAll({
+      skip,
+      take: limit,
+      ...filters,
+      ...(clientAssignedStaffId && { clientAssignedStaffId }),
+    });
   }
 
   @Get('status-counts')

@@ -55,6 +55,21 @@ export class OrderService {
     private notificationService: NotificationService,
   ) { }
 
+  /**
+   * staff 직원의 salesViewScope 조회
+   * 'own' 이고 isSuperAdmin=false 면 staffId 반환 → client.assignedStaffId 필터에 사용
+   * 그 외엔 undefined (전체 조회)
+   */
+  async getStaffSalesScopeId(staffId: string): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { id: true, isSuperAdmin: true, salesViewScope: true },
+    });
+    if (!staff || staff.isSuperAdmin) return undefined;
+    return staff.salesViewScope === 'own' ? staff.id : undefined;
+  }
+
   private getContentType(fileName: string, fallback = 'application/octet-stream'): string {
     const lower = fileName.toLowerCase();
     if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
