@@ -57,7 +57,7 @@ export function DashboardLayoutClient({
     setIsMobile(mq.matches);
 
     // 관리자 페이지 빨간 파비콘 적용 (캐시 무효화용 버전 파라미터)
-    const faviconUrl = "/images/favicon-32x32_Brown.png?v=5";
+    const faviconUrl = "/images/favicon-512x512_Brown.png?v=6";
     // 기존 아이콘의 href만 변경 (DOM 노드 제거 시 React reconciliation 충돌 방지)
     const existing = document.querySelector<HTMLLinkElement>("link[rel='icon']");
     if (existing) {
