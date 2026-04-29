@@ -5,7 +5,7 @@ import { Throttle } from '@nestjs/throttler';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, createReadStream, statSync } from 'fs';
 import { writeFile as fsWriteFile } from 'fs/promises';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
@@ -652,19 +652,53 @@ export class UploadController {
         const uploadBase = getUploadBasePath();
         const filePath = join(uploadBase, decoded);
         if (existsSync(filePath)) {
-            return res.sendFile(filePath);
+            return this.streamFile(filePath, res);
         }
         // B2 폴백: 디스크에 없으면 B2 originals 에서 받아 .b2-cache/{orderNumber}/(originals|thumbnails)/ 에 캐싱.
         // 썸네일은 원본 다운로드 후 sharp 로 재생성한다 (B2 Public 버킷 미설정 케이스 대응).
         try {
             const cached = await this.tryB2ServeFallback(decoded, uploadBase);
             if (cached) {
-                return res.sendFile(cached);
+                return this.streamFile(cached, res);
             }
         } catch (err) {
             this.logger.warn(`B2 폴백 실패 (${decoded}): ${(err as Error).message}`);
         }
         return res.status(404).json({ message: '파일을 찾을 수 없습니다.', tried: filePath });
+    }
+
+    /**
+     * 한글/공백 포함 경로에서 res.sendFile (Express send) 가 NotFound 로 깨지는
+     * 이슈를 우회하기 위해 ReadStream 으로 직접 응답한다. 절대 경로만 입력받는다.
+     */
+    private streamFile(absPath: string, res: Response): void {
+        try {
+            const stat = statSync(absPath);
+            const lower = absPath.toLowerCase();
+            const contentType = lower.endsWith('.jpg') || lower.endsWith('.jpeg') ? 'image/jpeg'
+                : lower.endsWith('.png') ? 'image/png'
+                : lower.endsWith('.webp') ? 'image/webp'
+                : lower.endsWith('.gif') ? 'image/gif'
+                : lower.endsWith('.tif') || lower.endsWith('.tiff') ? 'image/tiff'
+                : lower.endsWith('.pdf') ? 'application/pdf'
+                : 'application/octet-stream';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Content-Length', String(stat.size));
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            const stream = createReadStream(absPath);
+            stream.on('error', (err) => {
+                this.logger.warn(`파일 스트림 에러 (${absPath}): ${err.message}`);
+                if (!res.headersSent) {
+                    res.status(500).json({ message: '파일 읽기 실패' });
+                }
+            });
+            stream.pipe(res);
+        } catch (err) {
+            this.logger.warn(`파일 stat 실패 (${absPath}): ${(err as Error).message}`);
+            if (!res.headersSent) {
+                res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
+            }
+        }
     }
 
     /**
