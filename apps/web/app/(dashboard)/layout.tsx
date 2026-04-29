@@ -3,7 +3,7 @@ import { DashboardLayoutClient } from "./dashboard-layout-client";
 
 export const metadata: Metadata = {
   icons: {
-    icon: "/favicon-red.svg",
+    icon: "/images/favicon_Brown.svg",
   },
 };
 

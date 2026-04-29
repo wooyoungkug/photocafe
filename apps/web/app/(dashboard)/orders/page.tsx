@@ -334,8 +334,13 @@ export default function OrderListPage() {
                           </div>
                           <button
                             type="button"
-                            onClick={() => handleImpersonate(order.clientId, order.id)}
+                            onClick={() => {
+                              // 주문번호 클릭 → 사양 편집 다이얼로그 (대리로그인 X)
+                              setQuickEditOrder(order);
+                              setIsQuickEditOpen(true);
+                            }}
                             className="text-sm font-semibold text-foreground hover:underline text-left"
+                            title="주문 사양 편집"
                           >
                             {order.orderNumber}
                           </button>
@@ -525,8 +530,13 @@ export default function OrderListPage() {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => handleImpersonate(order.clientId, order.id)}
+                                onClick={() => {
+                                  // 주문번호 클릭 → 사양 편집 다이얼로그 (대리로그인 X)
+                                  setQuickEditOrder(order);
+                                  setIsQuickEditOpen(true);
+                                }}
                                 className="text-xs font-semibold text-foreground hover:underline whitespace-nowrap text-left"
+                                title="주문 사양 편집"
                               >
                                 {order.orderNumber}
                               </button>
