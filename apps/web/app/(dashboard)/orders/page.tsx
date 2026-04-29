@@ -411,7 +411,7 @@ export default function OrderListPage() {
                         </Button>
                       </div>
                     )}
-                    {order.status === 'print_waiting' && items[0] && (() => {
+                    {(order.status === 'print_waiting' || order.status === 'pending_receipt') && items[0] && (() => {
                       const first = items[0];
                       const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
                       const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
@@ -698,7 +698,7 @@ export default function OrderListPage() {
                                 {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
                               </Button>
                             )}
-                            {order.status === 'print_waiting' && items[0] && (() => {
+                            {(order.status === 'print_waiting' || order.status === 'pending_receipt') && items[0] && (() => {
                               const first = items[0];
                               const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
                               const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
