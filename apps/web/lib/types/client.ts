@@ -66,6 +66,10 @@ export interface Client {
   enableRecruitment?: boolean;
   createdAt: string;
   updatedAt: string;
+  // 단일 담당직원 (Client.assignedStaffId → Staff)
+  assignedStaffId?: string | null;
+  assignedStaffSingle?: { id: string; name: string; position?: string } | null;
+  // 영업담당자 (다대다, 별도 기능 — 유지)
   assignedStaff?: Array<{
     id: string;
     isPrimary: boolean;
@@ -111,6 +115,8 @@ export interface CreateClientDto {
   duplicateCheckMonths?: number;
   fileRetentionMonths?: number;
   acquisitionChannel?: string;
+  // 단일 담당직원
+  assignedStaffId?: string | null;
 }
 
 // 거래처 수정 DTO

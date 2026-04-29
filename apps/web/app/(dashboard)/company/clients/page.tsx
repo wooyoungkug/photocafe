@@ -126,6 +126,7 @@ export default function ClientsPage() {
     status: 'active',
     enableSchedule: true,
     enableRecruitment: true,
+    assignedStaffId: null,
   });
 
   // 영업담당자 상태
@@ -192,6 +193,7 @@ export default function ClientsPage() {
         fileRetentionMonths: client.fileRetentionMonths ?? undefined,
         enableSchedule: client.enableSchedule ?? true,
         enableRecruitment: client.enableRecruitment ?? true,
+        assignedStaffId: client.assignedStaffId ?? null,
       });
 
       // 영업담당자 정보 불러오기
@@ -216,6 +218,7 @@ export default function ClientsPage() {
         creditGrade: 'B',
         paymentTerms: 30,
         status: 'active',
+        assignedStaffId: null,
       });
       setSelectedStaffIds([]);
       setPrimaryStaffId('');
@@ -297,6 +300,7 @@ export default function ClientsPage() {
     const submitData = {
       ...formData,
       groupId: formData.groupId || undefined,
+      assignedStaffId: formData.assignedStaffId || null,
     };
 
     let clientId: string;
@@ -437,6 +441,7 @@ export default function ClientsPage() {
                     <TableHead className="whitespace-nowrap">거래처명</TableHead>
                     <TableHead className="whitespace-nowrap">대표자</TableHead>
                     <TableHead className="whitespace-nowrap">연락처</TableHead>
+                    <TableHead className="whitespace-nowrap">담당직원</TableHead>
                     <TableHead className="whitespace-nowrap">영업담당자</TableHead>
                     <TableHead className="whitespace-nowrap">그룹</TableHead>
                     <TableHead className="whitespace-nowrap">신용등급</TableHead>

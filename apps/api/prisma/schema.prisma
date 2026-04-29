@@ -218,6 +218,7 @@ model Staff {
   team            Team?         @relation("TeamMembers", fields: [teamId], references: [id])
   ledTeams        Team[]        @relation("TeamLeader")
   assignedClients StaffClient[]
+  assignedClientsAsStaff Client[] @relation("ClientAssignedStaff")
   salesLedgers    SalesLedger[] @relation("SalesLedgerStaff")
 
   // 촬영 작가 관련
@@ -416,6 +417,8 @@ model Client {
   totalClaims                Int                            @default(0)
   duplicateCheckMonths       Int?
   fileRetentionMonths        Int                            @default(3)
+  assignedStaffId            String?
+  assignedStaffMember        Staff?                         @relation("ClientAssignedStaff", fields: [assignedStaffId], references: [id], onDelete: SetNull)
   addresses                  ClientAddress[]
   albumPreference            ClientAlbumPreference?
   productionSettingPrices    ClientProductionSettingPrice[]
@@ -457,6 +460,7 @@ model Client {
   @@index([email])
   @@index([status])
   @@index([createdAt])
+  @@index([assignedStaffId])
   @@map("clients")
 }
 

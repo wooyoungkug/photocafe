@@ -875,6 +875,28 @@ export default function SchedulePage() {
                             'ring-2 ring-blue-500 ring-inset',
                         )}
                         onClick={() => setSelectedDate(day)}
+                        onDoubleClick={() => {
+                          setSelectedDate(day);
+                          const defaultEnd = new Date(day);
+                          defaultEnd.setHours(defaultEnd.getHours() + 1);
+                          setEditingSchedule(null);
+                          setScheduleForm({
+                            title: '',
+                            description: '',
+                            location: '',
+                            startAt: format(day, "yyyy-MM-dd'T'HH:mm"),
+                            endAt: format(defaultEnd, "yyyy-MM-dd'T'HH:mm"),
+                            isAllDay: false,
+                            isPersonal: true,
+                            isDepartment: false,
+                            isCompany: false,
+                            scheduleType: 'meeting',
+                            color: '#3B82F6',
+                          });
+                          setRecurringConfig(getDefaultRecurringConfig());
+                          setShowRecurringDetail(false);
+                          setIsScheduleDialogOpen(true);
+                        }}
                       >
                         <div
                           className={cn(
