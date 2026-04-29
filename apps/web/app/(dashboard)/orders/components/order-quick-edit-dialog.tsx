@@ -941,6 +941,9 @@ export function OrderQuickEditDialog({
           </div>
         )}
 
+        {/* 주문 내용 — items 로드 후에만 렌더링 */}
+        {displayOrder?.items && <>
+
         {/* 상태별 경고 배너 (PR3) */}
         {(() => {
           const status = displayOrder.status;
@@ -1519,10 +1522,11 @@ export function OrderQuickEditDialog({
             {editWithAudit.isPending ? '저장 중...' : '저장'}
           </Button>
         </DialogFooter>
+        </> /* end displayOrder?.items guard */}
       </DialogContent>
 
       {/* 재출력 인터셉트 다이얼로그 */}
-      <ReprintConfirmDialog
+      {displayOrder?.items && <ReprintConfirmDialog
         open={reprintOpen}
         onOpenChange={setReprintOpen}
         orderId={displayOrder.id}
@@ -1532,14 +1536,14 @@ export function OrderQuickEditDialog({
           // 재출력 작업 생성 후 사양 편집(메시지/담당자 포함) 함께 저장
           performSave();
         }}
-      />
+      />}
 
       {/* 편집 이력 드로어 */}
-      <OrderEditHistoryDrawer
+      {displayOrder?.id && <OrderEditHistoryDrawer
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         orderId={displayOrder.id}
-      />
+      />}
     </Dialog>
     </>
   );
