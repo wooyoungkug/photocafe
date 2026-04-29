@@ -93,7 +93,7 @@ function ThumbnailItem({
             <div
               className={cn(
                 'absolute top-0.5 left-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
-                pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
+                pages.left !== null ? 'bg-red-600' : 'bg-blue-500'
               )}
               title={pages.left !== null ? undefined : blankLabel}
             >
@@ -102,7 +102,7 @@ function ThumbnailItem({
             <div
               className={cn(
                 'absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
-                pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
+                pages.right !== null ? 'bg-red-600' : 'bg-blue-500'
               )}
               title={pages.right !== null ? undefined : blankLabel}
             >
@@ -218,7 +218,7 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
                       key={spreadIdx}
                       className={cn(
                         'border-2 border-dashed rounded-lg p-1',
-                        !hasBoth ? 'border-yellow-400 bg-yellow-50/30' : 'border-orange-300 bg-orange-50/20'
+                        !hasBoth ? 'border-blue-400 bg-blue-50/30' : 'border-orange-300 bg-orange-50/20'
                       )}
                     >
                       <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">

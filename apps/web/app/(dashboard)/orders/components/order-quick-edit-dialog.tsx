@@ -198,7 +198,7 @@ function AdaptiveThumbnail({
             <>
               <div className={cn(
                 'absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
-                pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
+                pages.left !== null ? 'bg-red-600' : 'bg-blue-500'
               )}
                 title={pages.left !== null ? undefined : '빈 페이지(空)'}
               >
@@ -206,7 +206,7 @@ function AdaptiveThumbnail({
               </div>
               <div className={cn(
                 'absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
-                pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
+                pages.right !== null ? 'bg-red-600' : 'bg-blue-500'
               )}
                 title={pages.right !== null ? undefined : '빈 페이지(空)'}
               >
@@ -342,7 +342,7 @@ function ThumbnailGrid({
                   key={spreadIdx}
                   className={cn(
                     'border-2 border-dashed rounded-lg p-1',
-                    !hasBoth ? 'border-yellow-400 bg-yellow-50/30' : 'border-orange-300 bg-orange-50/20'
+                    !hasBoth ? 'border-blue-400 bg-blue-50/30' : 'border-orange-300 bg-orange-50/20'
                   )}
                 >
                   <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
