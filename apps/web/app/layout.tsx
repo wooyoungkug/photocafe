@@ -29,6 +29,7 @@ export const metadata: Metadata = {
   description: "포토북/앨범 인쇄업체를 위한 통합 ERP 시스템",
   icons: {
     icon: "/images/favicon-512x512_red.png",
+    apple: "/images/apple-touch-icon_red.png",
   },
   appleWebApp: {
     capable: true,
