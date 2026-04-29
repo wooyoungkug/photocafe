@@ -138,6 +138,7 @@ function AdaptiveThumbnail({
   openingFileId?: string | null;
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
+  const [imgRatio, setImgRatio] = useState<number | null>(null);
   const [imgSrc, setImgSrc] = useState<string | null>(
     normalizeImageUrl(file.thumbnailUrl) || normalizeImageUrl(file.fileUrl) || null
   );
@@ -147,6 +148,7 @@ function AdaptiveThumbnail({
     const { naturalWidth, naturalHeight } = img;
     if (naturalWidth && naturalHeight) {
       const ratio = naturalWidth / naturalHeight;
+      setImgRatio(ratio);
       if (ratio > 1) {
         setAspectStyle('aspect-[4/3]');
       } else if (ratio > 0.9) {
@@ -200,9 +202,13 @@ function AdaptiveThumbnail({
           return (
             <div
               className={cn(
-                'absolute inset-y-1 w-[calc(50%-4px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
-                leftBlank ? 'left-1' : 'right-1'
+                'absolute top-1/2 -translate-y-1/2 max-w-[48%] max-h-[96%] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
+                leftBlank ? 'left-[2%]' : 'right-[2%]'
               )}
+              style={{
+                aspectRatio: imgRatio ? String(imgRatio) : '4/5',
+                width: imgRatio && imgRatio > 1 ? '48%' : `${Math.min(48, (imgRatio ?? 0.8) * 50)}%`,
+              }}
               aria-label="빈 페이지"
             >
               <svg

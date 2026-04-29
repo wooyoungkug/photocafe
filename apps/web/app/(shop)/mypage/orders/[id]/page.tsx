@@ -774,12 +774,18 @@ export default function OrderDetailPage() {
                                           <div className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center" style={{ display: 'none' }}>
                                             <span className="text-[10px] text-gray-400 px-1 text-center truncate max-w-full">{file.fileName}</span>
                                           </div>
-                                          {spreadBadges && (spreadBadges.left === null || spreadBadges.right === null) && (
+                                          {spreadBadges && (spreadBadges.left === null || spreadBadges.right === null) && (() => {
+                                            const fileRatio = file.width > 0 && file.height > 0 ? file.width / file.height : 0.8;
+                                            return (
                                             <div
                                               className={cn(
-                                                'absolute inset-y-1 w-[calc(50%-4px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
-                                                spreadBadges.left === null ? 'left-1' : 'right-1'
+                                                'absolute top-1/2 -translate-y-1/2 max-w-[48%] max-h-[96%] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
+                                                spreadBadges.left === null ? 'left-[2%]' : 'right-[2%]'
                                               )}
+                                              style={{
+                                                aspectRatio: String(fileRatio),
+                                                width: fileRatio > 1 ? '48%' : `${Math.min(48, fileRatio * 50)}%`,
+                                              }}
                                               aria-label="빈 페이지"
                                             >
                                               <svg
@@ -793,7 +799,8 @@ export default function OrderDetailPage() {
                                               </svg>
                                               <span className="relative text-xs font-bold text-blue-600 select-none bg-white/95 rounded px-1.5 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
                                             </div>
-                                          )}
+                                            );
+                                          })()}
                                           {spreadBadges ? (
                                             <>
                                               <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.left !== null ? 'bg-red-600' : 'bg-blue-500')}>

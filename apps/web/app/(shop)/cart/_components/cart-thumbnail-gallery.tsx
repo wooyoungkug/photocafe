@@ -70,6 +70,7 @@ function ThumbnailItem({
   blankLabel: string;
 }) {
   const [hasError, setHasError] = useState(false);
+  const [imgRatio, setImgRatio] = useState<number | null>(null);
 
   return (
     <div className="relative rounded overflow-hidden border border-gray-200 bg-white">
@@ -83,6 +84,12 @@ function ThumbnailItem({
           alt={`${idx + 1}`}
           className="w-full h-auto"
           loading="lazy"
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setImgRatio(img.naturalWidth / img.naturalHeight);
+            }
+          }}
           onError={() => setHasError(true)}
         />
       )}

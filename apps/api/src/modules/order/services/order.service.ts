@@ -23,6 +23,8 @@ import {
   BulkUpdateReceiptDateDto,
   BulkDataCleanupDto,
   ORDER_STATUS,
+  ORDER_EDIT_BLOCKED_STATUSES,
+  ORDER_REPRINT_REQUIRED_STATUSES,
   PROCESS_STATUS,
   INSPECTION_PROCESS_TYPES,
   PRINT_QUEUE_STATUS,
@@ -30,8 +32,12 @@ import {
   InspectFileDto,
   HoldInspectionDto,
   CompleteInspectionDto,
+  EditOrderWithAuditDto,
+  RequestReprintDto,
 } from '../dto';
 import { SalesLedgerService } from '../../accounting/services/sales-ledger.service';
+import { NotificationService } from '@/modules/notification/notification.service';
+import { NOTIFICATION_TYPES } from '@/modules/notification/dto/notification.dto';
 
 @Injectable()
 export class OrderService {
@@ -46,6 +52,7 @@ export class OrderService {
     private thumbnailService: ThumbnailService,
     private b2Storage: B2StorageService,
     private auditLogService: AuditLogService,
+    private notificationService: NotificationService,
   ) { }
 
   private getContentType(fileName: string, fallback = 'application/octet-stream'): string {
@@ -1592,27 +1599,14 @@ export class OrderService {
     }
 
     // ===== 상태 가드 (관리자 사양 편집) =====
-    // 일반 관리자: 접수대기(pending_receipt) / 접수완료(confirmed) 만 허용.
-    // 최고관리자(super_admin): 취소/배송완료 외 모든 상태 허용 — 위험을 감수하더라도 운영 유연성 우선.
-    const isSuperAdmin = opts?.isSuperAdmin === true;
-    const editableForAll = ['pending_receipt', 'confirmed'];
-    const editableForSuperAdmin = [
-      'pending_receipt',
-      'confirmed',
-      'print_ready',
-      'in_production',
-      'shipping_ready',
-      'shipping',
-    ];
-    const allowed = isSuperAdmin ? editableForSuperAdmin : editableForAll;
+    // 신규 정책 (2026-04-29): 배송완료/취소만 편집 차단. 그 외는 ReprintJob 분기 또는 직접 수정 허용.
+    // 출력완료 이후 단계의 사양 변경은 컨트롤러/별도 메서드(requestReprint)에서 분기 처리.
     const hasItemUpdate =
       (dto.itemUpdates && dto.itemUpdates.length > 0) ||
       dto.adjustmentAmount !== undefined;
-    if (hasItemUpdate && !allowed.includes(order.status)) {
+    if (hasItemUpdate && (ORDER_EDIT_BLOCKED_STATUSES as readonly string[]).includes(order.status)) {
       throw new BadRequestException(
-        isSuperAdmin
-          ? `현재 상태(${order.status})에서는 사양/금액 수정 불가합니다. 취소/배송완료 주문은 편집할 수 없습니다.`
-          : `현재 상태(${order.status})에서는 사양/금액 수정 불가합니다. 접수대기/접수완료 단계에서만 수정 가능합니다.`,
+        `현재 상태(${order.status})에서는 편집 불가합니다. 배송완료/취소 주문은 수정할 수 없습니다.`,
       );
     }
 
