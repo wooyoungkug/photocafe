@@ -12,6 +12,26 @@ import { MegaMenuContent } from "./mega-menu-content";
 const HOVER_OPEN_DELAY = 120;
 const HOVER_CLOSE_DELAY = 180;
 
+// 파비콘 4색 팔레트 (분홍/청록/남색/녹색) — 메뉴 ID 별 고정 매핑
+const NAV_ICON_COLORS: Record<string, string> = {
+  dashboard: "#e60180",
+  "basic-info": "#00a5e7",
+  company: "#263e94",
+  products: "#019e69",
+  orders: "#e60180",
+  accounting: "#00a5e7",
+  cs: "#263e94",
+  schedule: "#019e69",
+  shooting: "#e60180",
+  hr: "#00a5e7",
+  vacation: "#263e94",
+  statistics: "#019e69",
+};
+const NAV_ICON_FALLBACK_PALETTE = ["#e60180", "#00a5e7", "#263e94", "#019e69"];
+function getNavIconColor(id: string, index: number): string {
+  return NAV_ICON_COLORS[id] || NAV_ICON_FALLBACK_PALETTE[index % NAV_ICON_FALLBACK_PALETTE.length];
+}
+
 /**
  * 상단 가로 메뉴바 (메인 56px 라인).
  * - hover 진입 시 120ms delay 후 서브메뉴 오픈
@@ -107,24 +127,26 @@ export function TopNav() {
         className="absolute -left-[9999px] top-0 flex gap-1 pointer-events-none"
         aria-hidden="true"
       >
-        {navigation.map((item) => (
-          <NavTrigger key={`m-${item.id}`} item={item} measureMode />
+        {navigation.map((item, idx) => (
+          <NavTrigger key={`m-${item.id}`} item={item} index={idx} measureMode />
         ))}
       </div>
 
       {/* 실제 렌더 */}
       <ul className="flex items-center gap-0.5">
-        {visibleItems.map((item) => {
+        {visibleItems.map((item, idx) => {
           const isActive = isPathActive(item, pathname);
           const isOpen = openId === item.id;
+          const iconColor = getNavIconColor(item.id, idx);
           return (
             <li
               key={item.id}
               className="relative"
               onMouseEnter={() => item.children && handleEnter(item.id)}
               onMouseLeave={() => item.children && handleLeave()}
+              style={isActive ? ({ ["--nav-accent" as any]: iconColor } as React.CSSProperties) : undefined}
             >
-              <NavTrigger item={item} active={isActive} open={isOpen} />
+              <NavTrigger item={item} active={isActive} open={isOpen} index={idx} />
               {isOpen && item.children && (
                 <div
                   className="absolute left-0 top-full z-50 pt-2"
@@ -196,34 +218,37 @@ function NavTrigger({
   active,
   open,
   measureMode,
+  index = 0,
 }: {
   item: NavItem;
   active?: boolean;
   open?: boolean;
   measureMode?: boolean;
+  index?: number;
 }) {
   const Icon = item.icon;
+  const iconColor = getNavIconColor(item.id, index);
   const className = cn(
     "relative flex items-center gap-1.5 rounded-lg px-3 h-11 fs-menu-main font-medium transition-colors whitespace-nowrap",
     active
-      ? "text-indigo-700"
+      ? "text-slate-900"
       : "text-slate-700 hover:bg-slate-100/70 hover:text-slate-900",
     !active && open && "bg-slate-100/70 text-slate-900",
-    // 활성 상태 하단 인디케이터 바 (2px)
+    // 활성 상태 하단 인디케이터 바 (2px) — 아이콘 색상과 동일 (--nav-accent: NavTrigger 부모 li 에서 주입)
     active &&
-      "after:absolute after:left-3 after:right-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-indigo-600",
+      "after:absolute after:left-3 after:right-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-[var(--nav-accent,theme(colors.indigo.600))]",
   );
 
   const inner = (
     <>
-      <Icon className={cn("h-4 w-4", active ? "text-indigo-600" : "text-slate-500")} />
+      <Icon className="h-4 w-4" style={{ color: iconColor }} />
       <span>{item.name}</span>
       {item.children && (
         <ChevronDown
           className={cn(
             "h-3 w-3 ml-0.5 transition-transform",
             open && "rotate-180",
-            active ? "text-indigo-500" : "text-slate-400",
+            "text-slate-400",
           )}
         />
       )}
@@ -269,9 +294,10 @@ function MoreOverflowPanel({
 }) {
   return (
     <div className="rounded-xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/[0.02] p-4 flex gap-6">
-      {items.map((item) => {
+      {items.map((item, idx) => {
         const Icon = item.icon;
         const active = isPathActive(item, pathname);
+        const iconColor = getNavIconColor(item.id, idx);
         return (
           <div key={item.id} className="flex flex-col min-w-[150px]">
             {item.href && !item.children ? (
@@ -281,16 +307,16 @@ function MoreOverflowPanel({
                 className={cn(
                   "flex items-center gap-2 rounded-md px-2 py-1.5 fs-menu-main font-semibold whitespace-nowrap transition-colors",
                   active
-                    ? "bg-indigo-50 text-indigo-700"
+                    ? "bg-slate-50 text-slate-900"
                     : "text-slate-800 hover:bg-slate-50",
                 )}
               >
-                <Icon className={cn("h-4 w-4 shrink-0", active ? "text-indigo-600" : "text-slate-500")} />
+                <Icon className="h-4 w-4 shrink-0" style={{ color: iconColor }} />
                 <span>{item.name}</span>
               </Link>
             ) : (
               <div className="flex items-center gap-2 px-2 pb-1.5 mb-1 fs-menu-mega-header font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap border-b border-slate-100">
-                <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                <Icon className="h-3.5 w-3.5 shrink-0" style={{ color: iconColor }} />
                 <span>{item.name}</span>
               </div>
             )}
