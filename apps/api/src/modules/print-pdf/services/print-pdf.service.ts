@@ -944,7 +944,7 @@ export class PrintPdfService implements OnModuleInit {
           outputPath,
           printMethod: item.printMethod || 'indigo',
         })
-        .catch(() => { /* 슬립 인쇄 실패는 PDF 성공에 영향 없음 */ });
+        .catch((err: any) => { this.logger.error(`슬립 인쇄 실패 (${item.order.orderNumber}): ${err?.message}`); });
     } catch (err: any) {
       result.status = 'failed';
       result.error = err.message;

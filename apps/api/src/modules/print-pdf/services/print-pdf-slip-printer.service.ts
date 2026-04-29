@@ -49,7 +49,10 @@ export class PrintPdfSlipPrinterService {
 
       const slipText = this.buildSlipText(data);
       const tempFile = path.join(os.tmpdir(), `pdf-slip-${Date.now()}.txt`);
-      fs.writeFileSync(tempFile, slipText, { encoding: 'utf8' });
+      // UTF-8 BOM 포함 저장: PowerShell Get-Content -Encoding UTF8이 BOM 있는 파일을 가장 안정적으로 읽음
+      const bom = Buffer.from([0xef, 0xbb, 0xbf]);
+      const content = Buffer.from(slipText, 'utf8');
+      fs.writeFileSync(tempFile, Buffer.concat([bom, content]));
 
       if (process.platform === 'win32') {
         await this.printWindows(tempFile, printerName);
@@ -88,13 +91,15 @@ export class PrintPdfSlipPrinterService {
   }
 
   private printWindows(filePath: string, printerName: string): Promise<void> {
-    // PowerShell의 Out-Printer 로 텍스트 송출
+    // UTF-8 BOM 파일을 PowerShell로 읽어 프린터로 송출
+    // -Encoding UTF8 명시: Get-Content가 CP949(시스템 기본)로 읽어 한글이 깨지는 문제 방지
     const escapedPath = filePath.replace(/'/g, "''");
+    const escapedPrinter = printerName.replace(/'/g, "''");
     const script = printerName
-      ? `Get-Content -Path '${escapedPath}' | Out-Printer -Name '${printerName.replace(/'/g, "''")}'`
-      : `Get-Content -Path '${escapedPath}' | Out-Printer`;
+      ? `Get-Content -Path '${escapedPath}' -Encoding UTF8 | Out-Printer -Name '${escapedPrinter}'`
+      : `Get-Content -Path '${escapedPath}' -Encoding UTF8 | Out-Printer`;
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const ps = spawn('powershell.exe', ['-NoProfile', '-Command', script], {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
@@ -102,16 +107,18 @@ export class PrintPdfSlipPrinterService {
       let stderr = '';
       ps.stderr.on('data', (d) => (stderr += d.toString()));
       ps.on('close', (code) => {
-        // 임시파일 정리
         try { fs.unlinkSync(filePath); } catch { /* ignore */ }
         if (code !== 0) {
-          this.logger.warn(`PowerShell 인쇄 종료코드 ${code}: ${stderr.slice(0, 300)}`);
+          const msg = `PowerShell 인쇄 실패 (종료코드 ${code}): ${stderr.slice(0, 300)}`;
+          this.logger.error(msg);
+          reject(new Error(msg));
+        } else {
+          resolve();
         }
-        resolve();
       });
       ps.on('error', (err) => {
-        this.logger.warn(`PowerShell 인쇄 에러: ${err.message}`);
-        resolve();
+        this.logger.error(`PowerShell 실행 불가: ${err.message}`);
+        reject(err);
       });
     });
   }
