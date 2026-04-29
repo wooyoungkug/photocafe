@@ -771,25 +771,75 @@ export function OrderQuickEditDialog({
 
   return (
     <>
-    {previewUrl && (
+    {previewState && (
       <div
-        className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
-        onClick={() => setPreviewUrl(null)}
+        className="fixed inset-0 z-[9999] bg-black/92 flex items-center justify-center"
+        onClick={() => setPreviewState(null)}
       >
+        {/* 닫기 */}
         <button
           type="button"
-          className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/80 rounded-full w-9 h-9 flex items-center justify-center text-xl transition-colors"
-          onClick={() => setPreviewUrl(null)}
+          className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/25 rounded-full w-9 h-9 flex items-center justify-center transition-colors z-10"
+          onClick={() => setPreviewState(null)}
           aria-label="닫기"
         >
-          ×
+          <X className="w-5 h-5" />
         </button>
+
+        {/* 새창 열기 */}
+        <button
+          type="button"
+          className="absolute top-4 right-16 text-white bg-white/10 hover:bg-white/25 rounded-full w-9 h-9 flex items-center justify-center transition-colors z-10"
+          onClick={(e) => { e.stopPropagation(); window.open(previewState.url, '_blank', 'noopener,noreferrer'); }}
+          aria-label="새창에서 열기"
+          title="새창에서 열기"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </button>
+
+        {/* 페이지 표시 */}
+        {previewState.files.length > 1 && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/40 px-3 py-1 rounded-full z-10">
+            {previewState.index + 1} / {previewState.files.length}
+          </div>
+        )}
+
+        {/* 이전 버튼 */}
+        {previewState.index > 0 && (
+          <button
+            type="button"
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors z-10"
+            onClick={(e) => { e.stopPropagation(); handlePreviewNavigate('prev'); }}
+            aria-label="이전 이미지"
+          >
+            <ChevronLeft className="w-7 h-7" />
+          </button>
+        )}
+
+        {/* 다음 버튼 */}
+        {previewState.index < previewState.files.length - 1 && (
+          <button
+            type="button"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors z-10"
+            onClick={(e) => { e.stopPropagation(); handlePreviewNavigate('next'); }}
+            aria-label="다음 이미지"
+          >
+            <ChevronRight className="w-7 h-7" />
+          </button>
+        )}
+
+        {/* 이미지 */}
         <img
-          src={previewUrl}
-          alt="원본 미리보기"
-          className="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl"
+          src={previewState.url}
+          alt={previewState.file.fileName}
+          className="max-w-[88vw] max-h-[90vh] object-contain rounded shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         />
+
+        {/* 파일명 */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full">
+          {previewState.file.fileName}
+        </div>
       </div>
     )}
     <Dialog open={open} onOpenChange={onOpenChange}>
