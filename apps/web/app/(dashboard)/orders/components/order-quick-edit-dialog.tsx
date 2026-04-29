@@ -939,35 +939,7 @@ export function OrderQuickEditDialog({
                           orderStatus === 'shipped' || orderStatus === 'cancelled';
                         return (
                           <div className="space-y-2">
-                            <ItemSpecsEditor
-                              item={item}
-                              value={{
-                                paper: edit.paper,
-                                printMethod: edit.printMethod,
-                                colorIntentId: edit.colorIntentId,
-                                printSide: edit.printSide,
-                                fabricName: edit.fabricName,
-                                fileSpecId: edit.fileSpecId,
-                                bindingType: edit.bindingType,
-                                finishingOptions: edit.finishingOptions,
-                                foilName: edit.foilName,
-                                foilColor: edit.foilColor,
-                                foilPosition: edit.foilPosition,
-                              }}
-                              onChange={(next) =>
-                                setItemEdits((prev) => ({
-                                  ...prev,
-                                  [item.id]: { ...prev[item.id], ...next },
-                                }))
-                              }
-                              readonly={blocked}
-                              clientId={displayOrder.clientId}
-                            />
-                          </div>
-                        );
-                      })()}
-
-                      {/* Verification controls: Page Layout · Binding Direction (한 줄) */}
+                            {/* Verification controls: Page Layout · Binding Direction (한 줄) */}
                       <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
                         {/* Page layout toggle (compact) */}
                         <div className="flex border rounded overflow-hidden">
@@ -1084,6 +1056,34 @@ export function OrderQuickEditDialog({
                           </>
                         )}
                       </div>
+
+                            <ItemSpecsEditor
+                              item={item}
+                              value={{
+                                paper: edit.paper,
+                                printMethod: edit.printMethod,
+                                colorIntentId: edit.colorIntentId,
+                                printSide: edit.printSide,
+                                fabricName: edit.fabricName,
+                                fileSpecId: edit.fileSpecId,
+                                bindingType: edit.bindingType,
+                                finishingOptions: edit.finishingOptions,
+                                foilName: edit.foilName,
+                                foilColor: edit.foilColor,
+                                foilPosition: edit.foilPosition,
+                              }}
+                              onChange={(next) =>
+                                setItemEdits((prev) => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], ...next },
+                                }))
+                              }
+                              readonly={blocked}
+                              clientId={displayOrder.clientId}
+                            />
+                          </div>
+                        );
+                      })()}
 
                       <Separator />
 
