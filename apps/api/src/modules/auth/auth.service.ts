@@ -835,6 +835,13 @@ export class AuthService {
       throw new UnauthorizedException('비활성 계정입니다');
     }
 
+    // 접근 IP 제한 (allowedIps가 비어있으면 모든 IP 허용)
+    if ((staff as any).allowedIps?.length > 0 && ip) {
+      if (!(staff as any).allowedIps.includes(ip)) {
+        throw new ForbiddenException(`허용되지 않은 IP 주소입니다. (${ip})`);
+      }
+    }
+
     await this.prisma.staff.update({
       where: { id: staff.id },
       data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },

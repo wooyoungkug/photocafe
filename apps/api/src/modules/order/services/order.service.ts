@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { SystemSettingsService } from '@/modules/system-settings/system-settings.service';
 import { FileStorageService, getUploadBasePath } from '@/modules/upload/services/file-storage.service';
@@ -1171,6 +1171,20 @@ export class OrderService {
   // ==================== 주문 상태 변경 ====================
   async updateStatus(id: string, dto: UpdateOrderStatusDto, userId: string) {
     const order = await this.findOne(id);
+
+    // ===== 단계변경 권한 체크 =====
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: userId },
+      select: { isSuperAdmin: true, canChangeReceptionStage: true, canChangeCancelStage: true },
+    });
+    if (staff && !staff.isSuperAdmin) {
+      if (order.status === ORDER_STATUS.PENDING_RECEIPT && !staff.canChangeReceptionStage) {
+        throw new ForbiddenException('접수대기 주문의 단계변경 권한이 없습니다.');
+      }
+      if (dto.status === 'cancelled' && !staff.canChangeCancelStage) {
+        throw new ForbiddenException('주문취소 권한이 없습니다.');
+      }
+    }
 
     // currentProcess 결정: DTO에 명시 > status 기반 자동매핑 > 기존값 유지
     const currentProcess =
