@@ -135,7 +135,7 @@ export default function PrintQueueTable({
             <TableHead className="text-[14px] text-black font-normal">주문번호/스튜디오</TableHead>
             <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
             <TableHead className="text-[14px] text-black font-normal">규격</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">파일수</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">Page(파일수)</TableHead>
             <TableHead className="text-[14px] text-black font-normal">용지</TableHead>
             <TableHead className="text-[14px] text-black font-normal">제본</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">Nup</TableHead>
@@ -181,7 +181,7 @@ export default function PrintQueueTable({
                   {item.size?.replace(/인치$/,'') || '-'}
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
-                  {item.fileCount}
+                  {item.pages ?? '-'}({item.fileCount ?? '-'})
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   {item.paper || <span className="text-red-600">미설정</span>}
