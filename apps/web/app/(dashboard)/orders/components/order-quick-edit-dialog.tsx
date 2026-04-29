@@ -1244,16 +1244,7 @@ export function OrderQuickEditDialog({
                         <div className="space-y-1">
                           <Label className="text-xs text-muted-foreground">페이지</Label>
                           <div className="w-20 h-8 px-3 flex items-center rounded-md border bg-slate-50 text-sm text-slate-700 select-none">
-                            {(() => {
-                              const totalPages = allFiles.reduce((max, f) => {
-                                const start = f.pageStart ?? 0;
-                                const range = f.pageRange ?? '';
-                                const match = range.match(/(\d+)p?$/);
-                                const end = match ? Number(match[1]) : start;
-                                return Math.max(max, end);
-                              }, 0);
-                              return totalPages > 0 ? `${totalPages}p` : `${item.pages}p`;
-                            })()}
+                            {item.pages}p
                           </div>
                         </div>
                         <div className="space-y-1">
