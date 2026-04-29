@@ -143,8 +143,40 @@ export function ItemSpecsEditor({
     });
   }, [product?.papers, effectivePrintMethod, isSixColor]);
 
-  // 규격
-  const specOptions = useMemo(() => product?.specifications ?? [], [product?.specifications]);
+  // 규격 - 업로드 파일 비율과 일치하는 규격만 표시
+  const specOptions = useMemo(() => {
+    const allSpecs = product?.specifications ?? [];
+    if (allSpecs.length === 0) return allSpecs;
+
+    // 파일 치수로 비율 파악 (primary)
+    let targetRatio: number | null = null;
+    const firstFile = item.files.find(f => f.widthInch > 0 && f.heightInch > 0);
+    if (firstFile) {
+      const isSpread = item.pageLayout === 'spread';
+      targetRatio = (isSpread ? firstFile.widthInch / 2 : firstFile.widthInch) / firstFile.heightInch;
+    }
+
+    // 현재 규격으로 비율 파악 (fallback)
+    if (targetRatio === null) {
+      const fileSpecId = value.fileSpecId ?? item.fileSpecId ?? '';
+      if (fileSpecId) {
+        const cur = allSpecs.find(s => (s.specificationId ?? s.id) === fileSpecId);
+        if (cur?.widthMm && cur?.heightMm) {
+          targetRatio = cur.widthMm / cur.heightMm;
+        }
+      }
+    }
+
+    if (targetRatio === null) return allSpecs;
+
+    const RATIO_TOLERANCE = 0.015; // 1.5% 오차 허용
+    const matched = allSpecs.filter(s => {
+      if (!s.widthMm || !s.heightMm) return false;
+      return Math.abs(s.widthMm / s.heightMm - targetRatio!) / targetRatio! <= RATIO_TOLERANCE;
+    });
+
+    return matched.length > 0 ? matched : allSpecs;
+  }, [product?.specifications, value.fileSpecId, item.fileSpecId, item.files, item.pageLayout]);
 
   // 원단
   const fabricOptions = useMemo(() => product?.fabrics ?? [], [product?.fabrics]);
