@@ -717,7 +717,7 @@ export default function OrderListPage() {
                                 <Badge
                                   variant="outline"
                                   className={cn(
-                                    'text-[13px] px-2 py-0.5',
+                                    'text-[13px] font-normal px-2 py-0.5',
                                     badgeInfo.className,
                                     canOpenPdf && 'cursor-pointer hover:underline',
                                   )}
