@@ -35,13 +35,13 @@ export function DashboardLayoutClient({
   const { user, isAuthenticated } = useCurrentUser();
   const { requestPermission } = usePushSubscription(isAuthenticated);
   const [showNotifBanner, setShowNotifBanner] = useState(false);
+  const [notifDenied, setNotifDenied] = useState(false);
 
   useEffect(() => {
-    if (!('Notification' in window)) return;
-    // 허용이 안 된 경우(default 또는 denied → 재유도) 배너 표시
-    if (Notification.permission !== 'granted') {
-      setShowNotifBanner(true);
-    }
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
+    const perm = Notification.permission;
+    if (perm === 'default') setShowNotifBanner(true);
+    if (perm === 'denied') setNotifDenied(true);
   }, []);
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";
@@ -178,27 +178,33 @@ export function DashboardLayoutClient({
             <PinBar />
           </div>
           {/* 웹 푸시 알림 허용 배너 */}
-          {showNotifBanner && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200 text-[13px] text-blue-800">
-              <Bell className="h-4 w-4 shrink-0 text-blue-500" />
-              <span className="flex-1">담당자 알림을 받으려면 브라우저 알림을 허용해 주세요.</span>
+          {(showNotifBanner || notifDenied) && (
+            <div className={`flex items-center gap-3 px-4 py-2 border-b text-[13px] ${notifDenied ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+              <Bell className={`h-4 w-4 shrink-0 ${notifDenied ? 'text-amber-500' : 'text-blue-500'}`} />
+              {notifDenied ? (
+                <span className="flex-1">브라우저 알림이 차단되어 있습니다. 주소창 자물쇠 아이콘 → 알림 → <b>허용</b>으로 변경해 주세요.</span>
+              ) : (
+                <span className="flex-1">담당자 알림을 받으려면 브라우저 알림을 허용해 주세요.</span>
+              )}
+              {!notifDenied && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await requestPermission();
+                    setShowNotifBanner(false);
+                  }}
+                  className="px-3 py-1 rounded bg-blue-500 text-white text-[12px] hover:bg-blue-600 shrink-0"
+                >
+                  알림 허용
+                </button>
+              )}
               <button
                 type="button"
-                onClick={async () => {
-                  await requestPermission();
-                  setShowNotifBanner(false);
-                }}
-                className="px-3 py-1 rounded bg-blue-500 text-white text-[12px] hover:bg-blue-600 shrink-0"
-              >
-                알림 허용
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowNotifBanner(false)}
-                className="p-1 rounded hover:bg-blue-100"
+                onClick={() => { setShowNotifBanner(false); setNotifDenied(false); }}
+                className={`p-1 rounded ${notifDenied ? 'hover:bg-amber-100' : 'hover:bg-blue-100'}`}
                 aria-label="닫기"
               >
-                <X className="h-3.5 w-3.5 text-blue-400" />
+                <X className={`h-3.5 w-3.5 ${notifDenied ? 'text-amber-400' : 'text-blue-400'}`} />
               </button>
             </div>
           )}
