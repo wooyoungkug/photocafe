@@ -90,17 +90,23 @@ function ThumbnailItem({
         const pages = getSpreadPageNumbers(idx, totalFiles, direction);
         return (
           <>
-            <div className={cn(
-              'absolute top-0.5 left-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
-              pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
-            )}>
-              {pages.left !== null ? pages.left : blankLabel}
+            <div
+              className={cn(
+                'absolute top-0.5 left-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
+                pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
+              )}
+              title={pages.left !== null ? undefined : blankLabel}
+            >
+              {pages.left !== null ? pages.left : '空'}
             </div>
-            <div className={cn(
-              'absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
-              pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
-            )}>
-              {pages.right !== null ? pages.right : blankLabel}
+            <div
+              className={cn(
+                'absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-white text-[7px] font-medium',
+                pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
+              )}
+              title={pages.right !== null ? undefined : blankLabel}
+            >
+              {pages.right !== null ? pages.right : '空'}
             </div>
           </>
         );

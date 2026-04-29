@@ -191,7 +191,7 @@ function AdaptiveThumbnail({
             <ImageIcon className="h-6 w-6 text-gray-300" />
           </div>
         )}
-        {/* Page number badges */}
+        {/* Page number badges — 빈쪽은 "空" 한자로 표시 */}
         {pageLayout === 'spread' ? (() => {
           const pages = getSpreadPageNumbers(index, totalFiles, direction);
           return (
@@ -199,14 +199,18 @@ function AdaptiveThumbnail({
               <div className={cn(
                 'absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
                 pages.left !== null ? 'bg-red-600' : 'bg-yellow-500'
-              )}>
-                {pages.left !== null ? pages.left : 'Blank page'}
+              )}
+                title={pages.left !== null ? undefined : '빈 페이지(空)'}
+              >
+                {pages.left !== null ? pages.left : '空'}
               </div>
               <div className={cn(
                 'absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
                 pages.right !== null ? 'bg-red-600' : 'bg-yellow-500'
-              )}>
-                {pages.right !== null ? pages.right : 'Blank page'}
+              )}
+                title={pages.right !== null ? undefined : '빈 페이지(空)'}
+              >
+                {pages.right !== null ? pages.right : '空'}
               </div>
             </>
           );
