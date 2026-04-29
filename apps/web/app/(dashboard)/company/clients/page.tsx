@@ -452,7 +452,7 @@ export default function ClientsPage() {
                 <TableBody>
                   {clientsData?.data?.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                         등록된 거래처가 없습니다.
                       </TableCell>
                     </TableRow>
@@ -477,6 +477,19 @@ export default function ClientsPage() {
                               </span>
                             )}
                           </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-[14px] text-black font-normal">
+                          {(() => {
+                            const single = (client as any).assignedStaffSingle;
+                            if (single?.name) return single.name;
+                            if (client.assignedStaffId) {
+                              const matched = staffData?.data?.find(
+                                (s) => s.id === client.assignedStaffId
+                              );
+                              return matched?.name ?? '-';
+                            }
+                            return '-';
+                          })()}
                         </TableCell>
                         <TableCell className="whitespace-nowrap">
                           {client.assignedStaff && client.assignedStaff.length > 0 ? (
@@ -698,6 +711,31 @@ export default function ClientsPage() {
                         {groupsData?.data?.map((group) => (
                           <SelectItem key={group.id} value={group.id}>
                             {group.groupName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="assignedStaffId">담당직원</Label>
+                    <Select
+                      value={formData.assignedStaffId ?? 'none'}
+                      onValueChange={(v) =>
+                        setFormData({
+                          ...formData,
+                          assignedStaffId: v === 'none' ? null : v,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="assignedStaffId">
+                        <SelectValue placeholder="담당직원 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">미지정</SelectItem>
+                        {staffData?.data?.map((staff) => (
+                          <SelectItem key={staff.id} value={staff.id}>
+                            {staff.name}
+                            {staff.position ? ` (${staff.position})` : ''}
                           </SelectItem>
                         ))}
                       </SelectContent>

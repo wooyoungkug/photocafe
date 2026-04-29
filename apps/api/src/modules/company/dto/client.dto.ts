@@ -161,6 +161,11 @@ export class CreateClientDto {
   @IsOptional()
   assignedManager?: string | null;
 
+  @ApiPropertyOptional({ description: '담당 직원 ID (memberViewScope=own 스코프 기준)', nullable: true })
+  @IsOptional()
+  @IsString()
+  assignedStaffId?: string | null;
+
   @ApiPropertyOptional({ description: '실무담당자 이름' })
   @IsOptional()
   @IsString()

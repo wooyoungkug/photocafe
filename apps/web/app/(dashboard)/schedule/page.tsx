@@ -803,6 +803,15 @@ export default function SchedulePage() {
                 할일
               </div>
             </div>
+
+            {/* 단축키 안내 */}
+            <div className="px-1 pt-1 border-t border-slate-100">
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                <span className="font-medium text-slate-500">더블클릭</span> 일정 추가
+                <br />
+                <span className="font-medium text-slate-500">Shift+더블클릭</span> 할일 추가
+              </p>
+            </div>
           </div>
 
           {/* ── 가운데 : 메인 캘린더 ── */}
@@ -875,27 +884,45 @@ export default function SchedulePage() {
                             'ring-2 ring-blue-500 ring-inset',
                         )}
                         onClick={() => setSelectedDate(day)}
-                        onDoubleClick={() => {
+                        onDoubleClick={(e) => {
                           setSelectedDate(day);
-                          const defaultEnd = new Date(day);
-                          defaultEnd.setHours(defaultEnd.getHours() + 1);
-                          setEditingSchedule(null);
-                          setScheduleForm({
-                            title: '',
-                            description: '',
-                            location: '',
-                            startAt: format(day, "yyyy-MM-dd'T'HH:mm"),
-                            endAt: format(defaultEnd, "yyyy-MM-dd'T'HH:mm"),
-                            isAllDay: false,
-                            isPersonal: true,
-                            isDepartment: false,
-                            isCompany: false,
-                            scheduleType: 'meeting',
-                            color: '#3B82F6',
-                          });
-                          setRecurringConfig(getDefaultRecurringConfig());
-                          setShowRecurringDetail(false);
-                          setIsScheduleDialogOpen(true);
+                          if (e.shiftKey) {
+                            // Shift + 더블클릭 → 할일 추가
+                            setEditingTodo(null);
+                            setTodoForm({
+                              title: '',
+                              content: '',
+                              priority: 'normal',
+                              startDate: format(day, "yyyy-MM-dd'T'HH:mm"),
+                              dueDate: format(day, "yyyy-MM-dd'T'HH:mm"),
+                              isPersonal: true,
+                              isDepartment: false,
+                              isCompany: false,
+                              color: '#3B82F6',
+                            });
+                            setIsTodoDialogOpen(true);
+                          } else {
+                            // 더블클릭 → 일정 추가
+                            const defaultEnd = new Date(day);
+                            defaultEnd.setHours(defaultEnd.getHours() + 1);
+                            setEditingSchedule(null);
+                            setScheduleForm({
+                              title: '',
+                              description: '',
+                              location: '',
+                              startAt: format(day, "yyyy-MM-dd'T'HH:mm"),
+                              endAt: format(defaultEnd, "yyyy-MM-dd'T'HH:mm"),
+                              isAllDay: false,
+                              isPersonal: true,
+                              isDepartment: false,
+                              isCompany: false,
+                              scheduleType: 'meeting',
+                              color: '#3B82F6',
+                            });
+                            setRecurringConfig(getDefaultRecurringConfig());
+                            setShowRecurringDetail(false);
+                            setIsScheduleDialogOpen(true);
+                          }
                         }}
                       >
                         <div

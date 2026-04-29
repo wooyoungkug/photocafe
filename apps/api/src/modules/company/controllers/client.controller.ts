@@ -9,6 +9,7 @@ import {
   Param,
   Query,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ClientService } from '../services/client.service';
@@ -30,6 +31,7 @@ export class ClientController {
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'memberType', required: false })
   async findAll(
+    @Request() req: any,
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('search') search?: string,
@@ -40,7 +42,21 @@ export class ClientController {
     const skip = page ? (page - 1) * (limit || 20) : 0;
     const take = limit || 20;
 
-    return this.clientService.findAll({ skip, take, search, groupId, status, memberType });
+    // staff 타입이고 memberViewScope='own' 이면 본인 담당 거래처만 조회
+    const user = req.user;
+    const staffScopeId = user?.type === 'staff'
+      ? await this.clientService.getStaffScopeId(user.sub, 'member')
+      : undefined;
+
+    return this.clientService.findAll({
+      skip,
+      take,
+      search,
+      groupId,
+      status,
+      memberType,
+      staffScopeId,
+    });
   }
 
   @Get('next-code')

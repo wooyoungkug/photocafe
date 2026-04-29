@@ -304,8 +304,9 @@ export class OrderService {
     startDate?: Date;
     endDate?: Date;
     isUrgent?: boolean;
+    clientAssignedStaffId?: string; // salesViewScope='own' 일 때 staff.id
   }) {
-    const { skip = 0, take = 20, search, searchType, clientId, createdByUserId, status, startDate, endDate, isUrgent } = params;
+    const { skip = 0, take = 20, search, searchType, clientId, createdByUserId, status, startDate, endDate, isUrgent, clientAssignedStaffId } = params;
 
     // 날짜 문자열("YYYY-MM-DD")을 KST 기준으로 해석
     // new Date("2026-02-20") = UTC 자정이므로, KST 자정(UTC-9h)으로 보정
@@ -378,6 +379,9 @@ export class OrderService {
       ...searchCondition,
       ...(clientId && { clientId }),
       ...(createdByUserId && { createdByUserId }),
+      ...(clientAssignedStaffId && {
+        client: { assignedStaffId: clientAssignedStaffId },
+      }),
       ...(statusCondition !== undefined && { status: statusCondition }),
       ...(isUrgent !== undefined && { isUrgent }),
       ...(adjustedStartDate || adjustedEndDate

@@ -7,6 +7,32 @@ import * as bcrypt from 'bcrypt';
 export class ClientService {
   constructor(private prisma: PrismaService) { }
 
+  /**
+   * staff 직원의 memberViewScope/salesViewScope 조회
+   * 'own' 이고 isSuperAdmin=false 면 staffId 반환 (스코프 적용)
+   * 그 외엔 undefined 반환 (전체 조회)
+   */
+  async getStaffScopeId(
+    staffId: string,
+    scopeType: 'member' | 'sales',
+  ): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: {
+        id: true,
+        isSuperAdmin: true,
+        memberViewScope: true,
+        salesViewScope: true,
+      },
+    });
+    if (!staff) return undefined;
+    if (staff.isSuperAdmin) return undefined;
+    const scope = scopeType === 'member' ? staff.memberViewScope : staff.salesViewScope;
+    if (scope === 'own') return staff.id;
+    return undefined;
+  }
+
   async findAll(params: {
     skip?: number;
     take?: number;
@@ -14,10 +40,12 @@ export class ClientService {
     groupId?: string;
     status?: string;
     memberType?: string;
+    staffScopeId?: string; // 'own' 스코프일 때 staff.id 전달
   }) {
-    const { skip = 0, take = 20, search, groupId, status, memberType } = params;
+    const { skip = 0, take = 20, search, groupId, status, memberType, staffScopeId } = params;
 
     const where: Prisma.ClientWhereInput = {
+      ...(staffScopeId && { assignedStaffId: staffScopeId }),
       ...(search && {
         OR: [
           { clientName: { contains: search } },
@@ -59,6 +87,13 @@ export class ClientService {
               { isPrimary: 'desc' },
               { createdAt: 'asc' },
             ],
+          },
+          assignedStaffMember: {
+            select: {
+              id: true,
+              name: true,
+              staffId: true,
+            },
           },
           _count: {
             select: {
@@ -130,6 +165,15 @@ export class ClientService {
             { isPrimary: 'desc' },
             { createdAt: 'asc' },
           ],
+        },
+        assignedStaffMember: {
+          select: {
+            id: true,
+            name: true,
+            staffId: true,
+            position: true,
+            departmentId: true,
+          },
         },
         orders: {
           take: 10,
@@ -211,7 +255,12 @@ export class ClientService {
 
     return this.prisma.client.create({
       data,
-      include: { group: true },
+      include: {
+        group: true,
+        assignedStaffMember: {
+          select: { id: true, name: true, staffId: true },
+        },
+      },
     });
   }
 
@@ -227,7 +276,12 @@ export class ClientService {
     const result = await this.prisma.client.update({
       where: { id },
       data,
-      include: { group: true },
+      include: {
+        group: true,
+        assignedStaffMember: {
+          select: { id: true, name: true, staffId: true },
+        },
+      },
     });
 
     const { password, ...rest } = result;
