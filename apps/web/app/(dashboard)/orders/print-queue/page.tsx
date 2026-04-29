@@ -23,7 +23,9 @@ import PdfSettingsDialog, {
   getGlobalDirHandle,
 } from './components/PdfSettingsDialog';
 import ImpositionSettingsDialog from './components/ImpositionSettingsDialog';
+import { OrderQuickEditDialog } from '../components/order-quick-edit-dialog';
 import type { PrintQueueItem } from '@/hooks/use-print-pdf';
+import type { Order } from '@/hooks/use-orders';
 import { toast } from 'sonner';
 
 export default function PrintQueuePage() {
@@ -33,6 +35,10 @@ export default function PrintQueuePage() {
 
   // 선택 상태
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // 주문 검증 및 수정 다이얼로그
+  const [quickEditOrder, setQuickEditOrder] = useState<Pick<Order, 'id'> | null>(null);
+  const [isQuickEditOpen, setIsQuickEditOpen] = useState(false);
 
   // 다이얼로그 상태
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
@@ -299,6 +305,10 @@ export default function PrintQueuePage() {
         onSelectionChange={setSelectedIds}
         isLoading={isPending}
         onImposition={openImposition}
+        onOrderClick={(orderId) => {
+          setQuickEditOrder({ id: orderId });
+          setIsQuickEditOpen(true);
+        }}
       />
 
       {/* 페이지 정보 */}
@@ -322,6 +332,13 @@ export default function PrintQueuePage() {
       <PdfSettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
+      />
+
+      {/* 주문 검증 및 수정 다이얼로그 */}
+      <OrderQuickEditDialog
+        order={quickEditOrder as Order | null}
+        open={isQuickEditOpen}
+        onOpenChange={setIsQuickEditOpen}
       />
 
       {/* 임포지션 설정 다이얼로그 */}

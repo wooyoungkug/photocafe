@@ -21,6 +21,7 @@ interface PrintQueueTableProps {
   onSelectionChange: (ids: string[]) => void;
   isLoading?: boolean;
   onImposition?: (item: PrintQueueItem) => void;
+  onOrderClick?: (orderId: string) => void;
 }
 
 /** 아이템에서 매칭 엔진 입력으로 변환 */
@@ -59,6 +60,7 @@ export default function PrintQueueTable({
   onSelectionChange,
   isLoading,
   onImposition,
+  onOrderClick,
 }: PrintQueueTableProps) {
   const allSelected = items.length > 0 && selectedIds.length === items.length;
   const batchMut = useMatchImpositionBatch();
@@ -163,7 +165,13 @@ export default function PrintQueueTable({
                   )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
-                  <span className="font-medium">{item.orderNumber}</span>
+                  <button
+                    type="button"
+                    onClick={() => onOrderClick?.(item.orderId)}
+                    className="font-medium text-blue-600 hover:underline cursor-pointer"
+                  >
+                    {item.orderNumber}
+                  </button>
                   <span className="text-black ml-1.5">{item.studioName}</span>
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
