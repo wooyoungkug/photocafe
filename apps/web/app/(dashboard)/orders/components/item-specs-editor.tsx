@@ -33,6 +33,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil } from 'lucide-react';
 import { useColorIntents } from '@/hooks/use-jdf';
 import { useProduct } from '@/hooks/use-products';
+import { useCopperPlateLabels } from '@/hooks/use-copper-plates';
 import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dialog';
 import type { OrderItem } from '@/hooks/use-orders';
 
@@ -46,6 +47,14 @@ export interface ItemSpecsValue {
   bindingType?: string;
   finishingOptions?: string[];
   foilName?: string;
+  foilColor?: string;
+  foilPosition?: string;
+}
+
+// 동일 이름 용지가 그램수만 다른 경우 Select value 가 충돌하므로 그램수 포함 라벨로 통일
+function buildPaperLabel(name: string, grammage?: number | null): string {
+  if (!name) return '';
+  return grammage ? `${name} (${grammage}g)` : name;
 }
 
 interface ItemSpecsEditorProps {
@@ -81,6 +90,10 @@ export function ItemSpecsEditor({
 
   const colorIntentsQuery = useColorIntents();
   const colorIntents = colorIntentsQuery.data ?? [];
+
+  const copperLabelsQuery = useCopperPlateLabels();
+  const foilColors = copperLabelsQuery.data?.foilColors?.filter((c) => c.isActive) ?? [];
+  const platePositions = copperLabelsQuery.data?.platePositions?.filter((p) => p.isActive) ?? [];
 
   // 현재 적용된 출력방법
   const effectivePrintMethod = (value.printMethod ?? item.printMethod ?? '').toLowerCase();
@@ -154,7 +167,12 @@ export function ItemSpecsEditor({
   const currentFileSpecId = value.fileSpecId ?? item.fileSpecId ?? '';
   const currentBindingType = value.bindingType ?? item.bindingType ?? '';
   const currentFoilName = value.foilName ?? item.foilName ?? '';
+  const currentFoilColor = value.foilColor ?? item.foilColor ?? '';
+  const currentFoilPosition = value.foilPosition ?? item.foilPosition ?? '';
   const currentFinishingOptions = value.finishingOptions ?? item.finishingOptions ?? [];
+
+  // 박/동판 선택 시에만 색상·위치 노출
+  const foilSelected = !!currentFoilName;
 
   const toggleFinishing = (name: string) => {
     const set = new Set(currentFinishingOptions);
@@ -220,7 +238,7 @@ export function ItemSpecsEditor({
         </Select>
       </div>
 
-      {/* 3. 용지 */}
+      {/* 3. 용지 — 동일 이름·다른 그램수 구분을 위해 "이름 (Ng)" 합성값 사용 */}
       <div className="space-y-1 col-span-2">
         <Label className="text-[12px] text-slate-600">
           용지 {effectivePrintMethod && (
@@ -241,15 +259,20 @@ export function ItemSpecsEditor({
             } />
           </SelectTrigger>
           <SelectContent>
-            {currentPaper && !paperOptions.some((p) => p.name === currentPaper) && (
-              <SelectItem value={currentPaper}>{currentPaper} (현재값)</SelectItem>
-            )}
-            {paperOptions.map((p) => (
-              <SelectItem key={p.id} value={p.name}>
-                {p.name}
-                {p.grammage ? ` (${p.grammage}g)` : ''}
-              </SelectItem>
-            ))}
+            {currentPaper &&
+              !paperOptions.some(
+                (p) => buildPaperLabel(p.name, p.grammage) === currentPaper || p.name === currentPaper,
+              ) && (
+                <SelectItem value={currentPaper}>{currentPaper} (현재값)</SelectItem>
+              )}
+            {paperOptions.map((p) => {
+              const label = buildPaperLabel(p.name, p.grammage);
+              return (
+                <SelectItem key={p.id} value={label}>
+                  {label}
+                </SelectItem>
+              );
+            })}
           </SelectContent>
         </Select>
       </div>
@@ -395,30 +418,84 @@ export function ItemSpecsEditor({
         </div>
       )}
 
-      {/* 8. 박/동판 */}
+      {/* 8. 박/동판 + 박 색상/위치 (시스템 라벨 마스터) */}
       {foilOptions.length > 0 && (
-        <div className="space-y-1">
+        <div className="space-y-1 col-span-2">
           <Label className="text-[12px] text-slate-600">박/동판</Label>
-          <Select
-            value={currentFoilName || undefined}
-            onValueChange={(v) => update({ foilName: v })}
-            disabled={readonly}
-          >
-            <SelectTrigger className="h-8 text-[13px]">
-              <SelectValue placeholder="박/동판 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {currentFoilName && !foilOptions.some((f) => f.name === currentFoilName) && (
-                <SelectItem value={currentFoilName}>{currentFoilName} (현재값)</SelectItem>
-              )}
-              {foilOptions.map((f) => (
-                <SelectItem key={f.id} value={f.name}>
-                  {f.name}
-                  {f.color ? ` · ${f.color}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="grid grid-cols-3 gap-2">
+            <Select
+              value={currentFoilName || undefined}
+              onValueChange={(v) => {
+                if (v === '__none__') update({ foilName: '', foilColor: '', foilPosition: '' });
+                else update({ foilName: v });
+              }}
+              disabled={readonly}
+            >
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue placeholder="박/동판 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">없음</SelectItem>
+                {currentFoilName && !foilOptions.some((f) => f.name === currentFoilName) && (
+                  <SelectItem value={currentFoilName}>{currentFoilName} (현재값)</SelectItem>
+                )}
+                {foilOptions.map((f) => (
+                  <SelectItem key={f.id} value={f.name}>
+                    {f.name}
+                    {f.color ? ` · ${f.color}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={currentFoilColor || undefined}
+              onValueChange={(v) => update({ foilColor: v === '__none__' ? '' : v })}
+              disabled={readonly || !foilSelected || foilColors.length === 0}
+            >
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue placeholder={foilSelected ? '박 색상' : '동판 선택 후'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">선택 없음</SelectItem>
+                {currentFoilColor &&
+                  !foilColors.some(
+                    (c) => c.code === currentFoilColor || c.name === currentFoilColor,
+                  ) && (
+                    <SelectItem value={currentFoilColor}>{currentFoilColor} (현재값)</SelectItem>
+                  )}
+                {foilColors.map((c) => (
+                  <SelectItem key={c.id} value={c.code}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={currentFoilPosition || undefined}
+              onValueChange={(v) => update({ foilPosition: v === '__none__' ? '' : v })}
+              disabled={readonly || !foilSelected || platePositions.length === 0}
+            >
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue placeholder={foilSelected ? '박 위치' : '동판 선택 후'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">선택 없음</SelectItem>
+                {currentFoilPosition &&
+                  !platePositions.some(
+                    (p) => p.code === currentFoilPosition || p.name === currentFoilPosition,
+                  ) && (
+                    <SelectItem value={currentFoilPosition}>{currentFoilPosition} (현재값)</SelectItem>
+                  )}
+                {platePositions.map((p) => (
+                  <SelectItem key={p.id} value={p.code}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
 

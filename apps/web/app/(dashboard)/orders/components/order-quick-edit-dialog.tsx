@@ -984,6 +984,8 @@ export function OrderQuickEditDialog({
                                 bindingType: edit.bindingType,
                                 finishingOptions: edit.finishingOptions,
                                 foilName: edit.foilName,
+                                foilColor: edit.foilColor,
+                                foilPosition: edit.foilPosition,
                               }}
                               onChange={(next) =>
                                 setItemEdits((prev) => ({
@@ -1124,80 +1126,6 @@ export function OrderQuickEditDialog({
                       </div>
 
                       <Separator />
-
-                      {/* Fabric name */}
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">원단명</Label>
-                        <Input
-                          value={edit.fabricName || ''}
-                          onChange={(e) =>
-                            setItemEdits((prev) => ({
-                              ...prev,
-                              [item.id]: {
-                                ...prev[item.id],
-                                fabricName: e.target.value || undefined,
-                              },
-                            }))
-                          }
-                          placeholder="원단명 입력"
-                          className="w-48 h-8 text-sm"
-                        />
-                      </div>
-
-                      {/* Foil information (동판 정보) */}
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">박 동판명</Label>
-                          <Input
-                            value={edit.foilName || ''}
-                            onChange={(e) =>
-                              setItemEdits((prev) => ({
-                                ...prev,
-                                [item.id]: {
-                                  ...prev[item.id],
-                                  foilName: e.target.value || undefined,
-                                },
-                              }))
-                            }
-                            placeholder="동판명 입력"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">박 색상</Label>
-                          <Input
-                            value={edit.foilColor || ''}
-                            onChange={(e) =>
-                              setItemEdits((prev) => ({
-                                ...prev,
-                                [item.id]: {
-                                  ...prev[item.id],
-                                  foilColor: e.target.value || undefined,
-                                },
-                              }))
-                            }
-                            placeholder="박 색상"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">박 위치</Label>
-                          <Input
-                            value={edit.foilPosition || ''}
-                            onChange={(e) =>
-                              setItemEdits((prev) => ({
-                                ...prev,
-                                [item.id]: {
-                                  ...prev[item.id],
-                                  foilPosition: e.target.value || undefined,
-                                },
-                              }))
-                            }
-                            placeholder="박 위치"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
 
                       {/* 단가 breakdown (상품옵션 기반 자동 계산) */}
                       <div className="rounded-md border p-3 bg-white">
