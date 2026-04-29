@@ -509,7 +509,7 @@ export function ItemSpecsEditor({
             <Select
               value={currentFoilColor || undefined}
               onValueChange={(v) => update({ foilColor: v === '__none__' ? '' : v })}
-              disabled={readonly || !foilSelected || foilColors.length === 0}
+              disabled={readonly || !foilSelected}
             >
               <SelectTrigger className="h-8 text-[13px]">
                 <SelectValue placeholder={foilSelected ? '박 색상' : '동판 선택 후'} />
@@ -533,7 +533,7 @@ export function ItemSpecsEditor({
             <Select
               value={currentFoilPosition || undefined}
               onValueChange={(v) => update({ foilPosition: v === '__none__' ? '' : v })}
-              disabled={readonly || !foilSelected || platePositions.length === 0}
+              disabled={readonly || !foilSelected}
             >
               <SelectTrigger className="h-8 text-[13px]">
                 <SelectValue placeholder={foilSelected ? '박 위치' : '동판 선택 후'} />
