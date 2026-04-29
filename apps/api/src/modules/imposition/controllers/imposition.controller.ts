@@ -419,14 +419,6 @@ export class ImpositionController {
               `주문 상세에서 PDF를 다시 생성한 뒤 변환을 재시도해주세요.`,
           );
         }
-        // 2) 주문 페이지 수 ↔ 등록 파일 개수 정합성
-        //    펼침면(spread): 파일 1개 = album 2페이지 (스프레드)
-        //      - 단, RIGHT_START(또는 rtl-*)면 첫 파일의 좌측 절반 제외 (표지 빈장)
-        //      - LEFT_END(또는 *-lend)면 마지막 파일의 우측 절반 제외 (책등 빈장)
-        //      → 실제 album 페이지 수 = files × 2 − drops
-        //      → 따라서 예상 파일 수 = ceil((pages + drops) / 2)
-        //    낱장(single):   파일 1개 = album 1페이지 → 예상 파일 = pages
-        //
         // bindingDirection 은 긴 enum('RIGHT_START_LEFT_END')과 짧은 코드('rtl-lend')
         // 두 형태가 공존 — 양쪽 모두 잡도록 패턴 매칭.
         const bd = String(item.bindingDirection || '').toUpperCase();
@@ -434,20 +426,7 @@ export class ImpositionController {
         const hasLeftEnd = bd.includes('LEFT_END') || bd.endsWith('LEND');
         const dropFirstLeft = isSpread && hasRightStart ? 1 : 0;
         const dropLastRight = isSpread && hasLeftEnd ? 1 : 0;
-        const drops = dropFirstLeft + dropLastRight;
-        const expectedFileCount = isSpread
-          ? Math.ceil((item.pages + drops) / 2)
-          : item.pages;
-        if (allFiles.length !== expectedFileCount) {
-          throw new BadRequestException(
-            `[주문 ${item.order.orderNumber}] 주문페이지 ${item.pages}P (${isSpread ? '펼침면' : '낱장'}, ` +
-              `제본방향 ${item.bindingDirection || '미지정'}) 기준 예상 파일 ${expectedFileCount}개와 ` +
-              `실제 등록 파일 ${allFiles.length}개가 일치하지 않습니다. ` +
-              `주문 상세에서 PDF를 다시 생성한 뒤 변환을 재시도해주세요.`,
-          );
-        }
         // 진단용 정보 (디버깅 가능하도록 warnings 에 추가)
-        // 매핑 미스 발생 시 어떤 bindingDirection 값으로 처리됐는지 사용자가 즉시 확인 가능.
         if (isSpread) {
           (result.warnings as any[]).push(
             `[진단] bindingDirection="${item.bindingDirection ?? '없음'}", ` +
