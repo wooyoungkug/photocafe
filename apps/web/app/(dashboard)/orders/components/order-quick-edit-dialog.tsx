@@ -894,7 +894,15 @@ export function OrderQuickEditDialog({
                         </Badge>
                       </div>
 
-                      {/* Product specs line 1 */}
+                      {/* 원래 주문값 — 고객 화면(마이페이지)과 동일한 뱃지 표현 */}
+                      <div className="mt-2 rounded-md bg-white border border-gray-200 p-2.5">
+                        <div className="text-[11px] text-gray-500 mb-1.5">원래 주문값</div>
+                        <OrderItemSpecBadges item={item} showPrice={false} />
+                      </div>
+
+                      {false && (
+                      <>
+                      {/* (legacy) Product specs line 1 */}
                       <div className="text-xs text-muted-foreground mt-1.5 truncate">
                         {[
                           item.productName,
@@ -907,7 +915,7 @@ export function OrderQuickEditDialog({
                       </div>
 
                       {/* Product specs line 2 (optional) */}
-                      {(item.bindingType ||
+                      {false && (item.bindingType ||
                         item.coverMaterial ||
                         item.fabricName ||
                         item.foilColor) && (
@@ -925,6 +933,8 @@ export function OrderQuickEditDialog({
                             .filter(Boolean)
                             .join(' \u00B7 ')}
                         </div>
+                      )}
+                      </>
                       )}
                     </div>
 
