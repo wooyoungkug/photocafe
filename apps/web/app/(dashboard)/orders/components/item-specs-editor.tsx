@@ -555,12 +555,12 @@ export function ItemSpecsEditor({
                   <SelectItem value="__none__">선택 없음</SelectItem>
                   {currentFoilColor &&
                     !foilColors.some(
-                      (c) => c.code === currentFoilColor || c.name === currentFoilColor,
+                      (c) => c.name === currentFoilColor,
                     ) && (
                       <SelectItem value={currentFoilColor}>{currentFoilColor} (현재값)</SelectItem>
                     )}
                   {foilColors.map((c) => (
-                    <SelectItem key={c.id} value={c.code}>
+                    <SelectItem key={c.id} value={c.name}>
                       {c.name}
                     </SelectItem>
                   ))}
@@ -582,12 +582,12 @@ export function ItemSpecsEditor({
                   <SelectItem value="__none__">선택 없음</SelectItem>
                   {currentFoilPosition &&
                     !platePositions.some(
-                      (p) => p.code === currentFoilPosition || p.name === currentFoilPosition,
+                      (p) => p.name === currentFoilPosition,
                     ) && (
                       <SelectItem value={currentFoilPosition}>{currentFoilPosition} (현재값)</SelectItem>
                     )}
                   {platePositions.map((p) => (
-                    <SelectItem key={p.id} value={p.code}>
+                    <SelectItem key={p.id} value={p.name}>
                       {p.name}
                     </SelectItem>
                   ))}
