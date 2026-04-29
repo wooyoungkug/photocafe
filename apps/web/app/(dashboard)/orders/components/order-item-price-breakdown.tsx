@@ -43,6 +43,7 @@ export function OrderItemPriceBreakdown({
   const fileSpecId = edit.fileSpecId ?? orderItem.fileSpecId ?? '';
   const productSpec = useMemo(() => {
     if (!product?.specifications) return undefined;
+    // 1) fileSpecId → ProductSpecification.specificationId 또는 id 매칭
     if (fileSpecId) {
       const byId = product.specifications.find(
         (ps) => (ps.specificationId ?? ps.id) === fileSpecId,
@@ -50,7 +51,14 @@ export function OrderItemPriceBreakdown({
       if (byId) return byId;
     }
     if (orderItem.size) {
-      return product.specifications.find((ps) => ps.name === orderItem.size);
+      // 2) ProductSpecification.name 직접 매칭
+      const byName = product.specifications.find((ps) => ps.name === orderItem.size);
+      if (byName) return byName;
+      // 3) 연결된 Specification.name 매칭 (샵 주문은 fileSpecId 없이 size=Specification.name으로 생성됨)
+      const bySpecName = product.specifications.find(
+        (ps) => ps.specificationName === orderItem.size,
+      );
+      if (bySpecName) return bySpecName;
     }
     return undefined;
   }, [product?.specifications, fileSpecId, orderItem.size]);
@@ -102,11 +110,14 @@ export function OrderItemPriceBreakdown({
     }
   }, [data?.unitPrice, onUnitPriceCalculated]);
 
-  // 로딩
+  // product 미로드 시 로딩, 로드 후에도 spec 없으면 안내
+  if (!product) {
+    return <div className="text-[11px] text-blue-500 animate-pulse">상품 정보 조회중...</div>;
+  }
   if (!productSpec) {
     return (
       <div className="text-[11px] text-slate-500">
-        규격 정보가 부족하여 단가 계산 불가
+        규격 정보 미매칭 — 위 규격 드롭다운에서 직접 선택 후 저장하세요.
       </div>
     );
   }

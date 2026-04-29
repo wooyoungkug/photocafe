@@ -9,6 +9,7 @@ export interface ProductSpecification {
   forIndigo?: boolean;
   forInkjet?: boolean;
   specificationId?: string;
+  specificationName?: string | null;
 }
 
 export interface ProductBinding {
