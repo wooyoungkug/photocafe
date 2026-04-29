@@ -28,7 +28,7 @@ interface PinAddDialogProps {
 /** 핀 추가 - 메뉴 트리에서 검색하여 추가 */
 export function PinAddDialog({ open, onOpenChange, pinned, onAdd }: PinAddDialogProps) {
   const user = useAuthStore((s) => s.user);
-  const isSuperAdmin = user?.isSuperAdmin === true || user?.role === "admin";
+  const isSuperAdmin = user?.isSuperAdmin === true;
   const [query, setQuery] = useState("");
 
   const allItems = useMemo(() => {

@@ -41,7 +41,7 @@ function getNavIconColor(id: string, index: number): string {
 export function TopNav() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const isSuperAdmin = user?.isSuperAdmin === true || user?.role === "admin";
+  const isSuperAdmin = user?.isSuperAdmin === true;
   const navigation = getFilteredNavigation(user?.menuPermissions, isSuperAdmin);
 
   const [openId, setOpenId] = useState<string | null>(null);

@@ -38,7 +38,7 @@ import { PinAddDialog } from "./pin-add-dialog";
 export function PinBar() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const isSuperAdmin = user?.isSuperAdmin === true || user?.role === "admin";
+  const isSuperAdmin = user?.isSuperAdmin === true;
   const { data: prefs } = useUserPreferences();
   const update = useUpdatePreferences();
 

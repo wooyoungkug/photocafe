@@ -657,7 +657,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
     useMenuOrder();
 
   // 메뉴 접근권한 필터링 (최고관리자만 전체 표시)
-  const isSuperAdmin = user?.isSuperAdmin === true || user?.role === 'admin';
+  const isSuperAdmin = user?.isSuperAdmin === true;
   const menuPerms = user?.menuPermissions ?? {};
   // menuPermissions 값이 boolean(true) 또는 객체({ canView: true })일 수 있음
   const hasPerm = (key: string): boolean => {
