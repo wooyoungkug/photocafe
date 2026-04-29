@@ -542,6 +542,8 @@ export function OrderQuickEditDialog({
 
   const hasChanges = () => {
     if (discountAmount > 0) return true;
+    if (editMessage.trim()) return true;
+    if (assignPrintOperatorId !== null) return true;
     return displayOrder.items.some((item) => {
       const edit = itemEdits[item.id];
       if (!edit) return false;
@@ -719,18 +721,75 @@ export function OrderQuickEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-lg">주문 검증 및 수정</DialogTitle>
-          <DialogDescription className="flex items-center gap-2">
-            <span className="font-medium">{displayOrder.orderNumber}</span>
-            <span className="text-muted-foreground">-</span>
-            <span>{displayOrder.client?.clientName}</span>
-            {displayOrder.isUrgent && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                긴급
-              </Badge>
-            )}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <DialogTitle className="text-[18px] text-black font-bold">
+                주문 검증 및 수정
+              </DialogTitle>
+              <DialogDescription className="flex items-center gap-2 mt-1">
+                <span className="font-medium">{displayOrder.orderNumber}</span>
+                <span className="text-muted-foreground">-</span>
+                <span>{displayOrder.client?.clientName}</span>
+                {displayOrder.isUrgent && (
+                  <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                    긴급
+                  </Badge>
+                )}
+              </DialogDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setHistoryOpen(true)}
+              className="shrink-0"
+            >
+              <History className="h-4 w-4 mr-1" />
+              이력 보기
+            </Button>
+          </div>
         </DialogHeader>
+
+        {/* 상태별 경고 배너 (PR3) */}
+        {(() => {
+          const status = displayOrder.status;
+          if (status === 'shipped' || status === 'cancelled') {
+            return (
+              <Alert variant="destructive" className="mt-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-[14px] font-normal">
+                  {status === 'shipped' ? '배송 완료' : '취소'}된 주문은 편집할 수 없습니다.
+                </AlertDescription>
+              </Alert>
+            );
+          }
+          if (
+            status === 'printed' ||
+            status === 'ready_for_shipping' ||
+            status === 'reprint_requested' ||
+            status === 'reprint_in_production'
+          ) {
+            return (
+              <Alert className="mt-2 border-amber-300 bg-amber-50">
+                <Printer className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-[14px] text-black font-normal">
+                  출력완료된 주문입니다. 사양 변경 시 재출력 비용이 다음 주문에 자동 청구됩니다.
+                </AlertDescription>
+              </Alert>
+            );
+          }
+          if (status === 'in_production') {
+            return (
+              <Alert className="mt-2 border-blue-300 bg-blue-50">
+                <Bell className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-[14px] text-black font-normal">
+                  생산진행 중입니다. 변경 사항은 출력 담당자에게 알림이 전송됩니다.
+                </AlertDescription>
+              </Alert>
+            );
+          }
+          return null;
+        })()}
 
         <div className="space-y-4 mt-2">
           {/* Loading skeleton */}
@@ -876,39 +935,14 @@ export function OrderQuickEditDialog({
                         </div>
                       )}
 
-                      {/* ===== 관리자 사양 편집 (2026-05-01) ===== */}
-                      {/* 6가지 핵심 사양: 출력방법, 도수, 용지, 단/양면, 규격, 원단 */}
+                      {/* ===== 관리자 사양 편집 ===== */}
+                      {/* PR3: 차단 해제됨. shipped/cancelled 만 차단(상단 배너로 안내) */}
                       {(() => {
-                        // 편집 가능 상태 결정:
-                        //   - pending_receipt / confirmed: 모든 관리자
-                        //   - 그 외 (print_ready 등): super_admin 만
                         const orderStatus = displayOrder.status;
-                        const editableForAll = ['pending_receipt', 'confirmed'];
-                        const editableForSuperAdmin = [
-                          'pending_receipt',
-                          'confirmed',
-                          'print_ready',
-                          'in_production',
-                          'shipping_ready',
-                          'shipping',
-                        ];
-                        const canEdit = isSuperAdmin
-                          ? editableForSuperAdmin.includes(orderStatus)
-                          : editableForAll.includes(orderStatus);
-                        const showWarning = isSuperAdmin && !editableForAll.includes(orderStatus) && canEdit;
-                        const blocked = !canEdit;
+                        const blocked =
+                          orderStatus === 'shipped' || orderStatus === 'cancelled';
                         return (
                           <div className="space-y-2">
-                            {showWarning && (
-                              <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                                ⚠️ 출력대기 이후 상태입니다. 사양 변경 시 인쇄 사고에 주의하세요. (최고관리자 권한)
-                              </div>
-                            )}
-                            {blocked && (
-                              <div className="text-[11px] text-slate-600 bg-slate-100 border rounded px-2 py-1">
-                                현재 상태({orderStatus})에서는 사양 편집이 불가합니다.
-                              </div>
-                            )}
                             <ItemSpecsEditor
                               item={item}
                               value={{
@@ -1292,6 +1326,54 @@ export function OrderQuickEditDialog({
           );
         })()}
 
+        {/* PR3: 메시지/담당자/알림 입력 영역 */}
+        {!isLoadingDetail && displayOrder.status !== 'shipped' && displayOrder.status !== 'cancelled' && (
+          <div className="mt-4 border-t pt-4 space-y-3">
+            <div className="space-y-1">
+              <Label className="text-[14px] text-black font-bold">
+                변경 메시지 <span className="text-[12px] text-gray-500 font-normal">(담당자에게 전달, 최대 500자)</span>
+              </Label>
+              <Textarea
+                value={editMessage}
+                maxLength={500}
+                onChange={(e) => setEditMessage(e.target.value)}
+                placeholder="예: 색상 톤다운 부탁드립니다 / 사양 변경 사유 등"
+                rows={2}
+                className="text-[14px] text-black font-normal resize-none"
+              />
+              <div className="text-right text-[12px] text-gray-500">
+                {editMessage.length}/500
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-[14px] text-black font-bold">
+                  출력 담당자 지정
+                </Label>
+                <PrintOperatorSelector
+                  value={assignPrintOperatorId}
+                  onChange={setAssignPrintOperatorId}
+                  orderId={displayOrder.id}
+                  allowClear
+                />
+              </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <Checkbox
+                    checked={notifyOperator}
+                    onCheckedChange={(checked) => setNotifyOperator(checked === true)}
+                  />
+                  <span className="text-[14px] text-black font-normal flex items-center gap-1">
+                    <Bell className="h-3.5 w-3.5" />
+                    담당자 알림 발송
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DialogFooter className="mt-4 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             취소
@@ -1299,18 +1381,42 @@ export function OrderQuickEditDialog({
           <Button
             onClick={handleSave}
             disabled={
-              isLoadingDetail || !hasChanges() || adjustOrder.isPending
+              isLoadingDetail ||
+              !hasChanges() ||
+              editWithAudit.isPending ||
+              displayOrder.status === 'shipped' ||
+              displayOrder.status === 'cancelled'
             }
           >
-            {adjustOrder.isPending ? (
+            {editWithAudit.isPending ? (
               <Loader2 className="h-4 w-4 mr-1 animate-spin" />
             ) : (
               <Save className="h-4 w-4 mr-1" />
             )}
-            {adjustOrder.isPending ? '저장 중...' : '저장'}
+            {editWithAudit.isPending ? '저장 중...' : '저장'}
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* 재출력 인터셉트 다이얼로그 */}
+      <ReprintConfirmDialog
+        open={reprintOpen}
+        onOpenChange={setReprintOpen}
+        orderId={displayOrder.id}
+        items={displayOrder.items}
+        changedItems={pendingReprintChanges}
+        onConfirm={() => {
+          // 재출력 작업 생성 후 사양 편집(메시지/담당자 포함) 함께 저장
+          performSave();
+        }}
+      />
+
+      {/* 편집 이력 드로어 */}
+      <OrderEditHistoryDrawer
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        orderId={displayOrder.id}
+      />
     </Dialog>
   );
 }
