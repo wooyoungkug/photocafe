@@ -17,8 +17,18 @@ export class ClientLedgerService {
     private emailService: EmailService,
   ) {}
 
+  async getStaffSalesScopeId(staffId?: string): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { id: true, isSuperAdmin: true, salesViewScope: true },
+    });
+    if (!staff || staff.isSuperAdmin) return undefined;
+    return staff.salesViewScope === 'own' ? staff.id : undefined;
+  }
+
   // ===== 거래처 목록 (매출/매입 집계) =====
-  async findAll(query: ClientLedgerListQueryDto) {
+  async findAll(query: ClientLedgerListQueryDto, staffScopeId?: string) {
     const {
       clientType = ClientTypeEnum.ALL,
       startDate,
@@ -55,6 +65,11 @@ export class ClientLedgerService {
     // 검색 조건
     const searchFragment = search
       ? Prisma.sql`AND (c."clientName" ILIKE ${`%${search}%`} OR c."clientCode" ILIKE ${`%${search}%`})`
+      : Prisma.empty;
+
+    // 담당자 스코프 조건
+    const staffScopeFragment = staffScopeId
+      ? Prisma.sql`AND c."assignedStaffId" = ${staffScopeId}`
       : Prisma.empty;
 
     // 매출 서브쿼리
@@ -106,6 +121,7 @@ export class ClientLedgerService {
         WHERE c.status = 'active'
           ${joinCondition}
           ${searchFragment}
+          ${staffScopeFragment}
       `),
       this.prisma.$queryRaw<any[]>(Prisma.sql`
         SELECT c.id as "clientId",
@@ -129,6 +145,7 @@ export class ClientLedgerService {
         WHERE c.status = 'active'
           ${joinCondition}
           ${searchFragment}
+          ${staffScopeFragment}
         ORDER BY (COALESCE(s."totalSales", 0) + COALESCE(p."totalPurchases", 0)) DESC
         LIMIT ${limit} OFFSET ${offset}
       `),
@@ -152,6 +169,7 @@ export class ClientLedgerService {
       WHERE c.status = 'active'
         ${joinCondition}
         ${searchFragment}
+        ${staffScopeFragment}
     `);
 
     const summary = summaryResult[0] || {};

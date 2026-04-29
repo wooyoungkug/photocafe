@@ -47,7 +47,17 @@ export class ConsultationService {
     return `CS-${dateStr}-${sequence.toString().padStart(4, '0')}`;
   }
 
-  async findAll(query: ConsultationQueryDto) {
+  async getStaffSalesScopeId(staffId?: string): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { id: true, isSuperAdmin: true, salesViewScope: true },
+    });
+    if (!staff || staff.isSuperAdmin) return undefined;
+    return staff.salesViewScope === 'own' ? staff.id : undefined;
+  }
+
+  async findAll(query: ConsultationQueryDto, staffScopeId?: string) {
     const {
       page = 1,
       limit = 20,
@@ -71,7 +81,11 @@ export class ConsultationService {
       ];
     }
 
-    if (clientId) where.clientId = clientId;
+    if (clientId) {
+      where.clientId = clientId;
+    } else if (staffScopeId) {
+      where.client = { assignedStaffId: staffScopeId };
+    }
     if (categoryId) where.categoryId = categoryId;
     if (status) where.status = status;
     if (priority) where.priority = priority;

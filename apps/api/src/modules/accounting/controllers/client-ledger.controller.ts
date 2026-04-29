@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Param, Query, Body, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ClientLedgerService } from '../services/client-ledger.service';
@@ -9,14 +9,19 @@ import {
 } from '../dto/client-ledger.dto';
 
 @ApiTags('거래처원장')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('client-ledger')
 export class ClientLedgerController {
   constructor(private readonly clientLedgerService: ClientLedgerService) {}
 
   @Get()
   @ApiOperation({ summary: '거래처원장 목록 조회 (매출/매입 집계)' })
-  async findAll(@Query() query: ClientLedgerListQueryDto) {
-    return this.clientLedgerService.findAll(query);
+  async findAll(@Query() query: ClientLedgerListQueryDto, @Request() req: any) {
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.clientLedgerService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.clientLedgerService.findAll(query, staffScopeId);
   }
 
   @Get(':clientId')

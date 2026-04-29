@@ -32,6 +32,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { DepositPermissionGuard } from '../guards/deposit-permission.guard';
 
 @ApiTags('입금내역')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('deposits')
 export class DepositsController {
   constructor(private readonly depositsService: DepositsService) {}
@@ -48,8 +50,12 @@ export class DepositsController {
   })
   async getDailySummary(
     @Query() query: DailySummaryQueryDto,
+    @Request() req: any,
   ): Promise<DailySummaryResponseDto> {
-    return this.depositsService.findDailySummary(query);
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.depositsService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.depositsService.findDailySummary(query, staffScopeId);
   }
 
   /**
@@ -64,8 +70,12 @@ export class DepositsController {
   })
   async getMonthlySummary(
     @Query() query: MonthlySummaryQueryDto,
+    @Request() req: any,
   ): Promise<MonthlySummaryResponseDto> {
-    return this.depositsService.findMonthlySummary(query);
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.depositsService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.depositsService.findMonthlySummary(query, staffScopeId);
   }
 
   @Get()
@@ -77,8 +87,12 @@ export class DepositsController {
   })
   async getDeposits(
     @Query() query: DepositQueryDto,
+    @Request() req: any,
   ): Promise<DepositsListResponseDto> {
-    return this.depositsService.findDepositsByClient(query);
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.depositsService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.depositsService.findDepositsByClient(query, staffScopeId);
   }
 
   @Get(':id')

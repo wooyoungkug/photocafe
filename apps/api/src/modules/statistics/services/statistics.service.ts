@@ -7,14 +7,27 @@ import { StatisticsQueryDto, ClientStatisticsQueryDto, ProductStatisticsQueryDto
 export class StatisticsService {
   constructor(private prisma: PrismaService) {}
 
+  async getStaffSalesScopeId(staffId?: string): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { id: true, isSuperAdmin: true, salesViewScope: true },
+    });
+    if (!staff || staff.isSuperAdmin) return undefined;
+    return staff.salesViewScope === 'own' ? staff.id : undefined;
+  }
+
   // ==================== 대시보드 요약 ====================
-  async getDashboardSummary() {
+  async getDashboardSummary(staffScopeId?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const thisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+
+    const orderScope = staffScopeId ? { client: { assignedStaffId: staffScopeId } } : {};
+    const clientScope = staffScopeId ? { assignedStaffId: staffScopeId } : {};
 
     const [
       todayOrders,
@@ -27,13 +40,13 @@ export class StatisticsService {
     ] = await Promise.all([
       // 오늘 주문 건수 및 매출
       this.prisma.order.aggregate({
-        where: { orderedAt: { gte: today } },
+        where: { orderedAt: { gte: today }, ...orderScope },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
       // 이번 달 주문
       this.prisma.order.aggregate({
-        where: { orderedAt: { gte: thisMonth } },
+        where: { orderedAt: { gte: thisMonth }, ...orderScope },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
@@ -41,23 +54,25 @@ export class StatisticsService {
       this.prisma.order.aggregate({
         where: {
           orderedAt: { gte: lastMonth, lte: lastMonthEnd },
+          ...orderScope,
         },
         _count: { id: true },
         _sum: { finalAmount: true },
       }),
       // 접수대기 주문
       this.prisma.order.count({
-        where: { status: 'pending_receipt' },
+        where: { status: 'pending_receipt', ...orderScope },
       }),
       // 생산중 주문
       this.prisma.order.count({
-        where: { status: 'in_production' },
+        where: { status: 'in_production', ...orderScope },
       }),
       // 전체 거래처
-      this.prisma.client.count(),
+      this.prisma.client.count({ where: clientScope }),
       // 활성 거래처 (최근 30일 주문)
       this.prisma.client.count({
         where: {
+          ...clientScope,
           orders: {
             some: {
               orderedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
@@ -100,7 +115,7 @@ export class StatisticsService {
   }
 
   // ==================== 매출 통계 ====================
-  async getSalesStatistics(query: StatisticsQueryDto) {
+  async getSalesStatistics(query: StatisticsQueryDto, staffScopeId?: string) {
     const { startDate, endDate, groupBy = 'day' } = query;
 
     // DB 수준 집계: DATE_TRUNC 사용
@@ -126,6 +141,9 @@ export class StatisticsService {
     }
     if (endDate) {
       conditions.push(Prisma.sql`"orderedAt" <= ${endDate}`);
+    }
+    if (staffScopeId) {
+      conditions.push(Prisma.sql`"clientId" IN (SELECT id FROM clients WHERE "assignedStaffId" = ${staffScopeId})`);
     }
 
     const whereClause = Prisma.join(conditions, ' AND ');
@@ -167,13 +185,17 @@ export class StatisticsService {
   }
 
   // ==================== 거래처별 통계 ====================
-  async getClientStatistics(query: ClientStatisticsQueryDto) {
+  async getClientStatistics(query: ClientStatisticsQueryDto, staffScopeId?: string) {
     const { startDate, endDate, clientId, groupId } = query;
 
+    const clientFilter: Prisma.ClientWhereInput = {
+      ...(staffScopeId && { assignedStaffId: staffScopeId }),
+      ...(groupId && { groupId }),
+    };
     const where: Prisma.OrderWhereInput = {
       status: { not: 'cancelled' },
       ...(clientId && { clientId }),
-      ...(groupId && { client: { groupId } }),
+      ...(Object.keys(clientFilter).length > 0 && { client: clientFilter }),
       ...(startDate || endDate
         ? {
             orderedAt: {
@@ -229,12 +251,13 @@ export class StatisticsService {
   }
 
   // ==================== 제본방법별 통계 ====================
-  async getBindingStatistics(query: StatisticsQueryDto) {
+  async getBindingStatistics(query: StatisticsQueryDto, staffScopeId?: string) {
     const { startDate, endDate } = query;
 
     const where: Prisma.OrderItemWhereInput = {
       order: {
         status: { not: 'cancelled' },
+        ...(staffScopeId && { client: { assignedStaffId: staffScopeId } }),
         ...(startDate || endDate
           ? {
               orderedAt: {
@@ -273,12 +296,13 @@ export class StatisticsService {
   }
 
   // ==================== 상품별 통계 ====================
-  async getProductStatistics(query: ProductStatisticsQueryDto) {
+  async getProductStatistics(query: ProductStatisticsQueryDto, staffScopeId?: string) {
     const { startDate, endDate, categoryId } = query;
 
     const where: Prisma.OrderItemWhereInput = {
       order: {
         status: { not: 'cancelled' },
+        ...(staffScopeId && { client: { assignedStaffId: staffScopeId } }),
         ...(startDate || endDate
           ? {
               orderedAt: {
@@ -320,7 +344,7 @@ export class StatisticsService {
   }
 
   // ==================== 카테고리별 통계 ====================
-  async getCategoryStatistics(query: CategoryStatisticsQueryDto) {
+  async getCategoryStatistics(query: CategoryStatisticsQueryDto, staffScopeId?: string) {
     const { startDate, endDate, categoryId, level } = query;
 
     // DB 수준 JOIN + GROUP BY로 집계
@@ -334,6 +358,9 @@ export class StatisticsService {
     }
     if (categoryId) {
       conditions.push(Prisma.sql`p."categoryId" = ${categoryId}`);
+    }
+    if (staffScopeId) {
+      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = o."clientId" AND c."assignedStaffId" = ${staffScopeId})`);
     }
 
     conditions.push(Prisma.sql`p."categoryId" IS NOT NULL`);
@@ -401,7 +428,7 @@ export class StatisticsService {
   }
 
   // ==================== 카테고리별 통계 (트리 구조) ====================
-  async getCategoryTreeStatistics(query: CategoryStatisticsQueryDto) {
+  async getCategoryTreeStatistics(query: CategoryStatisticsQueryDto, staffScopeId?: string) {
     const { startDate, endDate } = query;
 
     // 모든 카테고리 조회
@@ -418,6 +445,9 @@ export class StatisticsService {
     }
     if (endDate) {
       conditions.push(Prisma.sql`o."orderedAt" <= ${endDate}`);
+    }
+    if (staffScopeId) {
+      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = o."clientId" AND c."assignedStaffId" = ${staffScopeId})`);
     }
 
     conditions.push(Prisma.sql`p."categoryId" IS NOT NULL`);
@@ -560,12 +590,16 @@ export class StatisticsService {
   }
 
   // ==================== 월별 추이 ====================
-  async getMonthlyTrend(months: number = 12) {
+  async getMonthlyTrend(months: number = 12, staffScopeId?: string) {
     const endDate = new Date();
     const startDate = new Date();
     startDate.setMonth(startDate.getMonth() - months + 1);
     startDate.setDate(1);
     startDate.setHours(0, 0, 0, 0);
+
+    const staffScopeCondition = staffScopeId
+      ? Prisma.sql`AND "clientId" IN (SELECT id FROM clients WHERE "assignedStaffId" = ${staffScopeId})`
+      : Prisma.empty;
 
     // DB 수준 월별 집계
     const rows = await this.prisma.$queryRaw<
@@ -578,6 +612,7 @@ export class StatisticsService {
        WHERE status != 'cancelled'
          AND "orderedAt" >= ${startDate}
          AND "orderedAt" <= ${endDate}
+         ${staffScopeCondition}
        GROUP BY month
        ORDER BY month ASC`,
     );
@@ -590,25 +625,28 @@ export class StatisticsService {
   }
 
   // ==================== 공정 현황 대시보드 ====================
-  async getProcessDashboard() {
+  async getProcessDashboard(staffScopeId?: string) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    const orderScope = staffScopeId ? { client: { assignedStaffId: staffScopeId } } : {};
 
     const [statusCounts, processCounts, urgentOrders, todayHistory] = await Promise.all([
       // ORDER_STATUS별 건수
       this.prisma.order.groupBy({
         by: ['status'],
+        where: orderScope,
         _count: { id: true },
       }),
       // currentProcess별 건수 (생산진행 상태만)
       this.prisma.order.groupBy({
         by: ['currentProcess'],
-        where: { status: 'in_production' },
+        where: { status: 'in_production', ...orderScope },
         _count: { id: true },
       }),
       // 긴급 주문 (미완료)
       this.prisma.order.findMany({
-        where: { isUrgent: true, status: { notIn: ['shipped', 'cancelled'] } },
+        where: { isUrgent: true, status: { notIn: ['shipped', 'cancelled'] }, ...orderScope },
         select: {
           id: true,
           orderNumber: true,

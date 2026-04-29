@@ -403,8 +403,18 @@ export class SalesLedgerService {
     };
   }
 
+  async getStaffSalesScopeId(staffId?: string): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { id: true, isSuperAdmin: true, salesViewScope: true },
+    });
+    if (!staff || staff.isSuperAdmin) return undefined;
+    return staff.salesViewScope === 'own' ? staff.id : undefined;
+  }
+
   // ===== 매출원장 목록 조회 =====
-  async findAll(query: SalesLedgerQueryDto) {
+  async findAll(query: SalesLedgerQueryDto, staffScopeId?: string) {
     const { startDate, endDate, clientId, salesType, paymentStatus, salesStatus, search, page = 1, limit = 20 } = query;
 
     const where: Prisma.SalesLedgerWhereInput = {};
@@ -421,6 +431,7 @@ export class SalesLedgerService {
     }
 
     if (clientId) where.clientId = clientId;
+    if (staffScopeId && !clientId) where.client = { assignedStaffId: staffScopeId };
     if (salesType) where.salesType = salesType;
     if (paymentStatus) where.paymentStatus = paymentStatus;
     if (salesStatus) where.salesStatus = salesStatus;
@@ -671,15 +682,17 @@ export class SalesLedgerService {
   }
 
   // ===== 매출원장 요약 (대시보드) =====
-  async getSummary() {
+  async getSummary(staffScopeId?: string) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const scopeFilter = staffScopeId ? { client: { assignedStaffId: staffScopeId } } : {};
 
     // 당월 매출 합계
     const monthlySales = await this.prisma.salesLedger.aggregate({
       where: {
         ledgerDate: { gte: startOfMonth },
         salesStatus: { not: 'CANCELLED' },
+        ...scopeFilter,
       },
       _sum: { totalAmount: true, receivedAmount: true },
       _count: { id: true },
@@ -690,6 +703,7 @@ export class SalesLedgerService {
       where: {
         paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
         salesStatus: { not: 'CANCELLED' },
+        ...scopeFilter,
       },
       _sum: { outstandingAmount: true },
     });
@@ -700,6 +714,7 @@ export class SalesLedgerService {
         paymentStatus: { in: ['unpaid', 'partial'] },
         dueDate: { lt: now },
         salesStatus: { not: 'CANCELLED' },
+        ...scopeFilter,
       },
       _sum: { outstandingAmount: true },
     });
@@ -709,6 +724,7 @@ export class SalesLedgerService {
       where: {
         paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
         salesStatus: { not: 'CANCELLED' },
+        ...scopeFilter,
       },
       select: { clientId: true },
       distinct: ['clientId'],
@@ -720,6 +736,7 @@ export class SalesLedgerService {
         paymentStatus: { in: ['unpaid', 'partial'] },
         dueDate: { lt: now },
         salesStatus: { not: 'CANCELLED' },
+        ...scopeFilter,
       },
       select: { clientId: true },
       distinct: ['clientId'],
@@ -737,7 +754,7 @@ export class SalesLedgerService {
   }
 
   // ===== 거래처별 매출 집계 =====
-  async getClientSummary(query: { startDate?: string; endDate?: string }) {
+  async getClientSummary(query: { startDate?: string; endDate?: string }, staffScopeId?: string) {
     // DB 수준 GROUP BY 집계
     const conditions: Prisma.Sql[] = [Prisma.sql`sl."salesStatus" != 'CANCELLED'`];
 
@@ -748,6 +765,9 @@ export class SalesLedgerService {
       const end = new Date(query.endDate);
       end.setHours(23, 59, 59, 999);
       conditions.push(Prisma.sql`sl."ledgerDate" <= ${end}`);
+    }
+    if (staffScopeId) {
+      conditions.push(Prisma.sql`c."assignedStaffId" = ${staffScopeId}`);
     }
 
     const whereClause = Prisma.join(conditions, ' AND ');
@@ -909,9 +929,13 @@ export class SalesLedgerService {
   }
 
   // ===== 월별 매출 추이 =====
-  async getMonthlyTrend(months: number = 12) {
+  async getMonthlyTrend(months: number = 12, staffScopeId?: string) {
     const now = new Date();
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
+
+    const staffScopeCondition = staffScopeId
+      ? Prisma.sql`AND "clientId" IN (SELECT id FROM clients WHERE "assignedStaffId" = ${staffScopeId})`
+      : Prisma.empty;
 
     // DB 수준 월별 집계
     const rows = await this.prisma.$queryRaw<
@@ -925,6 +949,7 @@ export class SalesLedgerService {
        FROM sales_ledgers
        WHERE "ledgerDate" >= ${startDate}
          AND "salesStatus" != 'CANCELLED'
+         ${staffScopeCondition}
        GROUP BY month
        ORDER BY month ASC`,
     );
@@ -950,17 +975,11 @@ export class SalesLedgerService {
   }
 
   // ===== Aging 분석 (실 데이터) =====
-  async getAgingAnalysis(clientId?: string) {
+  async getAgingAnalysis(clientId?: string, staffScopeId?: string) {
     const now = new Date();
     const date30 = subDays(now, 30);
     const date60 = subDays(now, 60);
     const date90 = subDays(now, 90);
-
-    const where: Prisma.SalesLedgerWhereInput = {
-      paymentStatus: { in: ['unpaid', 'partial', 'overdue'] },
-      salesStatus: { not: 'CANCELLED' },
-    };
-    if (clientId) where.clientId = clientId;
 
     // Raw SQL로 날짜 범위별 집계
     const conditions: Prisma.Sql[] = [
@@ -969,6 +988,9 @@ export class SalesLedgerService {
     ];
     if (clientId) {
       conditions.push(Prisma.sql`sl."clientId" = ${clientId}`);
+    }
+    if (staffScopeId && !clientId) {
+      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedStaffId" = ${staffScopeId})`);
     }
 
     const whereClause = Prisma.join(conditions, ' AND ');

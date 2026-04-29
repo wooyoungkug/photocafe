@@ -23,12 +23,23 @@ import {
 export class DepositsService {
   constructor(private prisma: PrismaService) {}
 
+  async getStaffSalesScopeId(staffId?: string): Promise<string | undefined> {
+    if (!staffId) return undefined;
+    const staff = await this.prisma.staff.findUnique({
+      where: { id: staffId },
+      select: { id: true, isSuperAdmin: true, salesViewScope: true },
+    });
+    if (!staff || staff.isSuperAdmin) return undefined;
+    return staff.salesViewScope === 'own' ? staff.id : undefined;
+  }
+
   /**
    * 고객별 입금내역 조회 (SalesReceipt 기반)
    * clientId optional로 변경 - 없으면 전체 조회
    */
   async findDepositsByClient(
     query: DepositQueryDto,
+    staffScopeId?: string,
   ): Promise<DepositsListResponseDto> {
     const { clientId, startDate, endDate, paymentMethod } = query;
 
@@ -42,9 +53,11 @@ export class DepositsService {
       },
     };
 
-    // clientId가 있으면 필터링, 없으면 전체 조회
+    // clientId가 있으면 해당 거래처만, 없으면 staffScopeId 적용
     if (clientId) {
       whereClause.salesLedger = { clientId };
+    } else if (staffScopeId) {
+      whereClause.salesLedger = { client: { assignedStaffId: staffScopeId } };
     }
 
     if (paymentMethod) {
@@ -115,6 +128,7 @@ export class DepositsService {
    */
   async findDailySummary(
     query: DailySummaryQueryDto,
+    staffScopeId?: string,
   ): Promise<DailySummaryResponseDto> {
     const { startDate, endDate, clientId, paymentMethod } = query;
 
@@ -133,6 +147,7 @@ export class DepositsService {
         AND sr."receiptDate" < (${endDate}::date + interval '1 day')
         ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
         ${paymentMethod ? Prisma.sql`AND sr."paymentMethod" = ${paymentMethod}` : Prisma.empty}
+        ${staffScopeId && !clientId ? Prisma.sql`AND EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedStaffId" = ${staffScopeId})` : Prisma.empty}
       GROUP BY DATE(sr."receiptDate"), sl."clientId", sl."clientName"
       ORDER BY date DESC, sl."clientName" ASC
     `;
@@ -173,6 +188,7 @@ export class DepositsService {
    */
   async findMonthlySummary(
     query: MonthlySummaryQueryDto,
+    staffScopeId?: string,
   ): Promise<MonthlySummaryResponseDto> {
     const { year, clientId } = query;
 
@@ -193,6 +209,7 @@ export class DepositsService {
       WHERE sr."receiptDate" >= ${startDate}::date
         AND sr."receiptDate" < (${endDate}::date + interval '1 day')
         ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
+        ${staffScopeId && !clientId ? Prisma.sql`AND EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedStaffId" = ${staffScopeId})` : Prisma.empty}
       GROUP BY TO_CHAR(sr."receiptDate", 'YYYY-MM'), sl."clientId", sl."clientName"
       ORDER BY month DESC, sl."clientName" ASC
     `;

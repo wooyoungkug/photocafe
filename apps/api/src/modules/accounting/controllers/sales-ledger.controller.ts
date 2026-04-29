@@ -6,6 +6,7 @@ import {
   Query,
   Body,
   UseGuards,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -17,6 +18,8 @@ import {
 } from '../dto/sales-ledger.dto';
 
 @ApiTags('매출원장')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('sales-ledger')
 export class SalesLedgerController {
   constructor(private readonly salesLedgerService: SalesLedgerService) {}
@@ -24,8 +27,11 @@ export class SalesLedgerController {
   // ===== 매출원장 목록 조회 =====
   @Get()
   @ApiOperation({ summary: '매출원장 목록 조회' })
-  async findAll(@Query() query: SalesLedgerQueryDto) {
-    return this.salesLedgerService.findAll(query);
+  async findAll(@Query() query: SalesLedgerQueryDto, @Request() req: any) {
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.salesLedgerService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.salesLedgerService.findAll(query, staffScopeId);
   }
 
   // ===== 카드/선불 결제 SalesReceipt 백필 =====
@@ -50,32 +56,45 @@ export class SalesLedgerController {
   // ===== 매출원장 요약 (대시보드) =====
   @Get('summary')
   @ApiOperation({ summary: '매출원장 요약 (당월 매출, 수금, 미수금)' })
-  async getSummary() {
-    return this.salesLedgerService.getSummary();
+  async getSummary(@Request() req: any) {
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.salesLedgerService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.salesLedgerService.getSummary(staffScopeId);
   }
 
   // ===== 거래처별 매출 집계 =====
   @Get('client-summary')
   @ApiOperation({ summary: '거래처별 매출 집계' })
   async getClientSummary(
+    @Request() req: any,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
-    return this.salesLedgerService.getClientSummary({ startDate, endDate });
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.salesLedgerService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.salesLedgerService.getClientSummary({ startDate, endDate }, staffScopeId);
   }
 
   // ===== 월별 매출 추이 =====
   @Get('monthly-trend')
   @ApiOperation({ summary: '월별 매출 추이' })
-  async getMonthlyTrend(@Query('months') months?: string) {
-    return this.salesLedgerService.getMonthlyTrend(months ? parseInt(months) : 12);
+  async getMonthlyTrend(@Request() req: any, @Query('months') months?: string) {
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.salesLedgerService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.salesLedgerService.getMonthlyTrend(months ? parseInt(months) : 12, staffScopeId);
   }
 
   // ===== Aging 분석 (실 데이터) =====
   @Get('aging-analysis')
   @ApiOperation({ summary: 'Aging 분석 (실 데이터 기반)' })
-  async getAgingAnalysis(@Query('clientId') clientId?: string) {
-    return this.salesLedgerService.getAgingAnalysis(clientId);
+  async getAgingAnalysis(@Request() req: any, @Query('clientId') clientId?: string) {
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.salesLedgerService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.salesLedgerService.getAgingAnalysis(clientId, staffScopeId);
   }
 
   // ===== 거래처별 상세 분석 =====

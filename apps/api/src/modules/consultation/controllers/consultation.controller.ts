@@ -8,8 +8,11 @@ import {
   Body,
   Param,
   Query,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { ConsultationService } from '../services/consultation.service';
 import {
   CreateConsultationDto,
@@ -22,6 +25,8 @@ import {
 } from '../dto';
 
 @ApiTags('Consultations')
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('consultations')
 export class ConsultationController {
   constructor(private readonly consultationService: ConsultationService) {}
@@ -29,8 +34,11 @@ export class ConsultationController {
   @Get()
   @ApiOperation({ summary: '상담 목록 조회' })
   @ApiResponse({ status: 200, description: '상담 목록' })
-  async findAll(@Query() query: ConsultationQueryDto) {
-    return this.consultationService.findAll(query);
+  async findAll(@Query() query: ConsultationQueryDto, @Request() req: any) {
+    const staffScopeId = req.user?.type === 'staff'
+      ? await this.consultationService.getStaffSalesScopeId(req.user.sub)
+      : undefined;
+    return this.consultationService.findAll(query, staffScopeId);
   }
 
   @Get('stats')

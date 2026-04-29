@@ -1226,37 +1226,21 @@ export default function EmployeesPage() {
               {/* 조회 범위 */}
               <div className="p-4 border rounded-lg">
                 <h3 className="font-semibold mb-4">조회 범위</h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>회원 조회 범위</Label>
-                    <Select
-                      value={formData.memberViewScope}
-                      onValueChange={(v) => setFormData({ ...formData, memberViewScope: v as 'own' | 'all' })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="own">본인 담당 회원만</SelectItem>
-                        <SelectItem value="all">전체 회원</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>매출 조회 범위</Label>
-                    <Select
-                      value={formData.salesViewScope}
-                      onValueChange={(v) => setFormData({ ...formData, salesViewScope: v as 'own' | 'all' })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="own">본인 거래처만</SelectItem>
-                        <SelectItem value="all">전체 거래처</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                <div className="space-y-2">
+                  <Label>거래처 조회 범위</Label>
+                  <p className="text-[12px] text-gray-500">거래처 목록, 주문, 매출, 통계, CS 상담 등 모든 거래 데이터에 적용됩니다.</p>
+                  <Select
+                    value={formData.salesViewScope}
+                    onValueChange={(v) => setFormData({ ...formData, salesViewScope: v as 'own' | 'all', memberViewScope: v as 'own' | 'all' })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="own">본인 담당 거래처만</SelectItem>
+                      <SelectItem value="all">전체 거래처</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </TabsContent>

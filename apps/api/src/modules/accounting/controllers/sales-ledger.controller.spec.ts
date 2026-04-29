@@ -5,6 +5,8 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 // ===== Mock SalesLedgerService =====
 
+const mockReq = { user: { type: 'admin', sub: 'admin-id' } };
+
 function createMockSalesLedgerService() {
   return {
     findAll: jest.fn(),
@@ -26,6 +28,7 @@ function createMockSalesLedgerService() {
     getSummaryByStaff: jest.fn(),
     getCollectionByStaff: jest.fn(),
     getLedgersByStaff: jest.fn(),
+    getStaffSalesScopeId: jest.fn().mockResolvedValue(undefined),
   };
 }
 
@@ -65,9 +68,9 @@ describe('SalesLedgerController', () => {
       service.findAll.mockResolvedValue(mockResult);
 
       const query = { page: 1, limit: 20 };
-      const result = await controller.findAll(query as any);
+      const result = await controller.findAll(query as any, mockReq);
 
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, undefined);
       expect(result).toEqual(mockResult);
     });
 
@@ -83,9 +86,9 @@ describe('SalesLedgerController', () => {
         page: 1,
         limit: 20,
       };
-      await controller.findAll(query as any);
+      await controller.findAll(query as any, mockReq);
 
-      expect(service.findAll).toHaveBeenCalledWith(query);
+      expect(service.findAll).toHaveBeenCalledWith(query, undefined);
     });
   });
 
@@ -104,7 +107,7 @@ describe('SalesLedgerController', () => {
       };
       service.getSummary.mockResolvedValue(mockSummary);
 
-      const result = await controller.getSummary();
+      const result = await controller.getSummary(mockReq);
 
       expect(service.getSummary).toHaveBeenCalled();
       expect(result).toEqual(mockSummary);
@@ -118,23 +121,23 @@ describe('SalesLedgerController', () => {
     it('기간 필터를 서비스에 전달해야 한다', async () => {
       service.getClientSummary.mockResolvedValue([]);
 
-      await controller.getClientSummary('2026-01-01', '2026-01-31');
+      await controller.getClientSummary(mockReq, '2026-01-01', '2026-01-31');
 
       expect(service.getClientSummary).toHaveBeenCalledWith({
         startDate: '2026-01-01',
         endDate: '2026-01-31',
-      });
+      }, undefined);
     });
 
     it('기간 필터 없이 호출할 수 있어야 한다', async () => {
       service.getClientSummary.mockResolvedValue([]);
 
-      await controller.getClientSummary(undefined, undefined);
+      await controller.getClientSummary(mockReq, undefined, undefined);
 
       expect(service.getClientSummary).toHaveBeenCalledWith({
         startDate: undefined,
         endDate: undefined,
-      });
+      }, undefined);
     });
   });
 
@@ -145,17 +148,17 @@ describe('SalesLedgerController', () => {
     it('기본 12개월 추이를 조회해야 한다', async () => {
       service.getMonthlyTrend.mockResolvedValue([]);
 
-      await controller.getMonthlyTrend(undefined);
+      await controller.getMonthlyTrend(mockReq, undefined);
 
-      expect(service.getMonthlyTrend).toHaveBeenCalledWith(12);
+      expect(service.getMonthlyTrend).toHaveBeenCalledWith(12, undefined);
     });
 
     it('지정된 월 수로 추이를 조회해야 한다', async () => {
       service.getMonthlyTrend.mockResolvedValue([]);
 
-      await controller.getMonthlyTrend('6');
+      await controller.getMonthlyTrend(mockReq, '6');
 
-      expect(service.getMonthlyTrend).toHaveBeenCalledWith(6);
+      expect(service.getMonthlyTrend).toHaveBeenCalledWith(6, undefined);
     });
   });
 
@@ -173,18 +176,18 @@ describe('SalesLedgerController', () => {
       };
       service.getAgingAnalysis.mockResolvedValue(mockResult);
 
-      const result = await controller.getAgingAnalysis(undefined);
+      const result = await controller.getAgingAnalysis(mockReq, undefined);
 
-      expect(service.getAgingAnalysis).toHaveBeenCalledWith(undefined);
+      expect(service.getAgingAnalysis).toHaveBeenCalledWith(undefined, undefined);
       expect(result).toEqual(mockResult);
     });
 
     it('특정 거래처의 Aging 분석을 조회해야 한다', async () => {
       service.getAgingAnalysis.mockResolvedValue({ breakdown: [] });
 
-      await controller.getAgingAnalysis('client-1');
+      await controller.getAgingAnalysis(mockReq, 'client-1');
 
-      expect(service.getAgingAnalysis).toHaveBeenCalledWith('client-1');
+      expect(service.getAgingAnalysis).toHaveBeenCalledWith('client-1', undefined);
     });
   });
 
