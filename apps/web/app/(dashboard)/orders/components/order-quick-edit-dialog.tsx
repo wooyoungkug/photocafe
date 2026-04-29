@@ -1283,22 +1283,23 @@ export function OrderQuickEditDialog({
                             </label>
                           </div>
                           <Input
-                            type="number"
-                            min={0}
-                            value={edit.unitPrice}
+                            type="text"
+                            inputMode="numeric"
+                            value={edit.unitPrice.toLocaleString()}
                             readOnly={!edit.manualUnitPrice}
-                            onChange={(e) =>
-                              setItemEdits((prev) => ({
-                                ...prev,
-                                [item.id]: {
-                                  ...prev[item.id],
-                                  unitPrice: Math.max(
-                                    0,
-                                    Number(e.target.value)
-                                  ),
-                                },
-                              }))
-                            }
+                            onChange={(e) => {
+                              const raw = e.target.value.replace(/,/g, '');
+                              if (raw === '' || /^\d+$/.test(raw)) {
+                                setItemEdits((prev) => ({
+                                  ...prev,
+                                  [item.id]: {
+                                    ...prev[item.id],
+                                    unitPrice: Math.max(0, Number(raw) || 0),
+                                  },
+                                }));
+                              }
+                            }}
+                            onFocus={(e) => e.target.select()}
                             className={cn(
                               'w-32 h-8 text-sm',
                               !edit.manualUnitPrice && 'bg-slate-50 text-slate-700',
