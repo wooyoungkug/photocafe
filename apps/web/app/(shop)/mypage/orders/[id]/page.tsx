@@ -774,12 +774,32 @@ export default function OrderDetailPage() {
                                           <div className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center" style={{ display: 'none' }}>
                                             <span className="text-[10px] text-gray-400 px-1 text-center truncate max-w-full">{file.fileName}</span>
                                           </div>
+                                          {spreadBadges && (spreadBadges.left === null || spreadBadges.right === null) && (
+                                            <div
+                                              className={cn(
+                                                'absolute inset-y-0 w-1/2 pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden',
+                                                spreadBadges.left === null ? 'left-0 border-r-0 rounded-l-md' : 'right-0 border-l-0 rounded-r-md'
+                                              )}
+                                              aria-label="빈 페이지(空)"
+                                            >
+                                              <svg
+                                                className="absolute inset-0 w-full h-full"
+                                                viewBox="0 0 100 100"
+                                                preserveAspectRatio="none"
+                                                aria-hidden="true"
+                                              >
+                                                <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
+                                                <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
+                                              </svg>
+                                              <span className="relative text-2xl font-bold text-blue-500/90 select-none bg-blue-50/80 rounded px-1.5">空</span>
+                                            </div>
+                                          )}
                                           {spreadBadges ? (
                                             <>
-                                              <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.left !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                                              <div className={cn('absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.left !== null ? 'bg-red-600' : 'bg-blue-500')}>
                                                 {spreadBadges.left !== null ? spreadBadges.left : '空'}
                                               </div>
-                                              <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.right !== null ? 'bg-red-600' : 'bg-yellow-500')}>
+                                              <div className={cn('absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium', spreadBadges.right !== null ? 'bg-red-600' : 'bg-blue-500')}>
                                                 {spreadBadges.right !== null ? spreadBadges.right : '空'}
                                               </div>
                                             </>

@@ -583,10 +583,10 @@ export default function OrderListPage() {
                           }}
                         >
                           <div className="space-y-0.5">
-                            <div className="text-xs font-medium truncate text-foreground hover:underline" title={item.folderName || item.productName}>
+                            <div className="text-sm font-medium truncate text-foreground hover:underline" title={item.folderName || item.productName}>
                               {item.folderName || item.productName}
                             </div>
-                            <div className="text-[11px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.fabricName ? `원단:${item.fabricName}` : '', item.foilName ? `동판:${item.foilName}` : '', item.foilColor ? `박:${item.foilColor}` : '', item.foilPosition ? `위치:${item.foilPosition}` : ''].filter(Boolean).join(' / ')}>
+                            <div className="text-[13px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.fabricName ? `원단:${item.fabricName}` : '', item.foilName ? `동판:${item.foilName}` : '', item.foilColor ? `박:${item.foilColor}` : '', item.foilPosition ? `위치:${item.foilPosition}` : ''].filter(Boolean).join(' / ')}>
                               {item.size} / {item.printMethod} / {item.paper}
                               {item.bindingType && <> / {item.bindingType}</>}
                               {item.coverMaterial && <> / {item.coverMaterial}</>}
@@ -601,37 +601,37 @@ export default function OrderListPage() {
                         {/* 편집스타일 / 제본순서 */}
                         <TableCell className="text-center">
                           <div className="space-y-0.5">
-                            <div className="text-xs">
+                            <div className="text-sm">
                               {getPageLayoutLabel(item.pageLayout)}
                             </div>
-                            <div className="text-[11px] text-muted-foreground">
+                            <div className="text-[13px] text-muted-foreground">
                               {getBindingDirectionLabel(item.bindingDirection)}
                             </div>
                           </div>
                         </TableCell>
 
                         {/* 페이지 / 부수 */}
-                        <TableCell className="text-center text-xs">
+                        <TableCell className="text-center text-sm">
                           <div>{item.pages}p</div>
                           <div>{item.quantity}건</div>
                         </TableCell>
 
                         {/* 용량 + 원본받기/삭제 */}
-                        <TableCell className="text-center text-xs text-muted-foreground">
+                        <TableCell className="text-center text-sm text-muted-foreground">
                           {item.originalsDeleted ? (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-300 text-red-500">
+                            <Badge variant="outline" className="text-xs px-1 py-0 border-red-300 text-red-500">
                               삭제됨
                             </Badge>
                           ) : !hasOriginals ? (
                             <div className="space-y-1 whitespace-nowrap">
                               <div className="text-muted-foreground">{formatFileSize(Number(item.totalFileSize))}</div>
-                              <span className="text-[11px] text-muted-foreground">원본 없음</span>
+                              <span className="text-[13px] text-muted-foreground">원본 없음</span>
                             </div>
                           ) : (
                             <div className="space-y-1 whitespace-nowrap">
                               <div>{formatFileSize(Number(item.totalFileSize))}</div>
                               <button
-                                className="flex items-center justify-center gap-0.5 text-[11px] text-foreground hover:underline mx-auto disabled:opacity-50 whitespace-nowrap"
+                                className="flex items-center justify-center gap-0.5 text-[13px] text-foreground hover:underline mx-auto disabled:opacity-50 whitespace-nowrap"
                                 onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
                                 disabled={isDownloading === order.id}
                               >
@@ -640,7 +640,7 @@ export default function OrderListPage() {
                               </button>
                               {order.status === 'shipped' && (
                                 <button
-                                  className="flex items-center justify-center gap-0.5 text-[11px] text-red-500 hover:underline mx-auto"
+                                  className="flex items-center justify-center gap-0.5 text-[13px] text-red-500 hover:underline mx-auto"
                                   onClick={() => {
                                     setDeleteOriginalsOrderId(order.id);
                                     setDeleteOriginalsDialog(true);
@@ -657,7 +657,7 @@ export default function OrderListPage() {
                         {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
                         {idx === 0 && (
                           <TableCell
-                            className="text-right align-middle font-bold text-sm whitespace-nowrap"
+                            className="text-right align-middle font-bold text-base whitespace-nowrap"
                             rowSpan={items.length}
                           >
                             {Math.round(Number(order.finalAmount)).toLocaleString()}원
@@ -671,11 +671,11 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                           >
                             <div className="space-y-1">
-                              <Badge className={cn('text-xs font-semibold whitespace-nowrap', statusBadge.className)}>
+                              <Badge className={cn('text-sm font-semibold whitespace-nowrap', statusBadge.className)}>
                                 {statusBadge.label}
                               </Badge>
                               <div
-                                className="text-[11px] text-blue-600 hover:underline cursor-pointer"
+                                className="text-[13px] text-blue-600 hover:underline cursor-pointer"
                                 onClick={() => {
                                   setHistoryOrderId(order.id);
                                   setHistoryOrderNumber(order.orderNumber);
@@ -698,7 +698,7 @@ export default function OrderListPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="w-full text-xs h-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                className="w-full text-sm h-7 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                                 onClick={() => {
                                   setShippingOrder(order);
                                   setIsShippingDialogOpen(true);
@@ -717,7 +717,7 @@ export default function OrderListPage() {
                                 <Badge
                                   variant="outline"
                                   className={cn(
-                                    'text-[11px] px-2 py-0.5',
+                                    'text-[13px] px-2 py-0.5',
                                     badgeInfo.className,
                                     canOpenPdf && 'cursor-pointer hover:underline',
                                   )}
