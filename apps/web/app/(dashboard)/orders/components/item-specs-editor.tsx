@@ -464,6 +464,8 @@ export function ItemSpecsEditor({
         <div className="space-y-1 col-span-2">
           <Label className="text-[12px] text-slate-600">박/동판</Label>
           <div className="grid grid-cols-3 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[12px] text-slate-600">동판명</Label>
             <Select
               value={currentFoilName || undefined}
               onValueChange={(v) => {
@@ -505,6 +507,7 @@ export function ItemSpecsEditor({
                 )}
               </SelectContent>
             </Select>
+            </div>
 
             <div className="space-y-1">
               <Label className="text-[12px] text-slate-600">박컬러</Label>
