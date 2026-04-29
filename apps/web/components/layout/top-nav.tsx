@@ -113,7 +113,7 @@ export function TopNav() {
       </div>
 
       {/* 실제 렌더 */}
-      <ul className="flex items-center gap-1">
+      <ul className="flex items-center gap-0.5">
         {visibleItems.map((item) => {
           const isActive = isPathActive(item, pathname);
           const isOpen = openId === item.id;
@@ -127,7 +127,7 @@ export function TopNav() {
               <NavTrigger item={item} active={isActive} open={isOpen} />
               {isOpen && item.children && (
                 <div
-                  className="absolute left-0 top-full z-50 pt-1"
+                  className="absolute left-0 top-full z-50 pt-2"
                   onMouseEnter={() => {
                     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
                   }}
@@ -149,9 +149,9 @@ export function TopNav() {
             <button
               type="button"
               className={cn(
-                "flex items-center gap-1 rounded-md px-3 h-10 fs-menu-main font-normal text-black transition-colors",
-                "hover:bg-slate-100",
-                openId === "__more__" && "bg-slate-100",
+                "relative flex items-center gap-1 rounded-lg px-3 h-11 fs-menu-main font-medium text-slate-600 transition-colors",
+                "hover:bg-slate-100/70 hover:text-slate-900",
+                openId === "__more__" && "bg-slate-100/70 text-slate-900",
               )}
               aria-expanded={openId === "__more__" ? "true" : "false"}
             >
@@ -161,7 +161,7 @@ export function TopNav() {
             </button>
             {openId === "__more__" && (
               <div
-                className="absolute right-0 top-full z-50 pt-1"
+                className="absolute right-0 top-full z-50 pt-2"
                 onMouseEnter={() => {
                   if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
                 }}
@@ -204,16 +204,29 @@ function NavTrigger({
 }) {
   const Icon = item.icon;
   const className = cn(
-    "flex items-center gap-1 rounded-md px-3 h-10 text-[14px] font-normal transition-colors whitespace-nowrap",
-    active ? "bg-indigo-50 text-indigo-700" : "text-black hover:bg-slate-100",
-    open && "bg-slate-100",
+    "relative flex items-center gap-1.5 rounded-lg px-3 h-11 fs-menu-main font-medium transition-colors whitespace-nowrap",
+    active
+      ? "text-indigo-700"
+      : "text-slate-700 hover:bg-slate-100/70 hover:text-slate-900",
+    !active && open && "bg-slate-100/70 text-slate-900",
+    // 활성 상태 하단 인디케이터 바 (2px)
+    active &&
+      "after:absolute after:left-3 after:right-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-indigo-600",
   );
 
   const inner = (
     <>
-      <Icon className="h-4 w-4" />
+      <Icon className={cn("h-4 w-4", active ? "text-indigo-600" : "text-slate-500")} />
       <span>{item.name}</span>
-      {item.children && <ChevronDown className="h-3 w-3 ml-0.5" />}
+      {item.children && (
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 ml-0.5 transition-transform",
+            open && "rotate-180",
+            active ? "text-indigo-500" : "text-slate-400",
+          )}
+        />
+      )}
     </>
   );
 
@@ -255,32 +268,34 @@ function MoreOverflowPanel({
   onNavigate: () => void;
 }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white shadow-lg p-3 flex gap-6">
+    <div className="rounded-xl border border-slate-200/80 bg-white shadow-xl shadow-slate-900/5 ring-1 ring-slate-900/[0.02] p-4 flex gap-6">
       {items.map((item) => {
         const Icon = item.icon;
         const active = isPathActive(item, pathname);
         return (
-          <div key={item.id} className="flex flex-col min-w-[140px]">
+          <div key={item.id} className="flex flex-col min-w-[150px]">
             {item.href && !item.children ? (
               <Link
                 href={item.href}
                 onClick={onNavigate}
                 className={cn(
-                  "flex items-center gap-2 rounded-sm px-2 py-1.5 fs-menu-main font-bold whitespace-nowrap",
-                  active ? "bg-indigo-50 text-indigo-700" : "text-black hover:bg-slate-100",
+                  "flex items-center gap-2 rounded-md px-2 py-1.5 fs-menu-main font-semibold whitespace-nowrap transition-colors",
+                  active
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-slate-800 hover:bg-slate-50",
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className={cn("h-4 w-4 shrink-0", active ? "text-indigo-600" : "text-slate-500")} />
                 <span>{item.name}</span>
               </Link>
             ) : (
-              <div className="flex items-center gap-2 px-2 py-1.5 fs-menu-main font-bold text-slate-700 whitespace-nowrap">
-                <Icon className="h-4 w-4 shrink-0" />
+              <div className="flex items-center gap-2 px-2 pb-1.5 mb-1 fs-menu-mega-header font-bold text-slate-500 uppercase tracking-wide whitespace-nowrap border-b border-slate-100">
+                <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                 <span>{item.name}</span>
               </div>
             )}
             {item.children && (
-              <ul className="mb-1">
+              <ul className="flex flex-col">
                 {item.children.map((child) => {
                   const childActive =
                     pathname === child.href || pathname.startsWith(child.href + "/");
@@ -290,10 +305,10 @@ function MoreOverflowPanel({
                         href={child.href}
                         onClick={onNavigate}
                         className={cn(
-                          "block rounded-sm px-2 py-1 fs-menu-sub font-normal whitespace-nowrap",
+                          "block rounded-md px-2 py-1.5 fs-menu-sub font-normal whitespace-nowrap transition-colors",
                           childActive
                             ? "bg-indigo-50 text-indigo-700"
-                            : "text-black hover:bg-slate-100",
+                            : "text-slate-700 hover:bg-slate-50 hover:text-slate-900",
                         )}
                       >
                         {child.name}

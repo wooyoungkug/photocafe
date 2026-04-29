@@ -129,7 +129,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
 
   return (
     <TooltipProvider delayDuration={300}>
-      <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/80 bg-white/70 backdrop-blur-xl px-3 sm:px-4 lg:px-6 shadow-[0_1px_3px_0_rgba(0,0,0,0.04)]">
+      <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/70 bg-white/80 backdrop-blur-xl px-3 sm:px-4 lg:px-6">
         {/* Left section */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Mobile menu button */}

@@ -99,11 +99,14 @@ export function PinBar() {
   };
 
   return (
-    <div className="h-9 flex items-center gap-1 px-3 bg-slate-50 border-b border-slate-200 overflow-x-auto">
-      <Pin className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+    <div className="h-10 flex items-center gap-2 px-4 bg-white border-b border-slate-200 shadow-[0_1px_2px_-1px_rgba(15,23,42,0.06)] overflow-x-auto">
+      {/* 좌측 라벨 영역 (Pin 아이콘 + 라벨) — 시선 진입점 */}
+      <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+        <Pin className="h-3.5 w-3.5" />
+      </div>
 
       {visiblePins.length === 0 ? (
-        <span className="fs-pin font-normal text-slate-400 ml-1 shrink-0">
+        <span className="fs-pin font-normal text-slate-400 shrink-0">
           자주 쓰는 메뉴를 핀으로 고정해보세요
         </span>
       ) : (
@@ -128,14 +131,17 @@ export function PinBar() {
         </DndContext>
       )}
 
-      <button
-        type="button"
-        onClick={() => setDialogOpen(true)}
-        className="ml-auto inline-flex items-center gap-1 rounded-md px-2 h-7 fs-pin font-normal text-slate-600 hover:bg-white hover:text-indigo-700 hover:shadow-sm transition-colors shrink-0"
-      >
-        <Plus className="h-3.5 w-3.5" />
-        <span>핀 추가</span>
-      </button>
+      {/* 우측 + 핀 추가 — 좌측 구분선으로 핀 그룹과 분리 */}
+      <div className="ml-auto flex items-center gap-2 shrink-0 pl-2 border-l border-slate-200/80">
+        <button
+          type="button"
+          onClick={() => setDialogOpen(true)}
+          className="inline-flex items-center gap-1 rounded-md px-2.5 h-7 fs-pin font-medium text-slate-500 hover:bg-white hover:text-indigo-700 hover:shadow-sm hover:ring-1 hover:ring-slate-200 transition-all"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          <span>핀 추가</span>
+        </button>
+      </div>
 
       <PinAddDialog
         open={dialogOpen}
@@ -178,14 +184,17 @@ function SortablePin({ href, name, parentName, active, onRemove }: SortablePinPr
       <Link
         href={href}
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-md px-2.5 h-7 fs-pin font-normal transition-colors whitespace-nowrap select-none cursor-grab active:cursor-grabbing",
+          "inline-flex items-center gap-1.5 rounded-md px-2.5 h-7 fs-pin transition-all whitespace-nowrap select-none cursor-grab active:cursor-grabbing",
           active
-            ? "bg-indigo-100 text-indigo-700"
-            : "text-black hover:bg-white hover:shadow-sm",
+            ? "bg-white text-indigo-700 font-medium ring-1 ring-indigo-200 shadow-sm"
+            : "text-slate-600 font-normal hover:bg-white hover:text-slate-900 hover:ring-1 hover:ring-slate-200 hover:shadow-sm",
         )}
         title={parentName ? `${parentName} › ${name}` : name}
         draggable={false}
       >
+        {active && (
+          <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 shrink-0" aria-hidden="true" />
+        )}
         <span>{name}</span>
       </Link>
       <button
@@ -197,9 +206,9 @@ function SortablePin({ href, name, parentName, active, onRemove }: SortablePinPr
           onRemove();
         }}
         className={cn(
-          "absolute -top-1 -right-1 rounded-full bg-slate-700 text-white p-0.5",
+          "absolute -top-1 -right-1 rounded-full bg-slate-600 text-white p-0.5 shadow-sm ring-2 ring-slate-50",
           "opacity-0 group-hover:opacity-100 transition-opacity",
-          "hover:bg-red-600",
+          "hover:bg-rose-600",
         )}
         aria-label={`${name} 핀 제거`}
       >
