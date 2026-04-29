@@ -1131,21 +1131,21 @@ export function OrderQuickEditDialog({
                                       }))
                                     }
                                     className={cn(
-                                      'flex flex-col items-center gap-0.5 px-1 py-0.5 rounded border transition-colors',
+                                      'flex flex-col items-center gap-1 px-2 py-1.5 rounded border transition-colors',
                                       isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
                                     )}
                                   >
-                                    <span className="flex items-center gap-1">
-                                      <span className="flex gap-px">
-                                        <span className={cn('w-4 h-6 rounded-sm', startLeft ? 'bg-blue-500' : 'bg-gray-200')} />
-                                        <span className={cn('w-4 h-6 rounded-sm', startLeft ? 'bg-gray-200' : 'bg-blue-500')} />
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="flex gap-0.5">
+                                        <span className={cn('w-6 h-9 rounded-sm', startLeft ? 'bg-blue-500' : 'bg-gray-200')} />
+                                        <span className={cn('w-6 h-9 rounded-sm', startLeft ? 'bg-gray-200' : 'bg-blue-500')} />
                                       </span>
-                                      <span className="flex gap-px">
-                                        <span className={cn('w-4 h-6 rounded-sm', endRight ? 'bg-gray-200' : 'bg-blue-500')} />
-                                        <span className={cn('w-4 h-6 rounded-sm', endRight ? 'bg-blue-500' : 'bg-gray-200')} />
+                                      <span className="flex gap-0.5">
+                                        <span className={cn('w-6 h-9 rounded-sm', endRight ? 'bg-gray-200' : 'bg-blue-500')} />
+                                        <span className={cn('w-6 h-9 rounded-sm', endRight ? 'bg-blue-500' : 'bg-gray-200')} />
                                       </span>
                                     </span>
-                                    <span className={cn('text-[8px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
+                                    <span className={cn('text-[11px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
                                   </button>
                                 );
                               })}
@@ -1171,15 +1171,15 @@ export function OrderQuickEditDialog({
                                       }));
                                     }}
                                     className={cn(
-                                      'flex flex-col items-center gap-0.5 px-1 py-0.5 rounded border transition-colors',
+                                      'flex flex-col items-center gap-1 px-2 py-1.5 rounded border transition-colors',
                                       isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
                                     )}
                                   >
-                                    <span className="flex gap-px">
-                                      <span className={cn('w-4 h-6 rounded-sm', side === 'LEFT' ? 'bg-blue-500' : 'bg-gray-200')} />
-                                      <span className={cn('w-4 h-6 rounded-sm', side === 'RIGHT' ? 'bg-blue-500' : 'bg-gray-200')} />
+                                    <span className="flex gap-0.5">
+                                      <span className={cn('w-6 h-9 rounded-sm', side === 'LEFT' ? 'bg-blue-500' : 'bg-gray-200')} />
+                                      <span className={cn('w-6 h-9 rounded-sm', side === 'RIGHT' ? 'bg-blue-500' : 'bg-gray-200')} />
                                     </span>
-                                    <span className={cn('text-[8px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
+                                    <span className={cn('text-[11px] leading-none', isSelected ? 'text-blue-600 font-medium' : 'text-gray-400')}>{label}</span>
                                   </button>
                                 );
                               })}
