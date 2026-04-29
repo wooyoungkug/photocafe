@@ -10,6 +10,7 @@ import { PrintPdfRendererService, IndexData } from './print-pdf-renderer.service
 import { PrintPdfLayoutService, SpecInput, PaperInput } from './print-pdf-layout.service';
 import { PrintPdfSlipPrinterService } from './print-pdf-slip-printer.service';
 import { ImpositionMatcherService } from '../../imposition/services/imposition-matcher.service';
+import { B2StorageService } from '../../upload/services/b2-storage.service';
 import * as crypto from 'crypto';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -35,6 +36,7 @@ export class PrintPdfService implements OnModuleInit {
     private readonly renderer: PrintPdfRendererService,
     private readonly layout: PrintPdfLayoutService,
     private readonly slipPrinter: PrintPdfSlipPrinterService,
+    private readonly b2Storage: B2StorageService,
     @Optional() private readonly matcher?: ImpositionMatcherService,
   ) {}
 
@@ -708,6 +710,35 @@ export class PrintPdfService implements OnModuleInit {
       // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용
       const tempDir = path.join(process.cwd(), 'uploads', 'temp', 'pdf-convert');
 
+      // ===== B2 폴백 다운로드: 로컬 디스크에 없으면 B2 백업에서 복원 =====
+      // Railway 컨테이너 재시작 시 /app/uploads 가 비워져도 원본 파일을
+      // /app/uploads/.b2-cache/{orderNumber}/{fileName} 로 자동 복원한다.
+      // imposition 흐름과 동일 헬퍼 사용 — 두 경로의 파일 해석 정합성 유지.
+      const uploadBase = process.env.UPLOAD_BASE_PATH || path.join(process.cwd(), 'uploads');
+      const isLocallyAvailable = (f: any): string => {
+        if (f.originalPath && fs.existsSync(f.originalPath)) return f.originalPath;
+        // base64 데이터는 즉시 사용 가능 — B2 다운로드 불필요
+        if (typeof f.fileUrl === 'string' && f.fileUrl.startsWith('data:')) return 'inline';
+        const url: string | undefined = f.fileUrl;
+        if (url && (url.startsWith('/uploads/') || url.startsWith('uploads/'))) {
+          const rel = url.replace(/^\/?uploads\/?/, '');
+          const candidates = new Set<string>([path.join(uploadBase, rel)]);
+          try {
+            candidates.add(path.join(uploadBase, decodeURIComponent(rel)));
+          } catch { /* malformed URI 무시 */ }
+          for (const c of candidates) {
+            if (fs.existsSync(c)) return c;
+          }
+        }
+        return '';
+      };
+      await this.b2Storage.hydrateB2CacheForFiles(
+        item.order.orderNumber,
+        (item.files || []) as any,
+        uploadBase,
+        isLocallyAvailable,
+      );
+
       for (const f of (item.files || [])) {
         try {
           // 1) 디스크 파일이 있으면 그대로 사용
@@ -756,6 +787,8 @@ export class PrintPdfService implements OnModuleInit {
             continue;
           }
 
+          // B2 폴백은 위(루프 진입 전) hydrateB2CacheForFiles 가 처리하여 f.originalPath 를
+          // 캐시 경로로 갱신해두므로, 여기 도달했다는 건 B2 에서도 받지 못한 것을 의미한다.
           this.logger.warn(`File ${f.fileName}: no valid source (originalPath=${f.originalPath}, fileUrl type=${f.fileUrl?.substring(0, 20)})`);
         } catch (fileErr: any) {
           this.logger.error(`File ${f.fileName} processing failed: ${fileErr.message}`);

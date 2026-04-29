@@ -2,6 +2,20 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * order.service.sanitizeStorageKeyPart 와 동일한 정규화.
+ * 업로드/다운로드 양쪽이 같은 키를 만들어야 매칭됨.
+ */
+function sanitizeStorageKeyPart(value: string): string {
+  return value
+    .replace(/\\/g, '/')
+    .replace(/^\.+/, '')
+    .replace(/\.\./g, '_')
+    .replace(/[^a-zA-Z0-9._/-]/g, '_');
+}
 
 /** Backblaze B2 S3-compatible API region (docs: us-east-005) */
 const B2_REGION = 'us-east-005';
@@ -165,5 +179,56 @@ export class B2StorageService implements OnModuleInit {
     await s3.send(
       new DeleteObjectCommand({ Bucket: this.publicBucket, Key: key }),
     );
+  }
+
+  /**
+   * Railway 컨테이너 재시작으로 /app/uploads 가 비워졌을 때, B2 백업 원본을
+   * 로컬 캐시(`{uploadBase}/.b2-cache/{orderNumber}/{fileName}`)에 자동 복원한다.
+   *
+   * - resolveLocalPath(f) 가 빈 문자열을 반환하는 파일만 다운로드 대상.
+   * - 캐시에 이미 있으면 다운로드 스킵 후 originalPath 만 갱신.
+   * - B2 비활성/다운로드 실패는 조용히 스킵 — 호출자의 missing 검증에서 잡힌다.
+   *
+   * 부수효과: 다운로드 또는 캐시 매칭 성공 시 `f.originalPath = cachePath` 로
+   *           입력 배열 원소를 mutate. 이후 resolveLocalPath 가 캐시 경로를 즉시 해석.
+   *
+   * B2 키 규칙: `orders/{safeOrderNumber}/originals/{safeFileName}`
+   *   — order.service.uploadMovedFileToB2 와 동일.
+   */
+  async hydrateB2CacheForFiles(
+    orderNumber: string,
+    files: Array<{ originalPath?: string | null; fileUrl?: string | null; fileName?: string | null }>,
+    uploadBase: string,
+    resolveLocalPath: (f: any) => string,
+  ): Promise<void> {
+    if (!this.enabled) return;
+    if (!orderNumber || !files?.length) return;
+
+    const cacheDir = path.join(uploadBase, '.b2-cache', orderNumber);
+    const safeOrder = sanitizeStorageKeyPart(orderNumber);
+
+    for (const f of files) {
+      if (resolveLocalPath(f)) continue;
+      const fileName = (f.fileName || '').toString();
+      if (!fileName) continue;
+      try {
+        const safeName = sanitizeStorageKeyPart(fileName);
+        const b2Key = `orders/${safeOrder}/originals/${safeName}`;
+        const cachePath = path.join(cacheDir, fileName);
+        if (fs.existsSync(cachePath)) {
+          (f as any).originalPath = cachePath;
+          continue;
+        }
+        const url = await this.getPrivatePresignedUrl(b2Key, 300);
+        const res = await fetch(url);
+        if (!res.ok) continue;
+        const buf = Buffer.from(await res.arrayBuffer());
+        fs.mkdirSync(cacheDir, { recursive: true });
+        fs.writeFileSync(cachePath, buf);
+        (f as any).originalPath = cachePath;
+      } catch {
+        // 다운로드 실패는 호출자 missing 검증에서 처리
+      }
+    }
   }
 }
