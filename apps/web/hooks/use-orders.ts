@@ -185,6 +185,7 @@ export interface CreateOrderDto {
     fabricName?: string;
     folderName?: string;
     fileCount?: number;
+    fileSpecId?: string;
   }[];
   shipping: {
     recipientName: string;

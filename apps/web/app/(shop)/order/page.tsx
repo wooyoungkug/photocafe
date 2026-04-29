@@ -684,6 +684,7 @@ export default function OrderPage() {
           foilColor: albumInfo.foilColor || undefined,
           foilPosition: albumInfo.foilPosition || undefined,
           folderName: albumInfo.folderName,
+          fileSpecId: albumInfo.specificationId || undefined,
           files: (item.serverFiles || []).map((sf, idx) => ({
             fileName: sf.fileName || sf.tempFileId?.split('/').pop() || `page_${idx + 1}.jpg`,
             fileUrl: sf.fileUrl,

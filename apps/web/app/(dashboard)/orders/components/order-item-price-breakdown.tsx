@@ -51,12 +51,20 @@ export function OrderItemPriceBreakdown({
       if (byId) return byId;
     }
     if (orderItem.size) {
-      // 2) ProductSpecification.name 직접 매칭
-      const byName = product.specifications.find((ps) => ps.name === orderItem.size);
+      // "12×15인치" → "12x15" 형식으로 정규화 (DB 저장 형식과 표시 레이블 불일치 대응)
+      const normalizeSize = (s: string) =>
+        s.replace(/인치/g, '').replace(/[×✕]/g, 'x').replace(/\s/g, '').toLowerCase();
+      const normalizedOrderSize = normalizeSize(orderItem.size);
+      // 2) ProductSpecification.name 직접 매칭 (정규화 포함)
+      const byName = product.specifications.find(
+        (ps) => ps.name === orderItem.size || normalizeSize(ps.name) === normalizedOrderSize,
+      );
       if (byName) return byName;
       // 3) 연결된 Specification.name 매칭 (샵 주문은 fileSpecId 없이 size=Specification.name으로 생성됨)
       const bySpecName = product.specifications.find(
-        (ps) => ps.specificationName === orderItem.size,
+        (ps) =>
+          ps.specificationName === orderItem.size ||
+          normalizeSize(ps.specificationName ?? '') === normalizedOrderSize,
       );
       if (bySpecName) return bySpecName;
     }

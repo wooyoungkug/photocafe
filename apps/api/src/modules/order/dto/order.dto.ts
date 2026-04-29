@@ -342,6 +342,11 @@ export class CreateOrderItemDto {
   @IsString()
   bindingDirection?: string;
 
+  @ApiPropertyOptional({ description: '규격 ID (Specification.id) — 주문 생성 시 가격 산출 규격 연결용' })
+  @IsOptional()
+  @IsString()
+  fileSpecId?: string;
+
   @ApiPropertyOptional({ description: '항목별 배송 정보' })
   @IsOptional()
   @ValidateNested()
