@@ -1039,12 +1039,6 @@ export function OrderQuickEditDialog({
                             </Badge>
                           )}
                         </div>
-                        <Badge
-                          variant="secondary"
-                          className="text-xs shrink-0 ml-2"
-                        >
-                          {item.pages}p
-                        </Badge>
                       </div>
                     </div>
 
