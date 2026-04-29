@@ -167,6 +167,13 @@ export default function ShootingPage() {
     [router]
   );
 
+  const handleDateDoubleClick = useCallback(
+    (date: Date) => {
+      router.push(`/shooting/new?date=${format(date, 'yyyy-MM-dd')}`);
+    },
+    [router]
+  );
+
   return (
     <div className="h-full flex flex-col">
       {/* 페이지 헤더 - 네이버 캘린더 스타일 */}
@@ -373,6 +380,7 @@ export default function ShootingPage() {
                   onDateSelect={setSelectedDate}
                   onMonthChange={setCurrentMonth}
                   onShootingClick={handleShootingClick}
+                  onDateDoubleClick={handleDateDoubleClick}
                 />
               )}
             </CardContent>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +11,8 @@ import { ShootingForm } from '@/components/shooting/shooting-form';
 
 export default function ShootingNewPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefilledDate = searchParams.get('date') ?? undefined;
   const { toast } = useToast();
   const { isAuthenticated } = useAuthStore();
   const createMutation = useCreateShooting();
@@ -59,6 +61,7 @@ export default function ShootingNewPage() {
         onCancel={handleCancel}
         isLoading={createMutation.isPending}
         mode="create"
+        defaultValues={prefilledDate ? { shootingDate: prefilledDate } : undefined}
       />
     </div>
   );
