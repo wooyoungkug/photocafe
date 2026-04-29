@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 // 주문 상태
@@ -319,6 +319,130 @@ export function useAdjustOrder() {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.id] });
     },
+  });
+}
+
+// ==================== 편집 + 메시지/감사 ====================
+
+// 주문 편집 시 통과해야 하는 재출력 단계 — 본 상태에서 사양 변경 시 ReprintConfirmDialog로 인터셉트
+export const ORDER_REPRINT_REQUIRED_STATUSES = [
+  'printed',
+  'ready_for_shipping',
+  'reprint_requested',
+  'reprint_in_production',
+];
+
+export interface EditOrderWithAuditPayload extends AdjustOrderData {
+  message?: string;
+  notifyOperator?: boolean;
+  assignPrintOperatorId?: string | null;
+}
+
+// PATCH /orders/:id/edit-with-message — 사양 편집 + 메시지/담당자/알림 함께 전송
+export function useEditOrderWithAudit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: EditOrderWithAuditPayload }) =>
+      api.patch<Order>(`/orders/${id}/edit-with-message`, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['order-edit-history', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+    },
+  });
+}
+
+// 재출력 요청 — POST /orders/:id/reprint
+export interface ReprintItemInput {
+  itemId: string;
+  pages: number[];
+  reason: string;
+}
+
+export interface ReprintRequestPayload {
+  items: ReprintItemInput[];
+  notifyOperator?: boolean;
+  settlementMode?: 'append_pending';
+}
+
+export interface ReprintJobResult {
+  id: string;
+  orderId: string;
+  status: string;
+  totalAdditionalCost: number;
+  createdAt: string;
+}
+
+export function useRequestReprint() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ReprintRequestPayload }) =>
+      api.post<ReprintJobResult>(`/orders/${id}/reprint`, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['order-edit-history', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['notifications', 'me'] });
+    },
+  });
+}
+
+// 출력담당자 지정 — PATCH /orders/:id/print-operator
+export function useSetPrintOperator() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, operatorId }: { id: string; operatorId: string | null }) =>
+      api.patch<Order>(`/orders/${id}/print-operator`, { operatorId }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['order-edit-history', variables.id] });
+    },
+  });
+}
+
+// 편집 이력 조회 — GET /orders/:id/edit-history
+export interface OrderEditHistoryChange {
+  field: string;
+  before: unknown;
+  after: unknown;
+  itemId?: string;
+}
+
+export interface OrderEditHistoryItem {
+  id: string;
+  orderId: string;
+  editorId?: string;
+  editor?: { id: string; name: string; staffId?: string };
+  changedFields: OrderEditHistoryChange[] | null;
+  message?: string | null;
+  notifyOperator?: boolean;
+  reprintJobId?: string | null;
+  reprintJob?: ReprintJobResult | null;
+  createdAt: string;
+}
+
+export interface OrderEditHistoryResponse {
+  items: OrderEditHistoryItem[];
+  nextCursor: string | null;
+}
+
+export function useOrderEditHistory(orderId: string | null, opts?: { limit?: number }) {
+  const limit = opts?.limit ?? 20;
+  return useInfiniteQuery({
+    queryKey: ['order-edit-history', orderId, limit],
+    queryFn: ({ pageParam }) =>
+      api.get<OrderEditHistoryResponse>(`/orders/${orderId}/edit-history`, {
+        limit,
+        cursor: pageParam as string | undefined,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    enabled: !!orderId,
   });
 }
 
