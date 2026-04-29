@@ -175,7 +175,7 @@ export default function PrintQueueTable({
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   {item.fileCount}
                 </TableCell>
-                <TableCell className="text-[14px] text-black font-normal">
+                <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   {item.paper || <span className="text-red-600">미설정</span>}
                 </TableCell>
                 <TableCell
