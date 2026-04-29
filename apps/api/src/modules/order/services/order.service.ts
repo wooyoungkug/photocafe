@@ -394,6 +394,7 @@ export class OrderService {
               id: true,
               clientCode: true,
               clientName: true,
+              assignedManager: true,
               assignedStaff: {
                 orderBy: { isPrimary: 'desc' },
                 select: {
@@ -480,6 +481,23 @@ export class OrderService {
     );
     const nameMap = await this.resolveProcessedByNames(processedByIds);
 
+    // assignedManager(거래처 영업담당자) ID → 이름 변환
+    const managerIds = Array.from(
+      new Set(
+        data
+          .map(o => (o.client as any)?.assignedManager as string | null | undefined)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    const managerNameMap: Record<string, string> = {};
+    if (managerIds.length > 0) {
+      const managerRecords = await this.prisma.staff.findMany({
+        where: { id: { in: managerIds } },
+        select: { id: true, name: true },
+      });
+      managerRecords.forEach(s => { managerNameMap[s.id] = s.name; });
+    }
+
     // 각 주문 아이템별 원본 파일(uploaded) 수 조회
     const allItemIds = data.flatMap(order => order.items.map(item => item.id));
     const originalFileCounts = allItemIds.length > 0
@@ -497,17 +515,28 @@ export class OrderService {
       originalFileCounts.map(r => [r.orderItemId, r._count]),
     );
 
-    const enrichedData = data.map(order => ({
-      ...order,
-      items: order.items.map(item => ({
-        ...item,
-        originalFileCount: originalCountMap.get(item.id) || 0,
-      })),
-      processHistory: order.processHistory?.map(h => ({
-        ...h,
-        processedByName: nameMap[h.processedBy] || '-',
-      })),
-    }));
+    const enrichedData = data.map(order => {
+      const client = order.client as any;
+      const managerId = client?.assignedManager as string | null | undefined;
+      const managerName = managerId ? managerNameMap[managerId] || null : null;
+      // assignedManager(단일 컬럼) 우선, 없으면 assignedStaff(junction) fallback
+      const fallbackStaffName = client?.assignedStaff?.[0]?.staff?.name || null;
+      return {
+        ...order,
+        client: {
+          ...client,
+          managerName: managerName || fallbackStaffName,
+        },
+        items: order.items.map(item => ({
+          ...item,
+          originalFileCount: originalCountMap.get(item.id) || 0,
+        })),
+        processHistory: order.processHistory?.map(h => ({
+          ...h,
+          processedByName: nameMap[h.processedBy] || '-',
+        })),
+      };
+    });
 
     return {
       data: enrichedData,

@@ -123,6 +123,8 @@ export interface Order {
     id: string;
     clientCode: string;
     clientName: string;
+    assignedManager?: string | null;
+    managerName?: string | null;
     assignedStaff?: { staff: { id: string; name: string } }[];
   };
   productPrice: number;
