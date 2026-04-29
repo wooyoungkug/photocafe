@@ -135,9 +135,11 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
     />
   );
 
-  // 빈페이지 슬롯 렌더링
+  // 빈페이지 슬롯 렌더링 — 첫장/막장의 빈쪽을 "空" 한자로 시각화
   const renderBlankSlot = (key: string) => (
-    <div key={key} className="relative rounded border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4]" />
+    <div key={key} className="relative rounded border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4] flex items-center justify-center">
+      <span className="text-3xl font-bold text-blue-400/70 select-none">空</span>
+    </div>
   );
 
   // 낱장: 2p씩 묶어서 외각박스 + 가상 빈페이지 표시

@@ -302,7 +302,9 @@ function ThumbnailGrid({
 
     const renderBlankSlot = () => (
       <div className="flex flex-col">
-        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4]" />
+        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4] flex items-center justify-center">
+          <span className="text-3xl font-bold text-blue-400/70 select-none">空</span>
+        </div>
       </div>
     );
 

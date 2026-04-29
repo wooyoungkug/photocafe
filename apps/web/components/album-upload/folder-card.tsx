@@ -1228,13 +1228,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                 ? (folder.files[0].heightPx / folder.files[0].widthPx) * 100
                 : 133;
 
-              // 빈페이지 슬롯 렌더링
+              // 빈페이지 슬롯 렌더링 — 첫장/막장의 빈쪽을 "空" 한자로 시각화
               const renderBlankSlot = () => (
                 <div className="flex flex-col">
                   <div
                     className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20"
                     style={{ paddingTop: `${defaultAspect}%` }}
-                  />
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-3xl font-bold text-blue-400/70 select-none">空</span>
+                    </div>
+                  </div>
                 </div>
               );
 
