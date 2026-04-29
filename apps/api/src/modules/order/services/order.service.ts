@@ -1692,6 +1692,8 @@ export class OrderService {
               ...(update.colorIntentId !== undefined && { colorIntentId: update.colorIntentId }),
               ...(update.printSide !== undefined && { printSide: update.printSide }),
               ...(update.fileSpecId !== undefined && { fileSpecId: update.fileSpecId }),
+              ...(update.bindingType !== undefined && { bindingType: update.bindingType }),
+              ...(update.finishingOptions !== undefined && { finishingOptions: update.finishingOptions }),
             },
           });
         }
@@ -4185,6 +4187,7 @@ export class OrderService {
       'quantity', 'unitPrice', 'totalPrice', 'pageLayout', 'bindingDirection',
       'fabricName', 'foilName', 'foilColor', 'foilPosition',
       'paper', 'printMethod', 'colorIntentId', 'printSide', 'fileSpecId',
+      'bindingType', 'finishingOptions',
     ];
     const headerDiff = this.diffOrderFields(prev, next, orderFields);
     const itemDiffs: Array<{ itemId: string; changes: Array<{ field: string; before: any; after: any }> }> = [];

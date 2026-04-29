@@ -855,6 +855,17 @@ export class AdjustOrderItemDto {
   @IsOptional()
   @IsString()
   fileSpecId?: string;
+
+  @ApiPropertyOptional({ description: '제본' })
+  @IsOptional()
+  @IsString()
+  bindingType?: string;
+
+  @ApiPropertyOptional({ description: '후가공 옵션', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  finishingOptions?: string[];
 }
 
 export class AdjustOrderDto {

@@ -662,7 +662,8 @@ export function OrderQuickEditDialog({
         colorIntentId: itemEdits[item.id].colorIntentId,
         printSide: itemEdits[item.id].printSide,
         fileSpecId: itemEdits[item.id].fileSpecId,
-        // bindingType, finishingOptions 는 백엔드 AdjustOrderItemDto 미지원 → 별도 PR 필요
+        bindingType: itemEdits[item.id].bindingType,
+        finishingOptions: itemEdits[item.id].finishingOptions,
       }));
 
   // 실제 백엔드 저장 호출 (재출력 인터셉트 통과 후 또는 일반 상태에서)
