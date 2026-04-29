@@ -17,13 +17,30 @@ import { Type } from 'class-transformer';
 
 // ==================== 주문 상태 ====================
 export const ORDER_STATUS = {
-  PENDING_RECEIPT: 'pending_receipt',       // 접수대기
-  RECEIPT_COMPLETED: 'receipt_completed',   // 접수완료
-  IN_PRODUCTION: 'in_production',           // 생산진행
-  READY_FOR_SHIPPING: 'ready_for_shipping', // 배송준비
-  SHIPPED: 'shipped',                       // 배송완료
-  CANCELLED: 'cancelled',                   // 취소
+  PENDING_RECEIPT: 'pending_receipt',             // 접수대기
+  RECEIPT_COMPLETED: 'receipt_completed',         // 접수완료
+  IN_PRODUCTION: 'in_production',                 // 생산진행
+  PRINTED: 'printed',                             // 출력완료 (배송준비 직전, 재출력 분기 기준점)
+  READY_FOR_SHIPPING: 'ready_for_shipping',       // 배송준비
+  SHIPPED: 'shipped',                             // 배송완료
+  CANCELLED: 'cancelled',                         // 취소
+  REPRINT_REQUESTED: 'reprint_requested',         // 재출력요청 (출력완료 후 사양 수정)
+  REPRINT_IN_PRODUCTION: 'reprint_in_production', // 재출력진행
 } as const;
+
+// 편집 차단 상태 (이 두 상태에서는 사양/금액 수정 불가)
+export const ORDER_EDIT_BLOCKED_STATUSES = [
+  ORDER_STATUS.SHIPPED,
+  ORDER_STATUS.CANCELLED,
+] as const;
+
+// 출력완료 이후 상태 — 사양 변경 시 ReprintJob 분기로 진입
+export const ORDER_REPRINT_REQUIRED_STATUSES = [
+  ORDER_STATUS.PRINTED,
+  ORDER_STATUS.READY_FOR_SHIPPING,
+  ORDER_STATUS.REPRINT_REQUESTED,
+  ORDER_STATUS.REPRINT_IN_PRODUCTION,
+] as const;
 
 export const PROCESS_STATUS = {
   RECEIPT_PENDING: 'receipt_pending',       // 접수대기
