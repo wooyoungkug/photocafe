@@ -1404,38 +1404,6 @@ export function OrderQuickEditDialog({
                 </div>
               </div>
 
-              <Separator />
-
-              {/* Price summary */}
-              <div className="bg-slate-50 rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-y-2 text-sm">
-                  <span className="text-muted-foreground">상품금액</span>
-                  <span className="text-right">
-                    {productTotal.toLocaleString()}원
-                  </span>
-                  <span className="text-muted-foreground">부가세 (10%)</span>
-                  <span className="text-right">
-                    {tax.toLocaleString()}원
-                  </span>
-                  <span className="text-muted-foreground">배송비</span>
-                  <span className="text-right">
-                    {shippingFee.toLocaleString()}원
-                  </span>
-                  {discountAmount > 0 && (
-                    <>
-                      <span className="text-red-600">할인금액</span>
-                      <span className="text-right text-red-600">
-                        -{discountAmount.toLocaleString()}원
-                      </span>
-                    </>
-                  )}
-                  <Separator className="col-span-2 my-1" />
-                  <span className="font-bold">최종금액</span>
-                  <span className="text-right font-bold text-blue-600 text-base">
-                    {finalTotal.toLocaleString()}원
-                  </span>
-                </div>
-              </div>
             </>
           )}
         </div>
