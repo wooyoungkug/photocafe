@@ -70,7 +70,6 @@ function ThumbnailItem({
   blankLabel: string;
 }) {
   const [hasError, setHasError] = useState(false);
-  const [imgRatio, setImgRatio] = useState<number | null>(null);
 
   return (
     <div className="relative rounded overflow-hidden border border-gray-200 bg-white">
@@ -84,12 +83,6 @@ function ThumbnailItem({
           alt={`${idx + 1}`}
           className="w-full h-auto"
           loading="lazy"
-          onLoad={(e) => {
-            const img = e.currentTarget;
-            if (img.naturalWidth && img.naturalHeight) {
-              setImgRatio(img.naturalWidth / img.naturalHeight);
-            }
-          }}
           onError={() => setHasError(true)}
         />
       )}
@@ -101,13 +94,9 @@ function ThumbnailItem({
         return (
           <div
             className={cn(
-              'absolute top-1/2 -translate-y-1/2 max-w-[48%] max-h-[96%] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded',
-              leftBlank ? 'left-[2%]' : 'right-[2%]'
+              'absolute inset-y-0.5 w-[calc(50%-2px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded',
+              leftBlank ? 'left-0.5' : 'right-0.5'
             )}
-            style={{
-              aspectRatio: imgRatio ? String(imgRatio) : '4/5',
-              width: imgRatio && imgRatio > 1 ? '48%' : `${Math.min(48, (imgRatio ?? 0.8) * 50)}%`,
-            }}
             aria-label={blankLabel}
           >
             <svg

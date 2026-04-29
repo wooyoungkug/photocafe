@@ -1124,17 +1124,12 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         const leftBlank = pages.left === null;
                         const rightBlank = pages.right === null;
                         if (!leftBlank && !rightBlank) return null;
-                        const fileRatio = file.widthPx && file.heightPx ? file.widthPx / file.heightPx : 0.8;
                         return (
                           <div
                             className={cn(
-                              'absolute top-1/2 -translate-y-1/2 max-w-[48%] max-h-[96%] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
-                              leftBlank ? 'left-[2%]' : 'right-[2%]'
+                              'absolute inset-y-1 w-[calc(50%-4px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
+                              leftBlank ? 'left-1' : 'right-1'
                             )}
-                            style={{
-                              aspectRatio: String(fileRatio),
-                              width: fileRatio > 1 ? '48%' : `${Math.min(48, fileRatio * 50)}%`,
-                            }}
                             aria-label={t('blank')}
                           >
                             <svg

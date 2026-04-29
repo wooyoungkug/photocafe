@@ -737,5 +737,18 @@
       "lowUtilization": "활용률이 50% 미만입니다. 시트 낭비가 큽니다.",
       "hdSheet": "HD 시트 사용 — 인디고 7900 HD DFE 호환성 확인 필요."
     }
+  },
+  "notifications": {
+    "title": "알림",
+    "markAllRead": "모두 읽음",
+    "empty": "새 알림이 없습니다",
+    "viewAll": "전체 보기",
+    "loadMore": "더 보기",
+    "types": {
+      "order_edit": "주문 수정",
+      "reprint_request": "재출력 요청",
+      "print_operator_assigned": "출력 담당 지정",
+      "order_status_changed": "주문 상태 변경"
+    }
   }
 }

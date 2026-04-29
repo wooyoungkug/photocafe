@@ -659,5 +659,18 @@
     "noTransactions": "該当期間の取引明細がありません",
     "exportCSV": "CSVダウンロード",
     "total": "合計"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "すべて既読",
+    "empty": "新しい通知はありません",
+    "viewAll": "すべて表示",
+    "loadMore": "もっと見る",
+    "types": {
+      "order_edit": "注文修正",
+      "reprint_request": "再印刷リクエスト",
+      "print_operator_assigned": "印刷担当割当",
+      "order_status_changed": "注文ステータス変更"
+    }
   }
 }

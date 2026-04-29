@@ -659,5 +659,18 @@
     "noTransactions": "所选期间没有交易记录",
     "exportCSV": "下载CSV",
     "total": "合计"
+  },
+  "notifications": {
+    "title": "通知",
+    "markAllRead": "全部标记为已读",
+    "empty": "暂无新通知",
+    "viewAll": "查看全部",
+    "loadMore": "加载更多",
+    "types": {
+      "order_edit": "订单修改",
+      "reprint_request": "重新打印请求",
+      "print_operator_assigned": "打印负责人分配",
+      "order_status_changed": "订单状态变更"
+    }
   }
 }

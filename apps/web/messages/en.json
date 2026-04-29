@@ -659,5 +659,18 @@
     "noTransactions": "No transactions for the selected period",
     "exportCSV": "Export CSV",
     "total": "Total"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No new notifications",
+    "viewAll": "View all",
+    "loadMore": "Load more",
+    "types": {
+      "order_edit": "Order edited",
+      "reprint_request": "Reprint requested",
+      "print_operator_assigned": "Print operator assigned",
+      "order_status_changed": "Order status changed"
+    }
   }
 }

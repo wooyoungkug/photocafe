@@ -4,7 +4,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Bell,
   Search,
   User,
   LogOut,
@@ -18,6 +17,7 @@ import {
   PanelTop,
   PanelLeft,
 } from "lucide-react";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useLogout, useCurrentUser, useChangePassword, useIsImpersonating, useEndImpersonation } from "@/hooks/use-auth";
 import { useUserPreferences, useUpdatePreferences } from "@/hooks/use-user-preferences";
 import { TopNav } from "./top-nav";
@@ -281,21 +281,12 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             </Tooltip>
           )}
 
-          {/* Notification button */}
+          {/* Notification bell with unread badge + popover dropdown */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="relative p-2 rounded-lg hover:bg-slate-100/80 active:bg-slate-200/60 transition-all duration-150 group"
-                aria-label="알림"
-              >
-                <Bell className="h-5 w-5 text-slate-500 group-hover:text-slate-700 transition-colors duration-150" />
-                {/* Notification indicator */}
-                <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white" />
-                </span>
-              </button>
+              <span className="inline-flex">
+                <NotificationBell />
+              </span>
             </TooltipTrigger>
             <TooltipContent side="bottom">알림</TooltipContent>
           </Tooltip>
