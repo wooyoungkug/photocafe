@@ -64,8 +64,10 @@ export class OrderController {
 
     // staff 타입: salesViewScope='own' 이면 본인 담당 거래처의 주문만 조회
     let clientAssignedStaffId: string | undefined;
+    console.log('[SCOPE] type=', req.user?.type, 'sub=', req.user?.sub);
     if (req.user?.type === 'staff') {
       clientAssignedStaffId = await this.orderService.getStaffSalesScopeId(req.user.sub);
+      console.log('[SCOPE] clientAssignedStaffId=', clientAssignedStaffId);
     }
 
     return this.orderService.findAll({
