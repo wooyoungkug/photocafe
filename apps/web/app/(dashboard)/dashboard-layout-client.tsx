@@ -37,7 +37,9 @@ export function DashboardLayoutClient({
   const [showNotifBanner, setShowNotifBanner] = useState(false);
 
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
+    if (!('Notification' in window)) return;
+    // 허용이 안 된 경우(default 또는 denied → 재유도) 배너 표시
+    if (Notification.permission !== 'granted') {
       setShowNotifBanner(true);
     }
   }, []);
