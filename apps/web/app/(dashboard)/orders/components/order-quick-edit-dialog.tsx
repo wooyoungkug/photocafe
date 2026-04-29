@@ -961,6 +961,7 @@ export function OrderQuickEditDialog({
                                 }))
                               }
                               readonly={blocked}
+                              clientId={displayOrder.clientId}
                             />
                           </div>
                         );

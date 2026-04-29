@@ -23,7 +23,9 @@ import { useState, useMemo } from 'react';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -33,7 +35,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Pencil } from 'lucide-react';
 import { useColorIntents } from '@/hooks/use-jdf';
 import { useProduct } from '@/hooks/use-products';
-import { useCopperPlateLabels } from '@/hooks/use-copper-plates';
+import { useCopperPlateLabels, useCopperPlatesByClient } from '@/hooks/use-copper-plates';
+import { usePublicCopperPlates } from '@/hooks/use-public-copper-plates';
 import { FabricPickerDialog } from '@/components/album-upload/fabric-picker-dialog';
 import type { OrderItem } from '@/hooks/use-orders';
 
@@ -62,6 +65,7 @@ interface ItemSpecsEditorProps {
   value: ItemSpecsValue;
   onChange: (next: ItemSpecsValue) => void;
   readonly?: boolean;
+  clientId?: string;
 }
 
 const PRINT_SIDE_OPTIONS = [
@@ -95,6 +99,7 @@ export function ItemSpecsEditor({
   value,
   onChange,
   readonly = false,
+  clientId,
 }: ItemSpecsEditorProps) {
   const [fabricPickerOpen, setFabricPickerOpen] = useState(false);
 
@@ -108,6 +113,11 @@ export function ItemSpecsEditor({
   const copperLabelsQuery = useCopperPlateLabels();
   const foilColors = copperLabelsQuery.data?.foilColors?.filter((c) => c.isActive) ?? [];
   const platePositions = copperLabelsQuery.data?.platePositions?.filter((p) => p.isActive) ?? [];
+
+  const ownedPlatesQuery = useCopperPlatesByClient(clientId);
+  const storedOwnedPlates = (ownedPlatesQuery.data ?? []).filter((p) => p.status === 'stored');
+  const publicPlatesQuery = usePublicCopperPlates();
+  const activePublicPlates = publicPlatesQuery.data?.data ?? [];
 
   // 사용자가 select 등으로 명시적으로 고친 값(원형). 표시 라벨에 사용.
   const rawPrintMethod = value.printMethod ?? item.printMethod ?? '';
@@ -449,7 +459,7 @@ export function ItemSpecsEditor({
         {/* 제본 */}
       </div>
 
-      {/* 8. 박/동판 + 박 색상/위치 (시스템 라벨 마스터) */}
+      {/* 8. 박/동판 + 박 색상/위치 — 고객 보유동판 + 공용동판 */}
       {foilOptions.length > 0 && (
         <div className="space-y-1 col-span-2">
           <Label className="text-[12px] text-slate-600">박/동판</Label>
@@ -463,19 +473,36 @@ export function ItemSpecsEditor({
               disabled={readonly}
             >
               <SelectTrigger className="h-8 text-[13px]">
-                <SelectValue placeholder="박/동판 선택" />
+                <SelectValue placeholder="동판 선택" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">없음</SelectItem>
-                {currentFoilName && !foilOptions.some((f) => f.name === currentFoilName) && (
-                  <SelectItem value={currentFoilName}>{currentFoilName} (현재값)</SelectItem>
+                <SelectItem value="__none__">동판 없음</SelectItem>
+                {currentFoilName &&
+                  !activePublicPlates.some((p) => p.plateName === currentFoilName) &&
+                  !storedOwnedPlates.some((p) => p.plateName === currentFoilName) && (
+                    <SelectItem value={currentFoilName}>{currentFoilName} (현재값)</SelectItem>
+                  )}
+                {activePublicPlates.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>공용동판</SelectLabel>
+                    {activePublicPlates.map((p) => (
+                      <SelectItem key={p.id} value={p.plateName}>
+                        {p.plateName}
+                        {p.widthMm || p.heightMm ? ` (${p.widthMm}×${p.heightMm}mm)` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
                 )}
-                {foilOptions.map((f) => (
-                  <SelectItem key={f.id} value={f.name}>
-                    {f.name}
-                    {f.color ? ` · ${f.color}` : ''}
-                  </SelectItem>
-                ))}
+                {storedOwnedPlates.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>보유동판 ({storedOwnedPlates.length})</SelectLabel>
+                    {storedOwnedPlates.map((p) => (
+                      <SelectItem key={p.id} value={p.plateName}>
+                        {p.plateName}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
               </SelectContent>
             </Select>
 
