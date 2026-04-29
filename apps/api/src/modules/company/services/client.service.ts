@@ -339,6 +339,147 @@ export class ClientService {
     return `M${nextNumber.toString().padStart(4, '0')}`;
   }
 
+  // ==================== 엑셀 일괄등록 ====================
+  /**
+   * 일괄등록: 행 단위로 검증·생성하고 성공/실패 리포트를 반환한다.
+   * - 부분 실패 허용 (성공만 등록)
+   * - 그룹은 groupName 으로 매칭. 매칭 실패 시 행 단위 오류로 보고
+   * - 회원코드 누락 시 자동채번 (M0001 다음번호)
+   */
+  async bulkCreate(rows: Array<Record<string, any>>) {
+    const groups = await this.prisma.clientGroup.findMany({
+      select: { id: true, groupName: true, groupCode: true },
+    });
+    const groupByName = new Map(groups.map((g) => [g.groupName.trim(), g]));
+    const groupByCode = new Map(groups.map((g) => [g.groupCode.trim(), g]));
+
+    const existingCodes = new Set(
+      (await this.prisma.client.findMany({ select: { clientCode: true } })).map((c) => c.clientCode),
+    );
+    const existingEmails = new Set(
+      (
+        await this.prisma.client.findMany({
+          where: { email: { not: null } },
+          select: { email: true },
+        })
+      )
+        .map((c) => c.email)
+        .filter((e): e is string => !!e),
+    );
+
+    let nextCodeBase = await this.getNextClientCode();
+    let nextCodeNum = parseInt(nextCodeBase.replace(/^M/, ''), 10) || 1;
+
+    const success: Array<{ row: number; clientCode: string; clientName: string }> = [];
+    const failed: Array<{ row: number; clientName?: string; reason: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2; // 엑셀 헤더 1행 기준 표시용
+      try {
+        const clientName = String(row.clientName ?? '').trim();
+        if (!clientName) {
+          failed.push({ row: rowNum, reason: '회원명 누락' });
+          continue;
+        }
+
+        let clientCode = String(row.clientCode ?? '').trim();
+        if (!clientCode) {
+          // 자동채번
+          while (existingCodes.has(`M${String(nextCodeNum).padStart(4, '0')}`)) nextCodeNum++;
+          clientCode = `M${String(nextCodeNum).padStart(4, '0')}`;
+          nextCodeNum++;
+        } else if (existingCodes.has(clientCode)) {
+          failed.push({ row: rowNum, clientName, reason: `회원코드 중복: ${clientCode}` });
+          continue;
+        }
+
+        const email = row.email ? String(row.email).trim() : '';
+        if (email && existingEmails.has(email)) {
+          failed.push({ row: rowNum, clientName, reason: `이메일 중복: ${email}` });
+          continue;
+        }
+
+        // 그룹 매칭 (이름 우선, 그 다음 코드)
+        let groupId: string | undefined;
+        const groupKey = row.groupName ? String(row.groupName).trim() : '';
+        if (groupKey) {
+          const matched = groupByName.get(groupKey) || groupByCode.get(groupKey);
+          if (!matched) {
+            failed.push({ row: rowNum, clientName, reason: `그룹 매칭 실패: ${groupKey}` });
+            continue;
+          }
+          groupId = matched.id;
+        }
+
+        const creditGrade = row.creditGrade ? String(row.creditGrade).trim().toUpperCase() : undefined;
+        if (creditGrade && !['A', 'B', 'C', 'D'].includes(creditGrade)) {
+          failed.push({ row: rowNum, clientName, reason: `신용등급 잘못됨: ${creditGrade}` });
+          continue;
+        }
+
+        const status = row.status ? String(row.status).trim().toLowerCase() : 'active';
+        if (!['active', 'inactive', 'suspended'].includes(status)) {
+          failed.push({ row: rowNum, clientName, reason: `상태값 잘못됨: ${status}` });
+          continue;
+        }
+
+        const paymentTerms =
+          row.paymentTerms !== undefined && row.paymentTerms !== null && row.paymentTerms !== ''
+            ? Number(row.paymentTerms)
+            : undefined;
+        if (paymentTerms !== undefined && (Number.isNaN(paymentTerms) || paymentTerms < 0 || paymentTerms > 365)) {
+          failed.push({ row: rowNum, clientName, reason: `결제조건 잘못됨: ${row.paymentTerms}` });
+          continue;
+        }
+
+        const data: Prisma.ClientCreateInput = {
+          clientCode,
+          clientName,
+          businessNumber: row.businessNumber ? String(row.businessNumber).trim() : null,
+          representative: row.representative ? String(row.representative).trim() : null,
+          phone: row.phone ? String(row.phone).trim() : null,
+          mobile: row.mobile ? String(row.mobile).trim() : null,
+          email: email || null,
+          postalCode: row.postalCode ? String(row.postalCode).trim() : null,
+          address: row.address ? String(row.address).trim() : null,
+          addressDetail: row.addressDetail ? String(row.addressDetail).trim() : null,
+          creditGrade: creditGrade || 'B',
+          paymentTerms: paymentTerms ?? 30,
+          status,
+          ...(groupId ? { group: { connect: { id: groupId } } } : {}),
+        };
+
+        // 표준그룹 자동할당 (groupId 없을 때)
+        if (!groupId) {
+          const standardGroup = groups.find((g) => g.groupCode === 'STANDARD');
+          if (standardGroup) {
+            data.group = { connect: { id: standardGroup.id } };
+          }
+        }
+
+        await this.prisma.client.create({ data });
+        existingCodes.add(clientCode);
+        if (email) existingEmails.add(email);
+        success.push({ row: rowNum, clientCode, clientName });
+      } catch (e: any) {
+        failed.push({
+          row: rowNum,
+          clientName: row.clientName ? String(row.clientName) : undefined,
+          reason: e?.message || '알 수 없는 오류',
+        });
+      }
+    }
+
+    return {
+      total: rows.length,
+      successCount: success.length,
+      failedCount: failed.length,
+      success,
+      failed,
+    };
+  }
+
   // ==================== 영업담당자 할당 ====================
   async assignStaff(clientId: string, staffIds: string[], primaryStaffId?: string) {
     await this.findOne(clientId);

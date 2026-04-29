@@ -366,45 +366,16 @@ export class ImpositionController {
           (a: any, b: any) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
         );
 
-        // ===== B2 폴백 다운로드 (Phase 2): 로컬 디스크에 없으면 B2 에서 복원 =====
-        // Railway 컨테이너 재시작 시 /app/uploads 가 비워져도 B2 에 백업된 파일을
-        // 로컬 캐시 경로(/app/uploads/.b2-cache/{orderNumber}/{fileName})에 자동 복원한다.
-        // B2 키 규칙: orders/{orderNumber}/originals/{fileName} — order.service.uploadMovedFileToB2 와 동일.
-        // 키 sanitize 함수도 order.service.sanitizeStorageKeyPart 와 100% 동일해야 키가 매칭된다.
-        const sanitizeStorageKeyPart = (value: string): string =>
-          value
-            .replace(/\\/g, '/')
-            .replace(/^\.+/, '')
-            .replace(/\.\./g, '_')
-            .replace(/[^a-zA-Z0-9._/-]/g, '_');
-        if (this.b2Storage.isEnabled()) {
-          const orderNumber = item.order.orderNumber;
-          const cacheDir = path.join(uploadBase, '.b2-cache', orderNumber);
-          for (const f of allFiles) {
-            if (resolveLocalPath(f)) continue; // 이미 로컬에 존재
-            const fileName = (f.fileName || '').toString();
-            if (!fileName) continue;
-            try {
-              const safeOrder = sanitizeStorageKeyPart(orderNumber);
-              const safeName = sanitizeStorageKeyPart(fileName);
-              const b2Key = `orders/${safeOrder}/originals/${safeName}`;
-              const cachePath = path.join(cacheDir, fileName);
-              if (fs.existsSync(cachePath)) {
-                f.originalPath = cachePath; // 캐시 사용
-                continue;
-              }
-              const url = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
-              const res = await fetch(url);
-              if (!res.ok) continue;
-              const buf = Buffer.from(await res.arrayBuffer());
-              fs.mkdirSync(cacheDir, { recursive: true });
-              fs.writeFileSync(cachePath, buf);
-              f.originalPath = cachePath; // 다음 resolveLocalPath 호출에서 사용
-            } catch {
-              // 다운로드 실패는 missingIdx 검사에서 잡힘
-            }
-          }
-        }
+        // ===== B2 폴백 다운로드: 로컬 디스크에 없으면 B2 에서 복원 =====
+        // Railway 컨테이너 재시작 시 /app/uploads 가 비워져도 B2 백업 원본을
+        // 로컬 캐시(/app/uploads/.b2-cache/{orderNumber}/{fileName})에 자동 복원.
+        // 동일 로직이 print-pdf.service 에서도 사용됨 — B2StorageService 공용 헬퍼로 통합.
+        await this.b2Storage.hydrateB2CacheForFiles(
+          item.order.orderNumber,
+          allFiles as any,
+          uploadBase,
+          resolveLocalPath,
+        );
 
         // ===== 사전 검증: 주문페이지와 PDF변환 입력 파일이 정합한지 확인 =====
         // 한 장이라도 안 맞으면 fail-fast — 사일런트 드랍은 출력 사고로 이어지므로 절대 금지.
@@ -514,6 +485,18 @@ export class ImpositionController {
           imagePdfPath,
         },
       });
+
+      // 임포지션이 실제로 PDF 를 만들었으면 출력대기 표시도 함께 정리한다.
+      if (imagePdfPath) {
+        await this.prisma.orderItem
+          .update({
+            where: { id: itemId },
+            data: { pdfStatus: 'completed' },
+          })
+          .catch((e) => {
+            (result.warnings as any[]).push(`출력대기 상태 동기화 실패: ${e?.message || e}`);
+          });
+      }
 
       // 작업지시서(슬립) 자동 인쇄 — 설정에서 활성화된 경우에만 실행
       this.slipPrinter.printSlipIfEnabled({

@@ -7,9 +7,10 @@ import { PrintPdfAutoConvertService } from './services/print-pdf-auto-convert.se
 import { PrintPdfSlipPrinterService } from './services/print-pdf-slip-printer.service';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { ImpositionModule } from '../imposition/imposition.module';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
-  imports: [SystemSettingsModule, ImpositionModule],
+  imports: [SystemSettingsModule, ImpositionModule, UploadModule],
   controllers: [PrintPdfController],
   providers: [
     PrintPdfService,

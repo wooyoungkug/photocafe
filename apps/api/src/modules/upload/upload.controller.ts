@@ -1,15 +1,17 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res, Body, Delete } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res, Body, Delete, Logger } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, createReadStream, statSync } from 'fs';
 import { writeFile as fsWriteFile } from 'fs/promises';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
+import { B2StorageService } from './services/b2-storage.service';
+import { PrismaService } from '@/common/prisma/prisma.service';
 import { Public } from '@/common/decorators/public.decorator';
 
 /** 동적 업로드 디렉토리 헬퍼 (DB 설정 반영) */
@@ -33,9 +35,13 @@ ensureDir('repairs');
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
+    private readonly logger = new Logger(UploadController.name);
+
     constructor(
         private readonly fileStorage: FileStorageService,
         private readonly thumbnailService: ThumbnailService,
+        private readonly b2Storage: B2StorageService,
+        private readonly prisma: PrismaService,
     ) {}
 
     // ==================== 앨범 원본 파일 업로드 ====================
@@ -632,7 +638,7 @@ export class UploadController {
     @Get('serve/*path')
     @Throttle({ default: { ttl: 60000, limit: 120 } })
     @ApiOperation({ summary: '업로드 파일 직접 서빙 (orders/repairs/temp 등 한글 경로 지원)' })
-    serveUploadFile(@Param('path') rawPath: string | string[], @Res() res: Response) {
+    async serveUploadFile(@Param('path') rawPath: string | string[], @Res() res: Response) {
         if (!rawPath) {
             return res.status(400).json({ message: '경로가 필요합니다.' });
         }
@@ -643,10 +649,131 @@ export class UploadController {
         if (decoded.includes('..') || decoded.includes('\0')) {
             return res.status(400).json({ message: '잘못된 경로입니다.' });
         }
-        const filePath = join(getUploadBasePath(), decoded);
-        if (!existsSync(filePath)) {
-            return res.status(404).json({ message: '파일을 찾을 수 없습니다.', tried: filePath });
+        const uploadBase = getUploadBasePath();
+        const filePath = join(uploadBase, decoded);
+        if (existsSync(filePath)) {
+            return this.streamFile(filePath, res);
         }
-        return res.sendFile(filePath);
+        // B2 폴백: 디스크에 없으면 B2 originals 에서 받아 .b2-cache/{orderNumber}/(originals|thumbnails)/ 에 캐싱.
+        // 썸네일은 원본 다운로드 후 sharp 로 재생성한다 (B2 Public 버킷 미설정 케이스 대응).
+        try {
+            const cached = await this.tryB2ServeFallback(decoded, uploadBase);
+            if (cached) {
+                return this.streamFile(cached, res);
+            }
+        } catch (err) {
+            this.logger.warn(`B2 폴백 실패 (${decoded}): ${(err as Error).message}`);
+        }
+        return res.status(404).json({ message: '파일을 찾을 수 없습니다.', tried: filePath });
+    }
+
+    /**
+     * 한글/공백 포함 경로에서 res.sendFile (Express send) 가 NotFound 로 깨지는
+     * 이슈를 우회하기 위해 ReadStream 으로 직접 응답한다. 절대 경로만 입력받는다.
+     */
+    private streamFile(absPath: string, res: Response): void {
+        try {
+            const stat = statSync(absPath);
+            const lower = absPath.toLowerCase();
+            const contentType = lower.endsWith('.jpg') || lower.endsWith('.jpeg') ? 'image/jpeg'
+                : lower.endsWith('.png') ? 'image/png'
+                : lower.endsWith('.webp') ? 'image/webp'
+                : lower.endsWith('.gif') ? 'image/gif'
+                : lower.endsWith('.tif') || lower.endsWith('.tiff') ? 'image/tiff'
+                : lower.endsWith('.pdf') ? 'application/pdf'
+                : 'application/octet-stream';
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Content-Length', String(stat.size));
+            res.setHeader('Cache-Control', 'public, max-age=86400');
+            const stream = createReadStream(absPath);
+            stream.on('error', (err) => {
+                this.logger.warn(`파일 스트림 에러 (${absPath}): ${err.message}`);
+                if (!res.headersSent) {
+                    res.status(500).json({ message: '파일 읽기 실패' });
+                }
+            });
+            stream.pipe(res);
+        } catch (err) {
+            this.logger.warn(`파일 stat 실패 (${absPath}): ${(err as Error).message}`);
+            if (!res.headersSent) {
+                res.status(404).json({ message: '파일을 찾을 수 없습니다.' });
+            }
+        }
+    }
+
+    /**
+     * 로컬 디스크에 없는 주문 파일을 B2 에서 받아 로컬 캐시에 저장.
+     * 경로 패턴: orders/.../{orderNumber}/(originals|thumbnails)/{fileName}
+     * 썸네일이면 원본을 받아 ThumbnailService 로 재생성한다.
+     * 반환: 캐시된 로컬 파일 경로 (없으면 null)
+     */
+    private async tryB2ServeFallback(decoded: string, uploadBase: string): Promise<string | null> {
+        if (!this.b2Storage.isEnabled()) return null;
+        // orderNumber 형식: YYMMDD-NNN (예: 260429-008)
+        const m = decoded.match(/\/([0-9]{6}-[0-9]{3})\/(originals|thumbnails)\/(.+)$/);
+        if (!m) return null;
+        const [, orderNumber, kind, fileName] = m;
+
+        const sanitize = (v: string): string =>
+            v.replace(/\\/g, '/')
+                .replace(/^\.+/, '')
+                .replace(/\.\./g, '_')
+                .replace(/[^a-zA-Z0-9._/-]/g, '_');
+
+        const cacheDir = join(uploadBase, '.b2-cache', orderNumber, kind);
+        const cachePath = join(cacheDir, fileName);
+        if (existsSync(cachePath)) return cachePath;
+
+        const safeOrder = sanitize(orderNumber);
+
+        if (kind === 'originals') {
+            const safeName = sanitize(fileName);
+            const key = `orders/${safeOrder}/originals/${safeName}`;
+            const url = await this.b2Storage.getPrivatePresignedUrl(key, 300);
+            const response = await fetch(url);
+            if (!response.ok) {
+                this.logger.warn(`B2 다운로드 실패 (${key}): HTTP ${response.status}`);
+                return null;
+            }
+            const buf = Buffer.from(await response.arrayBuffer());
+            if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+            await fsWriteFile(cachePath, buf);
+            return cachePath;
+        }
+
+        // kind === 'thumbnails': fileName = `{base}_thumb.jpg`. 원본 fileName 을 DB 에서 조회.
+        const base = fileName.replace(/_thumb\.jpg$/i, '');
+        const orderFile = await this.prisma.orderFile.findFirst({
+            where: {
+                orderItem: { order: { orderNumber } },
+                fileName: { startsWith: `${base}.` },
+            },
+            select: { fileName: true },
+        });
+        if (!orderFile) {
+            this.logger.warn(`썸네일 폴백: OrderFile 매칭 실패 (orderNumber=${orderNumber}, base=${base})`);
+            return null;
+        }
+        const origFileName = orderFile.fileName;
+        const safeOrigName = sanitize(origFileName);
+        const origKey = `orders/${safeOrder}/originals/${safeOrigName}`;
+
+        const origCacheDir = join(uploadBase, '.b2-cache', orderNumber, 'originals');
+        const origCachePath = join(origCacheDir, origFileName);
+        if (!existsSync(origCachePath)) {
+            const url = await this.b2Storage.getPrivatePresignedUrl(origKey, 300);
+            const response = await fetch(url);
+            if (!response.ok) {
+                this.logger.warn(`B2 다운로드 실패 (${origKey}): HTTP ${response.status}`);
+                return null;
+            }
+            const buf = Buffer.from(await response.arrayBuffer());
+            if (!existsSync(origCacheDir)) mkdirSync(origCacheDir, { recursive: true });
+            await fsWriteFile(origCachePath, buf);
+        }
+
+        if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
+        await this.thumbnailService.generateThumbnail(origCachePath, cacheDir, origFileName);
+        return existsSync(cachePath) ? cachePath : null;
     }
 }

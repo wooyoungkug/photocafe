@@ -1,6 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { extractClientIp } from '../../common/utils/extract-client-ip';
 
 @Injectable()
 export class IpBlockMiddleware implements NestMiddleware {
@@ -11,15 +12,9 @@ export class IpBlockMiddleware implements NestMiddleware {
   constructor(private readonly prisma: PrismaService) {}
 
   private extractIp(req: Request): string | null {
-    // Express trust proxy 설정 시 req.ip가 올바른 클라이언트 IP를 반환.
-    // X-Forwarded-For 헤더를 직접 파싱하면 클라이언트가 헤더를 조작하여
-    // 차단을 우회할 수 있으므로 req.ip를 우선 사용.
-    if (req.ip) {
-      // IPv4-mapped IPv6 주소 정규화 (::ffff:1.2.3.4 → 1.2.3.4)
-      return req.ip.replace(/^::ffff:/, '');
-    }
-    const remoteAddr = req.socket?.remoteAddress ?? null;
-    return remoteAddr ? remoteAddr.replace(/^::ffff:/, '') : null;
+    // Cloudflare/Vercel 등 프록시 헤더 우선. analytics 와 동일 규칙으로 통일하여
+    // "차단된 IP" 와 "통계에 기록되는 IP" 의 정합성을 보장.
+    return extractClientIp(req);
   }
 
   private async refreshCache(): Promise<void> {
