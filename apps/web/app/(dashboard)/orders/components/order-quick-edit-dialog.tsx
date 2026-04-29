@@ -662,10 +662,12 @@ export function OrderQuickEditDialog({
     }, 0);
   };
 
-  const productTotal = calcProductTotal();
-  const tax = Math.round(productTotal * 0.1);
+  // 입력된 단가는 부가세 포함 금액 → 역산으로 분리
+  const grossTotal = calcProductTotal();           // 부가세 포함 상품금액
+  const tax = Math.round(grossTotal * 0.1);        // 부가세 (10%)
+  const productTotal = grossTotal - tax;           // 부가세 제외 상품금액 (×0.9)
   const shippingFee = Number(displayOrder.shippingFee) || 0;
-  const totalBeforeDiscount = productTotal + tax + shippingFee;
+  const totalBeforeDiscount = grossTotal + shippingFee;   // tax는 이미 포함됨
   const finalTotal = Math.max(0, totalBeforeDiscount - discountAmount);
 
   // ==================== Change detection ====================
