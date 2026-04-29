@@ -104,10 +104,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         sessionStorage.setItem('impersonate-session', 'true');
         // 토큰을 sessionStorage(탭 전용)에 보관 → api.ts에서 Bearer 헤더로 전송
         if (data.accessToken) {
-          sessionStorage.setItem('impersonate-tokens', JSON.stringify({
+          const tokenJson = JSON.stringify({
             accessToken: data.accessToken,
             refreshToken: data.refreshToken ?? '',
-          }));
+          });
+          sessionStorage.setItem('impersonate-tokens', tokenJson);
+          localStorage.setItem('impersonate-tokens', tokenJson);
         }
       } catch {
         localStorage.removeItem('impersonate-data');

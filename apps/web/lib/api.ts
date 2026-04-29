@@ -122,11 +122,11 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  // impersonate 탭이면 Bearer 헤더로 전송 (관리자 쿠키를 건드리지 않기 위해)
+  // impersonate 중이면 Bearer 헤더로 전송 (sessionStorage 우선, 없으면 localStorage)
   let impersonateAuth: Record<string, string> = {};
   if (typeof window !== 'undefined') {
     try {
-      const raw = sessionStorage.getItem('impersonate-tokens');
+      const raw = sessionStorage.getItem('impersonate-tokens') || localStorage.getItem('impersonate-tokens');
       if (raw) {
         const tokens = JSON.parse(raw);
         if (tokens?.accessToken) impersonateAuth = { Authorization: `Bearer ${tokens.accessToken}` };

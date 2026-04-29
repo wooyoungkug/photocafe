@@ -162,6 +162,7 @@ export const useAuthStore = create<AuthState>()(
           sessionStorage.removeItem('auth-storage');
           sessionStorage.removeItem('impersonate-session');
           sessionStorage.removeItem('impersonate-tokens');
+          localStorage.removeItem('impersonate-tokens');
           sessionStorage.removeItem('owner-session');
           document.cookie = 'auth-verified=; path=/; max-age=0';
         }
