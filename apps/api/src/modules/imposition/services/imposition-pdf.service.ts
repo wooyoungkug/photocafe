@@ -699,9 +699,10 @@ export function drawJobMeta(
   const currentStr = sheetNum.toString();
   const suffix = `/${sheetTotal}`;
 
-  const fontSize = 5;
-  // 강조 텍스트(주문번호, 시트번호) 는 본문보다 2pt 크게 표시
+  const fontSize = 7;
+  // 시트번호는 본문보다 2pt 크게, 주문번호는 별도 고정(7pt) — 인덱스 폭 절약
   const emphFontSize = fontSize + 2;
+  const orderNumFontSize = 7;
   // 좌상단 레지스트레이션 마크(반지름 3pt + 들여쓰기 3pt + 십자 +2pt = 약 14pt)와 겹치지 않도록
   // x 오프셋을 18pt 이상 두고 시작
   const x = paX + 18;
@@ -725,11 +726,11 @@ export function drawJobMeta(
       page.drawText(seg, {
         x: cursor,
         y,
-        size: emphFontSize,
+        size: orderNumFontSize,
         color: blueColor,
         font: boldFont,
       });
-      cursor += boldFont.widthOfTextAtSize(seg, emphFontSize);
+      cursor += boldFont.widthOfTextAtSize(seg, orderNumFontSize);
     } else {
       page.drawText(seg, {
         x: cursor,
