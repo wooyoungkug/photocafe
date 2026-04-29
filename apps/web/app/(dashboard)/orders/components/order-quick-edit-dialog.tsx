@@ -306,8 +306,18 @@ function ThumbnailGrid({
 
     const renderBlankSlot = () => (
       <div className="flex flex-col">
-        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4] flex items-center justify-center">
-          <span className="text-3xl font-bold text-blue-400/70 select-none">空</span>
+        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4] flex items-center justify-center overflow-hidden">
+          {/* 대각선 X 표식 — 인쇄 표준의 "의도적 빈 페이지" 마크 */}
+          <svg
+            className="absolute inset-0 w-full h-full"
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+            aria-hidden="true"
+          >
+            <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
+            <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
+          </svg>
+          <span className="relative text-3xl font-bold text-blue-500/80 select-none bg-blue-50/80 rounded px-2">空</span>
         </div>
       </div>
     );
