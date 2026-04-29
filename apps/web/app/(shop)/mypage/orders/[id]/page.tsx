@@ -813,11 +813,20 @@ export default function OrderDetailPage() {
                                   const renderBlankSlot = (key: string, aspectPct: number) => (
                                     <div key={key} className="flex flex-col">
                                       <div
-                                        className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20"
+                                        className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 overflow-hidden"
                                         style={{ paddingTop: `${aspectPct}%` }}
                                       >
+                                        <svg
+                                          className="absolute inset-0 w-full h-full"
+                                          viewBox="0 0 100 100"
+                                          preserveAspectRatio="none"
+                                          aria-hidden="true"
+                                        >
+                                          <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
+                                          <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
+                                        </svg>
                                         <div className="absolute inset-0 flex items-center justify-center">
-                                          <span className="w-5 h-5 rounded-full bg-yellow-500 flex items-center justify-center text-white text-[10px] font-medium">空</span>
+                                          <span className="relative text-2xl font-bold text-blue-500/80 select-none bg-blue-50/80 rounded px-1.5">空</span>
                                         </div>
                                       </div>
                                     </div>
