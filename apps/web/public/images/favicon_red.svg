@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="rainbow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B6B"/>
+      <stop offset="33%" stop-color="#FFD93D"/>
+      <stop offset="66%" stop-color="#6BCF7F"/>
+      <stop offset="100%" stop-color="#4A90E2"/>
+    </linearGradient>
+    <linearGradient id="cupRed" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#E63946"/>
+      <stop offset="100%" stop-color="#A4161A"/>
+    </linearGradient>
+    <linearGradient id="cupRedSleeve" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFB088"/>
+      <stop offset="100%" stop-color="#D4886A"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 배경 -->
+  <rect width="512" height="512" rx="96" fill="#FFF8E7"/>
+
+  <!-- 테이크아웃 컵 본체 (사다리꼴) -->
+  <path d="M 122 112 L 390 112 L 368 448 Q 368 464 352 464 L 160 464 Q 144 464 144 448 Z" fill="url(#cupRed)"/>
+
+  <!-- 컵 본체 하이라이트 -->
+  <path d="M 130 120 L 158 120 L 152 440 Q 152 448 158 448 Z" fill="#fff" opacity="0.12"/>
+
+  <!-- 뚜껑 그림자 -->
+  <path d="M 112 90 L 400 90 L 390 122 L 122 122 Z" fill="#7A0F1A"/>
+
+  <!-- 뚜껑 본체 -->
+  <rect x="112" y="80" width="288" height="16" rx="6" fill="#A4161A"/>
+  <rect x="112" y="80" width="288" height="6" rx="3" fill="#C81D2A"/>
+
+  <!-- 뚜껑 음용구 -->
+  <ellipse cx="256" cy="84" rx="22" ry="3" fill="#5C0810"/>
+
+  <!-- 슬리브 -->
+  <path d="M 158 240 L 354 240 L 348 320 L 164 320 Z" fill="url(#cupRedSleeve)"/>
+  <path d="M 158 240 L 354 240 L 353 250 L 159 250 Z" fill="#fff" opacity="0.25"/>
+  <path d="M 158 320 L 354 320 L 353 318 L 159 318 Z" fill="#000" opacity="0.15"/>
+
+  <!-- 레인보우 렌즈 (외곽 링) -->
+  <circle cx="256" cy="280" r="72" fill="url(#rainbow)"/>
+
+  <!-- 렌즈 본체 (검정) -->
+  <circle cx="256" cy="280" r="50" fill="#1A1A1A"/>
+
+  <!-- 렌즈 가운데 하얀 링 -->
+  <circle cx="256" cy="280" r="34" fill="#fff"/>
+
+  <!-- 동공 -->
+  <circle cx="256" cy="280" r="22" fill="#1A1A1A"/>
+
+  <!-- 렌즈 반사광 -->
+  <circle cx="266" cy="270" r="6" fill="#fff" opacity="0.7"/>
+  <circle cx="262" cy="266" r="3" fill="#fff" opacity="0.9"/>
+</svg>
