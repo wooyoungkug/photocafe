@@ -88,21 +88,21 @@ export function OptionCopperPlate({
         className={cn(selectClass, 'w-auto max-w-full', selectedPlateValue ? selectedClass : unselectedClass)}
       >
         <option value="">{t('noCopperPlate')}</option>
+        {hasOwned && (
+          <optgroup label={`${t('ownedCopperPlate')} (${storedOwned.length})`}>
+            {storedOwned.map(cp => (
+              <option key={cp.id} value={`owned:${cp.id}`}>
+                {cp.plateName}
+              </option>
+            ))}
+          </optgroup>
+        )}
         {hasPublic && (
           <optgroup label={t('publicCopperPlate')}>
             {publicCopperPlates!.map(plate => (
               <option key={plate.id} value={`public:${plate.id}`}>
                 {plate.plateName}
                 {(plate.widthMm || plate.heightMm) ? ` (${plate.widthMm}×${plate.heightMm}mm)` : ''}
-              </option>
-            ))}
-          </optgroup>
-        )}
-        {hasOwned && (
-          <optgroup label={`${t('ownedCopperPlate')} (${storedOwned.length})`}>
-            {storedOwned.map(cp => (
-              <option key={cp.id} value={`owned:${cp.id}`}>
-                {cp.plateName}
               </option>
             ))}
           </optgroup>

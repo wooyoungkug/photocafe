@@ -491,7 +491,7 @@ export function ItemSpecsEditor({
         {/* 제본 */}
       </div>
 
-      {/* 8. 박/동판 + 박 색상/위치 — 고객 보유동판 + 공용동판 */}
+      {/* 8. 박/동판 + 박 색상/위치 — 보유동판 우선, 공용동판 후 */}
       {foilOptions.length > 0 && (
         <div className="space-y-1 col-span-2">
           <Label className="text-[12px] text-slate-600">박/동판</Label>
