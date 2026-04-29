@@ -45,8 +45,30 @@ import { useDeleteOrderOriginals } from '@/hooks/use-order-bulk-actions';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
-import { api } from '@/lib/api';
+import { api, API_URL } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+
+// 출력대기 PDF 변환 진행상황 뱃지 매핑 (PrintQueueTable 과 동일)
+const PDF_INDIGO_BADGE: Record<string, { label: string; className: string }> = {
+  pending: { label: 'PDF변환대기', className: 'bg-gray-100 text-black' },
+  in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
+  generating: { label: '변환중', className: 'bg-blue-100 text-black' },
+  completed: { label: 'PDF변환성공', className: 'bg-green-100 text-black' },
+  failed: { label: '변환에러', className: 'bg-red-100 text-red-600' },
+};
+const PDF_INKJET_BADGE: Record<string, { label: string; className: string }> = {
+  pending: { label: '데이타대기', className: 'bg-gray-100 text-black' },
+  in_progress: { label: '생성중', className: 'bg-blue-100 text-black' },
+  generating: { label: '생성중', className: 'bg-blue-100 text-black' },
+  completed: { label: '출력데이타생성', className: 'bg-green-100 text-black' },
+  failed: { label: '데이터에러', className: 'bg-red-100 text-red-600' },
+};
+function getPdfBadge(pdfStatus?: string, printMethod?: string) {
+  const status = pdfStatus || 'pending';
+  const isInkjet = (printMethod || '').toLowerCase().includes('inkjet');
+  const map = isInkjet ? PDF_INKJET_BADGE : PDF_INDIGO_BADGE;
+  return map[status] || map.pending;
+}
 
 // 진행상황 뱃지 스타일
 const STATUS_BADGE: Record<string, { label: string; className: string }> = {
@@ -389,6 +411,40 @@ export default function OrderListPage() {
                         </Button>
                       </div>
                     )}
+                    {order.status === 'print_waiting' && items[0] && (() => {
+                      const first = items[0];
+                      const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
+                      const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
+                      const pdfUrl = `${API_URL}/print-pdf/items/${first.id}/pdf`;
+                      const badge = (
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-[11px] px-2 py-0.5',
+                            badgeInfo.className,
+                            canOpenPdf && 'cursor-pointer hover:underline',
+                          )}
+                        >
+                          {badgeInfo.label}
+                        </Badge>
+                      );
+                      return (
+                        <div className="flex items-center gap-2 pt-1">
+                          {canOpenPdf ? (
+                            <a
+                              href={pdfUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="새 탭에서 PDF 열기"
+                            >
+                              {badge}
+                            </a>
+                          ) : (
+                            badge
+                          )}
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               );
@@ -642,6 +698,36 @@ export default function OrderListPage() {
                                 {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
                               </Button>
                             )}
+                            {order.status === 'print_waiting' && items[0] && (() => {
+                              const first = items[0];
+                              const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
+                              const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
+                              const pdfUrl = `${API_URL}/print-pdf/items/${first.id}/pdf`;
+                              const badge = (
+                                <Badge
+                                  variant="outline"
+                                  className={cn(
+                                    'text-[11px] px-2 py-0.5',
+                                    badgeInfo.className,
+                                    canOpenPdf && 'cursor-pointer hover:underline',
+                                  )}
+                                >
+                                  {badgeInfo.label}
+                                </Badge>
+                              );
+                              return canOpenPdf ? (
+                                <a
+                                  href={pdfUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="새 탭에서 PDF 열기"
+                                >
+                                  {badge}
+                                </a>
+                              ) : (
+                                badge
+                              );
+                            })()}
                           </TableCell>
                         )}
                       </TableRow>
