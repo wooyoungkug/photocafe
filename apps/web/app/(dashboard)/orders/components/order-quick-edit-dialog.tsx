@@ -967,16 +967,8 @@ export function OrderQuickEditDialog({
                         );
                       })()}
 
-                      {/* Verification controls: Size · Page Layout · Binding Direction (한 줄) */}
+                      {/* Verification controls: Page Layout · Binding Direction (한 줄) */}
                       <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">
-                        {/* Size label */}
-                        {item.size && (
-                          <>
-                            <span className="text-blue-600 font-medium">{item.size}</span>
-                            <span className="text-gray-300">|</span>
-                          </>
-                        )}
-
                         {/* Page layout toggle (compact) */}
                         <div className="flex border rounded overflow-hidden">
                           <button
