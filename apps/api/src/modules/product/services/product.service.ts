@@ -130,7 +130,7 @@ export class ProductService {
         specifications: {
           include: {
             specification: {
-              select: { id: true, isActive: true, forIndigoAlbum: true, forIndigo: true, forInkjet: true, forAlbum: true, forFrame: true, forBooklet: true },
+              select: { id: true, name: true, isActive: true, forIndigoAlbum: true, forIndigo: true, forInkjet: true, forAlbum: true, forFrame: true, forBooklet: true },
             },
           },
           orderBy: { sortOrder: 'asc' },
@@ -213,6 +213,7 @@ export class ProductService {
         })
         .map(({ specification, ...rest }: any) => ({
           ...rest,
+          specificationName: specification?.name ?? null,
           forIndigoAlbum: specification?.forIndigoAlbum ?? false,
           forIndigo: specification?.forIndigo ?? false,
           forInkjet: specification?.forInkjet ?? false,
@@ -222,6 +223,7 @@ export class ProductService {
         .filter((ps: any) => !ps.specification || ps.specification.isActive)
         .map(({ specification, ...rest }: any) => ({
           ...rest,
+          specificationName: specification?.name ?? null,
           forIndigoAlbum: specification?.forIndigoAlbum ?? false,
           forIndigo: specification?.forIndigo ?? false,
           forInkjet: specification?.forInkjet ?? false,
