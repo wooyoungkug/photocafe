@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import {
   Dialog,
@@ -156,6 +157,103 @@ interface ItemEdit {
   finishingOptions?: string[];
   // 수동 단가 사용 여부 (false=auto: breakdown 계산값, true=admin 수동입력)
   manualUnitPrice?: boolean;
+}
+
+// ==================== ImageLightbox ====================
+
+function ImageLightbox({
+  previewState,
+  onClose,
+  onNavigate,
+}: {
+  previewState: { url: string; file: ThumbnailFile; files: ThumbnailFile[]; index: number };
+  onClose: () => void;
+  onNavigate: (direction: 'prev' | 'next') => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowLeft') onNavigate('prev');
+      if (e.key === 'ArrowRight') onNavigate('next');
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose, onNavigate]);
+
+  const { url, file, files, index } = previewState;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center"
+      onClick={onClose}
+    >
+      {/* 닫기 */}
+      <button
+        type="button"
+        className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/25 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+        onClick={onClose}
+        aria-label="닫기"
+      >
+        <X className="w-5 h-5" />
+      </button>
+
+      {/* 새창 열기 */}
+      <button
+        type="button"
+        className="absolute top-4 right-16 text-white bg-white/10 hover:bg-white/25 rounded-full w-10 h-10 flex items-center justify-center transition-colors"
+        onClick={(e) => { e.stopPropagation(); window.open(url, '_blank', 'noopener,noreferrer'); }}
+        aria-label="새창에서 열기"
+        title="새창에서 열기"
+      >
+        <ExternalLink className="w-4 h-4" />
+      </button>
+
+      {/* 페이지 카운터 */}
+      {files.length > 1 && (
+        <div className="absolute top-5 left-1/2 -translate-x-1/2 text-white text-sm bg-black/50 px-4 py-1 rounded-full select-none">
+          {index + 1} / {files.length}
+        </div>
+      )}
+
+      {/* 이전 */}
+      {index > 0 && (
+        <button
+          type="button"
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors"
+          onClick={(e) => { e.stopPropagation(); onNavigate('prev'); }}
+          aria-label="이전 이미지"
+        >
+          <ChevronLeft className="w-7 h-7" />
+        </button>
+      )}
+
+      {/* 다음 */}
+      {index < files.length - 1 && (
+        <button
+          type="button"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors"
+          onClick={(e) => { e.stopPropagation(); onNavigate('next'); }}
+          aria-label="다음 이미지"
+        >
+          <ChevronRight className="w-7 h-7" />
+        </button>
+      )}
+
+      {/* 이미지 */}
+      <img
+        src={url}
+        alt={file.fileName}
+        className="max-w-[88vw] max-h-[90vh] object-contain rounded shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      />
+
+      {/* 파일명 */}
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/50 px-4 py-1 rounded-full select-none">
+        {file.fileName}
+      </div>
+    </div>,
+    document.body,
+  );
 }
 
 // ==================== ThumbnailGrid 서브 컴포넌트 ====================
@@ -759,88 +857,25 @@ export function OrderQuickEditDialog({
     }
   };
 
-  const handlePreviewNavigate = async (direction: 'prev' | 'next') => {
+  const handlePreviewNavigate = useCallback(async (direction: 'prev' | 'next') => {
     if (!previewState) return;
     const { files, index } = previewState;
     const newIndex = direction === 'prev' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= files.length) return;
     await handlePreviewImage(files[newIndex], files, newIndex);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewState]);
 
   // ==================== Render ====================
 
   return (
     <>
     {previewState && (
-      <div
-        className="fixed inset-0 z-[9999] bg-black/92 flex items-center justify-center"
-        onClick={() => setPreviewState(null)}
-      >
-        {/* 닫기 */}
-        <button
-          type="button"
-          className="absolute top-4 right-4 text-white bg-white/10 hover:bg-white/25 rounded-full w-9 h-9 flex items-center justify-center transition-colors z-10"
-          onClick={() => setPreviewState(null)}
-          aria-label="닫기"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* 새창 열기 */}
-        <button
-          type="button"
-          className="absolute top-4 right-16 text-white bg-white/10 hover:bg-white/25 rounded-full w-9 h-9 flex items-center justify-center transition-colors z-10"
-          onClick={(e) => { e.stopPropagation(); window.open(previewState.url, '_blank', 'noopener,noreferrer'); }}
-          aria-label="새창에서 열기"
-          title="새창에서 열기"
-        >
-          <ExternalLink className="w-4 h-4" />
-        </button>
-
-        {/* 페이지 표시 */}
-        {previewState.files.length > 1 && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 text-white text-sm bg-black/40 px-3 py-1 rounded-full z-10">
-            {previewState.index + 1} / {previewState.files.length}
-          </div>
-        )}
-
-        {/* 이전 버튼 */}
-        {previewState.index > 0 && (
-          <button
-            type="button"
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors z-10"
-            onClick={(e) => { e.stopPropagation(); handlePreviewNavigate('prev'); }}
-            aria-label="이전 이미지"
-          >
-            <ChevronLeft className="w-7 h-7" />
-          </button>
-        )}
-
-        {/* 다음 버튼 */}
-        {previewState.index < previewState.files.length - 1 && (
-          <button
-            type="button"
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-white bg-white/10 hover:bg-white/30 rounded-full w-12 h-12 flex items-center justify-center transition-colors z-10"
-            onClick={(e) => { e.stopPropagation(); handlePreviewNavigate('next'); }}
-            aria-label="다음 이미지"
-          >
-            <ChevronRight className="w-7 h-7" />
-          </button>
-        )}
-
-        {/* 이미지 */}
-        <img
-          src={previewState.url}
-          alt={previewState.file.fileName}
-          className="max-w-[88vw] max-h-[90vh] object-contain rounded shadow-2xl"
-          onClick={(e) => e.stopPropagation()}
-        />
-
-        {/* 파일명 */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/40 px-3 py-1 rounded-full">
-          {previewState.file.fileName}
-        </div>
-      </div>
+      <ImageLightbox
+        previewState={previewState}
+        onClose={() => setPreviewState(null)}
+        onNavigate={handlePreviewNavigate}
+      />
     )}
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
