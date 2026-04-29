@@ -295,25 +295,43 @@ export function OrderItemPriceBreakdown({
           </span>
         </div>
         <div className={cn('font-bold text-[11px]', 'text-primary')}>
-          <span className="text-gray-400 font-normal">합계:</span>{' '}
-          {quantity > 1 ? (
-            <>
-              <span className="text-[16px]">
-                {Math.round(unitPrice).toLocaleString()}
-                <span className="text-[11px]">원</span>
-              </span>{' '}
-              × {quantity}부 ={' '}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-gray-400 font-normal">합계:</span>{' '}
+            {quantity > 1 ? (
+              <>
+                <span className="text-[16px]">
+                  {Math.round(unitPrice).toLocaleString()}
+                  <span className="text-[11px]">원</span>
+                </span>{' '}
+                × {quantity}부 ={' '}
+                <span className="text-[16px]">
+                  {Math.round(totalPrice).toLocaleString()}
+                  <span className="text-[11px]">원</span>
+                </span>
+              </>
+            ) : (
               <span className="text-[16px]">
                 {Math.round(totalPrice).toLocaleString()}
                 <span className="text-[11px]">원</span>
               </span>
-            </>
-          ) : (
-            <span className="text-[16px]">
-              {Math.round(totalPrice).toLocaleString()}
-              <span className="text-[11px]">원</span>
-            </span>
-          )}
+            )}
+            {data.priceSource && (
+              <span className={cn(
+                'inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium leading-none',
+                data.priceSource === 'client'
+                  ? 'bg-blue-100 text-blue-700'
+                  : data.priceSource === 'group'
+                    ? 'bg-purple-100 text-purple-700'
+                    : 'bg-gray-100 text-gray-500',
+              )}>
+                {data.priceSource === 'client'
+                  ? '개별단가'
+                  : data.priceSource === 'group'
+                    ? `그룹단가${data.groupName ? ` (${data.groupName})` : ''}`
+                    : '표준단가'}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
