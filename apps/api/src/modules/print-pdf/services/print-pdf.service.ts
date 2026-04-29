@@ -192,6 +192,8 @@ export class PrintPdfService implements OnModuleInit {
             folderName: item.folderName,
             size: item.size,
             pages: calculatedPages,
+            pageLayout: item.pageLayout,
+            bindingDirection: item.bindingDirection,
             printMethod: item.printMethod,
             paper: item.paper,
             bindingType: item.bindingType,

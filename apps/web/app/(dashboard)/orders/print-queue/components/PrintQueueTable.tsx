@@ -181,7 +181,13 @@ export default function PrintQueueTable({
                   {item.size?.replace(/인치$/,'') || '-'}
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
-                  {item.pages ?? '-'}({item.fileCount ?? '-'})
+                  <div>{item.pages ?? '-'}({item.fileCount ?? '-'})</div>
+                  <div className="text-[11px] text-gray-500 leading-tight">
+                    {item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : ''}
+                    {item.pageLayout === 'spread' && item.bindingDirection
+                      ? ` ${item.bindingDirection.toUpperCase().includes('RIGHT_START') ? '우시작' : '좌시작'}`
+                      : ''}
+                  </div>
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   {item.paper || <span className="text-red-600">미설정</span>}
