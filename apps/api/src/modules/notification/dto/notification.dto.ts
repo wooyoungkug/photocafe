@@ -75,6 +75,33 @@ export class ListNotificationsQueryDto {
   cursor?: string;
 }
 
+/** Web Push 구독 등록 요청 DTO — 브라우저 PushManager.subscribe() 결과를 그대로 받는다. */
+export class PushSubscribeDto {
+  @ApiProperty({ description: 'Push Service endpoint URL' })
+  @IsString()
+  endpoint!: string;
+
+  @ApiProperty({ description: 'P-256 공개키 (base64url)' })
+  @IsString()
+  p256dh!: string;
+
+  @ApiProperty({ description: 'Auth secret (base64url)' })
+  @IsString()
+  auth!: string;
+
+  @ApiPropertyOptional({ description: 'User-Agent (디바이스 식별용)' })
+  @IsOptional()
+  @IsString()
+  userAgent?: string;
+}
+
+/** Web Push 구독 해제 요청 DTO */
+export class PushUnsubscribeDto {
+  @ApiProperty({ description: '해제할 endpoint URL' })
+  @IsString()
+  endpoint!: string;
+}
+
 /** Swagger 응답 스키마 */
 export class NotificationResponseDto {
   @ApiProperty()

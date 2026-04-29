@@ -40,6 +40,10 @@ import {
   Bell,
   Printer,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  X,
 } from 'lucide-react';
 import { cn, normalizeImageUrl } from '@/lib/utils';
 import { ItemSpecsEditor } from './item-specs-editor';
@@ -174,14 +178,16 @@ function AdaptiveThumbnail({
   direction,
   onOpenOriginal,
   openingFileId,
+  allFiles,
 }: {
   file: ThumbnailFile;
   index: number;
   pageLayout?: string;
   totalFiles: number;
   direction: BindingDirectionType;
-  onOpenOriginal?: (file: ThumbnailFile) => void;
+  onOpenOriginal?: (file: ThumbnailFile, files: ThumbnailFile[], index: number) => void;
   openingFileId?: string | null;
+  allFiles: ThumbnailFile[];
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
   const [imgSrc, setImgSrc] = useState<string | null>(
@@ -222,7 +228,7 @@ function AdaptiveThumbnail({
           aspectStyle || 'aspect-auto',
           onOpenOriginal && 'cursor-zoom-in'
         )}
-        onClick={() => onOpenOriginal?.(file)}
+        onClick={() => onOpenOriginal?.(file, allFiles, index)}
         title="클릭하여 원본 확대"
       >
         {openingFileId === file.id && (
@@ -323,7 +329,7 @@ function ThumbnailGrid({
   files: ThumbnailFile[];
   pageLayout?: string;
   bindingDirection?: BindingDirectionType;
-  onOpenOriginal?: (file: ThumbnailFile) => void;
+  onOpenOriginal?: (file: ThumbnailFile, files: ThumbnailFile[], index: number) => void;
   openingFileId?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -340,6 +346,7 @@ function ThumbnailGrid({
       direction={direction}
       onOpenOriginal={onOpenOriginal}
       openingFileId={openingFileId}
+      allFiles={files}
     />
   );
 
@@ -493,7 +500,12 @@ export function OrderQuickEditDialog({
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
   const [openingFileId, setOpeningFileId] = useState<string | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewState, setPreviewState] = useState<{
+    url: string;
+    file: ThumbnailFile;
+    files: ThumbnailFile[];
+    index: number;
+  } | null>(null);
 
   // PR3: 메시지/담당자/알림 + 재출력 인터셉트 + 이력 보기
   const [editMessage, setEditMessage] = useState('');
@@ -725,22 +737,34 @@ export function OrderQuickEditDialog({
     await performSave();
   };
 
-  const handlePreviewImage = async (file: ThumbnailFile) => {
+  const handlePreviewImage = async (
+    file: ThumbnailFile,
+    files: ThumbnailFile[] = [],
+    index: number = 0,
+  ) => {
     if (!file?.id) return;
     setOpeningFileId(file.id);
     try {
       const finalUrl = await resolveOrderFileAccessUrl(file);
-      setPreviewUrl(finalUrl);
+      setPreviewState({ url: finalUrl, file, files, index });
     } catch (e: any) {
       const fallback = normalizeImageUrl(file.fileUrl) || file.fileUrl;
       if (fallback) {
-        setPreviewUrl(fallback);
+        setPreviewState({ url: fallback, file, files, index });
       } else {
         toast({ title: e?.message || '원본 파일 열기에 실패했습니다.', variant: 'destructive' });
       }
     } finally {
       setOpeningFileId(null);
     }
+  };
+
+  const handlePreviewNavigate = async (direction: 'prev' | 'next') => {
+    if (!previewState) return;
+    const { files, index } = previewState;
+    const newIndex = direction === 'prev' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= files.length) return;
+    await handlePreviewImage(files[newIndex], files, newIndex);
   };
 
   // ==================== Render ====================

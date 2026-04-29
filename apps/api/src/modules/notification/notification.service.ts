@@ -1,8 +1,13 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Notification, Prisma } from '@prisma/client';
+import * as webpush from 'web-push';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { KakaoAlimtalkService } from '@/common/kakao-alimtalk/kakao-alimtalk.service';
-import { CreateNotificationDto, NOTIFICATION_TYPES } from './dto/notification.dto';
+import {
+  CreateNotificationDto,
+  NOTIFICATION_TYPES,
+  PushSubscribeDto,
+} from './dto/notification.dto';
 
 interface ListOptions {
   unreadOnly?: boolean;
@@ -24,10 +29,37 @@ export class NotificationService {
     [NOTIFICATION_TYPES.ORDER_STATUS_CHANGED]: 'KAKAO_TPL_ORDER_STATUS_CHANGED',
   };
 
+  /** VAPID 설정 1회 적용 플래그 — 미설정 시 Web Push 발송 skip. */
+  private vapidConfigured = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly kakao: KakaoAlimtalkService,
-  ) {}
+  ) {
+    this.configureVapid();
+  }
+
+  /** 환경변수에서 VAPID 키를 읽어 web-push 라이브러리에 1회 설정한다. */
+  private configureVapid(): void {
+    const publicKey = process.env.VAPID_PUBLIC_KEY;
+    const privateKey = process.env.VAPID_PRIVATE_KEY;
+    const subject = process.env.VAPID_SUBJECT || 'mailto:admin@photocafe.co.kr';
+    if (!publicKey || !privateKey) {
+      this.logger.warn('VAPID 키 미설정 — Web Push 발송이 비활성화됩니다.');
+      return;
+    }
+    try {
+      webpush.setVapidDetails(subject, publicKey, privateKey);
+      this.vapidConfigured = true;
+    } catch (err) {
+      this.logger.error(`VAPID 설정 실패: ${(err as Error).message}`);
+    }
+  }
+
+  /** VAPID 설정 여부 — 카카오의 isConfigured()와 동일 패턴. */
+  private isWebPushConfigured(): boolean {
+    return this.vapidConfigured;
+  }
 
   /** 단건 알림 생성 + (가능하면) 카카오 알림톡 비동기 발송. 카카오 실패는 throw하지 않음. */
   async create(dto: CreateNotificationDto): Promise<Notification> {
@@ -46,6 +78,9 @@ export class NotificationService {
     // fire-and-forget: 호출자 흐름을 막지 않음
     void this.sendKakao(created).catch((err) => {
       this.logger.warn(`카카오 발송 백그라운드 실패 [${created.id}]: ${(err as Error).message}`);
+    });
+    void this.sendWebPush(created).catch((err) => {
+      this.logger.warn(`Web Push 발송 백그라운드 실패 [${created.id}]: ${(err as Error).message}`);
     });
 
     return created;
@@ -205,5 +240,82 @@ export class NotificationService {
     } catch (err) {
       this.logger.warn(`Kakao 상태 업데이트 실패 [${id}]: ${(err as Error).message}`);
     }
+  }
+
+  /**
+   * Web Push 발송 — 수신자의 모든 구독에 병렬 전송.
+   * - VAPID 미설정/구독 없음 시 skip.
+   * - 응답 410(Gone) 또는 404 → 만료 구독으로 간주, DB에서 자동 삭제.
+   * - 카카오와 동일하게 호출자 흐름을 막지 않는 fire-and-forget 패턴.
+   */
+  private async sendWebPush(notification: Notification): Promise<void> {
+    if (!this.isWebPushConfigured()) return;
+
+    const subs = await this.prisma.staffPushSubscription.findMany({
+      where: { staffId: notification.recipientStaffId },
+      select: { id: true, endpoint: true, p256dh: true, auth: true },
+    });
+    if (!subs.length) return;
+
+    const payload = JSON.stringify({
+      title: notification.title,
+      body: notification.body,
+      link: notification.link ?? null,
+      type: notification.type,
+    });
+
+    await Promise.all(
+      subs.map(async (sub) => {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            payload,
+          );
+        } catch (err) {
+          const statusCode = (err as { statusCode?: number }).statusCode;
+          if (statusCode === 404 || statusCode === 410) {
+            // 만료된 구독 → 삭제
+            await this.prisma.staffPushSubscription
+              .delete({ where: { id: sub.id } })
+              .catch(() => undefined);
+            this.logger.log(`만료 구독 삭제: ${sub.endpoint}`);
+          } else {
+            this.logger.warn(
+              `Web Push 발송 실패 [${notification.id}] (status=${statusCode ?? 'n/a'}): ${(err as Error).message}`,
+            );
+          }
+        }
+      }),
+    );
+  }
+
+  /** Web Push 구독 등록 — endpoint 중복 시 갱신 (upsert). */
+  async subscribePush(staffId: string, dto: PushSubscribeDto): Promise<void> {
+    await this.prisma.staffPushSubscription.upsert({
+      where: { endpoint: dto.endpoint },
+      update: {
+        staffId,
+        p256dh: dto.p256dh,
+        auth: dto.auth,
+        userAgent: dto.userAgent ?? null,
+      },
+      create: {
+        staffId,
+        endpoint: dto.endpoint,
+        p256dh: dto.p256dh,
+        auth: dto.auth,
+        userAgent: dto.userAgent ?? null,
+      },
+    });
+  }
+
+  /** Web Push 구독 해제 — 본인 구독만 삭제 (타인 endpoint는 무시). */
+  async unsubscribePush(staffId: string, endpoint: string): Promise<void> {
+    await this.prisma.staffPushSubscription.deleteMany({
+      where: { staffId, endpoint },
+    });
   }
 }

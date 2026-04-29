@@ -13,6 +13,7 @@ import { useNotificationConfig } from "@/hooks/use-notification-config";
 import { useCurrentUser } from "@/hooks/use-auth";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import { useTypographyApply, useMenuStyleApply } from "@/hooks/use-typography";
+import { usePushSubscription } from "@/hooks/use-push-subscription";
 import {
   Sheet,
   SheetContent,
@@ -30,7 +31,9 @@ export function DashboardLayoutClient({
   useNotificationConfig();
   useTypographyApply();
   useMenuStyleApply();
-  const { user } = useCurrentUser();
+  const { user, isAuthenticated } = useCurrentUser();
+  // 로그인된 직원에 한해 Web Push 구독 자동 등록
+  usePushSubscription(isAuthenticated && user?.type === "employee");
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";
   const isTopMode = layoutMode === "top";

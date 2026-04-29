@@ -1,6 +1,9 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Patch,
   Post,
   Param,
@@ -14,6 +17,8 @@ import { NotificationService } from './notification.service';
 import {
   ListNotificationsQueryDto,
   NotificationResponseDto,
+  PushSubscribeDto,
+  PushUnsubscribeDto,
 } from './dto/notification.dto';
 
 /** 직원 인앱 알림 — JWT 로그인 사용자 본인 알림 전용 라우트. */
@@ -55,5 +60,21 @@ export class NotificationController {
   @ApiResponse({ status: 200, schema: { properties: { updated: { type: 'number' } } } })
   async markAllRead(@Request() req: any) {
     return this.notifications.markAllRead(req.user.id);
+  }
+
+  @Post('push-subscribe')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Web Push 구독 등록 (브라우저 PushManager.subscribe 결과 전송)' })
+  @ApiResponse({ status: 204, description: '등록 완료' })
+  async subscribePush(@Body() dto: PushSubscribeDto, @Request() req: any) {
+    await this.notifications.subscribePush(req.user.id, dto);
+  }
+
+  @Delete('push-subscribe')
+  @HttpCode(204)
+  @ApiOperation({ summary: 'Web Push 구독 해제' })
+  @ApiResponse({ status: 204, description: '해제 완료' })
+  async unsubscribePush(@Body() dto: PushUnsubscribeDto, @Request() req: any) {
+    await this.notifications.unsubscribePush(req.user.id, dto.endpoint);
   }
 }

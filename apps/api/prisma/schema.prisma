@@ -242,11 +242,12 @@ model Staff {
   quotations        Quotation[]
 
   // 주문 편집/재출력/알림
-  operatedOrders    Order[]            @relation("OrderPrintOperator")
-  editedOrders      OrderEditHistory[] @relation("OrderEditor")
-  requestedReprints ReprintJob[]       @relation("ReprintRequester")
-  processedReprints ReprintJob[]       @relation("ReprintProcessor")
-  notifications     Notification[]     @relation("StaffNotifications")
+  operatedOrders    Order[]                 @relation("OrderPrintOperator")
+  editedOrders      OrderEditHistory[]      @relation("OrderEditor")
+  requestedReprints ReprintJob[]            @relation("ReprintRequester")
+  processedReprints ReprintJob[]            @relation("ReprintProcessor")
+  notifications     Notification[]          @relation("StaffNotifications")
+  pushSubscriptions StaffPushSubscription[]
 
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
@@ -1295,6 +1296,23 @@ model Notification {
   @@index([recipientStaffId, createdAt])
   @@index([type])
   @@map("notifications")
+}
+
+/// Web Push 구독 정보 — 직원당 N개 (브라우저/디바이스별).
+/// endpoint 가 unique 키. 410 Gone 응답 시 자동 삭제 대상.
+model StaffPushSubscription {
+  id        String   @id @default(cuid())
+  staffId   String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@map("staff_push_subscriptions")
 }
 
 model ReceptionSchedule {
