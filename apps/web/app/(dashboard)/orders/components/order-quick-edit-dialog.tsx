@@ -43,6 +43,8 @@ import {
 } from 'lucide-react';
 import { cn, normalizeImageUrl } from '@/lib/utils';
 import { ItemSpecsEditor } from './item-specs-editor';
+import { OrderItemPriceBreakdown } from './order-item-price-breakdown';
+import { useProduct } from '@/hooks/use-products';
 import { useCurrentUser } from '@/hooks/use-auth';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -111,6 +113,17 @@ function getSpreadPageNumbers(
   }
 }
 
+// 후가공 옵션 배열 동등성 비교 (순서 무관)
+function finishingsDiffer(
+  a?: string[],
+  b?: string[],
+): boolean {
+  const aa = (a ?? []).slice().sort();
+  const bb = (b ?? []).slice().sort();
+  if (aa.length !== bb.length) return true;
+  return aa.some((v, i) => v !== bb[i]);
+}
+
 // ==================== Types ====================
 
 interface OrderQuickEditDialogProps {
@@ -134,6 +147,11 @@ interface ItemEdit {
   colorIntentId?: string;
   printSide?: string;
   fileSpecId?: string;
+  // 상품옵션 한정 사양 편집 (2026-04-29)
+  bindingType?: string;
+  finishingOptions?: string[];
+  // 수동 단가 사용 여부 (false=auto: breakdown 계산값, true=admin 수동입력)
+  manualUnitPrice?: boolean;
 }
 
 // ==================== ThumbnailGrid 서브 컴포넌트 ====================
@@ -506,6 +524,9 @@ export function OrderQuickEditDialog({
           colorIntentId: item.colorIntentId || undefined,
           printSide: item.printSide || undefined,
           fileSpecId: item.fileSpecId || undefined,
+          bindingType: item.bindingType || undefined,
+          finishingOptions: item.finishingOptions || undefined,
+          manualUnitPrice: false,
         };
       });
       setItemEdits(edits);
@@ -560,7 +581,9 @@ export function OrderQuickEditDialog({
         edit.printMethod !== (item.printMethod || undefined) ||
         edit.colorIntentId !== (item.colorIntentId || undefined) ||
         edit.printSide !== (item.printSide || undefined) ||
-        edit.fileSpecId !== (item.fileSpecId || undefined)
+        edit.fileSpecId !== (item.fileSpecId || undefined) ||
+        edit.bindingType !== (item.bindingType || undefined) ||
+        finishingsDiffer(edit.finishingOptions, item.finishingOptions)
       );
     });
   };
@@ -584,7 +607,9 @@ export function OrderQuickEditDialog({
         edit.printMethod !== (item.printMethod || undefined) ||
         edit.colorIntentId !== (item.colorIntentId || undefined) ||
         edit.printSide !== (item.printSide || undefined) ||
-        edit.fileSpecId !== (item.fileSpecId || undefined);
+        edit.fileSpecId !== (item.fileSpecId || undefined) ||
+        edit.bindingType !== (item.bindingType || undefined) ||
+        finishingsDiffer(edit.finishingOptions, item.finishingOptions);
       if (specChanged) {
         // 사양 변경은 모든 페이지 재출력 — 페이지 단위 부분 재출력은 향후 UI에서 별도 선택
         const pages = (item.files || [])
@@ -617,7 +642,9 @@ export function OrderQuickEditDialog({
           edit.printMethod !== (item.printMethod || undefined) ||
           edit.colorIntentId !== (item.colorIntentId || undefined) ||
           edit.printSide !== (item.printSide || undefined) ||
-          edit.fileSpecId !== (item.fileSpecId || undefined)
+          edit.fileSpecId !== (item.fileSpecId || undefined) ||
+          edit.bindingType !== (item.bindingType || undefined) ||
+          finishingsDiffer(edit.finishingOptions, item.finishingOptions)
         );
       })
       .map((item) => ({
@@ -635,6 +662,7 @@ export function OrderQuickEditDialog({
         colorIntentId: itemEdits[item.id].colorIntentId,
         printSide: itemEdits[item.id].printSide,
         fileSpecId: itemEdits[item.id].fileSpecId,
+        // bindingType, finishingOptions 는 백엔드 AdjustOrderItemDto 미지원 → 별도 PR 필요
       }));
 
   // 실제 백엔드 저장 호출 (재출력 인터셉트 통과 후 또는 일반 상태에서)
@@ -952,6 +980,9 @@ export function OrderQuickEditDialog({
                                 printSide: edit.printSide,
                                 fabricName: edit.fabricName,
                                 fileSpecId: edit.fileSpecId,
+                                bindingType: edit.bindingType,
+                                finishingOptions: edit.finishingOptions,
+                                foilName: edit.foilName,
                               }}
                               onChange={(next) =>
                                 setItemEdits((prev) => ({
@@ -1167,6 +1198,26 @@ export function OrderQuickEditDialog({
                         </div>
                       </div>
 
+                      {/* 단가 breakdown (상품옵션 기반 자동 계산) */}
+                      <div className="rounded-md border p-3 bg-white">
+                        <ItemPriceBreakdownPanel
+                          item={item}
+                          edit={edit}
+                          clientId={displayOrder.clientId}
+                          onUnitPriceCalculated={(calculated) => {
+                            setItemEdits((prev) => {
+                              const cur = prev[item.id];
+                              if (!cur || cur.manualUnitPrice) return prev;
+                              if (cur.unitPrice === calculated) return prev;
+                              return {
+                                ...prev,
+                                [item.id]: { ...cur, unitPrice: calculated },
+                              };
+                            });
+                          }}
+                        />
+                      </div>
+
                       {/* Quantity / Unit price / Subtotal */}
                       <div className="flex flex-wrap gap-4 items-end">
                         <div className="space-y-1">
@@ -1193,13 +1244,29 @@ export function OrderQuickEditDialog({
                           />
                         </div>
                         <div className="space-y-1">
-                          <Label className="text-xs text-muted-foreground">
-                            단가
-                          </Label>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground">단가</Label>
+                            <label className="flex items-center gap-1 text-[11px] text-slate-500 cursor-pointer select-none">
+                              <Checkbox
+                                checked={edit.manualUnitPrice ?? false}
+                                onCheckedChange={(checked) =>
+                                  setItemEdits((prev) => ({
+                                    ...prev,
+                                    [item.id]: {
+                                      ...prev[item.id],
+                                      manualUnitPrice: checked === true,
+                                    },
+                                  }))
+                                }
+                              />
+                              수동 단가
+                            </label>
+                          </div>
                           <Input
                             type="number"
                             min={0}
                             value={edit.unitPrice}
+                            readOnly={!edit.manualUnitPrice}
                             onChange={(e) =>
                               setItemEdits((prev) => ({
                                 ...prev,
@@ -1212,7 +1279,10 @@ export function OrderQuickEditDialog({
                                 },
                               }))
                             }
-                            className="w-32 h-8 text-sm"
+                            className={cn(
+                              'w-32 h-8 text-sm',
+                              !edit.manualUnitPrice && 'bg-slate-50 text-slate-700',
+                            )}
                           />
                         </div>
                         <div className="text-sm font-medium text-right flex-1 whitespace-nowrap">
@@ -1418,5 +1488,41 @@ export function OrderQuickEditDialog({
         orderId={displayOrder.id}
       />
     </Dialog>
+  );
+}
+
+// ==================== ItemPriceBreakdownPanel ====================
+// OrderItem 별로 useProduct 를 호출해야 하므로 별도 서브 컴포넌트로 분리.
+
+function ItemPriceBreakdownPanel({
+  item,
+  edit,
+  clientId,
+  onUnitPriceCalculated,
+}: {
+  item: import('@/hooks/use-orders').OrderItem;
+  edit: ItemEdit;
+  clientId: string;
+  onUnitPriceCalculated: (unitPrice: number) => void;
+}) {
+  const productQuery = useProduct(item.productId);
+  return (
+    <OrderItemPriceBreakdown
+      orderItem={item}
+      edit={{
+        printMethod: edit.printMethod,
+        colorIntentId: edit.colorIntentId,
+        paper: edit.paper,
+        printSide: edit.printSide,
+        fabricName: edit.fabricName,
+        fileSpecId: edit.fileSpecId,
+        bindingType: edit.bindingType,
+        finishingOptions: edit.finishingOptions,
+        foilName: edit.foilName,
+      }}
+      product={productQuery.data}
+      clientId={clientId}
+      onUnitPriceCalculated={onUnitPriceCalculated}
+    />
   );
 }
