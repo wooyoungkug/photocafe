@@ -410,8 +410,8 @@ export function ItemSpecsEditor({
                 )}
               {specOptions.map((ps) => {
                 const optValue = ps.specificationId ?? ps.id;
-                const wIn = (ps.widthMm / 25.4).toFixed(1);
-                const hIn = (ps.heightMm / 25.4).toFixed(1);
+                const wIn = parseFloat((ps.widthMm / 25.4).toFixed(1));
+                const hIn = parseFloat((ps.heightMm / 25.4).toFixed(1));
                 return (
                   <SelectItem key={ps.id} value={optValue}>
                     {ps.name} ({wIn}×{hIn}″)
