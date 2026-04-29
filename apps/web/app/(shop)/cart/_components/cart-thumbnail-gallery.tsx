@@ -101,9 +101,13 @@ function ThumbnailItem({
         return (
           <div
             className={cn(
-              'absolute inset-y-0.5 w-[calc(50%-2px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded',
-              leftBlank ? 'left-0.5' : 'right-0.5'
+              'absolute top-1/2 -translate-y-1/2 max-w-[48%] max-h-[96%] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded',
+              leftBlank ? 'left-[2%]' : 'right-[2%]'
             )}
+            style={{
+              aspectRatio: imgRatio ? String(imgRatio) : '4/5',
+              width: imgRatio && imgRatio > 1 ? '48%' : `${Math.min(48, (imgRatio ?? 0.8) * 50)}%`,
+            }}
             aria-label={blankLabel}
           >
             <svg
