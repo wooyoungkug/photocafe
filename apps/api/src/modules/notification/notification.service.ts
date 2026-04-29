@@ -176,11 +176,6 @@ export class NotificationService {
 
     const envKey = this.TEMPLATE_ENV_KEYS[notification.type];
     const templateCode = envKey ? process.env[envKey] : undefined;
-    if (!templateCode) {
-      this.logger.warn(`Kakao 템플릿 미설정: type=${notification.type} (${envKey ?? 'no-mapping'})`);
-      await this.updateKakaoStatus(notification.id, 'skipped', null);
-      return;
-    }
 
     const recipient = await this.prisma.staff.findUnique({
       where: { id: notification.recipientStaffId },
@@ -190,6 +185,15 @@ export class NotificationService {
     if (!phone) {
       this.logger.warn(`Kakao 발송 skip: 수신자 ${notification.recipientStaffId} 전화번호 없음`);
       await this.updateKakaoStatus(notification.id, 'skipped', null);
+      return;
+    }
+
+    // 템플릿 코드 없음 → SMS로 직접 발송
+    if (!templateCode) {
+      this.logger.warn(`Kakao 템플릿 미설정(${envKey ?? 'no-mapping'}), SMS로 대체 발송`);
+      const smsText = `[${notification.title}]\n${notification.body}`;
+      const ok = await this.kakao.sendPlainSms(phone, smsText);
+      await this.updateKakaoStatus(notification.id, ok ? 'sent' : 'failed', ok ? new Date() : null);
       return;
     }
 

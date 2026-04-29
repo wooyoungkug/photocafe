@@ -48,6 +48,23 @@ export class KakaoAlimtalkService {
     return !!this.solapi && !!this.senderNo;
   }
 
+  /** 템플릿 없이 SMS만 단건 발송 */
+  async sendPlainSms(phone: string, text: string): Promise<boolean> {
+    if (!this.isSmsConfigured()) return false;
+    try {
+      await this.solapi!.sendOne({
+        to: phone.replace(/-/g, ''),
+        from: this.senderNo,
+        text,
+      });
+      this.logger.log(`[SMS 직접발송] 성공: ${phone}`);
+      return true;
+    } catch (err) {
+      this.logger.error(`[SMS 직접발송] 실패: ${(err as Error).message}`);
+      return false;
+    }
+  }
+
   /** 카카오 알림톡 발송 가능 여부 */
   isConfigured(): boolean {
     // 알림톡은 pfId(카카오채널)가 필요, SMS는 senderNo만 필요

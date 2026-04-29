@@ -38,14 +38,22 @@ export function OrderItemPriceBreakdown({
   const colorIntentsQuery = useColorIntents();
   const colorIntents = colorIntentsQuery.data ?? [];
 
-  // 편집 중인 fileSpecId 로 product.specifications 매칭 (specificationId 또는 row id)
+  // 편집 중인 fileSpecId 로 product.specifications 매칭
+  // ID 매칭 실패 시 orderItem.size 이름으로 폴백 (주문 생성 이후 spec ID 변경 대응)
   const fileSpecId = edit.fileSpecId ?? orderItem.fileSpecId ?? '';
   const productSpec = useMemo(() => {
-    if (!product?.specifications || !fileSpecId) return undefined;
-    return product.specifications.find(
-      (ps) => (ps.specificationId ?? ps.id) === fileSpecId,
-    );
-  }, [product?.specifications, fileSpecId]);
+    if (!product?.specifications) return undefined;
+    if (fileSpecId) {
+      const byId = product.specifications.find(
+        (ps) => (ps.specificationId ?? ps.id) === fileSpecId,
+      );
+      if (byId) return byId;
+    }
+    if (orderItem.size) {
+      return product.specifications.find((ps) => ps.name === orderItem.size);
+    }
+    return undefined;
+  }, [product?.specifications, fileSpecId, orderItem.size]);
 
   // 색상모드: ColorIntent.numColorsFront 로 4도/6도 판별
   const colorIntentId = edit.colorIntentId ?? orderItem.colorIntentId ?? '';
