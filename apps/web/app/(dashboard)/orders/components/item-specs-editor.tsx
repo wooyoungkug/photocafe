@@ -506,53 +506,59 @@ export function ItemSpecsEditor({
               </SelectContent>
             </Select>
 
-            <Select
-              value={currentFoilColor || undefined}
-              onValueChange={(v) => update({ foilColor: v === '__none__' ? '' : v })}
-              disabled={readonly || !foilSelected}
-            >
-              <SelectTrigger className="h-8 text-[13px]">
-                <SelectValue placeholder={foilSelected ? '박 색상' : '동판 선택 후'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">선택 없음</SelectItem>
-                {currentFoilColor &&
-                  !foilColors.some(
-                    (c) => c.code === currentFoilColor || c.name === currentFoilColor,
-                  ) && (
-                    <SelectItem value={currentFoilColor}>{currentFoilColor} (현재값)</SelectItem>
-                  )}
-                {foilColors.map((c) => (
-                  <SelectItem key={c.id} value={c.code}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1">
+              <Label className="text-[12px] text-slate-600">박컬러</Label>
+              <Select
+                value={currentFoilColor || undefined}
+                onValueChange={(v) => update({ foilColor: v === '__none__' ? '' : v })}
+                disabled={readonly || !foilSelected}
+              >
+                <SelectTrigger className="h-8 text-[13px]">
+                  <SelectValue placeholder={foilSelected ? '선택' : '동판 선택 후'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">선택 없음</SelectItem>
+                  {currentFoilColor &&
+                    !foilColors.some(
+                      (c) => c.code === currentFoilColor || c.name === currentFoilColor,
+                    ) && (
+                      <SelectItem value={currentFoilColor}>{currentFoilColor} (현재값)</SelectItem>
+                    )}
+                  {foilColors.map((c) => (
+                    <SelectItem key={c.id} value={c.code}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-            <Select
-              value={currentFoilPosition || undefined}
-              onValueChange={(v) => update({ foilPosition: v === '__none__' ? '' : v })}
-              disabled={readonly || !foilSelected}
-            >
-              <SelectTrigger className="h-8 text-[13px]">
-                <SelectValue placeholder={foilSelected ? '박 위치' : '동판 선택 후'} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">선택 없음</SelectItem>
-                {currentFoilPosition &&
-                  !platePositions.some(
-                    (p) => p.code === currentFoilPosition || p.name === currentFoilPosition,
-                  ) && (
-                    <SelectItem value={currentFoilPosition}>{currentFoilPosition} (현재값)</SelectItem>
-                  )}
-                {platePositions.map((p) => (
-                  <SelectItem key={p.id} value={p.code}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="space-y-1">
+              <Label className="text-[12px] text-slate-600">박위치</Label>
+              <Select
+                value={currentFoilPosition || undefined}
+                onValueChange={(v) => update({ foilPosition: v === '__none__' ? '' : v })}
+                disabled={readonly || !foilSelected}
+              >
+                <SelectTrigger className="h-8 text-[13px]">
+                  <SelectValue placeholder={foilSelected ? '선택' : '동판 선택 후'} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">선택 없음</SelectItem>
+                  {currentFoilPosition &&
+                    !platePositions.some(
+                      (p) => p.code === currentFoilPosition || p.name === currentFoilPosition,
+                    ) && (
+                      <SelectItem value={currentFoilPosition}>{currentFoilPosition} (현재값)</SelectItem>
+                    )}
+                  {platePositions.map((p) => (
+                    <SelectItem key={p.id} value={p.code}>
+                      {p.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       )}
