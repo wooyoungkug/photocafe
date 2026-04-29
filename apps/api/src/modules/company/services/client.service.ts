@@ -122,9 +122,10 @@ export class ClientService {
     );
 
     const data = clients.map((client: any) => {
-      const { password, ...rest } = client;
+      const { password, assignedStaffMember, ...rest } = client;
       return {
         ...rest,
+        assignedStaffSingle: assignedStaffMember ?? null,
         hasPassword: !!password,
         _count: {
           consultations: client._count.consultations,
@@ -186,8 +187,8 @@ export class ClientService {
       throw new NotFoundException('거래처를 찾을 수 없습니다');
     }
 
-    const { password, ...clientData } = client;
-    return { ...clientData, hasPassword: !!password };
+    const { password, assignedStaffMember, ...clientData } = client as any;
+    return { ...clientData, assignedStaffSingle: assignedStaffMember ?? null, hasPassword: !!password };
   }
 
   async checkEmailDuplicate(email: string, excludeId?: string) {
@@ -253,7 +254,7 @@ export class ClientService {
       delete data.group;
     }
 
-    return this.prisma.client.create({
+    const created = await this.prisma.client.create({
       data,
       include: {
         group: true,
@@ -262,6 +263,8 @@ export class ClientService {
         },
       },
     });
+    const { password: _p, assignedStaffMember: asm, ...createdRest } = created as any;
+    return { ...createdRest, assignedStaffSingle: asm ?? null };
   }
 
   async update(id: string, data: any) {
@@ -284,8 +287,8 @@ export class ClientService {
       },
     });
 
-    const { password, ...rest } = result;
-    return { ...rest, hasPassword: !!password };
+    const { password, assignedStaffMember, ...rest } = result as any;
+    return { ...rest, assignedStaffSingle: assignedStaffMember ?? null, hasPassword: !!password };
   }
 
   async delete(id: string) {
