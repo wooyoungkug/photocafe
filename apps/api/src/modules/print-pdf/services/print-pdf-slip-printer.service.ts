@@ -36,9 +36,13 @@ export class PrintPdfSlipPrinterService {
 
   async printSlipIfEnabled(data: SlipData): Promise<void> {
     try {
-      const enabled =
-        (await this.settings.getValue('print_pdf_auto_print_enabled', 'false')) === 'true';
-      if (!enabled) return;
+      const enabledRaw = await this.settings.getValue('print_pdf_auto_print_enabled', 'false');
+      this.logger.log(`[슬립인쇄] enabled=${enabledRaw}, platform=${process.platform}, order=${data.orderNumber}`);
+      const enabled = enabledRaw === 'true';
+      if (!enabled) {
+        this.logger.warn(`[슬립인쇄] 비활성화 상태 - 설정에서 "자동 인쇄 사용"을 켜고 저장해주세요`);
+        return;
+      }
 
       // 인디고/잉크젯별 프린터 분리: 개별 설정이 있으면 우선, 없으면 공통 프린터 사용
       const isInkjet = (data.printMethod || '').toLowerCase().includes('inkjet');
@@ -46,6 +50,7 @@ export class PrintPdfSlipPrinterService {
       const specificPrinter = (await this.settings.getValue(specificKey, '')).trim();
       const commonPrinter = (await this.settings.getValue('print_pdf_auto_print_name', '')).trim();
       const printerName = specificPrinter || commonPrinter;
+      this.logger.log(`[슬립인쇄] 프린터=${printerName || '(기본 프린터)'}, 잉크젯=${isInkjet}`);
 
       const slipText = this.buildSlipText(data);
       const tempFile = path.join(os.tmpdir(), `pdf-slip-${Date.now()}.txt`);
