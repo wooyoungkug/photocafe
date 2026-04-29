@@ -525,7 +525,7 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                           >
                             <div className="space-y-1">
-                              <div className="text-xs text-muted-foreground whitespace-nowrap">
+                              <div className="text-sm text-muted-foreground whitespace-nowrap">
                                 {format(new Date(order.orderedAt), 'yy-MM-dd HH:mm', { locale: ko })}
                               </div>
                               <button
@@ -535,16 +535,16 @@ export default function OrderListPage() {
                                   setQuickEditOrder(order);
                                   setIsQuickEditOpen(true);
                                 }}
-                                className="text-xs font-semibold text-foreground hover:underline whitespace-nowrap text-left"
+                                className="text-sm font-semibold text-foreground hover:underline whitespace-nowrap text-left"
                                 title="주문 사양 편집"
                               >
                                 {order.orderNumber}
                               </button>
                               {order.isUrgent && (
-                                <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
+                                <Badge variant="destructive" className="text-xs px-1 py-0">긴급</Badge>
                               )}
                               {order.isDuplicateOverride && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 bg-amber-50">중복주의</Badge>
+                                <Badge variant="outline" className="text-xs px-1 py-0 border-amber-400 text-amber-600 bg-amber-50">중복주의</Badge>
                               )}
                             </div>
                           </TableCell>
@@ -557,11 +557,11 @@ export default function OrderListPage() {
                             rowSpan={items.length}
                             onClick={() => handleImpersonate(order.clientId)}
                           >
-                            <div className="text-xs font-medium text-foreground hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
+                            <div className="text-sm font-medium text-foreground hover:underline flex items-center justify-center gap-0.5 whitespace-nowrap">
                               {order.client?.clientName}
                               <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                             </div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                            <div className="text-xs text-muted-foreground mt-0.5">
                               {order.client?.assignedStaff?.[0]?.staff?.name || '-'}
                             </div>
                           </TableCell>
@@ -569,7 +569,7 @@ export default function OrderListPage() {
 
                         {/* 상품명 */}
                         <TableCell className="whitespace-nowrap">
-                          <p className="text-xs font-medium leading-tight">
+                          <p className="text-sm font-medium leading-tight">
                             {item.productName?.split(' - ')?.[0] || item.productName}
                           </p>
                         </TableCell>

@@ -54,7 +54,7 @@ model User {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  client      Client?
+  client Client?
 
   @@unique([provider, oauthId])
   @@index([email])
@@ -115,20 +115,20 @@ model Department {
 }
 
 model Team {
-  id           String     @id @default(cuid())
-  code         String     @unique
+  id           String   @id @default(cuid())
+  code         String   @unique
   name         String
   departmentId String
   leaderId     String?
   description  String?
-  sortOrder    Int        @default(0)
-  isActive     Boolean    @default(true)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  sortOrder    Int      @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  department   Department @relation(fields: [departmentId], references: [id])
-  leader       Staff?     @relation("TeamLeader", fields: [leaderId], references: [id])
-  staff        Staff[]    @relation("TeamMembers")
+  department Department @relation(fields: [departmentId], references: [id])
+  leader     Staff?     @relation("TeamLeader", fields: [leaderId], references: [id])
+  staff      Staff[]    @relation("TeamMembers")
 
   @@index([departmentId])
   @@map("teams")
@@ -155,8 +155,8 @@ model AuditLog {
 }
 
 model Staff {
-  id                      String        @id @default(cuid())
-  staffId                 String?       @unique
+  id                      String    @id @default(cuid())
+  staffId                 String?   @unique
   password                String?
   name                    String
   branchId                String?
@@ -169,77 +169,84 @@ model Staff {
   postalCode              String?
   address                 String?
   addressDetail           String?
-  settlementGrade         Int           @default(1)
-  allowedIps              String[]      @default([])
-  canEditInManagerView    Boolean       @default(false)
-  isSuperAdmin            Boolean       @default(false)
-  canLoginAsManager       Boolean       @default(false)
-  canChangeDepositStage   Boolean       @default(false)
-  canChangeReceptionStage Boolean       @default(false)
-  canChangeCancelStage    Boolean       @default(false)
-  canEditMemberInfo       Boolean       @default(false)
-  canViewSettlement       Boolean       @default(false)
-  canChangeOrderAmount    Boolean       @default(false)
-  canManageDepartments    Boolean       @default(false)
-  canBulkImportStaff      Boolean       @default(false)
-  canViewAuditLogs        Boolean       @default(false)
-  memberViewScope         String        @default("own")
-  salesViewScope          String        @default("own")
+  settlementGrade         Int       @default(1)
+  allowedIps              String[]  @default([])
+  canEditInManagerView    Boolean   @default(false)
+  isSuperAdmin            Boolean   @default(false)
+  canLoginAsManager       Boolean   @default(false)
+  canChangeDepositStage   Boolean   @default(false)
+  canChangeReceptionStage Boolean   @default(false)
+  canChangeCancelStage    Boolean   @default(false)
+  canEditMemberInfo       Boolean   @default(false)
+  canViewSettlement       Boolean   @default(false)
+  canChangeOrderAmount    Boolean   @default(false)
+  canManageDepartments    Boolean   @default(false)
+  canBulkImportStaff      Boolean   @default(false)
+  canViewAuditLogs        Boolean   @default(false)
+  memberViewScope         String    @default("own")
+  salesViewScope          String    @default("own")
   menuPermissions         Json?
   categoryPermissions     Json?
   processPermissions      Json?
-  pinnedMenus             String[]      @default([])
-  layoutMode              String        @default("top")
-  isActive                Boolean       @default(true)
+  pinnedMenus             String[]  @default([])
+  layoutMode              String    @default("top")
+  isActive                Boolean   @default(true)
   lastLoginAt             DateTime?
   lastLoginIp             String?
   adminMemo               String?
-  joinDate                DateTime      @default(now())
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
-  isCompany               Boolean       @default(false)
-  isDepartment            Boolean       @default(true)
-  isPersonal              Boolean       @default(false)
+  joinDate                DateTime  @default(now())
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  isCompany               Boolean   @default(false)
+  isDepartment            Boolean   @default(true)
+  isPersonal              Boolean   @default(false)
 
   // OAuth 소셜 로그인
-  oauthProvider           String?
-  oauthId                 String?
-  companyEmail            String?
-  profileImage            String?
+  oauthProvider String?
+  oauthId       String?
+  companyEmail  String?
+  profileImage  String?
 
   // 상태 및 역할
-  status                  String        @default("active")
-  role                    String        @default("employee")
-  approvedBy              String?
-  approvedAt              DateTime?
+  status     String    @default("active")
+  role       String    @default("employee")
+  approvedBy String?
+  approvedAt DateTime?
 
-  branch                  Branch?       @relation(fields: [branchId], references: [id])
-  department              Department?   @relation(fields: [departmentId], references: [id])
-  team                    Team?         @relation("TeamMembers", fields: [teamId], references: [id])
-  ledTeams                Team[]        @relation("TeamLeader")
-  assignedClients         StaffClient[]
-  salesLedgers            SalesLedger[] @relation("SalesLedgerStaff")
+  branch          Branch?       @relation(fields: [branchId], references: [id])
+  department      Department?   @relation(fields: [departmentId], references: [id])
+  team            Team?         @relation("TeamMembers", fields: [teamId], references: [id])
+  ledTeams        Team[]        @relation("TeamLeader")
+  assignedClients StaffClient[]
+  salesLedgers    SalesLedger[] @relation("SalesLedgerStaff")
 
   // 촬영 작가 관련
-  isPhotographer          Boolean       @default(false)
-  photographerGrade       String?       // NEW, BRONZE, SILVER, GOLD, PLATINUM
-  specialties             String[]      @default([])  // wedding, baby, profile 등
+  isPhotographer    Boolean  @default(false)
+  photographerGrade String? // NEW, BRONZE, SILVER, GOLD, PLATINUM
+  specialties       String[] @default([]) // wedding, baby, profile 등
 
-  shootingBids            ShootingBid[]
-  assignedShootings       ShootingSchedule[] @relation("AssignedPhotographer")
-  locationLogs            LocationLog[]
-  shootingReviews         ShootingReview[]
-  photographerStats       PhotographerStats?
+  shootingBids      ShootingBid[]
+  assignedShootings ShootingSchedule[] @relation("AssignedPhotographer")
+  locationLogs      LocationLog[]
+  shootingReviews   ShootingReview[]
+  photographerStats PhotographerStats?
 
   // 인사위원회 + 휴가관리
-  committeeMembers        HrCommitteeMember[]
-  targetAgendas           HrAgenda[]           @relation("AgendaTarget")
-  agendaVotes             HrAgendaVote[]       @relation("AgendaVoter")
-  disciplineRecords       StaffDisciplineRecord[]
-  leaveBalances           LeaveBalance[]
-  leaveRequests           LeaveRequest[]
-  leaveApprovals          LeaveApproval[]      @relation("LeaveApprover")
-  quotations              Quotation[]
+  committeeMembers  HrCommitteeMember[]
+  targetAgendas     HrAgenda[]              @relation("AgendaTarget")
+  agendaVotes       HrAgendaVote[]          @relation("AgendaVoter")
+  disciplineRecords StaffDisciplineRecord[]
+  leaveBalances     LeaveBalance[]
+  leaveRequests     LeaveRequest[]
+  leaveApprovals    LeaveApproval[]         @relation("LeaveApprover")
+  quotations        Quotation[]
+
+  // 주문 편집/재출력/알림
+  operatedOrders    Order[]            @relation("OrderPrintOperator")
+  editedOrders      OrderEditHistory[] @relation("OrderEditor")
+  requestedReprints ReprintJob[]       @relation("ReprintRequester")
+  processedReprints ReprintJob[]       @relation("ReprintProcessor")
+  notifications     Notification[]     @relation("StaffNotifications")
 
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
@@ -336,108 +343,108 @@ model ClientGroup {
 }
 
 model Client {
-  id                      String                         @id @default(cuid())
-  clientCode              String                         @unique
-  clientName              String
-  businessNumber          String?
-  representative          String?
-  phone                   String?
-  mobile                  String?
-  email                   String?
-  contactEmail            String?
-  password                String?
-  postalCode              String?
-  address                 String?
-  addressDetail           String?
-  groupId                 String?
-  memberType              String                         @default("individual")
-  oauthProvider           String?
-  oauthId                 String?
-  profileImage            String?
-  gender                  String?
-  birthday                String?
-  lastLoginAt             DateTime?
-  lastLoginIp             String?
-  priceType               String                         @default("standard")
-  paymentType             String                         @default("order")
-  creditEnabled           Boolean                        @default(false)
-  creditPeriodDays        Int?
-  creditPaymentDay        Int?
-  creditBlocked           Boolean                        @default(false)
-  creditBlockedAt         DateTime?
-  lastPaymentDate         DateTime?
-  shippingType            String                         @default("conditional")
-  freeShippingThreshold   Int                            @default(90000)
-  pendingAdjustmentAmount Decimal                        @default(0) @db.Decimal(10, 2)
-  pendingAdjustmentReason String?
-  pendingAdjustmentAt     DateTime?
-  creditGrade             String                         @default("B")
-  paymentTerms            Int                            @default(30)
-  paymentCondition        String?                        @default("당월말")
-  status                  String                         @default("active")
-  createdAt               DateTime                       @default(now())
-  updatedAt               DateTime                       @updatedAt
-  acquisitionChannel      String?
-  assignedManager         String?
-  businessCategory        String?
-  businessType            String?
-  colorProfile            String?
-  contactPerson           String?
-  contactPhone            String?
-  practicalManagerName    String?
-  practicalManagerPhone   String?
-  approvalManagerName     String?
-  approvalManagerPhone    String?
-  adminMemo               String?
-  deliveryNote            String?
-  hasLogo                 Boolean                        @default(false)
-  isBlacklist             Boolean                        @default(false)
-  isWhitelist             Boolean                        @default(false)
-  enableSchedule          Boolean                        @default(true)
-  enableRecruitment       Boolean                        @default(true)
-  logoPath                String?
-  mainGenre               String?
-  memberGrade             String                         @default("normal")
-  monthlyOrderVolume      String?
-  preferredFinish         String?
-  preferredSize           String?
-  recentMemo              String?
-  sensitivityScore        Int                            @default(3)
-  taxInvoiceEmail         String?
-  taxInvoiceMethod        String?
-  totalClaims             Int                            @default(0)
-  duplicateCheckMonths    Int?
-  fileRetentionMonths     Int                            @default(3)
-  addresses               ClientAddress[]
-  albumPreference         ClientAlbumPreference?
-  productionSettingPrices ClientProductionSettingPrice[]
-  group                   ClientGroup?                   @relation(fields: [groupId], references: [id])
-  consultations           Consultation[]
-  copperPlates            CopperPlate[]
-  healthScore             CustomerHealthScore?
-  myProducts              MyProduct[]
-  orders                  Order[]
-  returnRequests          ReturnRequest[]
-  photobookOrders         PhotobookOrder[]
-  purchaseLedgers         PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
-  salesLedgers            SalesLedger[]                  @relation("SalesLedgerClient")
-  assignedStaff           StaffClient[]
-  userId                  String?                        @unique
-  user                    User?                          @relation(fields: [userId], references: [id])
-  memberEmployments       Employment[]                   @relation("EmploymentMember")
-  companyEmployments      Employment[]                   @relation("EmploymentCompany")
-  memberEmploymentHistories  EmploymentHistory[]          @relation("EmploymentHistoryMember")
-  companyEmploymentHistories EmploymentHistory[]          @relation("EmploymentHistoryCompany")
-  invitations             Invitation[]
-  clientDepartments       ClientDepartment[]
-  recruitments            Recruitment[]      @relation("RecruitmentClient")
-  createdRecruitments     Recruitment[]      @relation("RecruitmentCreator")
-  recruitmentBids         RecruitmentBid[]   @relation("RecruitmentBidder")
-  photographerProfile     PhotographerProfile?
-  notificationsReceived   RecruitmentNotificationLog[] @relation("NotificationRecipient")
-  recruitmentTemplates    RecruitmentTemplate[] @relation("RecruitmentTemplateClient")
-  assignedShootings       ShootingSchedule[]  @relation("AssignedExternalPhotographer")
-  quotations              Quotation[]
+  id                         String                         @id @default(cuid())
+  clientCode                 String                         @unique
+  clientName                 String
+  businessNumber             String?
+  representative             String?
+  phone                      String?
+  mobile                     String?
+  email                      String?
+  contactEmail               String?
+  password                   String?
+  postalCode                 String?
+  address                    String?
+  addressDetail              String?
+  groupId                    String?
+  memberType                 String                         @default("individual")
+  oauthProvider              String?
+  oauthId                    String?
+  profileImage               String?
+  gender                     String?
+  birthday                   String?
+  lastLoginAt                DateTime?
+  lastLoginIp                String?
+  priceType                  String                         @default("standard")
+  paymentType                String                         @default("order")
+  creditEnabled              Boolean                        @default(false)
+  creditPeriodDays           Int?
+  creditPaymentDay           Int?
+  creditBlocked              Boolean                        @default(false)
+  creditBlockedAt            DateTime?
+  lastPaymentDate            DateTime?
+  shippingType               String                         @default("conditional")
+  freeShippingThreshold      Int                            @default(90000)
+  pendingAdjustmentAmount    Decimal                        @default(0) @db.Decimal(10, 2)
+  pendingAdjustmentReason    String?
+  pendingAdjustmentAt        DateTime?
+  creditGrade                String                         @default("B")
+  paymentTerms               Int                            @default(30)
+  paymentCondition           String?                        @default("당월말")
+  status                     String                         @default("active")
+  createdAt                  DateTime                       @default(now())
+  updatedAt                  DateTime                       @updatedAt
+  acquisitionChannel         String?
+  assignedManager            String?
+  businessCategory           String?
+  businessType               String?
+  colorProfile               String?
+  contactPerson              String?
+  contactPhone               String?
+  practicalManagerName       String?
+  practicalManagerPhone      String?
+  approvalManagerName        String?
+  approvalManagerPhone       String?
+  adminMemo                  String?
+  deliveryNote               String?
+  hasLogo                    Boolean                        @default(false)
+  isBlacklist                Boolean                        @default(false)
+  isWhitelist                Boolean                        @default(false)
+  enableSchedule             Boolean                        @default(true)
+  enableRecruitment          Boolean                        @default(true)
+  logoPath                   String?
+  mainGenre                  String?
+  memberGrade                String                         @default("normal")
+  monthlyOrderVolume         String?
+  preferredFinish            String?
+  preferredSize              String?
+  recentMemo                 String?
+  sensitivityScore           Int                            @default(3)
+  taxInvoiceEmail            String?
+  taxInvoiceMethod           String?
+  totalClaims                Int                            @default(0)
+  duplicateCheckMonths       Int?
+  fileRetentionMonths        Int                            @default(3)
+  addresses                  ClientAddress[]
+  albumPreference            ClientAlbumPreference?
+  productionSettingPrices    ClientProductionSettingPrice[]
+  group                      ClientGroup?                   @relation(fields: [groupId], references: [id])
+  consultations              Consultation[]
+  copperPlates               CopperPlate[]
+  healthScore                CustomerHealthScore?
+  myProducts                 MyProduct[]
+  orders                     Order[]
+  returnRequests             ReturnRequest[]
+  photobookOrders            PhotobookOrder[]
+  purchaseLedgers            PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
+  salesLedgers               SalesLedger[]                  @relation("SalesLedgerClient")
+  assignedStaff              StaffClient[]
+  userId                     String?                        @unique
+  user                       User?                          @relation(fields: [userId], references: [id])
+  memberEmployments          Employment[]                   @relation("EmploymentMember")
+  companyEmployments         Employment[]                   @relation("EmploymentCompany")
+  memberEmploymentHistories  EmploymentHistory[]            @relation("EmploymentHistoryMember")
+  companyEmploymentHistories EmploymentHistory[]            @relation("EmploymentHistoryCompany")
+  invitations                Invitation[]
+  clientDepartments          ClientDepartment[]
+  recruitments               Recruitment[]                  @relation("RecruitmentClient")
+  createdRecruitments        Recruitment[]                  @relation("RecruitmentCreator")
+  recruitmentBids            RecruitmentBid[]               @relation("RecruitmentBidder")
+  photographerProfile        PhotographerProfile?
+  notificationsReceived      RecruitmentNotificationLog[]   @relation("NotificationRecipient")
+  recruitmentTemplates       RecruitmentTemplate[]          @relation("RecruitmentTemplateClient")
+  assignedShootings          ShootingSchedule[]             @relation("AssignedExternalPhotographer")
+  quotations                 Quotation[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -509,47 +516,47 @@ model ClientAddress {
 }
 
 model Specification {
-  id                    String                           @id @default(cuid())
-  code                  String                           @unique
-  name                  String
-  widthInch             Decimal                          @db.Decimal(10, 4)
-  heightInch            Decimal                          @db.Decimal(10, 4)
-  widthMm               Decimal                          @db.Decimal(10, 2)
-  heightMm              Decimal                          @db.Decimal(10, 2)
-  orientation           String                           @default("landscape")
-  pairId                String?
-  forIndigo             Boolean                          @default(false)
-  forInkjet             Boolean                          @default(false)
-  forAlbum              Boolean                          @default(false)
-  forIndigoAlbum        Boolean                          @default(false)
-  forFrame              Boolean                          @default(false)
-  forBooklet            Boolean                          @default(false)
-  squareMeters          Decimal?                         @db.Decimal(10, 2)
-  description           String?
-  nup                   String?
-  nupSqInch             Decimal?                         @db.Decimal(10, 2)
-  sortOrder             Int                              @default(0)
-  isActive              Boolean                          @default(true)
-  createdAt             DateTime                         @default(now())
-  updatedAt             DateTime                         @updatedAt
-  jdfBleedBottom        Decimal?                         @default(3) @db.Decimal(10, 2)
-  jdfBleedLeft          Decimal?                         @default(3) @db.Decimal(10, 2)
-  jdfBleedRight         Decimal?                         @default(3) @db.Decimal(10, 2)
-  jdfBleedTop           Decimal?                         @default(3) @db.Decimal(10, 2)
-  jdfFinishedHeight     Decimal?                         @db.Decimal(10, 2)
-  jdfFinishedWidth      Decimal?                         @db.Decimal(10, 2)
-  jdfNumberUpX          Int?                             @default(1)
-  jdfNumberUpY          Int?                             @default(1)
-  jdfPageOrder          String?                          @default("Booklet")
-  jdfSides              String?                          @default("TwoSidedHeadToHead")
-  jdfSpreadType         String?                          @default("Single")
-  jdfTrimHeight         Decimal?                         @db.Decimal(10, 2)
-  jdfTrimWidth          Decimal?                         @db.Decimal(10, 2)
-  productSpecifications      ProductSpecification[]
-  productionSettings         ProductionSettingSpecification[]
-  prices                     SpecificationPrice[]
-  productionSettingPrices    ProductionSettingPrice[]
-  quotationItems             QuotationItem[]
+  id                      String                           @id @default(cuid())
+  code                    String                           @unique
+  name                    String
+  widthInch               Decimal                          @db.Decimal(10, 4)
+  heightInch              Decimal                          @db.Decimal(10, 4)
+  widthMm                 Decimal                          @db.Decimal(10, 2)
+  heightMm                Decimal                          @db.Decimal(10, 2)
+  orientation             String                           @default("landscape")
+  pairId                  String?
+  forIndigo               Boolean                          @default(false)
+  forInkjet               Boolean                          @default(false)
+  forAlbum                Boolean                          @default(false)
+  forIndigoAlbum          Boolean                          @default(false)
+  forFrame                Boolean                          @default(false)
+  forBooklet              Boolean                          @default(false)
+  squareMeters            Decimal?                         @db.Decimal(10, 2)
+  description             String?
+  nup                     String?
+  nupSqInch               Decimal?                         @db.Decimal(10, 2)
+  sortOrder               Int                              @default(0)
+  isActive                Boolean                          @default(true)
+  createdAt               DateTime                         @default(now())
+  updatedAt               DateTime                         @updatedAt
+  jdfBleedBottom          Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfBleedLeft            Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfBleedRight           Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfBleedTop             Decimal?                         @default(3) @db.Decimal(10, 2)
+  jdfFinishedHeight       Decimal?                         @db.Decimal(10, 2)
+  jdfFinishedWidth        Decimal?                         @db.Decimal(10, 2)
+  jdfNumberUpX            Int?                             @default(1)
+  jdfNumberUpY            Int?                             @default(1)
+  jdfPageOrder            String?                          @default("Booklet")
+  jdfSides                String?                          @default("TwoSidedHeadToHead")
+  jdfSpreadType           String?                          @default("Single")
+  jdfTrimHeight           Decimal?                         @db.Decimal(10, 2)
+  jdfTrimWidth            Decimal?                         @db.Decimal(10, 2)
+  productSpecifications   ProductSpecification[]
+  productionSettings      ProductionSettingSpecification[]
+  prices                  SpecificationPrice[]
+  productionSettingPrices ProductionSettingPrice[]
+  quotationItems          QuotationItem[]
 
   @@index([isActive])
   @@index([forIndigo])
@@ -610,33 +617,33 @@ model SalesCategory {
 }
 
 model Category {
-  id              String        @id @default(cuid())
-  code            String?       @unique
+  id              String          @id @default(cuid())
+  code            String?         @unique
   name            String
   level           String
-  depth           Int           @default(1)
+  depth           Int             @default(1)
   parentId        String?
-  isVisible       Boolean       @default(true)
-  isTopMenu       Boolean       @default(false)
-  loginVisibility String        @default("always")
-  categoryType    String        @default("HTML")
+  isVisible       Boolean         @default(true)
+  isTopMenu       Boolean         @default(false)
+  loginVisibility String          @default("always")
+  categoryType    String          @default("HTML")
   productionForm  String?
-  isOutsourced    Boolean       @default(false)
+  isOutsourced    Boolean         @default(false)
   pricingUnit     String?
   description     String?
   linkUrl         String?
   htmlContent     String?
-  sortOrder       Int           @default(0)
-  isActive        Boolean       @default(true)
+  sortOrder       Int             @default(0)
+  isActive        Boolean         @default(true)
   iconUrl         String?
   salesCategoryId String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   nameEn          String?
   nameJa          String?
   nameZh          String?
-  parent          Category?     @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children        Category[]    @relation("CategoryHierarchy")
+  parent          Category?       @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children        Category[]      @relation("CategoryHierarchy")
   halfProducts    HalfProduct[]
   products        Product[]
   quotationItems  QuotationItem[]
@@ -750,24 +757,24 @@ model ProductBinding {
 }
 
 model ProductPaper {
-  id           String  @id @default(cuid())
-  productId    String
-  paperId      String?
-  name         String
-  type         String
-  price        Decimal @default(0) @db.Decimal(10, 2)
-  isDefault    Boolean @default(false)
-  sortOrder    Int     @default(0)
-  grammage     Int?
-  printMethod  String?
-  frontCoating String?
-  grade        Int?
+  id               String  @id @default(cuid())
+  productId        String
+  paperId          String?
+  name             String
+  type             String
+  price            Decimal @default(0) @db.Decimal(10, 2)
+  isDefault        Boolean @default(false)
+  sortOrder        Int     @default(0)
+  grammage         Int?
+  printMethod      String?
+  frontCoating     String?
+  grade            Int?
   isActive         Boolean @default(true)
   isActive4        Boolean @default(true)
   isActive6        Boolean @default(true)
   defaultColorType String?
   product          Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  paper        Paper?  @relation(fields: [paperId], references: [id])
+  paper            Paper?  @relation(fields: [paperId], references: [id])
 
   @@unique([productId, paperId])
   @@index([productId])
@@ -968,40 +975,46 @@ model MyProduct {
 }
 
 model Order {
-  id                    String           @id @default(cuid())
-  orderNumber           String           @unique
-  barcode               String           @unique
-  clientId              String
-  productPrice          Decimal          @db.Decimal(12, 2)
-  shippingFee           Decimal          @default(0) @db.Decimal(10, 2)
-  tax                   Decimal          @default(0) @db.Decimal(10, 2)
-  adjustmentAmount      Decimal          @default(0) @db.Decimal(10, 2)
-  totalAmount           Decimal          @db.Decimal(12, 2)
-  finalAmount           Decimal          @db.Decimal(12, 2)
-  paymentMethod         String           @default("postpaid")
-  paymentStatus         String           @default("pending")
-  status                String           @default("pending_receipt")
-  currentProcess        String           @default("receipt_pending")
-  printQueueStatus      String?
-  printQueueEnteredAt   DateTime?
-  printQueueExitedAt    DateTime?
-  printQueueExitReason  String?
-  isUrgent              Boolean          @default(false)
-  requestedDeliveryDate DateTime?
-  customerMemo          String?
-  productMemo           String?
-  adminMemo             String?
-  orderedAt             DateTime         @default(now())
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
-  isDuplicateOverride   Boolean          @default(false)
-  createdByUserId       String?
-  items                 OrderItem[]
-  shipping              OrderShipping?
-  client                Client           @relation(fields: [clientId], references: [id])
-  processHistory        ProcessHistory[]
-  salesLedger           SalesLedger?
-  returnRequests        ReturnRequest[]
+  id                      String             @id @default(cuid())
+  orderNumber             String             @unique
+  barcode                 String             @unique
+  clientId                String
+  productPrice            Decimal            @db.Decimal(12, 2)
+  shippingFee             Decimal            @default(0) @db.Decimal(10, 2)
+  tax                     Decimal            @default(0) @db.Decimal(10, 2)
+  adjustmentAmount        Decimal            @default(0) @db.Decimal(10, 2)
+  totalAmount             Decimal            @db.Decimal(12, 2)
+  finalAmount             Decimal            @db.Decimal(12, 2)
+  paymentMethod           String             @default("postpaid")
+  paymentStatus           String             @default("pending")
+  status                  String             @default("pending_receipt")
+  currentProcess          String             @default("receipt_pending")
+  printQueueStatus        String?
+  printQueueEnteredAt     DateTime?
+  printQueueExitedAt      DateTime?
+  printQueueExitReason    String?
+  isUrgent                Boolean            @default(false)
+  requestedDeliveryDate   DateTime?
+  customerMemo            String?
+  productMemo             String?
+  adminMemo               String?
+  orderedAt               DateTime           @default(now())
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  isDuplicateOverride     Boolean            @default(false)
+  createdByUserId         String?
+  printOperatorId         String?
+  printOperatorAssignedAt DateTime?
+  lastEditedAt            DateTime?
+  items                   OrderItem[]
+  shipping                OrderShipping?
+  client                  Client             @relation(fields: [clientId], references: [id])
+  processHistory          ProcessHistory[]
+  salesLedger             SalesLedger?
+  returnRequests          ReturnRequest[]
+  printOperator           Staff?             @relation("OrderPrintOperator", fields: [printOperatorId], references: [id])
+  editHistories           OrderEditHistory[]
+  reprintJobs             ReprintJob[]
 
   @@index([clientId])
   @@index([status])
@@ -1014,6 +1027,7 @@ model Order {
   @@index([paymentStatus, orderedAt])
   @@index([createdByUserId])
   @@index([printQueueStatus])
+  @@index([printOperatorId])
   @@map("orders")
 }
 
@@ -1101,6 +1115,7 @@ model OrderItem {
   shipping          OrderItemShipping?
   order             Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
   returnItems       ReturnRequestItem[]
+  reprintJobs       ReprintJob[]        @relation("ReprintParent")
 
   @@index([orderId])
   @@index([colorIntentId])
@@ -1200,6 +1215,86 @@ model ProcessHistory {
   @@index([orderId])
   @@index([orderId, processedAt])
   @@map("process_histories")
+}
+
+/// 주문 편집 이력 — 누가 / 언제 / 무엇을 / 왜 변경했는지 추적.
+/// 사양·금액·페이지·담당자 변경 모두 기록. ReprintJob 발생 시 1:1 연결.
+model OrderEditHistory {
+  id             String      @id @default(cuid())
+  orderId        String
+  editorId       String
+  editorName     String
+  /// [{ field: 'printSide', before: 'single', after: 'double', itemId: '...' }, ...]
+  changedFields  Json
+  /// [{ itemId, pageNumbers: [3,7] }] — 변경된 페이지 번호 (재출력 사유 추적용)
+  changedPages   Json?
+  message        String?
+  notifyOperator Boolean     @default(false)
+  reprintJobId   String?     @unique
+  createdAt      DateTime    @default(now())
+  order          Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  editor         Staff       @relation("OrderEditor", fields: [editorId], references: [id])
+  reprintJob     ReprintJob? @relation(fields: [reprintJobId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@index([editorId])
+  @@map("order_edit_histories")
+}
+
+/// 출력완료 후 사양 변경에 따른 재출력 작업 단위.
+/// 페이지 단위 부분 재출력 (변경 페이지만). 추가비용은 Client.pendingAdjustmentAmount에 누적.
+model ReprintJob {
+  id                String            @id @default(cuid())
+  orderId           String
+  parentOrderItemId String
+  reprintNumber     Int               @default(1)
+  /// [{ pageNumber, fileUrl, thumbnailUrl, reason }]
+  reprintPages      Json
+  reason            String
+  additionalCost    Decimal           @default(0) @db.Decimal(10, 2)
+  status            String            @default("requested") // requested|printing|completed|cancelled
+  requestedById     String
+  processedById     String?
+  processedAt       DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  order             Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  parentItem        OrderItem         @relation("ReprintParent", fields: [parentOrderItemId], references: [id])
+  requester         Staff             @relation("ReprintRequester", fields: [requestedById], references: [id])
+  processor         Staff?            @relation("ReprintProcessor", fields: [processedById], references: [id])
+  editHistory       OrderEditHistory?
+
+  @@index([orderId])
+  @@index([status])
+  @@index([orderId, reprintNumber])
+  @@map("reprint_jobs")
+}
+
+/// 직원 인앱/카카오 알림. 폴링 30s 또는 카카오 알림톡(Phase 2) 발송.
+model Notification {
+  id               String    @id @default(cuid())
+  recipientStaffId String
+  /// order_edit | reprint_request | print_operator_assigned | order_status_changed
+  type             String
+  title            String
+  body             String
+  /// { orderId, orderNumber, reprintJobId, ... }
+  payload          Json?
+  link             String?
+  readAt           DateTime?
+  /// inapp | kakao
+  channel          String    @default("inapp")
+  kakaoSentAt      DateTime?
+  /// sent | failed | skipped
+  kakaoStatus      String?
+  createdAt        DateTime  @default(now())
+  recipient        Staff     @relation("StaffNotifications", fields: [recipientStaffId], references: [id], onDelete: Cascade)
+
+  @@index([recipientStaffId, readAt])
+  @@index([recipientStaffId, createdAt])
+  @@index([type])
+  @@map("notifications")
 }
 
 model ReceptionSchedule {
@@ -1511,7 +1606,7 @@ model ProductionSettingPrice {
   priceGroupId         String?
   minQuantity          Int?
   maxQuantity          Int?
-  nupKey               String?  // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
+  nupKey               String? // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
   weight               Decimal?          @db.Decimal(5, 2)
   price                Decimal           @default(0) @db.Decimal(12, 2)
   singleSidedPrice     Decimal?          @db.Decimal(12, 2)
@@ -1546,7 +1641,7 @@ model GroupProductionSettingPrice {
   priceGroupId    String?
   minQuantity     Int?
   maxQuantity     Int?
-  nupKey          String?  // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
+  nupKey          String? // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
 
   weight Decimal? @db.Decimal(5, 2)
 
@@ -1587,7 +1682,7 @@ model ClientProductionSettingPrice {
   priceGroupId    String?
   minQuantity     Int?
   maxQuantity     Int?
-  nupKey          String?  // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
+  nupKey          String? // 앨범 NUP 키 (1++up, 1+up, 1up, 2up, 4up 등)
 
   weight Decimal? @db.Decimal(5, 2)
 
@@ -1883,7 +1978,7 @@ model ConsultationStatSnapshot {
 
 model Todo {
   id              String    @id @default(cuid())
-  clientId        String?   // 테넌트 격리 (어느 회사/스튜디오의 데이터인지)
+  clientId        String? // 테넌트 격리 (어느 회사/스튜디오의 데이터인지)
   creatorId       String
   creatorName     String
   creatorDeptId   String?
@@ -1926,7 +2021,7 @@ model Todo {
 
 model Schedule {
   id              String    @id @default(cuid())
-  clientId        String?   // 테넌트 격리 (어느 회사/스튜디오의 데이터인지)
+  clientId        String? // 테넌트 격리 (어느 회사/스튜디오의 데이터인지)
   creatorId       String
   creatorName     String
   creatorDeptId   String?
@@ -1974,7 +2069,7 @@ model Schedule {
 
 model Memo {
   id              String   @id @default(cuid())
-  clientId        String?  // 테넌트 격리
+  clientId        String? // 테넌트 격리
   creatorId       String
   creatorName     String
   creatorDeptId   String?
@@ -3044,28 +3139,28 @@ model ReturnHistory {
 
 // ===== 직원/초대 관리 =====
 model Employment {
-  id                String           @id @default(cuid())
-  memberClientId    String
-  companyClientId   String
-  role              EmployeeRole     @default(STAFF)
-  status            EmploymentStatus @default(ACTIVE)
-  canViewAllOrders      Boolean          @default(false)
-  canManageProducts     Boolean          @default(false)
-  canViewSettlement     Boolean          @default(false)
-  canViewAllSettlement  Boolean          @default(false)
-  canManageSchedule     Boolean          @default(false)
-  canManageRecruitment  Boolean          @default(false)
-  department        String?
-  joinedAt          DateTime         @default(now())
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id                   String           @id @default(cuid())
+  memberClientId       String
+  companyClientId      String
+  role                 EmployeeRole     @default(STAFF)
+  status               EmploymentStatus @default(ACTIVE)
+  canViewAllOrders     Boolean          @default(false)
+  canManageProducts    Boolean          @default(false)
+  canViewSettlement    Boolean          @default(false)
+  canViewAllSettlement Boolean          @default(false)
+  canManageSchedule    Boolean          @default(false)
+  canManageRecruitment Boolean          @default(false)
+  department           String?
+  joinedAt             DateTime         @default(now())
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   member  Client @relation("EmploymentMember", fields: [memberClientId], references: [id], onDelete: Cascade)
   company Client @relation("EmploymentCompany", fields: [companyClientId], references: [id], onDelete: Cascade)
 
   // 레거시 호환 (마이그레이션 후 삭제 예정)
-  userId            String?
-  clientId          String?
+  userId   String?
+  clientId String?
 
   @@unique([memberClientId, companyClientId])
   @@index([memberClientId])
@@ -3106,17 +3201,17 @@ model ClientDepartment {
 }
 
 model Invitation {
-  id           String           @id @default(cuid())
-  clientId     String
-  inviteeEmail String
-  token        String           @unique @default(cuid())
-  role         EmployeeRole     @default(STAFF)
-  oauthProvider String?          // 'naver' | 'kakao' | 'google'
-  status       InvitationStatus @default(PENDING)
-  expiresAt    DateTime
-  sentById     String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id            String           @id @default(cuid())
+  clientId      String
+  inviteeEmail  String
+  token         String           @unique @default(cuid())
+  role          EmployeeRole     @default(STAFF)
+  oauthProvider String? // 'naver' | 'kakao' | 'google'
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime
+  sentById      String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -3129,37 +3224,37 @@ model Invitation {
 // ===== 촬영 일정 관리 시스템 =====
 
 model ShootingSchedule {
-  id              String    @id @default(cuid())
-  scheduleId      String?   @unique  // 기존 Schedule 연동
-  clientName      String               // 고객명 (신랑/신부)
-  shootingType    String               // wedding_main, wedding_rehearsal, baby_dol, baby_growth, profile, other
-  venueName       String               // 장소명
-  venueAddress    String               // 주소
-  venueFloor      String?              // 층
-  venueHall       String?              // 홀
-  latitude        Float?               // 위도
-  longitude       Float?               // 경도
-  shootingDate    DateTime             // 촬영일시
-  duration        Int?                 // 예상 소요시간(분)
-  status          String    @default("draft") // draft, recruiting, bidding, confirmed, in_progress, completed, cancelled
-  assignedStaffId String?              // 확정된 내부 작가 (Staff)
-  assignedClientId String?             // 확정된 외부 작가 (Client, 구인방 경유)
-  linkedRecruitmentId String? @unique  // 연동된 구인방 ID
-  maxBidders      Int       @default(3) // 최대 응찰자 수
-  customerPhone   String?              // 고객 연락처 (설문 발송용)
-  customerEmail   String?              // 고객 이메일
-  notes           String?
-  createdBy       String               // 관리자 ID
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                  String   @id @default(cuid())
+  scheduleId          String?  @unique // 기존 Schedule 연동
+  clientName          String // 고객명 (신랑/신부)
+  shootingType        String // wedding_main, wedding_rehearsal, baby_dol, baby_growth, profile, other
+  venueName           String // 장소명
+  venueAddress        String // 주소
+  venueFloor          String? // 층
+  venueHall           String? // 홀
+  latitude            Float? // 위도
+  longitude           Float? // 경도
+  shootingDate        DateTime // 촬영일시
+  duration            Int? // 예상 소요시간(분)
+  status              String   @default("draft") // draft, recruiting, bidding, confirmed, in_progress, completed, cancelled
+  assignedStaffId     String? // 확정된 내부 작가 (Staff)
+  assignedClientId    String? // 확정된 외부 작가 (Client, 구인방 경유)
+  linkedRecruitmentId String?  @unique // 연동된 구인방 ID
+  maxBidders          Int      @default(3) // 최대 응찰자 수
+  customerPhone       String? // 고객 연락처 (설문 발송용)
+  customerEmail       String? // 고객 이메일
+  notes               String?
+  createdBy           String // 관리자 ID
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  assignedStaff      Staff?        @relation("AssignedPhotographer", fields: [assignedStaffId], references: [id])
-  assignedClient     Client?       @relation("AssignedExternalPhotographer", fields: [assignedClientId], references: [id])
-  linkedRecruitment  Recruitment?  @relation("ShootingRecruitmentLink", fields: [linkedRecruitmentId], references: [id])
-  schedule           Schedule?     @relation(fields: [scheduleId], references: [id])
-  bids               ShootingBid[]
-  locationLogs       LocationLog[]
-  review             ShootingReview?
+  assignedStaff     Staff?          @relation("AssignedPhotographer", fields: [assignedStaffId], references: [id])
+  assignedClient    Client?         @relation("AssignedExternalPhotographer", fields: [assignedClientId], references: [id])
+  linkedRecruitment Recruitment?    @relation("ShootingRecruitmentLink", fields: [linkedRecruitmentId], references: [id])
+  schedule          Schedule?       @relation(fields: [scheduleId], references: [id])
+  bids              ShootingBid[]
+  locationLogs      LocationLog[]
+  review            ShootingReview?
 
   @@index([status])
   @@index([shootingDate])
@@ -3192,10 +3287,10 @@ model LocationLog {
   id          String   @id @default(cuid())
   shootingId  String
   staffId     String
-  type        String               // arrival, departure, checkpoint
+  type        String // arrival, departure, checkpoint
   latitude    Float
   longitude   Float
-  distance    Float?               // 촬영지까지 거리(m)
+  distance    Float? // 촬영지까지 거리(m)
   isAutomatic Boolean  @default(true) // GPS 자동 vs 수동 체크인
   recordedAt  DateTime @default(now())
 
@@ -3212,14 +3307,14 @@ model ShootingReview {
   id            String    @id @default(cuid())
   shootingId    String    @unique
   staffId       String
-  trustScore    Int                  // 신뢰도 1-5
-  kindnessScore Int                  // 친절도 1-5
-  skillScore    Int?                 // 기술력 1-5
-  overallScore  Float                // 종합 (자동 계산)
+  trustScore    Int // 신뢰도 1-5
+  kindnessScore Int // 친절도 1-5
+  skillScore    Int? // 기술력 1-5
+  overallScore  Float // 종합 (자동 계산)
   comment       String?
   reviewerName  String?
-  reviewerType  String?              // bride, groom, parent
-  reviewToken   String    @unique    // 설문 링크용 토큰
+  reviewerType  String? // bride, groom, parent
+  reviewToken   String    @unique // 설문 링크용 토큰
   isCompleted   Boolean   @default(false)
   completedAt   DateTime?
   createdAt     DateTime  @default(now())
@@ -3241,9 +3336,9 @@ model PhotographerStats {
   avgTrustScore    Float    @default(0)
   avgKindnessScore Float    @default(0)
   avgOverallScore  Float    @default(0)
-  onTimeRate       Float    @default(0)    // 정시 도착률 (0~1)
+  onTimeRate       Float    @default(0) // 정시 도착률 (0~1)
   lateCount        Int      @default(0)
-  reliabilityIndex Float    @default(0)    // 종합 신뢰도 지수
+  reliabilityIndex Float    @default(0) // 종합 신뢰도 지수
   grade            String   @default("NEW") // NEW, BRONZE, SILVER, GOLD, PLATINUM
   updatedAt        DateTime @updatedAt
 
@@ -3257,39 +3352,39 @@ model PhotographerStats {
 // ==================== 구인방 (Recruitment) ====================
 
 model Recruitment {
-  id               String    @id @default(cuid())
-  clientId         String                              // 등록한 스튜디오 (거래처)
-  title            String                              // 구인 제목
-  shootingType     String                              // wedding_main, baby_dol 등
-  shootingDate     DateTime                            // 촬영일
-  shootingTime     String?                             // 촬영 시간 (HH:mm)
-  duration         Int?                                // 예상 소요시간(분)
-  venueName        String                              // 장소명
-  venueAddress     String?                             // 주소
-  latitude         Float?
-  longitude        Float?
-  budget           Int?                                // 보수(원)
-  description      String?                             // 상세 설명
-  requirements     String?                             // 요구사항
-  customerName     String?                             // 신랑/신부명
+  id           String   @id @default(cuid())
+  clientId     String // 등록한 스튜디오 (거래처)
+  title        String // 구인 제목
+  shootingType String // wedding_main, baby_dol 등
+  shootingDate DateTime // 촬영일
+  shootingTime String? // 촬영 시간 (HH:mm)
+  duration     Int? // 예상 소요시간(분)
+  venueName    String // 장소명
+  venueAddress String? // 주소
+  latitude     Float?
+  longitude    Float?
+  budget       Int? // 보수(원)
+  description  String? // 상세 설명
+  requirements String? // 요구사항
+  customerName String? // 신랑/신부명
 
-  status                String    @default("draft")         // draft, private_recruiting, public_recruiting, filled, expired, cancelled
-  recruitmentPhase      String    @default("private")       // private | public
-  privateDeadline       DateTime?                           // 전속 모집 마감 시각
-  privateDeadlineHours  Int?      @default(24)              // 전속 모집 마감 시간 (시간 단위)
-  maxBidders            Int       @default(5)
-  urgencyLevel     String    @default("normal")        // normal | urgent | emergency
+  status               String    @default("draft") // draft, private_recruiting, public_recruiting, filled, expired, cancelled
+  recruitmentPhase     String    @default("private") // private | public
+  privateDeadline      DateTime? // 전속 모집 마감 시각
+  privateDeadlineHours Int?      @default(24) // 전속 모집 마감 시간 (시간 단위)
+  maxBidders           Int       @default(5)
+  urgencyLevel         String    @default("normal") // normal | urgent | emergency
 
-  linkedShootingId String?  @unique                     // 연동된 일정관리 ID
-  createdBy        String                              // 등록자 Client ID
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  linkedShootingId String?  @unique // 연동된 일정관리 ID
+  createdBy        String // 등록자 Client ID
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
-  client            Client           @relation("RecruitmentClient", fields: [clientId], references: [id])
-  creator           Client           @relation("RecruitmentCreator", fields: [createdBy], references: [id])
-  linkedShooting    ShootingSchedule? @relation("ShootingRecruitmentLink")
-  bids              RecruitmentBid[]
-  notificationLogs  RecruitmentNotificationLog[]
+  client           Client                       @relation("RecruitmentClient", fields: [clientId], references: [id])
+  creator          Client                       @relation("RecruitmentCreator", fields: [createdBy], references: [id])
+  linkedShooting   ShootingSchedule?            @relation("ShootingRecruitmentLink")
+  bids             RecruitmentBid[]
+  notificationLogs RecruitmentNotificationLog[]
 
   @@index([status])
   @@index([clientId])
@@ -3301,10 +3396,10 @@ model Recruitment {
 model RecruitmentBid {
   id             String   @id @default(cuid())
   recruitmentId  String
-  bidderId       String                                // 응찰 포토그래퍼 Client ID
-  message        String?                               // 자기소개
-  proposedBudget Int?                                  // 제안 금액
-  status         String   @default("pending")          // pending | selected | rejected
+  bidderId       String // 응찰 포토그래퍼 Client ID
+  message        String? // 자기소개
+  proposedBudget Int? // 제안 금액
+  status         String   @default("pending") // pending | selected | rejected
   bidAt          DateTime @default(now())
 
   recruitment Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
@@ -3319,27 +3414,27 @@ model RecruitmentBid {
 
 // ── 포토그래퍼 프로필 (희망지역 + 경력) ─────────────────────
 model PhotographerProfile {
-  id                   String   @id @default(cuid())
-  clientId             String   @unique
+  id       String @id @default(cuid())
+  clientId String @unique
 
   // 희망 지역 (시/군/구 단위, 우선순위별)
-  preferredRegion1     String?                          // "서울특별시 강남구"
-  preferredRegion2     String?                          // "경기도 성남시"
-  preferredRegion3     String?                          // "인천광역시 남동구"
+  preferredRegion1 String? // "서울특별시 강남구"
+  preferredRegion2 String? // "경기도 성남시"
+  preferredRegion3 String? // "인천광역시 남동구"
 
   // 프로필 정보
-  introduction         String?
-  career               String?
-  careerYears          Int?
-  portfolioImages      String[]  @default([])
-  specialties          String[]  @default([])
-  equipment            String?
+  introduction    String?
+  career          String?
+  careerYears     Int?
+  portfolioImages String[] @default([])
+  specialties     String[] @default([])
+  equipment       String?
 
   // 가용 설정
-  isAvailableForPublic Boolean   @default(true)
+  isAvailableForPublic Boolean @default(true)
 
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -3352,14 +3447,14 @@ model PhotographerProfile {
 
 // ── 구인 알림 발송 로그 ──────────────────────────────────────
 model RecruitmentNotificationLog {
-  id             String   @id @default(cuid())
-  recruitmentId  String
-  recipientId    String                                 // Client ID (포토그래퍼)
-  regionTier     Int                                    // 1, 2, 3
-  matchedRegion  String?                                // 매칭된 지역명
-  channel        String   @default("email")             // email | alimtalk
-  status         String   @default("sent")              // sent | failed
-  sentAt         DateTime @default(now())
+  id            String   @id @default(cuid())
+  recruitmentId String
+  recipientId   String // Client ID (포토그래퍼)
+  regionTier    Int // 1, 2, 3
+  matchedRegion String? // 매칭된 지역명
+  channel       String   @default("email") // email | alimtalk
+  status        String   @default("sent") // sent | failed
+  sentAt        DateTime @default(now())
 
   recruitment Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
   recipient   Client      @relation("NotificationRecipient", fields: [recipientId], references: [id])
@@ -3371,14 +3466,14 @@ model RecruitmentNotificationLog {
 
 // ── 구인 자주사용 문구 템플릿 ─────────────────────
 model RecruitmentTemplate {
-  id         String   @id @default(cuid())
-  clientId   String                              // 소속 스튜디오
-  category   String                              // "description" | "requirements"
-  title      String                              // 템플릿 제목 (예: "본식 기본")
-  content    String                              // 템플릿 본문
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id        String   @id @default(cuid())
+  clientId  String // 소속 스튜디오
+  category  String // "description" | "requirements"
+  title     String // 템플릿 제목 (예: "본식 기본")
+  content   String // 템플릿 본문
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   client Client @relation("RecruitmentTemplateClient", fields: [clientId], references: [id], onDelete: Cascade)
 
@@ -3394,67 +3489,67 @@ enum HrCommitteeStatus {
 }
 
 enum HrCommitteeMemberRole {
-  CHAIRMAN    // 위원장
-  MEMBER      // 위원
+  CHAIRMAN // 위원장
+  MEMBER // 위원
 }
 
 enum HrAgendaType {
-  REWARD      // 포상
-  PENALTY     // 징계
-  PROMOTION   // 승진
-  TRANSFER    // 인사이동
-  DISMISSAL   // 해고
-  OTHER       // 기타
+  REWARD // 포상
+  PENALTY // 징계
+  PROMOTION // 승진
+  TRANSFER // 인사이동
+  DISMISSAL // 해고
+  OTHER // 기타
 }
 
 enum HrAgendaStatus {
-  DRAFT       // 초안
-  SUBMITTED   // 제출
-  IN_REVIEW   // 심의중
-  VOTED       // 투표완료
-  CLOSED      // 종결
+  DRAFT // 초안
+  SUBMITTED // 제출
+  IN_REVIEW // 심의중
+  VOTED // 투표완료
+  CLOSED // 종결
 }
 
 enum HrVoteType {
-  APPROVE     // 찬성
-  REJECT      // 반대
-  ABSTAIN     // 기권
+  APPROVE // 찬성
+  REJECT // 반대
+  ABSTAIN // 기권
 }
 
 enum HrDecisionResult {
-  APPROVED    // 가결
-  REJECTED    // 부결
+  APPROVED // 가결
+  REJECTED // 부결
 }
 
 enum DisciplineType {
-  REWARD      // 포상
-  PENALTY     // 징계
+  REWARD // 포상
+  PENALTY // 징계
 }
 
 model HrCommittee {
-  id          String             @id @default(cuid())
-  name        String                                     // 위원회명
-  description String?                                    // 설명
-  status      HrCommitteeStatus  @default(ACTIVE)
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id          String            @id @default(cuid())
+  name        String // 위원회명
+  description String? // 설명
+  status      HrCommitteeStatus @default(ACTIVE)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
-  members     HrCommitteeMember[]
-  agendas     HrAgenda[]
+  members HrCommitteeMember[]
+  agendas HrAgenda[]
 
   @@map("hr_committees")
 }
 
 model HrCommitteeMember {
-  id           String                @id @default(cuid())
-  committeeId  String
-  staffId      String
-  role         HrCommitteeMemberRole @default(MEMBER)
-  appointedAt  DateTime              @default(now())
-  releasedAt   DateTime?                                  // 해임일
+  id          String                @id @default(cuid())
+  committeeId String
+  staffId     String
+  role        HrCommitteeMemberRole @default(MEMBER)
+  appointedAt DateTime              @default(now())
+  releasedAt  DateTime? // 해임일
 
-  committee    HrCommittee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
-  staff        Staff       @relation(fields: [staffId], references: [id])
+  committee HrCommittee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  staff     Staff       @relation(fields: [staffId], references: [id])
 
   @@unique([committeeId, staffId])
   @@index([committeeId])
@@ -3466,19 +3561,19 @@ model HrAgenda {
   id            String         @id @default(cuid())
   committeeId   String
   type          HrAgendaType
-  title         String                                    // 안건 제목
-  description   String?                                   // 안건 내용
-  targetStaffId String?                                   // 대상 직원
+  title         String // 안건 제목
+  description   String? // 안건 내용
+  targetStaffId String? // 대상 직원
   status        HrAgendaStatus @default(DRAFT)
-  evidence      String?                                   // 증빙/첨부
-  createdBy     String                                    // 등록자 staffId
+  evidence      String? // 증빙/첨부
+  createdBy     String // 등록자 staffId
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
-  committee     HrCommittee    @relation(fields: [committeeId], references: [id], onDelete: Cascade)
-  targetStaff   Staff?         @relation("AgendaTarget", fields: [targetStaffId], references: [id])
-  votes         HrAgendaVote[]
-  decision      HrAgendaDecision?
+  committee   HrCommittee       @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  targetStaff Staff?            @relation("AgendaTarget", fields: [targetStaffId], references: [id])
+  votes       HrAgendaVote[]
+  decision    HrAgendaDecision?
 
   @@index([committeeId])
   @@index([targetStaffId])
@@ -3489,13 +3584,13 @@ model HrAgenda {
 model HrAgendaVote {
   id       String     @id @default(cuid())
   agendaId String
-  voterId  String                                         // 투표한 위원 staffId
+  voterId  String // 투표한 위원 staffId
   vote     HrVoteType
-  comment  String?                                        // 투표 의견
+  comment  String? // 투표 의견
   votedAt  DateTime   @default(now())
 
-  agenda   HrAgenda   @relation(fields: [agendaId], references: [id], onDelete: Cascade)
-  voter    Staff      @relation("AgendaVoter", fields: [voterId], references: [id])
+  agenda HrAgenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  voter  Staff    @relation("AgendaVoter", fields: [voterId], references: [id])
 
   @@unique([agendaId, voterId])
   @@index([agendaId])
@@ -3506,11 +3601,11 @@ model HrAgendaDecision {
   id            String           @id @default(cuid())
   agendaId      String           @unique
   decision      HrDecisionResult
-  summary       String?                                   // 결정 요약
-  effectiveDate DateTime?                                 // 효력 발생일
+  summary       String? // 결정 요약
+  effectiveDate DateTime? // 효력 발생일
   decidedAt     DateTime         @default(now())
 
-  agenda        HrAgenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
+  agenda HrAgenda @relation(fields: [agendaId], references: [id], onDelete: Cascade)
 
   @@map("hr_agenda_decisions")
 }
@@ -3518,16 +3613,16 @@ model HrAgendaDecision {
 model StaffDisciplineRecord {
   id            String         @id @default(cuid())
   staffId       String
-  agendaId      String?                                   // 연관 안건 (선택)
-  type          DisciplineType                            // 포상/징계
-  category      String                                    // 세부분류 (표창, 경고, 감봉 등)
-  title         String                                    // 제목
-  description   String?                                   // 상세내용
-  effectiveDate DateTime                                  // 효력일
-  createdBy     String                                    // 등록자
+  agendaId      String? // 연관 안건 (선택)
+  type          DisciplineType // 포상/징계
+  category      String // 세부분류 (표창, 경고, 감봉 등)
+  title         String // 제목
+  description   String? // 상세내용
+  effectiveDate DateTime // 효력일
+  createdBy     String // 등록자
   createdAt     DateTime       @default(now())
 
-  staff         Staff          @relation(fields: [staffId], references: [id])
+  staff Staff @relation(fields: [staffId], references: [id])
 
   @@index([staffId])
   @@index([type])
@@ -3538,25 +3633,25 @@ model StaffDisciplineRecord {
 // ===== 휴가관리 (Leave Management) =====
 
 enum LeaveRequestStatus {
-  PENDING        // 승인대기
-  TEAM_APPROVED  // 팀장승인
-  APPROVED       // 최종승인
-  REJECTED       // 반려
-  CANCELLED      // 취소
+  PENDING // 승인대기
+  TEAM_APPROVED // 팀장승인
+  APPROVED // 최종승인
+  REJECTED // 반려
+  CANCELLED // 취소
 }
 
 enum LeaveApprovalStatus {
-  PENDING   // 대기
-  APPROVED  // 승인
-  REJECTED  // 반려
+  PENDING // 대기
+  APPROVED // 승인
+  REJECTED // 반려
 }
 
 model LeaveType {
   id          String   @id @default(cuid())
-  code        String   @unique                            // annual, monthly, half_am, half_pm, quarter
-  name        String                                      // 연차, 월차, 오전반차, 오후반차, 반반차
-  defaultDays Float    @default(0)                        // 기본 부여일수
-  deductDays  Float                                       // 차감일수 (1.0, 0.5, 0.25)
+  code        String   @unique // annual, monthly, half_am, half_pm, quarter
+  name        String // 연차, 월차, 오전반차, 오후반차, 반반차
+  defaultDays Float    @default(0) // 기본 부여일수
+  deductDays  Float // 차감일수 (1.0, 0.5, 0.25)
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -3568,16 +3663,16 @@ model LeaveType {
 model LeaveBalance {
   id            String   @id @default(cuid())
   staffId       String
-  year          Int                                       // 연도
-  leaveTypeCode String                                    // leave_types.code 참조
-  totalDays     Float    @default(0)                      // 총 부여일수
-  usedDays      Float    @default(0)                      // 사용일수
-  adjustedDays  Float    @default(0)                      // 조정일수 (수동 가감)
-  memo          String?                                   // 조정 사유
+  year          Int // 연도
+  leaveTypeCode String // leave_types.code 참조
+  totalDays     Float    @default(0) // 총 부여일수
+  usedDays      Float    @default(0) // 사용일수
+  adjustedDays  Float    @default(0) // 조정일수 (수동 가감)
+  memo          String? // 조정 사유
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  staff         Staff    @relation(fields: [staffId], references: [id])
+  staff Staff @relation(fields: [staffId], references: [id])
 
   @@unique([staffId, year, leaveTypeCode])
   @@index([staffId])
@@ -3588,19 +3683,19 @@ model LeaveBalance {
 model LeaveRequest {
   id            String             @id @default(cuid())
   staffId       String
-  leaveTypeCode String                                    // annual, half_am 등
-  startDate     DateTime                                  // 시작일
-  endDate       DateTime                                  // 종료일
-  startTime     String?                                   // 반반차용 시작시간
-  endTime       String?                                   // 반반차용 종료시간
-  days          Float                                     // 차감일수
-  reason        String?                                   // 사유
+  leaveTypeCode String // annual, half_am 등
+  startDate     DateTime // 시작일
+  endDate       DateTime // 종료일
+  startTime     String? // 반반차용 시작시간
+  endTime       String? // 반반차용 종료시간
+  days          Float // 차감일수
+  reason        String? // 사유
   status        LeaveRequestStatus @default(PENDING)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  staff         Staff              @relation(fields: [staffId], references: [id])
-  approvals     LeaveApproval[]
+  staff     Staff           @relation(fields: [staffId], references: [id])
+  approvals LeaveApproval[]
 
   @@index([staffId])
   @@index([status])
@@ -3612,13 +3707,13 @@ model LeaveApproval {
   id              String              @id @default(cuid())
   requestId       String
   approverStaffId String
-  step            Int                                     // 1=팀장, 2=부서장
+  step            Int // 1=팀장, 2=부서장
   status          LeaveApprovalStatus @default(PENDING)
-  comment         String?                                 // 승인/반려 사유
+  comment         String? // 승인/반려 사유
   decidedAt       DateTime?
 
-  request         LeaveRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  approver        Staff        @relation("LeaveApprover", fields: [approverStaffId], references: [id])
+  request  LeaveRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver Staff        @relation("LeaveApprover", fields: [approverStaffId], references: [id])
 
   @@unique([requestId, step])
   @@index([requestId])
@@ -3630,7 +3725,7 @@ model MinStaffingRule {
   id           String  @id @default(cuid())
   departmentId String?
   teamId       String?
-  minCount     Int     @default(1)                        // 최소 근무인원
+  minCount     Int     @default(1) // 최소 근무인원
   isActive     Boolean @default(true)
 
   @@index([departmentId])
@@ -3641,31 +3736,31 @@ model MinStaffingRule {
 // ==================== 견적 관리 ====================
 
 model Quotation {
-  id                String           @id @default(cuid())
-  quotationNumber   String           @unique            // 견적번호 (QT-20260404-001)
-  title             String                               // 견적 제목
-  quotationType     String                               // 견적 대분류: offset_print, digital_print, album, digital_output, single_product
-  subType           String?                              // 세부분류 (앨범: premium_photo, compressed, photobook / 디지털인쇄: booklet, single_item)
-  clientId          String?                              // 거래처 (선택)
-  clientName        String?                              // 비회원 고객명
-  clientPhone       String?                              // 비회원 연락처
-  clientEmail       String?                              // 비회원 이메일
-  staffId           String?                              // 담당 직원
-  status            String           @default("draft")   // draft, sent, confirmed, rejected, expired, ordered
-  totalAmount       Decimal          @default(0) @db.Decimal(12, 2)
-  tax               Decimal          @default(0) @db.Decimal(10, 2)
-  finalAmount       Decimal          @default(0) @db.Decimal(12, 2)
-  validUntil        DateTime?                            // 견적 유효기한
-  memo              String?                              // 메모
-  orderId           String?                              // 주문 전환 시 연결
-  sentAt            DateTime?                            // 발송 일시
-  sentMethod        String?                              // 발송 방법: kakao, sms, email
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  id              String    @id @default(cuid())
+  quotationNumber String    @unique // 견적번호 (QT-20260404-001)
+  title           String // 견적 제목
+  quotationType   String // 견적 대분류: offset_print, digital_print, album, digital_output, single_product
+  subType         String? // 세부분류 (앨범: premium_photo, compressed, photobook / 디지털인쇄: booklet, single_item)
+  clientId        String? // 거래처 (선택)
+  clientName      String? // 비회원 고객명
+  clientPhone     String? // 비회원 연락처
+  clientEmail     String? // 비회원 이메일
+  staffId         String? // 담당 직원
+  status          String    @default("draft") // draft, sent, confirmed, rejected, expired, ordered
+  totalAmount     Decimal   @default(0) @db.Decimal(12, 2)
+  tax             Decimal   @default(0) @db.Decimal(10, 2)
+  finalAmount     Decimal   @default(0) @db.Decimal(12, 2)
+  validUntil      DateTime? // 견적 유효기한
+  memo            String? // 메모
+  orderId         String? // 주문 전환 시 연결
+  sentAt          DateTime? // 발송 일시
+  sentMethod      String? // 발송 방법: kakao, sms, email
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  client            Client?          @relation(fields: [clientId], references: [id])
-  staff             Staff?           @relation(fields: [staffId], references: [id])
-  items             QuotationItem[]
+  client Client?         @relation(fields: [clientId], references: [id])
+  staff  Staff?          @relation(fields: [staffId], references: [id])
+  items  QuotationItem[]
 
   @@index([clientId])
   @@index([staffId])
@@ -3676,38 +3771,38 @@ model Quotation {
 }
 
 model QuotationItem {
-  id                String      @id @default(cuid())
-  quotationId       String
-  itemName          String                               // 품목명
-  specification     String?                              // 규격 (예: A4, 8x10)
-  categoryId        String?                              // 2차 카테고리 ID
-  specificationId   String?                              // 규격 ID
-  printSide         String?                              // 양면/단면: double | single
-  quantity          Int          @default(1)             // 수량
-  unitPrice         Decimal      @default(0) @db.Decimal(10, 2)  // 단가
-  totalPrice        Decimal      @default(0) @db.Decimal(12, 2)  // 소계
+  id                 String   @id @default(cuid())
+  quotationId        String
+  itemName           String // 품목명
+  specification      String? // 규격 (예: A4, 8x10)
+  categoryId         String? // 2차 카테고리 ID
+  specificationId    String? // 규격 ID
+  printSide          String? // 양면/단면: double | single
+  quantity           Int      @default(1) // 수량
+  unitPrice          Decimal  @default(0) @db.Decimal(10, 2) // 단가
+  totalPrice         Decimal  @default(0) @db.Decimal(12, 2) // 소계
   // 앨범 전용 필드
-  albumType         String?                              // premium_photo, compressed, photobook
-  compressedType    String?                              // premium, graduation (압축앨범 세부)
-  coverType         String?                              // hard, soft, leather
-  coverMaterial     String?                              // 표지 재질
-  coverPrice        Decimal?     @db.Decimal(10, 2)
-  printMethod       String?                              // hp_indigo, inkjet, offset
-  pages             Int?                                 // 페이지 수
-  printPrice        Decimal?     @db.Decimal(10, 2)
-  innerPageThickness String?                             // 0.1mm, 0.3mm, 0.6mm, 1mm
-  bindingType       String?                              // 제본 방식
-  bindingPrice      Decimal?     @db.Decimal(10, 2)
+  albumType          String? // premium_photo, compressed, photobook
+  compressedType     String? // premium, graduation (압축앨범 세부)
+  coverType          String? // hard, soft, leather
+  coverMaterial      String? // 표지 재질
+  coverPrice         Decimal? @db.Decimal(10, 2)
+  printMethod        String? // hp_indigo, inkjet, offset
+  pages              Int? // 페이지 수
+  printPrice         Decimal? @db.Decimal(10, 2)
+  innerPageThickness String? // 0.1mm, 0.3mm, 0.6mm, 1mm
+  bindingType        String? // 제본 방식
+  bindingPrice       Decimal? @db.Decimal(10, 2)
   // 일반 인쇄 전용 필드
-  paperType         String?                              // 용지 종류
-  colorType         String?                              // 1도, 2도, 4도, 별색
-  finishing         String?                              // 후가공
-  memo              String?                              // 항목 메모
-  sortOrder         Int          @default(0)
+  paperType          String? // 용지 종류
+  colorType          String? // 1도, 2도, 4도, 별색
+  finishing          String? // 후가공
+  memo               String? // 항목 메모
+  sortOrder          Int      @default(0)
 
-  quotation         Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  category          Category?      @relation(fields: [categoryId], references: [id])
-  specRef           Specification? @relation(fields: [specificationId], references: [id])
+  quotation Quotation      @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  category  Category?      @relation(fields: [categoryId], references: [id])
+  specRef   Specification? @relation(fields: [specificationId], references: [id])
 
   @@index([quotationId])
   @@index([categoryId])
@@ -3718,12 +3813,12 @@ model QuotationItem {
 // ==================== PDF 변환 Job (영속화) ====================
 // 출력대기 PDF 변환 비동기 작업 상태. 서버 재시작 시 복구를 위해 DB 영속화.
 model PdfJob {
-  id             String       @id  // jobId (uuid)
+  id             String       @id // jobId (uuid)
   status         String       @default("pending") // pending|in_progress|completed|failed
   totalItems     Int
   completedItems Int          @default(0)
-  totalPages     Int          @default(0)   // 전체 페이지 수 (세밀 progress용)
-  processedPages Int          @default(0)   // 처리된 페이지 수
+  totalPages     Int          @default(0) // 전체 페이지 수 (세밀 progress용)
+  processedPages Int          @default(0) // 처리된 페이지 수
   currentItem    String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -3742,9 +3837,9 @@ model PdfJobItem {
   studioName  String   @default("")
   status      String   @default("pending") // pending|in_progress|completed|failed
   pdfPath     String?
-  fileName    String?  // 다운로드 파일명
-  side        String?  // 양면|단면 (하위폴더 분리용)
-  colorMode   String?  // 인디고도수 표시명 (예: 4도, 6도) - 하위폴더 분리용
+  fileName    String? // 다운로드 파일명
+  side        String? // 양면|단면 (하위폴더 분리용)
+  colorMode   String? // 인디고도수 표시명 (예: 4도, 6도) - 하위폴더 분리용
   error       String?
   sortOrder   Int      @default(0)
   updatedAt   DateTime @updatedAt
@@ -3759,22 +3854,22 @@ model PdfJobItem {
 model ImpositionPreset {
   id             String   @id @default(cuid())
   name           String
-  bindingType    String   // 'compressed' | 'tack' | 'perfect' | 'flat'
+  bindingType    String // 'compressed' | 'tack' | 'perfect' | 'flat'
   /// 'A4'|'A5'|'A6'|'B5'|'210x297' 등 (매칭용 메타)
   productSize    String?
   /// 시트당 Nup 고정값 (1/2/4/6/8…). null 이면 자동 계산. compressed 에선 "페어 개수"
   targetNup      Int?
   sheetWidth     Decimal  @db.Decimal(6, 2)
   sheetHeight    Decimal  @db.Decimal(6, 2)
-  marginTop      Decimal  @db.Decimal(5, 2) @default(5)
-  marginRight    Decimal  @db.Decimal(5, 2) @default(5)
-  marginBottom   Decimal  @db.Decimal(5, 2) @default(5)
-  marginLeft     Decimal  @db.Decimal(5, 2) @default(5)
+  marginTop      Decimal  @default(5) @db.Decimal(5, 2)
+  marginRight    Decimal  @default(5) @db.Decimal(5, 2)
+  marginBottom   Decimal  @default(5) @db.Decimal(5, 2)
+  marginLeft     Decimal  @default(5) @db.Decimal(5, 2)
   creaseWidth    Decimal? @db.Decimal(4, 2)
   tackMargin     Decimal? @db.Decimal(4, 2)
-  tackEdge       String?  // 'left'|'right'|'top'|'bottom'
-  gutter         Decimal  @db.Decimal(4, 2) @default(3)
-  bleed          Decimal  @db.Decimal(4, 2) @default(3)
+  tackEdge       String? // 'left'|'right'|'top'|'bottom'
+  gutter         Decimal  @default(3) @db.Decimal(4, 2)
+  bleed          Decimal  @default(3) @db.Decimal(4, 2)
   grainDirection String   @default("short")
   rotationPolicy String   @default("auto") // '0'|'90'|'auto'
   isDefault      Boolean  @default(false)
@@ -3794,22 +3889,22 @@ model ImpositionPreset {
 /// 주문 특성(규격·제본방식·페이지수)을 프리셋과 자동 매칭하는 규칙.
 /// priority 내림차순 + 조건 매칭 첫 히트가 선택됨.
 model ImpositionRule {
-  id           String   @id @default(cuid())
+  id          String           @id @default(cuid())
   /// 매칭 조건: 제품 규격 라벨. 'A4'|'A5'|'A6'|'B5'|'210x297' 등. null=any
-  productSize  String?
+  productSize String?
   /// 매칭 조건: 제본방식. 'compressed'|'tack'|'perfect'|'flat'. null=any
-  bindingType  String?
+  bindingType String?
   /// 매칭 조건: 페이지 수 범위 (포함). null=무제한
-  minPages     Int?
-  maxPages     Int?
+  minPages    Int?
+  maxPages    Int?
   /// 큰 값 우선
-  priority     Int      @default(0)
-  presetId     String
-  preset       ImpositionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
-  description  String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  priority    Int              @default(0)
+  presetId    String
+  preset      ImpositionPreset @relation(fields: [presetId], references: [id], onDelete: Cascade)
+  description String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([priority])
   @@index([productSize, bindingType])
@@ -3818,23 +3913,23 @@ model ImpositionRule {
 }
 
 model ImpositionJob {
-  id          String   @id @default(cuid())
-  orderId     String?
-  orderItemId String?
-  presetId    String
-  preset      ImpositionPreset @relation(fields: [presetId], references: [id])
-  pageCount   Int
-  sheetCount  Int
-  nup         Int
-  rotation    Int      // 0 | 90
-  utilization Decimal  @db.Decimal(5, 4) // 0.0000 ~ 1.0000
-  layoutJson  Json     // sheets[].placements[]
+  id           String           @id @default(cuid())
+  orderId      String?
+  orderItemId  String?
+  presetId     String
+  preset       ImpositionPreset @relation(fields: [presetId], references: [id])
+  pageCount    Int
+  sheetCount   Int
+  nup          Int
+  rotation     Int // 0 | 90
+  utilization  Decimal          @db.Decimal(5, 4) // 0.0000 ~ 1.0000
+  layoutJson   Json // sheets[].placements[]
   jdfPath      String?
   pdfPath      String?
   imagePdfPath String?
-  status       String   @default("pending") // pending|done|failed
-  error       String?
-  createdAt   DateTime @default(now())
+  status       String           @default("pending") // pending|done|failed
+  error        String?
+  createdAt    DateTime         @default(now())
 
   @@index([orderId])
   @@index([orderItemId])

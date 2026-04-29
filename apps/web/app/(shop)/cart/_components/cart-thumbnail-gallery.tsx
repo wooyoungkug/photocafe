@@ -86,6 +86,32 @@ function ThumbnailItem({
           onError={() => setHasError(true)}
         />
       )}
+      {pageLayout === 'spread' && (() => {
+        const pages = getSpreadPageNumbers(idx, totalFiles, direction);
+        const leftBlank = pages.left === null;
+        const rightBlank = pages.right === null;
+        if (!leftBlank && !rightBlank) return null;
+        return (
+          <div
+            className={cn(
+              'absolute inset-y-0 w-1/2 pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden',
+              leftBlank ? 'left-0 border-r-0' : 'right-0 border-l-0'
+            )}
+            aria-label={blankLabel}
+          >
+            <svg
+              className="absolute inset-0 w-full h-full"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
+              <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
+            </svg>
+            <span className="relative text-lg font-bold text-blue-500/90 select-none bg-blue-50/80 rounded px-1">空</span>
+          </div>
+        );
+      })()}
       {pageLayout === 'spread' ? (() => {
         const pages = getSpreadPageNumbers(idx, totalFiles, direction);
         return (
