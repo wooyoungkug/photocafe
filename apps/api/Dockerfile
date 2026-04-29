@@ -33,8 +33,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV TZ=Asia/Seoul
 
-# Install OpenSSL for Prisma and curl for health checks
-RUN apk add --no-cache libc6-compat openssl curl
+# Install OpenSSL for Prisma, curl for health checks, su-exec for privilege drop
+RUN apk add --no-cache libc6-compat openssl curl su-exec
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -53,7 +53,14 @@ RUN mkdir -p /app/uploads/temp /app/uploads/orders
 # Set ownership
 RUN chown -R nestjs:nodejs /app
 
-USER nestjs
+# Entrypoint script:
+# Railway Volume 이 /app/uploads 에 마운트되면 root 소유로 시작되므로
+# 컨테이너 시작 시점에 nestjs:nodejs 로 chown 후 nestjs 권한으로 node 실행.
+# (su-exec 로 PID 1 안 잃고 우아하게 권한 강하)
+RUN printf '#!/bin/sh\nset -e\nchown -R nestjs:nodejs /app/uploads 2>/dev/null || true\nexec su-exec nestjs:nodejs node dist/main.js\n' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
+# 의도적으로 USER 지정 안 함 — 시작 시 root 로 chown 후 entrypoint 가 nestjs 로 강하한다.
 
 EXPOSE 3001
 
@@ -62,4 +69,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
 
 # 서버 시작 (prisma db push는 배포 스크립트에서 1회 실행 - 컨테이너 재시작마다 실행 방지)
-CMD ["node", "dist/main.js"]
+CMD ["/app/entrypoint.sh"]
