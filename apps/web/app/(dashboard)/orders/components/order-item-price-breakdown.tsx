@@ -21,6 +21,8 @@ interface Props {
   edit: ItemSpecsValue;
   product?: Product;
   clientId?: string;
+  /** 제본방향 변경 시 실효 페이지 수 override */
+  pageCountOverride?: number;
   /** 계산된 단가를 부모에 알림 — auto 모드에서 unitPrice 동기화용 */
   onUnitPriceCalculated?: (unitPrice: number) => void;
 }
@@ -30,6 +32,7 @@ export function OrderItemPriceBreakdown({
   edit,
   product,
   clientId,
+  pageCountOverride,
   onUnitPriceCalculated,
 }: Props) {
   const colorIntentsQuery = useColorIntents();
@@ -74,7 +77,7 @@ export function OrderItemPriceBreakdown({
     productId: orderItem.productId,
     widthInch,
     heightInch,
-    pageCount: orderItem.pages,
+    pageCount: pageCountOverride ?? orderItem.pages,
     colorMode,
     pageLayout,
     paperId,
@@ -112,7 +115,7 @@ export function OrderItemPriceBreakdown({
     );
   }
 
-  const pages = orderItem.pages;
+  const pages = pageCountOverride ?? orderItem.pages;
   const extraPages = data.billingExtraPages || 0;
   const billingPages = pages + extraPages;
 

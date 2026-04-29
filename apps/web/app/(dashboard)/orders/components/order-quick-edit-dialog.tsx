@@ -118,6 +118,29 @@ function getSpreadPageNumbers(
   }
 }
 
+// 제본방향 + 파일 수 기준 실효 페이지 계산
+// 펼침면: getSpreadPageNumbers 로 최대 페이지 도출 / 낱장: 파일 수 = 페이지 수
+function calcEffectivePages(
+  files: ThumbnailFile[],
+  pageLayout: string | undefined,
+  bindingDirection: string | undefined,
+  fallback: number,
+): number {
+  if (files.length === 0) return fallback;
+  if (pageLayout === 'spread') {
+    const dir = (bindingDirection || 'LEFT_START_RIGHT_END') as BindingDirectionType;
+    let maxPage = 0;
+    for (let i = 0; i < files.length; i++) {
+      const { left, right } = getSpreadPageNumbers(i, files.length, dir);
+      if (left !== null) maxPage = Math.max(maxPage, left);
+      if (right !== null) maxPage = Math.max(maxPage, right);
+    }
+    return maxPage > 0 ? maxPage : fallback;
+  }
+  // 낱장: 파일 1개 = 1페이지, 제본방향은 배치에만 영향
+  return files.length;
+}
+
 // 후가공 옵션 배열 동등성 비교 (순서 무관)
 function finishingsDiffer(
   a?: string[],
@@ -1226,6 +1249,7 @@ export function OrderQuickEditDialog({
                             item={item}
                             edit={edit}
                             clientId={displayOrder.clientId}
+                            pageCountOverride={calcEffectivePages(allFiles, edit.pageLayout, edit.bindingDirection, item.pages)}
                             onUnitPriceCalculated={(calculated) => {
                               setItemEdits((prev) => {
                                 const cur = prev[item.id];
@@ -1243,13 +1267,22 @@ export function OrderQuickEditDialog({
                         {/* 오른쪽: 페이지/부수/단가/소계 */}
                         <div className="rounded-md border p-3 bg-white flex flex-col gap-3">
                           <div className="flex flex-wrap gap-3 items-end">
-                            {/* 페이지 (자동 계산) */}
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">페이지</Label>
-                              <div className="w-20 h-8 px-3 flex items-center rounded-md border bg-slate-50 text-sm text-slate-700 select-none">
-                                {item.pages}p
-                              </div>
-                            </div>
+                            {/* 페이지 (제본방향 반영 실효 계산) */}
+                            {(() => {
+                              const ep = calcEffectivePages(allFiles, edit.pageLayout, edit.bindingDirection, item.pages);
+                              const changed = ep !== item.pages;
+                              return (
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">페이지</Label>
+                                  <div className={cn(
+                                    'w-20 h-8 px-3 flex items-center rounded-md border text-sm select-none',
+                                    changed ? 'bg-amber-50 border-amber-400 text-amber-700 font-semibold' : 'bg-slate-50 text-slate-700',
+                                  )}>
+                                    {ep}p
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             <div className="space-y-1">
                               <Label className="text-xs text-muted-foreground">부수</Label>
                               <Input
@@ -1315,11 +1348,22 @@ export function OrderQuickEditDialog({
                               />
                             </div>
                           </div>
-                          <div className="text-sm font-medium text-right whitespace-nowrap border-t pt-2">
-                            소계:{' '}
-                            <span className="text-blue-600">
-                              {(edit.unitPrice * edit.quantity).toLocaleString()}원
-                            </span>
+                          <div className="border-t pt-2 grid grid-cols-2 gap-y-1.5 text-sm">
+                            <span className="text-muted-foreground">상품금액</span>
+                            <span className="text-right">{productTotal.toLocaleString()}원</span>
+                            <span className="text-muted-foreground">부가세 (10%)</span>
+                            <span className="text-right">{tax.toLocaleString()}원</span>
+                            <span className="text-muted-foreground">배송비</span>
+                            <span className="text-right">{shippingFee.toLocaleString()}원</span>
+                            {discountAmount > 0 && (
+                              <>
+                                <span className="text-red-600">할인금액</span>
+                                <span className="text-right text-red-600">-{discountAmount.toLocaleString()}원</span>
+                              </>
+                            )}
+                            <Separator className="col-span-2 my-0.5" />
+                            <span className="font-bold">최종금액</span>
+                            <span className="text-right font-bold text-blue-600">{finalTotal.toLocaleString()}원</span>
                           </div>
                         </div>
                       </div>
@@ -1530,11 +1574,13 @@ function ItemPriceBreakdownPanel({
   item,
   edit,
   clientId,
+  pageCountOverride,
   onUnitPriceCalculated,
 }: {
   item: import('@/hooks/use-orders').OrderItem;
   edit: ItemEdit;
   clientId: string;
+  pageCountOverride?: number;
   onUnitPriceCalculated: (unitPrice: number) => void;
 }) {
   const productQuery = useProduct(item.productId);
@@ -1554,6 +1600,7 @@ function ItemPriceBreakdownPanel({
       }}
       product={productQuery.data}
       clientId={clientId}
+      pageCountOverride={pageCountOverride}
       onUnitPriceCalculated={onUnitPriceCalculated}
     />
   );
