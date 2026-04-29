@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '@/common/prisma/prisma.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
+import { UploadModule } from '../upload/upload.module';
 import { ImpositionController } from './controllers/imposition.controller';
 import { ImpositionCalcService } from './services/imposition-calc.service';
 import { ImpositionJdfService } from './services/imposition-jdf.service';
@@ -11,7 +12,7 @@ import { ImpositionMatcherService } from './services/imposition-matcher.service'
 import { ImpositionImagePdfService } from './services/imposition-image-pdf.service';
 
 @Module({
-  imports: [PrismaModule, SystemSettingsModule],
+  imports: [PrismaModule, SystemSettingsModule, UploadModule],
   controllers: [ImpositionController],
   providers: [
     ImpositionCalcService,
