@@ -216,10 +216,20 @@ function AdaptiveThumbnail({
 
   return (
     <div className="flex flex-col">
-      <div className={cn(
-        'relative rounded-t-md overflow-hidden border-2 border-gray-200 hover:border-blue-400 hover:shadow-md transition-all bg-gray-100',
-        aspectStyle || 'aspect-auto'
-      )}>
+      <div
+        className={cn(
+          'relative rounded-t-md overflow-hidden border-2 border-gray-200 hover:border-blue-400 hover:shadow-md transition-all bg-gray-100',
+          aspectStyle || 'aspect-auto',
+          onOpenOriginal && 'cursor-zoom-in'
+        )}
+        onClick={() => onOpenOriginal?.(file)}
+        title="클릭하여 원본 확대"
+      >
+        {openingFileId === file.id && (
+          <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-10">
+            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
         {imgSrc ? (
           <img
             src={imgSrc}
@@ -298,18 +308,6 @@ function AdaptiveThumbnail({
         <div className="text-gray-500">
           {file.pageRange || `${file.pageStart}p`}
         </div>
-        {!!onOpenOriginal && (
-          <button
-            type="button"
-            className="mt-1 w-full h-5 rounded bg-gray-100 hover:bg-gray-200 text-[9px] flex items-center justify-center gap-1 transition-colors"
-            onClick={() => onOpenOriginal(file)}
-            disabled={openingFileId === file.id}
-            title="원본 열기"
-          >
-            <Download className="h-2.5 w-2.5" />
-            {openingFileId === file.id ? '열는 중...' : '원본'}
-          </button>
-        )}
       </div>
     </div>
   );
@@ -495,6 +493,7 @@ export function OrderQuickEditDialog({
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
   const [openingFileId, setOpeningFileId] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   // PR3: 메시지/담당자/알림 + 재출력 인터셉트 + 이력 보기
   const [editMessage, setEditMessage] = useState('');
@@ -726,16 +725,16 @@ export function OrderQuickEditDialog({
     await performSave();
   };
 
-  const handleOpenOriginal = async (file: ThumbnailFile) => {
+  const handlePreviewImage = async (file: ThumbnailFile) => {
     if (!file?.id) return;
     setOpeningFileId(file.id);
     try {
       const finalUrl = await resolveOrderFileAccessUrl(file);
-      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+      setPreviewUrl(finalUrl);
     } catch (e: any) {
       const fallback = normalizeImageUrl(file.fileUrl) || file.fileUrl;
       if (fallback) {
-        window.open(fallback, '_blank', 'noopener,noreferrer');
+        setPreviewUrl(fallback);
       } else {
         toast({ title: e?.message || '원본 파일 열기에 실패했습니다.', variant: 'destructive' });
       }
@@ -747,6 +746,28 @@ export function OrderQuickEditDialog({
   // ==================== Render ====================
 
   return (
+    <>
+    {previewUrl && (
+      <div
+        className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center"
+        onClick={() => setPreviewUrl(null)}
+      >
+        <button
+          type="button"
+          className="absolute top-4 right-4 text-white bg-black/50 hover:bg-black/80 rounded-full w-9 h-9 flex items-center justify-center text-xl transition-colors"
+          onClick={() => setPreviewUrl(null)}
+          aria-label="닫기"
+        >
+          ×
+        </button>
+        <img
+          src={previewUrl}
+          alt="원본 미리보기"
+          className="max-w-[95vw] max-h-[95vh] object-contain rounded shadow-2xl"
+          onClick={(e) => e.stopPropagation()}
+        />
+      </div>
+    )}
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
@@ -901,7 +922,7 @@ export function OrderQuickEditDialog({
                           files={allFiles}
                           pageLayout={edit.pageLayout}
                           bindingDirection={edit.bindingDirection as BindingDirectionType | undefined}
-                          onOpenOriginal={handleOpenOriginal}
+                          onOpenOriginal={handlePreviewImage}
                           openingFileId={openingFileId}
                         />
                       ) : item.thumbnailUrl ? (
@@ -1377,6 +1398,7 @@ export function OrderQuickEditDialog({
         orderId={displayOrder.id}
       />
     </Dialog>
+    </>
   );
 }
 
