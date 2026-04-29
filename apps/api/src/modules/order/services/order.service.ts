@@ -1627,13 +1627,15 @@ export class OrderService {
           const newTotalPrice = newUnitPrice * newQuantity;
 
           // ===== 사양 호환성 검증 (관리자 사양 편집) =====
-          // printMethod 가 'inkjet' 인데 colorIntentId 가 들어오면 거부.
-          // colorIntentId 는 인디고 출력에서만 의미가 있음.
           const effectivePrintMethod = update.printMethod ?? item.printMethod ?? null;
+          const isIndigoMethod = (pm: string) => {
+            const s = pm.toLowerCase();
+            return s.includes('indigo') || s.includes('인디고');
+          };
           if (
             update.colorIntentId &&
             effectivePrintMethod &&
-            String(effectivePrintMethod).toLowerCase() !== 'indigo'
+            !isIndigoMethod(String(effectivePrintMethod))
           ) {
             throw new BadRequestException(
               `잉크젯 출력에는 도수(colorIntent)를 지정할 수 없습니다. (item ${update.itemId})`,
@@ -1726,7 +1728,7 @@ export class OrderService {
               fromStatus: order.status,
               toStatus: order.status,
               processType: 'admin_adjustment',
-              note: dto.adjustmentReason || `금액조정: 할인 ${adjustmentAmount.toLocaleString()}원`,
+              note: dto.adjustmentReason || (adjustmentAmount < 0 ? `금액조정: 추가 ${Math.abs(adjustmentAmount).toLocaleString()}원` : `금액조정: 할인 ${adjustmentAmount.toLocaleString()}원`),
               processedBy: userId,
             },
           },

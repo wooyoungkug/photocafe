@@ -485,10 +485,9 @@ export class CreateOrderDto {
   @Min(0)
   shippingFee?: number;
 
-  @ApiPropertyOptional({ description: '조정금액 (합배송 배송비 환급 등)' })
+  @ApiPropertyOptional({ description: '조정금액 (음수: 할인, 양수: 추가)' })
   @IsOptional()
   @IsNumber()
-  @Min(0)
   adjustmentAmount?: number;
 
   @ApiProperty({ description: '주문 항목' })
@@ -869,10 +868,9 @@ export class AdjustOrderItemDto {
 }
 
 export class AdjustOrderDto {
-  @ApiPropertyOptional({ description: '할인금액' })
+  @ApiPropertyOptional({ description: '조정금액 (음수: 할인, 양수: 추가)' })
   @IsOptional()
   @IsNumber()
-  @Min(0)
   adjustmentAmount?: number;
 
   @ApiPropertyOptional({ description: '할인/조정 사유' })
