@@ -324,125 +324,128 @@ export function ItemSpecsEditor({
         </div>
       </div>
 
-      {/* 5. 규격 */}
-      <div className="space-y-1 col-span-2">
-        <Label className="text-[12px] text-slate-600">규격</Label>
-        <Select
-          value={currentFileSpecId || undefined}
-          onValueChange={(v) => update({ fileSpecId: v })}
-          disabled={readonly || isProductLoading || specOptions.length === 0}
-        >
-          <SelectTrigger className="h-8 text-[13px]">
-            <SelectValue placeholder={loadingPlaceholder ?? (item.size || '규격 선택')} />
-          </SelectTrigger>
-          <SelectContent>
-            {currentFileSpecId &&
-              !specOptions.some((s) => (s.specificationId ?? s.id) === currentFileSpecId) && (
-                <SelectItem value={currentFileSpecId}>{item.size} (현재값)</SelectItem>
-              )}
-            {specOptions.map((ps) => {
-              // 옵션 value 는 specificationId(전역 마스터 FK) 우선, 없으면 product 옵션 row id
-              const optValue = ps.specificationId ?? ps.id;
-              const wIn = (ps.widthMm / 25.4).toFixed(1);
-              const hIn = (ps.heightMm / 25.4).toFixed(1);
-              return (
-                <SelectItem key={ps.id} value={optValue}>
-                  {ps.name} ({wIn}×{hIn}″)
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* 6. 원단 */}
-      <div className="space-y-1 col-span-2">
-        <Label className="text-[12px] text-slate-600">원단</Label>
-        {fabricOptions.length > 0 ? (
-          <Select
-            value={currentFabricName || undefined}
-            onValueChange={(v) => update({ fabricName: v })}
-            disabled={readonly}
-          >
-            <SelectTrigger className="h-8 text-[13px]">
-              <SelectValue placeholder="원단 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              {currentFabricName && !fabricOptions.some((f) => f.fabric.name === currentFabricName) && (
-                <SelectItem value={currentFabricName}>{currentFabricName} (현재값)</SelectItem>
-              )}
-              {fabricOptions.map((f) => (
-                <SelectItem key={f.fabricId} value={f.fabric.name}>
-                  {f.fabric.name}
-                  {f.fabric.colorName ? ` · ${f.fabric.colorName}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : (
-          // 폴백: 상품에 fabrics 가 없으면 전역 picker
-          <div className="flex items-center gap-2">
-            <div className="flex-1 h-8 px-3 rounded-md border bg-white text-[13px] flex items-center text-slate-700">
-              {currentFabricName || <span className="text-slate-400">선택 안 됨</span>}
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={readonly}
-              onClick={() => setFabricPickerOpen(true)}
-              className="h-8"
-            >
-              <Pencil className="h-3.5 w-3.5 mr-1" />
-              변경
-            </Button>
-            {currentFabricName && !readonly && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => update({ fabricName: '' })}
-                className="h-8 text-slate-500"
-              >
-                제거
-              </Button>
-            )}
-            <FabricPickerDialog
-              open={fabricPickerOpen}
-              onOpenChange={setFabricPickerOpen}
-              selectedFabricId={null}
-              onSelect={(f) => {
-                update({ fabricName: f.name });
-                setFabricPickerOpen(false);
-              }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* 7. 제본 */}
-      {bindingOptions.length > 0 && (
+      {/* 2줄: 규격 · 원단 · 제본 — 1줄 */}
+      <div className="col-span-2 grid grid-cols-3 gap-2">
+        {/* 규격 */}
         <div className="space-y-1">
-          <Label className="text-[12px] text-slate-600">제본</Label>
+          <Label className="text-[12px] text-slate-600">규격</Label>
           <Select
-            value={currentBindingType || undefined}
-            onValueChange={(v) => update({ bindingType: v })}
-            disabled={readonly}
+            value={currentFileSpecId || undefined}
+            onValueChange={(v) => update({ fileSpecId: v })}
+            disabled={readonly || isProductLoading || specOptions.length === 0}
           >
             <SelectTrigger className="h-8 text-[13px]">
-              <SelectValue placeholder="제본 선택" />
+              <SelectValue placeholder={loadingPlaceholder ?? (item.size || '규격 선택')} />
             </SelectTrigger>
             <SelectContent>
-              {currentBindingType && !bindingOptions.some((b) => b.name === currentBindingType) && (
-                <SelectItem value={currentBindingType}>{currentBindingType} (현재값)</SelectItem>
-              )}
-              {bindingOptions.map((b) => (
-                <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-              ))}
+              {currentFileSpecId &&
+                !specOptions.some((s) => (s.specificationId ?? s.id) === currentFileSpecId) && (
+                  <SelectItem value={currentFileSpecId}>{item.size} (현재값)</SelectItem>
+                )}
+              {specOptions.map((ps) => {
+                const optValue = ps.specificationId ?? ps.id;
+                const wIn = (ps.widthMm / 25.4).toFixed(1);
+                const hIn = (ps.heightMm / 25.4).toFixed(1);
+                return (
+                  <SelectItem key={ps.id} value={optValue}>
+                    {ps.name} ({wIn}×{hIn}″)
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
-      )}
+
+        {/* 원단 */}
+        <div className="space-y-1">
+          <Label className="text-[12px] text-slate-600">원단</Label>
+          {fabricOptions.length > 0 ? (
+            <Select
+              value={currentFabricName || undefined}
+              onValueChange={(v) => update({ fabricName: v })}
+              disabled={readonly}
+            >
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue placeholder="원단 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {currentFabricName && !fabricOptions.some((f) => f.fabric.name === currentFabricName) && (
+                  <SelectItem value={currentFabricName}>{currentFabricName} (현재값)</SelectItem>
+                )}
+                {fabricOptions.map((f) => (
+                  <SelectItem key={f.fabricId} value={f.fabric.name}>
+                    {f.fabric.name}
+                    {f.fabric.colorName ? ` · ${f.fabric.colorName}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="space-y-1">
+              <div className="h-8 px-3 rounded-md border bg-white text-[13px] flex items-center text-slate-700 truncate">
+                {currentFabricName || <span className="text-slate-400">선택 안 됨</span>}
+              </div>
+              <div className="flex gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={readonly}
+                  onClick={() => setFabricPickerOpen(true)}
+                  className="h-7 text-[11px] flex-1"
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  변경
+                </Button>
+                {currentFabricName && !readonly && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => update({ fabricName: '' })}
+                    className="h-7 text-[11px] text-slate-500"
+                  >
+                    제거
+                  </Button>
+                )}
+              </div>
+              <FabricPickerDialog
+                open={fabricPickerOpen}
+                onOpenChange={setFabricPickerOpen}
+                selectedFabricId={null}
+                onSelect={(f) => {
+                  update({ fabricName: f.name });
+                  setFabricPickerOpen(false);
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* 제본 */}
+        {bindingOptions.length > 0 ? (
+          <div className="space-y-1">
+            <Label className="text-[12px] text-slate-600">제본</Label>
+            <Select
+              value={currentBindingType || undefined}
+              onValueChange={(v) => update({ bindingType: v })}
+              disabled={readonly}
+            >
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue placeholder="제본 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {currentBindingType && !bindingOptions.some((b) => b.name === currentBindingType) && (
+                  <SelectItem value={currentBindingType}>{currentBindingType} (현재값)</SelectItem>
+                )}
+                {bindingOptions.map((b) => (
+                  <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : <div />}
+      </div>
 
       {/* 8. 박/동판 + 박 색상/위치 (시스템 라벨 마스터) */}
       {foilOptions.length > 0 && (
