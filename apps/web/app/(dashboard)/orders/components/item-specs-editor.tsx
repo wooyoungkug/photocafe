@@ -114,18 +114,6 @@ export function ItemSpecsEditor({
   // 비교/필터링용 정규화 값(표준 토큰: indigo/inkjet/offset)
   const effectivePrintMethod = normalizePrintMethod(rawPrintMethod);
 
-  // 출력방법 옵션 — 상품 papers 의 printMethod 유니크값
-  const printMethodOptions = useMemo(() => {
-    const methods = new Set<string>();
-    (product?.papers ?? []).forEach((p) => {
-      if (p.printMethod) methods.add(p.printMethod);
-    });
-    return Array.from(methods).map((m) => ({
-      value: m,
-      label: PRINT_METHOD_LABELS[m] ?? m,
-    }));
-  }, [product?.papers]);
-
   // 현재 도수가 6도인지 판별 (용지 4/6도 활성 필터 용도)
   const currentColorIntentId = value.colorIntentId ?? item.colorIntentId ?? '';
   const isSixColor = useMemo(() => {
@@ -177,6 +165,62 @@ export function ItemSpecsEditor({
     onChange(next);
   };
 
+  // ==================== 출력방법+도수 합본 (고객 화면 동일) ====================
+  // value: 'indigo_4c' | 'indigo_6c' | 'inkjet'
+  type CombinedMethod = 'indigo_4c' | 'indigo_6c' | 'inkjet';
+
+  const has4doPapers = useMemo(
+    () => (product?.papers ?? []).some((p) => p.printMethod === 'indigo' && p.isActive4 !== false),
+    [product?.papers],
+  );
+  const has6doPapers = useMemo(
+    () => (product?.papers ?? []).some((p) => p.printMethod === 'indigo' && p.isActive6 !== false),
+    [product?.papers],
+  );
+  const hasInkjetPapers = useMemo(
+    () => (product?.papers ?? []).some((p) => p.printMethod === 'inkjet' && p.isActive !== false),
+    [product?.papers],
+  );
+
+  const combinedMethodValue: CombinedMethod | undefined = effectivePrintMethod === 'inkjet'
+    ? 'inkjet'
+    : effectivePrintMethod === 'indigo'
+      ? (isSixColor ? 'indigo_6c' : 'indigo_4c')
+      : undefined;
+
+  /**
+   * 합본 출력방법 선택 시 처리:
+   *   - printMethod 표준화 (indigo / inkjet)
+   *   - colorIntentId 를 '현재 단/양면' 과 매칭하여 자동 설정
+   *   - paper 는 호환되지 않을 수 있으므로 리셋
+   */
+  const handleCombinedMethodChange = (next: CombinedMethod) => {
+    const sideToken = (printTypeLock ?? currentPrintSide ?? 'single').toString();
+    const wantDouble = sideToken === 'double' || sideToken === 'spread';
+    if (next === 'inkjet') {
+      onChange({
+        ...value,
+        printMethod: 'inkjet',
+        colorIntentId: undefined,
+        paper: undefined,
+      });
+      return;
+    }
+    const wantNumColors = next === 'indigo_6c' ? 6 : 4;
+    const matchingIntent = colorIntents.find(
+      (ci) => ci.isActive && (ci.numColorsFront ?? 0) === wantNumColors
+        && (wantDouble
+          ? /양면|double/i.test(`${ci.name} ${ci.displayNameKo ?? ''}`)
+          : /단면|single/i.test(`${ci.name} ${ci.displayNameKo ?? ''}`)),
+    );
+    onChange({
+      ...value,
+      printMethod: 'indigo',
+      colorIntentId: matchingIntent?.id ?? value.colorIntentId,
+      paper: undefined,
+    });
+  };
+
   const currentPaper = value.paper ?? item.paper ?? '';
   const currentPrintSide = value.printSide ?? item.printSide ?? '';
   const currentFabricName = value.fabricName ?? item.fabricName ?? '';
@@ -204,52 +248,27 @@ export function ItemSpecsEditor({
 
   return (
     <div className="grid grid-cols-2 gap-3 p-3 rounded-md border bg-slate-50/40">
-      {/* 1. 출력방법 */}
-      <div className="space-y-1">
+      {/* 1. 출력방법 (인디고4도 / 인디고6도 / 잉크젯) — 고객 화면과 동일 */}
+      <div className="space-y-1 col-span-2">
         <Label className="text-[12px] text-slate-600">출력방법</Label>
         <Select
-          value={effectivePrintMethod || undefined}
-          onValueChange={(v) => update({ printMethod: v })}
-          disabled={readonly || isProductLoading || printMethodOptions.length === 0}
+          value={combinedMethodValue}
+          onValueChange={(v) => handleCombinedMethodChange(v as CombinedMethod)}
+          disabled={readonly || isProductLoading}
         >
           <SelectTrigger className="h-8 text-[13px]">
-            <SelectValue placeholder={loadingPlaceholder ?? '선택'} />
+            <SelectValue placeholder={loadingPlaceholder ?? '출력방법 선택'} />
           </SelectTrigger>
           <SelectContent>
-            {/* 현재값이 옵션 목록에 없으면(과거 데이터) 그대로 노출 */}
-            {effectivePrintMethod && !printMethodOptions.some((o) => o.value === effectivePrintMethod) && (
-              <SelectItem value={effectivePrintMethod}>
-                {PRINT_METHOD_LABELS[effectivePrintMethod] ?? effectivePrintMethod} (현재값)
-              </SelectItem>
+            {has4doPapers && (
+              <SelectItem value="indigo_4c">인디고 4도</SelectItem>
             )}
-            {printMethodOptions.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* 2. 도수 (인디고일 때만) */}
-      <div className="space-y-1">
-        <Label className="text-[12px] text-slate-600">
-          도수 {!isIndigo && <span className="text-slate-400">(인디고만)</span>}
-        </Label>
-        <Select
-          value={currentColorIntentId || undefined}
-          onValueChange={(v) => update({ colorIntentId: v })}
-          disabled={readonly || !isIndigo}
-        >
-          <SelectTrigger className="h-8 text-[13px]">
-            <SelectValue placeholder={isIndigo ? '4도/6도 선택' : '—'} />
-          </SelectTrigger>
-          <SelectContent>
-            {colorIntents
-              .filter((ci) => ci.isActive)
-              .map((ci) => (
-                <SelectItem key={ci.id} value={ci.id}>
-                  {ci.displayNameKo || ci.name}
-                </SelectItem>
-              ))}
+            {has6doPapers && (
+              <SelectItem value="indigo_6c">인디고 6도</SelectItem>
+            )}
+            {hasInkjetPapers && (
+              <SelectItem value="inkjet">잉크젯</SelectItem>
+            )}
           </SelectContent>
         </Select>
       </div>
