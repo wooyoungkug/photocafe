@@ -678,7 +678,7 @@ export function OrderQuickEditDialog({
   // ==================== Price calculations ====================
 
   const calcProductTotal = () => {
-    return displayOrder.items.reduce((sum, item) => {
+    return (displayOrder?.items || []).reduce((sum, item) => {
       const edit = itemEdits[item.id];
       if (!edit) return sum + Number(item.unitPrice) * item.quantity;
       return sum + edit.unitPrice * edit.quantity;
@@ -699,7 +699,7 @@ export function OrderQuickEditDialog({
     if (discountAmount !== 0) return true;
     if (editMessage.trim()) return true;
     if (assignPrintOperatorId !== null) return true;
-    return displayOrder.items.some((item) => {
+    return (displayOrder?.items || []).some((item) => {
       const edit = itemEdits[item.id];
       if (!edit) return false;
       return (
@@ -932,6 +932,14 @@ export function OrderQuickEditDialog({
             </Button>
           </div>
         </DialogHeader>
+
+        {/* 데이터 로딩 중 스피너 */}
+        {(isLoadingDetail || !displayOrder?.items) && (
+          <div className="flex items-center justify-center py-16 text-muted-foreground text-[14px] gap-2">
+            <span className="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
+            주문 정보를 불러오는 중...
+          </div>
+        )}
 
         {/* 상태별 경고 배너 (PR3) */}
         {(() => {
