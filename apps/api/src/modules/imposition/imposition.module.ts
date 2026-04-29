@@ -10,6 +10,7 @@ import { ImpositionPresetService } from './services/imposition-preset.service';
 import { ImpositionRuleService } from './services/imposition-rule.service';
 import { ImpositionMatcherService } from './services/imposition-matcher.service';
 import { ImpositionImagePdfService } from './services/imposition-image-pdf.service';
+import { PrintPdfSlipPrinterService } from '../print-pdf/services/print-pdf-slip-printer.service';
 
 @Module({
   imports: [PrismaModule, SystemSettingsModule, UploadModule],
@@ -22,6 +23,7 @@ import { ImpositionImagePdfService } from './services/imposition-image-pdf.servi
     ImpositionPresetService,
     ImpositionRuleService,
     ImpositionMatcherService,
+    PrintPdfSlipPrinterService,
   ],
   exports: [ImpositionCalcService, ImpositionMatcherService],
 })
