@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import {
@@ -859,14 +859,13 @@ export function OrderQuickEditDialog({
     }
   };
 
-  const handlePreviewNavigate = useCallback(async (direction: 'prev' | 'next') => {
+  const handlePreviewNavigate = async (direction: 'prev' | 'next') => {
     if (!previewState) return;
     const { files, index } = previewState;
     const newIndex = direction === 'prev' ? index - 1 : index + 1;
     if (newIndex < 0 || newIndex >= files.length) return;
     await handlePreviewImage(files[newIndex], files, newIndex);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [previewState]);
+  };
 
   // ==================== Render ====================
 

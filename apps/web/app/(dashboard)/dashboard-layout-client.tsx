@@ -33,7 +33,7 @@ export function DashboardLayoutClient({
   useMenuStyleApply();
   const { user, isAuthenticated } = useCurrentUser();
   // 로그인된 직원에 한해 Web Push 구독 자동 등록
-  usePushSubscription(isAuthenticated && user?.type === "employee");
+  usePushSubscription(isAuthenticated);
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";
   const isTopMode = layoutMode === "top";
