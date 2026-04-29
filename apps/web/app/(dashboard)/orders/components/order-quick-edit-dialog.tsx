@@ -344,7 +344,7 @@ function ThumbnailGrid({
             <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
             <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
           </svg>
-          <span className="relative text-3xl font-bold text-blue-500/80 select-none bg-blue-50/80 rounded px-2">空</span>
+          <span className="relative text-sm font-bold text-blue-600 select-none bg-white/95 rounded px-2 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
         </div>
       </div>
     );

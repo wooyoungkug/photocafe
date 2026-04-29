@@ -94,8 +94,8 @@ function ThumbnailItem({
         return (
           <div
             className={cn(
-              'absolute inset-y-0 w-1/2 pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden',
-              leftBlank ? 'left-0 border-r-0' : 'right-0 border-l-0'
+              'absolute inset-y-0.5 w-[calc(50%-2px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded',
+              leftBlank ? 'left-0.5' : 'right-0.5'
             )}
             aria-label={blankLabel}
           >
@@ -108,7 +108,7 @@ function ThumbnailItem({
               <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
               <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
             </svg>
-            <span className="relative text-lg font-bold text-blue-500/90 select-none bg-blue-50/80 rounded px-1">空</span>
+            <span className="relative text-[8px] font-bold text-blue-600 select-none bg-white/95 rounded px-1 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
           </div>
         );
       })()}
@@ -179,7 +179,7 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
         <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
         <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
       </svg>
-      <span className="relative text-2xl font-bold text-blue-500/80 select-none bg-blue-50/80 rounded px-1.5">空</span>
+      <span className="relative text-[10px] font-bold text-blue-600 select-none bg-white/95 rounded px-1.5 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
     </div>
   );
 
