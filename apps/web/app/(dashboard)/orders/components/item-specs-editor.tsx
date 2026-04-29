@@ -261,7 +261,7 @@ export function ItemSpecsEditor({
           <SelectContent>
             {currentPaper &&
               !paperOptions.some(
-                (p) => buildPaperLabel(p.name, p.grammage) === currentPaper || p.name === currentPaper,
+                (p) => buildPaperLabel(p.name, p.grammage) === currentPaper,
               ) && (
                 <SelectItem value={currentPaper}>{currentPaper} (현재값)</SelectItem>
               )}
