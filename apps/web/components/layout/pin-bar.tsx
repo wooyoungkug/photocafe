@@ -186,8 +186,8 @@ function SortablePin({ href, name, parentName, active, onRemove }: SortablePinPr
         className={cn(
           "inline-flex items-center gap-1.5 rounded-md px-2.5 h-7 fs-pin transition-all whitespace-nowrap select-none cursor-grab active:cursor-grabbing",
           active
-            ? "bg-white text-indigo-700 font-medium ring-1 ring-indigo-200 shadow-sm"
-            : "text-slate-600 font-normal hover:bg-white hover:text-slate-900 hover:ring-1 hover:ring-slate-200 hover:shadow-sm",
+            ? "bg-indigo-50 text-indigo-700 font-medium ring-1 ring-indigo-200/70"
+            : "text-slate-600 font-normal hover:bg-slate-100 hover:text-slate-900",
         )}
         title={parentName ? `${parentName} › ${name}` : name}
         draggable={false}
