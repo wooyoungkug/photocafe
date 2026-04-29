@@ -324,8 +324,32 @@ export function ItemSpecsEditor({
         </div>
       </div>
 
-      {/* 2줄: 규격 · 원단 · 제본 — 1줄 */}
+      {/* 2줄: 제본 · 규격 · 원단 — 1줄 */}
       <div className="col-span-2 grid grid-cols-3 gap-2">
+        {/* 제본 */}
+        {bindingOptions.length > 0 ? (
+          <div className="space-y-1">
+            <Label className="text-[12px] text-slate-600">제본</Label>
+            <Select
+              value={currentBindingType || undefined}
+              onValueChange={(v) => update({ bindingType: v })}
+              disabled={readonly}
+            >
+              <SelectTrigger className="h-8 text-[13px]">
+                <SelectValue placeholder="제본 선택" />
+              </SelectTrigger>
+              <SelectContent>
+                {currentBindingType && !bindingOptions.some((b) => b.name === currentBindingType) && (
+                  <SelectItem value={currentBindingType}>{currentBindingType} (현재값)</SelectItem>
+                )}
+                {bindingOptions.map((b) => (
+                  <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : <div />}
+
         {/* 규격 */}
         <div className="space-y-1">
           <Label className="text-[12px] text-slate-600">규격</Label>
@@ -423,28 +447,6 @@ export function ItemSpecsEditor({
         </div>
 
         {/* 제본 */}
-        {bindingOptions.length > 0 ? (
-          <div className="space-y-1">
-            <Label className="text-[12px] text-slate-600">제본</Label>
-            <Select
-              value={currentBindingType || undefined}
-              onValueChange={(v) => update({ bindingType: v })}
-              disabled={readonly}
-            >
-              <SelectTrigger className="h-8 text-[13px]">
-                <SelectValue placeholder="제본 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {currentBindingType && !bindingOptions.some((b) => b.name === currentBindingType) && (
-                  <SelectItem value={currentBindingType}>{currentBindingType} (현재값)</SelectItem>
-                )}
-                {bindingOptions.map((b) => (
-                  <SelectItem key={b.id} value={b.name}>{b.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        ) : <div />}
       </div>
 
       {/* 8. 박/동판 + 박 색상/위치 (시스템 라벨 마스터) */}
