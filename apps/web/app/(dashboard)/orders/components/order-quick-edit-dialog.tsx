@@ -54,7 +54,6 @@ import {
   ReprintChangedItemInput,
 } from './reprint-confirm-dialog';
 import { OrderEditHistoryDrawer } from './order-edit-history-drawer';
-import { OrderItemSpecBadges } from '@/components/order/order-item-spec-badges';
 
 // ==================== 편집스타일 / 제본순서 라벨 ====================
 
@@ -893,30 +892,6 @@ export function OrderQuickEditDialog({
                           {item.pages}p
                         </Badge>
                       </div>
-                      </div>
-
-                      {/* Product specs line 2 (optional) */}
-                      {false && (item.bindingType ||
-                        item.coverMaterial ||
-                        item.fabricName ||
-                        item.foilColor) && (
-                        <div className="text-xs text-muted-foreground mt-0.5 truncate">
-                          {[
-                            item.bindingType,
-                            item.coverMaterial,
-                            item.fabricName
-                              ? `원단:${item.fabricName}`
-                              : null,
-                            item.foilColor
-                              ? `박:${item.foilColor}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(' \u00B7 ')}
-                        </div>
-                      )}
-                      </>
-                      )}
                     </div>
 
                     <div className="p-4 space-y-3">
