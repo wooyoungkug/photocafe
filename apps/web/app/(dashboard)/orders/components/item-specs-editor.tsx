@@ -76,6 +76,20 @@ const PRINT_METHOD_LABELS: Record<string, string> = {
   offset: '옵셋',
 };
 
+/**
+ * 레거시 한글 printMethod ("인디고", "인디고6도", "잉크젯", "옵셋", "인디고앨범" 등) 를
+ * 표준 토큰("indigo" / "inkjet" / "offset") 으로 정규화한다.
+ * 정규화에 실패하면 lowercase 원문을 그대로 반환한다.
+ */
+function normalizePrintMethod(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const v = raw.toLowerCase();
+  if (v.includes('indigo') || v.includes('인디고')) return 'indigo';
+  if (v.includes('inkjet') || v.includes('잉크젯')) return 'inkjet';
+  if (v.includes('offset') || v.includes('옵셋') || v.includes('오프셋')) return 'offset';
+  return v;
+}
+
 export function ItemSpecsEditor({
   item,
   value,
@@ -95,8 +109,10 @@ export function ItemSpecsEditor({
   const foilColors = copperLabelsQuery.data?.foilColors?.filter((c) => c.isActive) ?? [];
   const platePositions = copperLabelsQuery.data?.platePositions?.filter((p) => p.isActive) ?? [];
 
-  // 현재 적용된 출력방법
-  const effectivePrintMethod = (value.printMethod ?? item.printMethod ?? '').toLowerCase();
+  // 사용자가 select 등으로 명시적으로 고친 값(원형). 표시 라벨에 사용.
+  const rawPrintMethod = value.printMethod ?? item.printMethod ?? '';
+  // 비교/필터링용 정규화 값(표준 토큰: indigo/inkjet/offset)
+  const effectivePrintMethod = normalizePrintMethod(rawPrintMethod);
 
   // 출력방법 옵션 — 상품 papers 의 printMethod 유니크값
   const printMethodOptions = useMemo(() => {
