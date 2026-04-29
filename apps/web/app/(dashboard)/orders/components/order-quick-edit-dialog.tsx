@@ -459,6 +459,7 @@ export function OrderQuickEditDialog({
   onOpenChange,
 }: OrderQuickEditDialogProps) {
   const adjustOrder = useAdjustOrder();
+  const editWithAudit = useEditOrderWithAudit();
   // 권한 체크 — super_admin 만 출력대기 이후 상태에서 사양 편집 가능.
   const { user: currentUser } = useCurrentUser();
   const isSuperAdmin =
@@ -476,6 +477,14 @@ export function OrderQuickEditDialog({
   const [discountAmount, setDiscountAmount] = useState(0);
   const [discountReason, setDiscountReason] = useState('');
   const [openingFileId, setOpeningFileId] = useState<string | null>(null);
+
+  // PR3: 메시지/담당자/알림 + 재출력 인터셉트 + 이력 보기
+  const [editMessage, setEditMessage] = useState('');
+  const [assignPrintOperatorId, setAssignPrintOperatorId] = useState<string | null>(null);
+  const [notifyOperator, setNotifyOperator] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [reprintOpen, setReprintOpen] = useState(false);
+  const [pendingReprintChanges, setPendingReprintChanges] = useState<ReprintChangedItemInput[]>([]);
 
   // Initialize edit state when full order data loads
   useEffect(() => {
@@ -502,6 +511,9 @@ export function OrderQuickEditDialog({
       setItemEdits(edits);
       setDiscountAmount(0);
       setDiscountReason('');
+      setEditMessage('');
+      setAssignPrintOperatorId(null);
+      setNotifyOperator(true);
     }
   }, [fullOrder]);
 
@@ -553,8 +565,40 @@ export function OrderQuickEditDialog({
 
   // ==================== Save handler ====================
 
-  const handleSave = async () => {
-    const itemUpdates = displayOrder.items
+  // 사양/페이지 영향 변경 감지 (재출력 트리거 대상 필드만)
+  const collectReprintRelevantChanges = (): ReprintChangedItemInput[] => {
+    const changes: ReprintChangedItemInput[] = [];
+    displayOrder.items.forEach((item) => {
+      const edit = itemEdits[item.id];
+      if (!edit) return;
+      const specChanged =
+        edit.pageLayout !== (item.pageLayout || undefined) ||
+        edit.bindingDirection !== (item.bindingDirection || undefined) ||
+        edit.fabricName !== (item.fabricName || undefined) ||
+        edit.foilName !== (item.foilName || undefined) ||
+        edit.foilColor !== (item.foilColor || undefined) ||
+        edit.foilPosition !== (item.foilPosition || undefined) ||
+        edit.paper !== (item.paper || undefined) ||
+        edit.printMethod !== (item.printMethod || undefined) ||
+        edit.colorIntentId !== (item.colorIntentId || undefined) ||
+        edit.printSide !== (item.printSide || undefined) ||
+        edit.fileSpecId !== (item.fileSpecId || undefined);
+      if (specChanged) {
+        // 사양 변경은 모든 페이지 재출력 — 페이지 단위 부분 재출력은 향후 UI에서 별도 선택
+        const pages = (item.files || [])
+          .map((f) => f.sortOrder + 1)
+          .sort((a, b) => a - b);
+        changes.push({
+          itemId: item.id,
+          pages: pages.length > 0 ? pages : Array.from({ length: item.pages }, (_, i) => i + 1),
+        });
+      }
+    });
+    return changes;
+  };
+
+  const buildItemUpdates = () =>
+    displayOrder.items
       .filter((item) => {
         const edit = itemEdits[item.id];
         if (!edit) return false;
@@ -591,6 +635,35 @@ export function OrderQuickEditDialog({
         fileSpecId: itemEdits[item.id].fileSpecId,
       }));
 
+  // 실제 백엔드 저장 호출 (재출력 인터셉트 통과 후 또는 일반 상태에서)
+  const performSave = async () => {
+    const itemUpdates = buildItemUpdates();
+
+    try {
+      await editWithAudit.mutateAsync({
+        id: displayOrder.id,
+        data: {
+          adjustmentAmount: discountAmount > 0 ? discountAmount : undefined,
+          adjustmentReason: discountReason || undefined,
+          itemUpdates: itemUpdates.length > 0 ? itemUpdates : undefined,
+          message: editMessage.trim() || undefined,
+          notifyOperator,
+          assignPrintOperatorId: assignPrintOperatorId,
+        },
+      });
+      toast({ title: '주문이 수정되었습니다.' });
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : undefined;
+      toast({
+        title: '주문 수정에 실패했습니다.',
+        description: message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSave = async () => {
     // ±20% 변동 시 사용자 확인 1단계 (관리자 사양 편집 안전장치)
     const previousFinalAmount = Number(displayOrder.finalAmount) || 0;
     const newFinalAmount = finalTotal;
@@ -608,24 +681,18 @@ export function OrderQuickEditDialog({
       }
     }
 
-    try {
-      await adjustOrder.mutateAsync({
-        id: displayOrder.id,
-        data: {
-          adjustmentAmount: discountAmount > 0 ? discountAmount : undefined,
-          adjustmentReason: discountReason || undefined,
-          itemUpdates: itemUpdates.length > 0 ? itemUpdates : undefined,
-        },
-      });
-      toast({ title: '주문이 수정되었습니다.' });
-      onOpenChange(false);
-    } catch (err: any) {
-      toast({
-        title: '주문 수정에 실패했습니다.',
-        description: err?.message || undefined,
-        variant: 'destructive',
-      });
+    // 재출력 인터셉트 — 출력완료 이후 상태에서 사양 변경이 감지되면 ReprintConfirmDialog 띄움
+    const orderStatus = displayOrder.status;
+    if (ORDER_REPRINT_REQUIRED_STATUSES.includes(orderStatus)) {
+      const reprintChanges = collectReprintRelevantChanges();
+      if (reprintChanges.length > 0) {
+        setPendingReprintChanges(reprintChanges);
+        setReprintOpen(true);
+        return; // 저장 보류 — ReprintConfirmDialog onConfirm 에서 performSave 호출
+      }
     }
+
+    await performSave();
   };
 
   const handleOpenOriginal = async (file: ThumbnailFile) => {
