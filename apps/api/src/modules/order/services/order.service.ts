@@ -1547,7 +1547,12 @@ export class OrderService {
   }
 
   // ==================== 관리자 금액/수량 조정 ====================
-  async adjustOrder(id: string, dto: AdjustOrderDto, userId: string) {
+  async adjustOrder(
+    id: string,
+    dto: AdjustOrderDto,
+    userId: string,
+    opts?: { isSuperAdmin?: boolean },
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: { items: true },
@@ -1557,8 +1562,36 @@ export class OrderService {
       throw new NotFoundException('주문을 찾을 수 없습니다');
     }
 
+    // ===== 상태 가드 (관리자 사양 편집) =====
+    // 일반 관리자: 접수대기(pending_receipt) / 접수완료(confirmed) 만 허용.
+    // 최고관리자(super_admin): 취소/배송완료 외 모든 상태 허용 — 위험을 감수하더라도 운영 유연성 우선.
+    const isSuperAdmin = opts?.isSuperAdmin === true;
+    const editableForAll = ['pending_receipt', 'confirmed'];
+    const editableForSuperAdmin = [
+      'pending_receipt',
+      'confirmed',
+      'print_ready',
+      'in_production',
+      'shipping_ready',
+      'shipping',
+    ];
+    const allowed = isSuperAdmin ? editableForSuperAdmin : editableForAll;
+    const hasItemUpdate =
+      (dto.itemUpdates && dto.itemUpdates.length > 0) ||
+      dto.adjustmentAmount !== undefined;
+    if (hasItemUpdate && !allowed.includes(order.status)) {
+      throw new BadRequestException(
+        isSuperAdmin
+          ? `현재 상태(${order.status})에서는 사양/금액 수정 불가합니다. 취소/배송완료 주문은 편집할 수 없습니다.`
+          : `현재 상태(${order.status})에서는 사양/금액 수정 불가합니다. 접수대기/접수완료 단계에서만 수정 가능합니다.`,
+      );
+    }
+
+    // 가격 차액 계산을 위한 이전 finalAmount 보존
+    const previousFinalAmount = Number(order.finalAmount);
+
     return this.prisma.$transaction(async (tx) => {
-      // 1. 항목별 수량/단가 수정
+      // 1. 항목별 수량/단가/사양 수정
       if (dto.itemUpdates?.length) {
         for (const update of dto.itemUpdates) {
           const item = order.items.find(i => i.id === update.itemId);
@@ -1569,6 +1602,53 @@ export class OrderService {
             ? update.unitPrice
             : Number(item.unitPrice);
           const newTotalPrice = newUnitPrice * newQuantity;
+
+          // ===== 사양 호환성 검증 (관리자 사양 편집) =====
+          // printMethod 가 'inkjet' 인데 colorIntentId 가 들어오면 거부.
+          // colorIntentId 는 인디고 출력에서만 의미가 있음.
+          const effectivePrintMethod = update.printMethod ?? item.printMethod ?? null;
+          if (
+            update.colorIntentId &&
+            effectivePrintMethod &&
+            String(effectivePrintMethod).toLowerCase() !== 'indigo'
+          ) {
+            throw new BadRequestException(
+              `잉크젯 출력에는 도수(colorIntent)를 지정할 수 없습니다. (item ${update.itemId})`,
+            );
+          }
+          // printSide 단/양/스프레드 외 값 차단
+          if (
+            update.printSide &&
+            !['single', 'double', 'spread'].includes(update.printSide)
+          ) {
+            throw new BadRequestException(
+              `printSide 는 single/double/spread 중 하나여야 합니다. (item ${update.itemId})`,
+            );
+          }
+          // fileSpecId 가 들어오면 실존 검증
+          if (update.fileSpecId) {
+            const spec = await tx.specification.findUnique({
+              where: { id: update.fileSpecId },
+              select: { id: true },
+            });
+            if (!spec) {
+              throw new BadRequestException(
+                `존재하지 않는 규격(fileSpecId)입니다: ${update.fileSpecId}`,
+              );
+            }
+          }
+          // colorIntentId 가 들어오면 실존 검증
+          if (update.colorIntentId) {
+            const ci = await tx.colorIntent.findUnique({
+              where: { id: update.colorIntentId },
+              select: { id: true },
+            });
+            if (!ci) {
+              throw new BadRequestException(
+                `존재하지 않는 도수(colorIntentId)입니다: ${update.colorIntentId}`,
+              );
+            }
+          }
 
           await tx.orderItem.update({
             where: { id: update.itemId },
@@ -1583,6 +1663,12 @@ export class OrderService {
               ...(update.foilName !== undefined && { foilName: update.foilName }),
               ...(update.foilColor !== undefined && { foilColor: update.foilColor }),
               ...(update.foilPosition !== undefined && { foilPosition: update.foilPosition }),
+              // 신규 사양 필드
+              ...(update.paper !== undefined && { paper: update.paper }),
+              ...(update.printMethod !== undefined && { printMethod: update.printMethod }),
+              ...(update.colorIntentId !== undefined && { colorIntentId: update.colorIntentId }),
+              ...(update.printSide !== undefined && { printSide: update.printSide }),
+              ...(update.fileSpecId !== undefined && { fileSpecId: update.fileSpecId }),
             },
           });
         }
@@ -1665,7 +1751,20 @@ export class OrderService {
         // 매출원장 연동 업데이트 실패 시 주문 업데이트는 계속 진행
       }
 
-      return updatedOrder;
+      // 가격 차액 (이전 finalAmount → 신규 finalAmount)
+      // 클라이언트가 ±20% 이상 변동 시 사용자 confirm 표시 등에 활용.
+      const newFinalAmount = Number(updatedOrder.finalAmount);
+      const priceDelta = newFinalAmount - previousFinalAmount;
+      const priceDeltaRatio = previousFinalAmount > 0
+        ? priceDelta / previousFinalAmount
+        : 0;
+
+      return {
+        ...updatedOrder,
+        priceDelta,
+        priceDeltaRatio,
+        previousFinalAmount,
+      };
     });
   }
 

@@ -231,13 +231,17 @@ export class OrderController {
   }
 
   @Patch(':id/adjust')
-  @ApiOperation({ summary: '관리자 금액/수량 조정' })
+  @ApiOperation({ summary: '관리자 금액/수량/사양 조정' })
   async adjustOrder(
     @Param('id') id: string,
     @Body() dto: AdjustOrderDto,
     @Request() req: any,
   ) {
-    return this.orderService.adjustOrder(id, dto, req.user.id);
+    // 최고관리자(super_admin) 만 모든 상태에서 사양 변경 허용.
+    // 일반 관리자는 pending_receipt / confirmed 단계만.
+    const isSuperAdmin =
+      req.user?.isSuperAdmin === true || req.user?.role === 'admin';
+    return this.orderService.adjustOrder(id, dto, req.user.id, { isSuperAdmin });
   }
 
   @Patch(':id/shipping')

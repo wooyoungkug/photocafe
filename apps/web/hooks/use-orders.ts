@@ -68,6 +68,10 @@ export interface OrderItem {
   unitPrice: number;
   totalPrice: number;
   files: OrderFile[];
+  // 관리자 사양 편집 (2026-05-01) — 백엔드 OrderItem 모델 직접 노출
+  colorIntentId?: string;
+  printSide?: 'single' | 'double' | 'spread' | string;
+  fileSpecId?: string;
 }
 
 // 배송 정보 타입

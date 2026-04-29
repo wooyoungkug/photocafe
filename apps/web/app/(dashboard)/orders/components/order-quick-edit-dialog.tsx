@@ -22,6 +22,8 @@ import { toast } from '@/hooks/use-toast';
 import { resolveOrderFileAccessUrl } from '@/lib/order-file-access';
 import { ImageIcon, Save, Loader2, FolderOpen, FileText, BookOpen, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { cn, normalizeImageUrl } from '@/lib/utils';
+import { ItemSpecsEditor } from './item-specs-editor';
+import { useCurrentUser } from '@/hooks/use-auth';
 
 // ==================== 편집스타일 / 제본순서 라벨 ====================
 
@@ -98,6 +100,12 @@ interface ItemEdit {
   foilName?: string;
   foilColor?: string;
   foilPosition?: string;
+  // 관리자 사양 편집 (2026-05-01)
+  paper?: string;
+  printMethod?: string;
+  colorIntentId?: string;
+  printSide?: string;
+  fileSpecId?: string;
 }
 
 // ==================== ThumbnailGrid 서브 컴포넌트 ====================
@@ -380,6 +388,10 @@ export function OrderQuickEditDialog({
   onOpenChange,
 }: OrderQuickEditDialogProps) {
   const adjustOrder = useAdjustOrder();
+  // 권한 체크 — super_admin 만 출력대기 이후 상태에서 사양 편집 가능.
+  const { user: currentUser } = useCurrentUser();
+  const isSuperAdmin =
+    currentUser?.isSuperAdmin === true || currentUser?.role === 'admin';
 
   // Fetch full order detail with ALL files when dialog opens
   const {
@@ -408,6 +420,12 @@ export function OrderQuickEditDialog({
           foilName: item.foilName || undefined,
           foilColor: item.foilColor || undefined,
           foilPosition: item.foilPosition || undefined,
+          // 신규 사양 필드
+          paper: item.paper || undefined,
+          printMethod: item.printMethod || undefined,
+          colorIntentId: item.colorIntentId || undefined,
+          printSide: item.printSide || undefined,
+          fileSpecId: item.fileSpecId || undefined,
         };
       });
       setItemEdits(edits);
@@ -452,7 +470,12 @@ export function OrderQuickEditDialog({
         edit.fabricName !== (item.fabricName || undefined) ||
         edit.foilName !== (item.foilName || undefined) ||
         edit.foilColor !== (item.foilColor || undefined) ||
-        edit.foilPosition !== (item.foilPosition || undefined)
+        edit.foilPosition !== (item.foilPosition || undefined) ||
+        edit.paper !== (item.paper || undefined) ||
+        edit.printMethod !== (item.printMethod || undefined) ||
+        edit.colorIntentId !== (item.colorIntentId || undefined) ||
+        edit.printSide !== (item.printSide || undefined) ||
+        edit.fileSpecId !== (item.fileSpecId || undefined)
       );
     });
   };
@@ -472,7 +495,12 @@ export function OrderQuickEditDialog({
           edit.fabricName !== (item.fabricName || undefined) ||
           edit.foilName !== (item.foilName || undefined) ||
           edit.foilColor !== (item.foilColor || undefined) ||
-          edit.foilPosition !== (item.foilPosition || undefined)
+          edit.foilPosition !== (item.foilPosition || undefined) ||
+          edit.paper !== (item.paper || undefined) ||
+          edit.printMethod !== (item.printMethod || undefined) ||
+          edit.colorIntentId !== (item.colorIntentId || undefined) ||
+          edit.printSide !== (item.printSide || undefined) ||
+          edit.fileSpecId !== (item.fileSpecId || undefined)
         );
       })
       .map((item) => ({
@@ -485,7 +513,29 @@ export function OrderQuickEditDialog({
         foilName: itemEdits[item.id].foilName,
         foilColor: itemEdits[item.id].foilColor,
         foilPosition: itemEdits[item.id].foilPosition,
+        paper: itemEdits[item.id].paper,
+        printMethod: itemEdits[item.id].printMethod,
+        colorIntentId: itemEdits[item.id].colorIntentId,
+        printSide: itemEdits[item.id].printSide,
+        fileSpecId: itemEdits[item.id].fileSpecId,
       }));
+
+    // ±20% 변동 시 사용자 확인 1단계 (관리자 사양 편집 안전장치)
+    const previousFinalAmount = Number(displayOrder.finalAmount) || 0;
+    const newFinalAmount = finalTotal;
+    if (previousFinalAmount > 0) {
+      const ratio = (newFinalAmount - previousFinalAmount) / previousFinalAmount;
+      if (Math.abs(ratio) >= 0.2) {
+        const sign = ratio > 0 ? '+' : '';
+        const ok = window.confirm(
+          `주문 금액이 ${sign}${(ratio * 100).toFixed(1)}% 변동됩니다.\n` +
+            `이전: ${previousFinalAmount.toLocaleString()}원\n` +
+            `신규: ${newFinalAmount.toLocaleString()}원\n\n` +
+            `정말 저장하시겠습니까?`,
+        );
+        if (!ok) return;
+      }
+    }
 
     try {
       await adjustOrder.mutateAsync({
@@ -498,8 +548,12 @@ export function OrderQuickEditDialog({
       });
       toast({ title: '주문이 수정되었습니다.' });
       onOpenChange(false);
-    } catch {
-      toast({ title: '주문 수정에 실패했습니다.', variant: 'destructive' });
+    } catch (err: any) {
+      toast({
+        title: '주문 수정에 실패했습니다.',
+        description: err?.message || undefined,
+        variant: 'destructive',
+      });
     }
   };
 
@@ -683,6 +737,61 @@ export function OrderQuickEditDialog({
                           업로드된 이미지가 없습니다
                         </div>
                       )}
+
+                      {/* ===== 관리자 사양 편집 (2026-05-01) ===== */}
+                      {/* 6가지 핵심 사양: 출력방법, 도수, 용지, 단/양면, 규격, 원단 */}
+                      {(() => {
+                        // 편집 가능 상태 결정:
+                        //   - pending_receipt / confirmed: 모든 관리자
+                        //   - 그 외 (print_ready 등): super_admin 만
+                        const orderStatus = displayOrder.status;
+                        const editableForAll = ['pending_receipt', 'confirmed'];
+                        const editableForSuperAdmin = [
+                          'pending_receipt',
+                          'confirmed',
+                          'print_ready',
+                          'in_production',
+                          'shipping_ready',
+                          'shipping',
+                        ];
+                        const canEdit = isSuperAdmin
+                          ? editableForSuperAdmin.includes(orderStatus)
+                          : editableForAll.includes(orderStatus);
+                        const showWarning = isSuperAdmin && !editableForAll.includes(orderStatus) && canEdit;
+                        const blocked = !canEdit;
+                        return (
+                          <div className="space-y-2">
+                            {showWarning && (
+                              <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                                ⚠️ 출력대기 이후 상태입니다. 사양 변경 시 인쇄 사고에 주의하세요. (최고관리자 권한)
+                              </div>
+                            )}
+                            {blocked && (
+                              <div className="text-[11px] text-slate-600 bg-slate-100 border rounded px-2 py-1">
+                                현재 상태({orderStatus})에서는 사양 편집이 불가합니다.
+                              </div>
+                            )}
+                            <ItemSpecsEditor
+                              item={item}
+                              value={{
+                                paper: edit.paper,
+                                printMethod: edit.printMethod,
+                                colorIntentId: edit.colorIntentId,
+                                printSide: edit.printSide,
+                                fabricName: edit.fabricName,
+                                fileSpecId: edit.fileSpecId,
+                              }}
+                              onChange={(next) =>
+                                setItemEdits((prev) => ({
+                                  ...prev,
+                                  [item.id]: { ...prev[item.id], ...next },
+                                }))
+                              }
+                              readonly={blocked}
+                            />
+                          </div>
+                        );
+                      })()}
 
                       {/* Verification controls: Size · Page Layout · Binding Direction (한 줄) */}
                       <div className="flex items-center gap-2 text-xs text-gray-600 flex-wrap">

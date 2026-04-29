@@ -812,6 +812,32 @@ export class AdjustOrderItemDto {
   @IsOptional()
   @IsString()
   foilPosition?: string;
+
+  // ===== 관리자 사양 편집 (2026-05-01 출시) =====
+  @ApiPropertyOptional({ description: '용지명 (예: 스노우300g)' })
+  @IsOptional()
+  @IsString()
+  paper?: string;
+
+  @ApiPropertyOptional({ description: '출력방법 (indigo/inkjet)' })
+  @IsOptional()
+  @IsString()
+  printMethod?: string;
+
+  @ApiPropertyOptional({ description: 'ColorIntent FK (4도/6도 등)' })
+  @IsOptional()
+  @IsString()
+  colorIntentId?: string;
+
+  @ApiPropertyOptional({ description: '단/양면 (single/double/spread)' })
+  @IsOptional()
+  @IsString()
+  printSide?: string;
+
+  @ApiPropertyOptional({ description: '규격 Specification FK' })
+  @IsOptional()
+  @IsString()
+  fileSpecId?: string;
 }
 
 export class AdjustOrderDto {
