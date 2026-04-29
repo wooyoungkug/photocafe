@@ -33,8 +33,14 @@ export function DashboardLayoutClient({
   useTypographyApply();
   useMenuStyleApply();
   const { user, isAuthenticated } = useCurrentUser();
-  const { needsBanner, requestPermission } = usePushSubscription(isAuthenticated);
-  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const { requestPermission } = usePushSubscription(isAuthenticated);
+  const [showNotifBanner, setShowNotifBanner] = useState(false);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      setShowNotifBanner(true);
+    }
+  }, []);
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";
   const isTopMode = layoutMode === "top";
@@ -170,15 +176,15 @@ export function DashboardLayoutClient({
             <PinBar />
           </div>
           {/* 웹 푸시 알림 허용 배너 */}
-          {needsBanner && !bannerDismissed && (
+          {showNotifBanner && (
             <div className="flex items-center gap-3 px-4 py-2 bg-blue-50 border-b border-blue-200 text-[13px] text-blue-800">
               <Bell className="h-4 w-4 shrink-0 text-blue-500" />
               <span className="flex-1">담당자 알림을 받으려면 브라우저 알림을 허용해 주세요.</span>
               <button
                 type="button"
                 onClick={async () => {
-                  const ok = await requestPermission();
-                  if (!ok) setBannerDismissed(true);
+                  await requestPermission();
+                  setShowNotifBanner(false);
                 }}
                 className="px-3 py-1 rounded bg-blue-500 text-white text-[12px] hover:bg-blue-600 shrink-0"
               >
@@ -186,7 +192,7 @@ export function DashboardLayoutClient({
               </button>
               <button
                 type="button"
-                onClick={() => setBannerDismissed(true)}
+                onClick={() => setShowNotifBanner(false)}
                 className="p-1 rounded hover:bg-blue-100"
                 aria-label="닫기"
               >

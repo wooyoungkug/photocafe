@@ -516,6 +516,16 @@ export function ItemSpecsEditor({
                   !storedOwnedPlates.some((p) => p.plateName === currentFoilName) && (
                     <SelectItem value={currentFoilName}>{currentFoilName} (현재값)</SelectItem>
                   )}
+                {storedOwnedPlates.length > 0 && (
+                  <SelectGroup>
+                    <SelectLabel>보유동판 ({storedOwnedPlates.length})</SelectLabel>
+                    {storedOwnedPlates.map((p) => (
+                      <SelectItem key={p.id} value={p.plateName}>
+                        {p.plateName}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                )}
                 {activePublicPlates.length > 0 && (
                   <SelectGroup>
                     <SelectLabel>공용동판</SelectLabel>
@@ -523,16 +533,6 @@ export function ItemSpecsEditor({
                       <SelectItem key={p.id} value={p.plateName}>
                         {p.plateName}
                         {p.widthMm || p.heightMm ? ` (${p.widthMm}×${p.heightMm}mm)` : ''}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                )}
-                {storedOwnedPlates.length > 0 && (
-                  <SelectGroup>
-                    <SelectLabel>보유동판 ({storedOwnedPlates.length})</SelectLabel>
-                    {storedOwnedPlates.map((p) => (
-                      <SelectItem key={p.id} value={p.plateName}>
-                        {p.plateName}
                       </SelectItem>
                     ))}
                   </SelectGroup>
