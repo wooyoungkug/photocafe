@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   title: "Photocafe",
   description: "포토북/앨범 인쇄업체를 위한 통합 ERP 시스템",
   icons: {
-    icon: "/favicon.svg",
+    icon: "/images/favicon-32x32_red.png",
   },
   appleWebApp: {
     capable: true,

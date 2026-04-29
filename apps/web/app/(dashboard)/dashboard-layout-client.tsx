@@ -57,22 +57,26 @@ export function DashboardLayoutClient({
     setIsMobile(mq.matches);
 
     // 관리자 페이지 빨간 파비콘 적용 (캐시 무효화용 버전 파라미터)
-    const faviconUrl = "/images/favicon_Brown.svg?v=4";
+    const faviconUrl = "/images/favicon-32x32_Brown.png?v=5";
     // 기존 아이콘의 href만 변경 (DOM 노드 제거 시 React reconciliation 충돌 방지)
     const existing = document.querySelector<HTMLLinkElement>("link[rel='icon']");
     if (existing) {
       existing.href = faviconUrl;
+      existing.type = "image/png";
     } else {
       const link = document.createElement("link");
       link.rel = "icon";
-      link.type = "image/svg+xml";
+      link.type = "image/png";
       link.href = faviconUrl;
       document.head.appendChild(link);
     }
     return () => {
-      // 대시보드를 벗어나면 기본 파비콘 복원
+      // 대시보드를 벗어나면 기본(프론트) 파비콘 복원
       const icon = document.querySelector<HTMLLinkElement>("link[rel='icon']");
-      if (icon) icon.href = "/favicon.svg";
+      if (icon) {
+        icon.href = "/images/favicon-32x32_red.png";
+        icon.type = "image/png";
+      }
     };
   }, []);
 
