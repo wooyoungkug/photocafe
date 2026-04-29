@@ -167,6 +167,19 @@ export class PrintPdfService implements OnModuleInit {
           const resolvedNup = nupMap.get(item.size) || nupMap.get(this.normalizeSizeName(item.size || '')) || null;
           if (!resolvedNup) warnings.push('Nup 규격매칭 실패');
 
+          const fileCount = item.files?.length || 0;
+          const isSpread = String(item.pageLayout || '').toLowerCase() === 'spread';
+          let calculatedPages: number;
+          if (!isSpread) {
+            calculatedPages = fileCount;
+          } else {
+            const bd = String(item.bindingDirection || '').toUpperCase();
+            calculatedPages = fileCount * 2;
+            if (bd.includes('RIGHT_START')) calculatedPages -= 1;
+            if (bd.includes('LEFT_END')) calculatedPages -= 1;
+            calculatedPages = Math.max(calculatedPages, 0);
+          }
+
           return {
             id: item.id,
             orderId: order.id,
@@ -178,12 +191,12 @@ export class PrintPdfService implements OnModuleInit {
             productName: item.productName,
             folderName: item.folderName,
             size: item.size,
-            pages: item.pages,
+            pages: calculatedPages,
             printMethod: item.printMethod,
             paper: item.paper,
             bindingType: item.bindingType,
             colorIntentId: item.colorIntentId,
-            fileCount: item.files?.length || 0,
+            fileCount,
             nup: resolvedNup,
             orderedAt: order.orderedAt,
             requestedDeliveryDate: order.requestedDeliveryDate,
