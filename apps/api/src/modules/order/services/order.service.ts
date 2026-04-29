@@ -4098,4 +4098,455 @@ export class OrderService {
 
     return { total: mismatched.length, updated };
   }
+
+  // ==================== 편집/재출력/담당자/이력 (2026-04-29) ====================
+
+  /** 두 객체 간 변경된 필드 diff 를 단순 비교로 추출 (얕은 비교, items 는 따로). */
+  private diffOrderFields(prev: any, next: any, fields: string[]): Array<{ field: string; before: any; after: any }> {
+    const out: Array<{ field: string; before: any; after: any }> = [];
+    for (const f of fields) {
+      const a = prev?.[f];
+      const b = next?.[f];
+      const aN = a === null || a === undefined ? null : (typeof a === 'object' ? JSON.stringify(a) : a);
+      const bN = b === null || b === undefined ? null : (typeof b === 'object' ? JSON.stringify(b) : b);
+      if (aN !== bN) out.push({ field: f, before: a ?? null, after: b ?? null });
+    }
+    return out;
+  }
+
+  /**
+   * 감사로그 + 알림이 포함된 사양/금액 편집.
+   * adjustOrder 와 동일한 가격 재계산을 수행하되, 변경 전/후 스냅샷을 비교하여 OrderEditHistory 를 남긴다.
+   */
+  async adjustOrderWithAudit(
+    id: string,
+    dto: EditOrderWithAuditDto,
+    actor: { id: string; name?: string },
+    opts?: { isSuperAdmin?: boolean; canChangeOrderAmount?: boolean },
+  ) {
+    // 1. 변경 전 스냅샷 (얕은 비교용)
+    const prev = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!prev) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    // 권한 체크: canChangeOrderAmount=false 인 일반 직원은 출력완료 이후 단계의 사양/금액 변경 불가
+    const wantsAmountChange =
+      dto.adjustmentAmount !== undefined ||
+      (dto.itemUpdates?.some((u) => u.unitPrice !== undefined || u.quantity !== undefined) ?? false);
+    const isPostProduction =
+      (ORDER_REPRINT_REQUIRED_STATUSES as readonly string[]).includes(prev.status);
+    if (wantsAmountChange && isPostProduction && opts?.canChangeOrderAmount === false) {
+      throw new BadRequestException(
+        '출력완료 이후 단계의 금액/수량 변경은 권한이 필요합니다 (canChangeOrderAmount).',
+      );
+    }
+
+    // 2. 출력담당자 변경 (있을 경우)
+    if (dto.assignPrintOperatorId !== undefined) {
+      // 신규 담당자 실존 검증
+      if (dto.assignPrintOperatorId) {
+        const exists = await this.prisma.staff.findUnique({
+          where: { id: dto.assignPrintOperatorId },
+          select: { id: true },
+        });
+        if (!exists) {
+          throw new BadRequestException(`존재하지 않는 직원입니다: ${dto.assignPrintOperatorId}`);
+        }
+      }
+      await this.prisma.order.update({
+        where: { id },
+        data: {
+          printOperatorId: dto.assignPrintOperatorId,
+          printOperatorAssignedAt: new Date(),
+        },
+      });
+    }
+
+    // 3. 기존 adjustOrder 로직 재활용 (가격 재계산 + adjustmentReason 기록)
+    const adjustDto: AdjustOrderDto = {
+      adjustmentAmount: dto.adjustmentAmount,
+      adjustmentReason: dto.adjustmentReason,
+      itemUpdates: dto.itemUpdates,
+    };
+    const updated = await this.adjustOrder(id, adjustDto, actor.id, opts);
+
+    // 4. 변경 후 스냅샷
+    const next = await this.prisma.order.findUnique({
+      where: { id },
+      include: { items: true },
+    });
+    if (!next) throw new NotFoundException('주문이 사라졌습니다');
+
+    // 5. diff 계산 (Order 헤더 + 각 OrderItem)
+    const orderFields = ['adjustmentAmount', 'finalAmount', 'productPrice', 'totalAmount', 'printOperatorId'];
+    const itemFields = [
+      'quantity', 'unitPrice', 'totalPrice', 'pageLayout', 'bindingDirection',
+      'fabricName', 'foilName', 'foilColor', 'foilPosition',
+      'paper', 'printMethod', 'colorIntentId', 'printSide', 'fileSpecId',
+    ];
+    const headerDiff = this.diffOrderFields(prev, next, orderFields);
+    const itemDiffs: Array<{ itemId: string; changes: Array<{ field: string; before: any; after: any }> }> = [];
+    for (const nextItem of next.items) {
+      const prevItem = prev.items.find((p) => p.id === nextItem.id);
+      const changes = this.diffOrderFields(prevItem, nextItem, itemFields);
+      if (changes.length) itemDiffs.push({ itemId: nextItem.id, changes });
+    }
+
+    const changedFields: Prisma.InputJsonValue = {
+      header: headerDiff,
+      items: itemDiffs,
+    };
+
+    // 6. OrderEditHistory + lastEditedAt
+    const history = await this.prisma.orderEditHistory.create({
+      data: {
+        orderId: id,
+        editorId: actor.id,
+        editorName: actor.name ?? actor.id,
+        changedFields,
+        message: dto.message ?? null,
+        notifyOperator: dto.notifyOperator ?? false,
+      },
+    });
+    await this.prisma.order.update({
+      where: { id },
+      data: { lastEditedAt: new Date() },
+    });
+
+    // 7. 알림 발송 (트랜잭션 외부 — fire-and-forget)
+    if (dto.notifyOperator && next.printOperatorId) {
+      try {
+        await this.notificationService.create({
+          recipientStaffId: next.printOperatorId,
+          type: NOTIFICATION_TYPES.ORDER_EDIT,
+          title: `주문 ${next.orderNumber} 사양 수정`,
+          body: dto.message ?? '주문 사양이 수정되었습니다. 변경사항을 확인해 주세요.',
+          payload: {
+            orderId: id,
+            orderNumber: next.orderNumber,
+            changedFields,
+            historyId: history.id,
+          },
+          link: `/orders/${id}`,
+        });
+      } catch (err) {
+        this.logger.warn(`편집 알림 발송 실패 (${id}): ${(err as Error).message}`);
+      }
+    }
+
+    return { ...updated, editHistoryId: history.id, lastEditedAt: new Date() };
+  }
+
+  /**
+   * 재출력 요청 — OrderItem 의 일부 페이지에 대해 추가 출력 작업을 생성하고
+   * Client.pendingAdjustmentAmount 에 추가비용을 음수로 누적한다.
+   * Future: printSide / printMethod 변경에 따른 단가차이 반영 (1차 버전 SKIP — 페이지단가만 사용)
+   */
+  async requestReprint(
+    orderId: string,
+    dto: RequestReprintDto,
+    actor: { id: string; name?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      include: { items: true, client: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    // 출력완료 이후 상태에서만 재출력 의미가 있음
+    if (!(ORDER_REPRINT_REQUIRED_STATUSES as readonly string[]).includes(order.status)) {
+      throw new BadRequestException(
+        `재출력 요청은 출력완료 이후 단계에서만 가능합니다 (현재: ${order.status})`,
+      );
+    }
+
+    // 기존 reprint job 수 (전체 주문 단위) → reprintNumber 결정
+    const existingCount = await this.prisma.reprintJob.count({ where: { orderId } });
+    const reprintNumber = existingCount + 1;
+
+    // 항목별 비용 계산
+    let totalAdditionalCost = 0;
+    const jobsToCreate: Array<{
+      parentOrderItemId: string;
+      pages: number[];
+      reason: string;
+      additionalCost: number;
+      reprintPages: Array<{ pageNumber: number; reason: string }>;
+    }> = [];
+    for (const item of dto.items) {
+      const parent = order.items.find((i) => i.id === item.itemId);
+      if (!parent) {
+        throw new BadRequestException(`주문항목을 찾을 수 없습니다: ${item.itemId}`);
+      }
+      const totalPages = parent.pages || 0;
+      if (!totalPages) {
+        throw new BadRequestException(
+          `재출력 단가 계산 불가: 항목 ${item.itemId} 의 pages 가 0 입니다`,
+        );
+      }
+      // 페이지 범위 검증
+      for (const p of item.pages) {
+        if (p < 1 || p > totalPages) {
+          throw new BadRequestException(
+            `잘못된 페이지 번호: ${p} (item ${item.itemId}, total=${totalPages})`,
+          );
+        }
+      }
+      const unitPriceNum = Number(parent.unitPrice);
+      const pagePrice = Math.round((unitPriceNum / totalPages) * 100) / 100;
+      const itemCost = Math.round(pagePrice * item.pages.length * 100) / 100;
+      totalAdditionalCost += itemCost;
+      jobsToCreate.push({
+        parentOrderItemId: item.itemId,
+        pages: item.pages,
+        reason: item.reason,
+        additionalCost: itemCost,
+        reprintPages: item.pages.map((pageNumber) => ({ pageNumber, reason: item.reason })),
+      });
+    }
+    totalAdditionalCost = Math.round(totalAdditionalCost * 100) / 100;
+
+    // 트랜잭션 내 처리
+    const result = await this.prisma.$transaction(async (tx) => {
+      // 1. ReprintJob 생성 (다건)
+      const createdJobs = [] as { id: string; parentOrderItemId: string; additionalCost: any }[];
+      for (const job of jobsToCreate) {
+        const created = await tx.reprintJob.create({
+          data: {
+            orderId,
+            parentOrderItemId: job.parentOrderItemId,
+            reprintNumber,
+            reprintPages: job.reprintPages as Prisma.InputJsonValue,
+            reason: job.reason,
+            additionalCost: new Prisma.Decimal(job.additionalCost),
+            status: 'requested',
+            requestedById: actor.id,
+          },
+          select: { id: true, parentOrderItemId: true, additionalCost: true },
+        });
+        createdJobs.push(created);
+      }
+
+      // 2. OrderEditHistory (대표 1건 — items 정보를 changedFields 에 압축)
+      const primaryHistory = await tx.orderEditHistory.create({
+        data: {
+          orderId,
+          editorId: actor.id,
+          editorName: actor.name ?? actor.id,
+          changedFields: {
+            type: 'reprint_request',
+            reprintNumber,
+            items: dto.items.map((i) => ({ itemId: i.itemId, pages: i.pages, reason: i.reason })),
+            additionalCost: totalAdditionalCost,
+          } as unknown as Prisma.InputJsonValue,
+          changedPages: dto.items.map((i) => ({ itemId: i.itemId, pageNumbers: i.pages })) as unknown as Prisma.InputJsonValue,
+          message: `재출력(${reprintNumber}차) 요청`,
+          notifyOperator: dto.notifyOperator ?? true,
+          reprintJobId: createdJobs[0]?.id ?? null,
+        },
+      });
+
+      // 3. ProcessHistory + Order status 변경 (출력대기 큐 재인큐 포함)
+      const transition = this.computeQueueTransition(
+        (order as any).printQueueStatus ?? null,
+        order.status,
+        ORDER_STATUS.IN_PRODUCTION, // 큐 재진입 의도
+      );
+      const queuePatch = this.buildQueueTransitionPatch(transition);
+      const historyEntries: any[] = [
+        {
+          fromStatus: order.status,
+          toStatus: ORDER_STATUS.REPRINT_REQUESTED,
+          processType: 'reprint_charge_added',
+          note: `재출력(${reprintNumber}차) 추가비용 ${totalAdditionalCost.toLocaleString()}원 청구`,
+          processedBy: actor.id,
+        },
+      ];
+      if (queuePatch.historyEntry) {
+        historyEntries.push({ ...queuePatch.historyEntry, processedBy: actor.id });
+      }
+
+      await tx.order.update({
+        where: { id: orderId },
+        data: {
+          status: ORDER_STATUS.REPRINT_REQUESTED,
+          lastEditedAt: new Date(),
+          ...queuePatch.data,
+          processHistory: { create: historyEntries },
+        },
+      });
+
+      // 4. Client.pendingAdjustmentAmount 차감 (양수 비용을 음수로 누적)
+      if (totalAdditionalCost > 0) {
+        await tx.client.update({
+          where: { id: order.clientId },
+          data: {
+            pendingAdjustmentAmount: { decrement: totalAdditionalCost },
+            pendingAdjustmentReason: `주문 ${order.orderNumber} 재출력(${reprintNumber}차)`,
+            pendingAdjustmentAt: new Date(),
+          } as any,
+        });
+      }
+
+      return {
+        reprintNumber,
+        additionalCost: totalAdditionalCost,
+        jobIds: createdJobs.map((j) => j.id),
+        historyId: primaryHistory.id,
+      };
+    });
+
+    // 5. 알림 발송 (트랜잭션 외부)
+    if ((dto.notifyOperator ?? true)) {
+      if (order.printOperatorId) {
+        try {
+          await this.notificationService.create({
+            recipientStaffId: order.printOperatorId,
+            type: NOTIFICATION_TYPES.REPRINT_REQUEST,
+            title: `주문 ${order.orderNumber} 재출력 요청 (${result.reprintNumber}차)`,
+            body: `재출력이 요청되었습니다. 추가비용: ${result.additionalCost.toLocaleString()}원`,
+            payload: {
+              orderId,
+              orderNumber: order.orderNumber,
+              reprintNumber: result.reprintNumber,
+              jobIds: result.jobIds,
+            },
+            link: `/orders/${orderId}`,
+          });
+        } catch (err) {
+          this.logger.warn(`재출력 알림 발송 실패 (${orderId}): ${(err as Error).message}`);
+        }
+      } else {
+        this.logger.warn(
+          `재출력 알림 생략: 주문 ${order.orderNumber} 에 출력담당자가 지정되지 않았습니다`,
+        );
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * 출력담당자 단독 변경/해제. 신·구 양쪽에 알림 발송하고 ProcessHistory 1건 기록.
+   */
+  async setPrintOperator(
+    orderId: string,
+    newOperatorId: string | null,
+    actor: { id: string; name?: string },
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, orderNumber: true, status: true, printOperatorId: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    // 신규 담당자 실존 검증
+    if (newOperatorId) {
+      const exists = await this.prisma.staff.findUnique({
+        where: { id: newOperatorId },
+        select: { id: true },
+      });
+      if (!exists) throw new BadRequestException(`존재하지 않는 직원입니다: ${newOperatorId}`);
+    }
+
+    const prevOperatorId = order.printOperatorId;
+    if (prevOperatorId === newOperatorId) {
+      return { changed: false, prevOperatorId, newOperatorId };
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        printOperatorId: newOperatorId,
+        printOperatorAssignedAt: newOperatorId ? new Date() : null,
+        processHistory: {
+          create: {
+            fromStatus: order.status,
+            toStatus: order.status,
+            processType: 'print_operator_changed',
+            note: `출력담당자 변경: ${prevOperatorId ?? '(없음)'} → ${newOperatorId ?? '(해제)'}`,
+            processedBy: actor.id,
+          },
+        },
+      },
+    });
+
+    // 알림 (신·구 양쪽)
+    const dtos: Array<Parameters<NotificationService['create']>[0]> = [];
+    if (newOperatorId) {
+      dtos.push({
+        recipientStaffId: newOperatorId,
+        type: NOTIFICATION_TYPES.PRINT_OPERATOR_ASSIGNED,
+        title: `주문 ${order.orderNumber} 출력담당자 배정`,
+        body: '귀하가 해당 주문의 출력담당자로 배정되었습니다.',
+        payload: { orderId, orderNumber: order.orderNumber },
+        link: `/orders/${orderId}`,
+      });
+    }
+    if (prevOperatorId && prevOperatorId !== newOperatorId) {
+      dtos.push({
+        recipientStaffId: prevOperatorId,
+        type: NOTIFICATION_TYPES.PRINT_OPERATOR_UNASSIGNED,
+        title: `주문 ${order.orderNumber} 출력담당자 해제`,
+        body: '해당 주문의 출력담당자에서 해제되었습니다.',
+        payload: { orderId, orderNumber: order.orderNumber },
+        link: `/orders/${orderId}`,
+      });
+    }
+    if (dtos.length) {
+      await this.notificationService.createMany(dtos).catch((err) => {
+        this.logger.warn(`담당자 변경 알림 실패 (${orderId}): ${(err as Error).message}`);
+      });
+    }
+
+    return { changed: true, prevOperatorId, newOperatorId };
+  }
+
+  /**
+   * 주문 편집/재출력 이력 시계열 조회 (최신순). cursor=createdAt+id 페이지네이션.
+   */
+  async getEditHistory(
+    orderId: string,
+    opts: { limit?: number; cursor?: string } = {},
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+
+    const limit = Math.min(Math.max(opts.limit ?? 30, 1), 100);
+    let cursorClause: Prisma.OrderEditHistoryWhereUniqueInput | undefined;
+    if (opts.cursor) {
+      try {
+        const decoded = Buffer.from(opts.cursor, 'base64').toString('utf-8');
+        const parsed = JSON.parse(decoded) as { id: string };
+        if (parsed?.id) cursorClause = { id: parsed.id };
+      } catch {
+        // ignore invalid cursor
+      }
+    }
+
+    const items = await this.prisma.orderEditHistory.findMany({
+      where: { orderId },
+      include: {
+        reprintJob: true,
+        editor: { select: { id: true, name: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      take: limit + 1,
+      ...(cursorClause ? { cursor: cursorClause, skip: 1 } : {}),
+    });
+
+    const hasMore = items.length > limit;
+    const data = hasMore ? items.slice(0, limit) : items;
+    const last = data[data.length - 1];
+    const nextCursor = hasMore && last
+      ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64')
+      : null;
+
+    return { items: data, nextCursor, hasMore };
+  }
 }

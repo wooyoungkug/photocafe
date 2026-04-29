@@ -13,7 +13,7 @@ import {
   Res,
 } from '@nestjs/common';
 import { Response } from 'express';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { OrderService } from '../services/order.service';
 import {
@@ -36,6 +36,9 @@ import {
   HoldInspectionDto,
   CompleteInspectionDto,
   SameDayShippingQueryDto,
+  EditOrderWithAuditDto,
+  RequestReprintDto,
+  SetPrintOperatorDto,
 } from '../dto';
 
 @ApiTags('주문')
@@ -364,5 +367,70 @@ export class OrderController {
     @Request() req: any,
   ) {
     return this.orderService.deleteOriginals(id, itemId, req.user.id);
+  }
+
+  // ==================== 편집/재출력/담당자/이력 (2026-04-29) ====================
+
+  @Patch(':id/edit-with-message')
+  @ApiOperation({ summary: '감사로그+알림 포함 사양/금액 편집' })
+  @ApiResponse({ status: 200, description: '편집 완료. editHistoryId, lastEditedAt 포함.' })
+  async editWithMessage(
+    @Param('id') id: string,
+    @Body() dto: EditOrderWithAuditDto,
+    @Request() req: any,
+  ) {
+    const isSuperAdmin = req.user?.isSuperAdmin === true || req.user?.role === 'admin';
+    const canChangeOrderAmount = req.user?.canChangeOrderAmount === true || isSuperAdmin;
+    return this.orderService.adjustOrderWithAudit(
+      id,
+      dto,
+      { id: req.user.id, name: req.user.name },
+      { isSuperAdmin, canChangeOrderAmount },
+    );
+  }
+
+  @Post(':id/reprint')
+  @ApiOperation({ summary: '재출력 요청 (페이지 단위 부분 재출력 + 추가비용 청구)' })
+  @ApiResponse({
+    status: 201,
+    description: 'reprintNumber, additionalCost, jobIds, historyId 반환',
+  })
+  async requestReprint(
+    @Param('id') id: string,
+    @Body() dto: RequestReprintDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.requestReprint(id, dto, {
+      id: req.user.id,
+      name: req.user.name,
+    });
+  }
+
+  @Get(':id/edit-history')
+  @ApiOperation({ summary: '주문 편집/재출력 이력 (시계열 desc)' })
+  @ApiResponse({ status: 200, description: 'items[], nextCursor, hasMore' })
+  async getEditHistory(
+    @Param('id') id: string,
+    @Query('limit') limit?: string,
+    @Query('cursor') cursor?: string,
+  ) {
+    return this.orderService.getEditHistory(id, {
+      limit: limit ? parseInt(limit, 10) : undefined,
+      cursor,
+    });
+  }
+
+  @Patch(':id/print-operator')
+  @ApiOperation({ summary: '출력담당자 변경/해제 (단독 변경)' })
+  @ApiResponse({ status: 200, description: 'changed, prevOperatorId, newOperatorId' })
+  async setPrintOperator(
+    @Param('id') id: string,
+    @Body() dto: SetPrintOperatorDto,
+    @Request() req: any,
+  ) {
+    return this.orderService.setPrintOperator(id, dto.operatorId, {
+      id: req.user.id,
+      name: req.user.name,
+    });
   }
 }

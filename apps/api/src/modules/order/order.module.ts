@@ -5,9 +5,16 @@ import { SystemSettingsModule } from "../system-settings/system-settings.module"
 import { AccountingModule } from "../accounting/accounting.module";
 import { UploadModule } from "../upload/upload.module";
 import { AuditLogModule } from "../audit-log/audit-log.module";
+import { NotificationModule } from "../notification/notification.module";
 
 @Module({
-  imports: [SystemSettingsModule, AccountingModule, UploadModule, AuditLogModule],
+  imports: [
+    SystemSettingsModule,
+    AccountingModule,
+    UploadModule,
+    AuditLogModule,
+    NotificationModule,
+  ],
   controllers: [OrderController],
   providers: [OrderService],
   exports: [OrderService],
