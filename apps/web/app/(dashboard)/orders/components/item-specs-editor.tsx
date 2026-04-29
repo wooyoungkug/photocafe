@@ -248,93 +248,84 @@ export function ItemSpecsEditor({
 
   return (
     <div className="grid grid-cols-2 gap-3 p-3 rounded-md border bg-slate-50/40">
-      {/* 1. 출력방법 (인디고4도 / 인디고6도 / 잉크젯) — 고객 화면과 동일 */}
-      <div className="space-y-1 col-span-2">
-        <Label className="text-[12px] text-slate-600">출력방법</Label>
-        <Select
-          value={combinedMethodValue}
-          onValueChange={(v) => handleCombinedMethodChange(v as CombinedMethod)}
-          disabled={readonly || isProductLoading}
-        >
-          <SelectTrigger className="h-8 text-[13px]">
-            <SelectValue placeholder={loadingPlaceholder ?? '출력방법 선택'} />
-          </SelectTrigger>
-          <SelectContent>
-            {has4doPapers && (
-              <SelectItem value="indigo_4c">인디고 4도</SelectItem>
-            )}
-            {has6doPapers && (
-              <SelectItem value="indigo_6c">인디고 6도</SelectItem>
-            )}
-            {hasInkjetPapers && (
-              <SelectItem value="inkjet">잉크젯</SelectItem>
-            )}
-          </SelectContent>
-        </Select>
-      </div>
+      {/* 1줄: 출력방법 · 용지 · 단/양면 — 고객 화면과 동일 순서 */}
+      <div className="col-span-2 grid grid-cols-3 gap-2">
+        {/* 출력방법 */}
+        <div className="space-y-1">
+          <Label className="text-[12px] text-slate-600">출력방법</Label>
+          <Select
+            value={combinedMethodValue}
+            onValueChange={(v) => handleCombinedMethodChange(v as CombinedMethod)}
+            disabled={readonly || isProductLoading}
+          >
+            <SelectTrigger className="h-8 text-[13px]">
+              <SelectValue placeholder={loadingPlaceholder ?? '출력방법 선택'} />
+            </SelectTrigger>
+            <SelectContent>
+              {has4doPapers && <SelectItem value="indigo_4c">인디고 4도</SelectItem>}
+              {has6doPapers && <SelectItem value="indigo_6c">인디고 6도</SelectItem>}
+              {hasInkjetPapers && <SelectItem value="inkjet">잉크젯</SelectItem>}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* 3. 용지 — 동일 이름·다른 그램수 구분을 위해 "이름 (Ng)" 합성값 사용 */}
-      <div className="space-y-1 col-span-2">
-        <Label className="text-[12px] text-slate-600">
-          용지 {effectivePrintMethod && (
-            <span className="text-slate-400">
-              ({PRINT_METHOD_LABELS[effectivePrintMethod] ?? effectivePrintMethod} 호환)
-            </span>
-          )}
-        </Label>
-        <Select
-          value={currentPaper || undefined}
-          onValueChange={(v) => update({ paper: v })}
-          disabled={readonly || !effectivePrintMethod || isProductLoading}
-        >
-          <SelectTrigger className="h-8 text-[13px]">
-            <SelectValue placeholder={
-              loadingPlaceholder ??
-              (effectivePrintMethod ? '용지 선택' : '출력방법 먼저 선택')
-            } />
-          </SelectTrigger>
-          <SelectContent>
-            {currentPaper &&
-              !paperOptions.some(
-                (p) => buildPaperLabel(p.name, p.grammage) === currentPaper,
-              ) && (
-                <SelectItem value={currentPaper}>{currentPaper} (현재값)</SelectItem>
-              )}
-            {paperOptions.map((p) => {
-              const label = buildPaperLabel(p.name, p.grammage);
-              return (
-                <SelectItem key={p.id} value={label}>
-                  {label}
-                </SelectItem>
-              );
-            })}
-          </SelectContent>
-        </Select>
-      </div>
+        {/* 용지 — 출력방법에 해당하는 상품 용지만 표시 */}
+        <div className="space-y-1">
+          <Label className="text-[12px] text-slate-600">용지</Label>
+          <Select
+            value={currentPaper || undefined}
+            onValueChange={(v) => update({ paper: v })}
+            disabled={readonly || !effectivePrintMethod || isProductLoading}
+          >
+            <SelectTrigger className="h-8 text-[13px]">
+              <SelectValue placeholder={
+                loadingPlaceholder ??
+                (effectivePrintMethod ? '용지 선택' : '출력방법 먼저 선택')
+              } />
+            </SelectTrigger>
+            <SelectContent>
+              {currentPaper &&
+                !paperOptions.some(
+                  (p) => buildPaperLabel(p.name, p.grammage) === currentPaper,
+                ) && (
+                  <SelectItem value={currentPaper}>{currentPaper} (현재값)</SelectItem>
+                )}
+              {paperOptions.map((p) => {
+                const label = buildPaperLabel(p.name, p.grammage);
+                return (
+                  <SelectItem key={p.id} value={label}>
+                    {label}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
 
-      {/* 4. 단/양면 */}
-      <div className="space-y-1">
-        <Label className="text-[12px] text-slate-600">
-          단/양면 {printTypeLock && <span className="text-slate-400">(상품 고정)</span>}
-        </Label>
-        <Select
-          value={appliedPrintSide || undefined}
-          onValueChange={(v) => update({ printSide: v })}
-          disabled={readonly || !!printTypeLock}
-        >
-          <SelectTrigger className="h-8 text-[13px]">
-            <SelectValue placeholder="선택" />
-          </SelectTrigger>
-          <SelectContent>
-            {PRINT_SIDE_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* 단/양면 */}
+        <div className="space-y-1">
+          <Label className="text-[12px] text-slate-600">
+            단/양면{printTypeLock && <span className="text-slate-400"> (고정)</span>}
+          </Label>
+          <Select
+            value={appliedPrintSide || undefined}
+            onValueChange={(v) => update({ printSide: v })}
+            disabled={readonly || !!printTypeLock}
+          >
+            <SelectTrigger className="h-8 text-[13px]">
+              <SelectValue placeholder="선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {PRINT_SIDE_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* 5. 규격 */}
-      <div className="space-y-1">
+      <div className="space-y-1 col-span-2">
         <Label className="text-[12px] text-slate-600">규격</Label>
         <Select
           value={currentFileSpecId || undefined}
