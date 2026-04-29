@@ -561,7 +561,7 @@ export default function OrderListPage() {
                               {order.client?.clientName}
                               <ExternalLink className="h-2.5 w-2.5 shrink-0" />
                             </div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
+                            <div className="text-sm text-black mt-0.5">
                               {order.client?.managerName || order.client?.assignedStaff?.[0]?.staff?.name || '-'}
                             </div>
                           </TableCell>
