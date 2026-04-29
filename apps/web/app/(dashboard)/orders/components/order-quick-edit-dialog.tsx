@@ -1123,6 +1123,37 @@ export function OrderQuickEditDialog({
           )}
         </div>
 
+        {/* ===== 가격 차액 라이브 미리보기 (관리자 사양 편집) ===== */}
+        {(() => {
+          const previousFinalAmount = Number(displayOrder.finalAmount) || 0;
+          const delta = finalTotal - previousFinalAmount;
+          const ratio = previousFinalAmount > 0 ? delta / previousFinalAmount : 0;
+          const hasChange = hasChanges();
+          if (!hasChange || delta === 0) return null;
+          const isLarge = Math.abs(ratio) >= 0.2;
+          const sign = delta > 0 ? '+' : '';
+          return (
+            <div
+              className={cn(
+                'mt-3 px-3 py-2 rounded-md border text-[13px] flex items-center justify-between',
+                isLarge
+                  ? 'bg-amber-50 border-amber-300 text-amber-800'
+                  : 'bg-blue-50 border-blue-200 text-blue-800',
+              )}
+            >
+              <span>
+                {isLarge && '⚠️ '}
+                금액 변동: <strong>{sign}{delta.toLocaleString()}원</strong>{' '}
+                ({sign}{(ratio * 100).toFixed(1)}%)
+                {isLarge && ' — 저장 시 재확인'}
+              </span>
+              <span className="text-xs opacity-80">
+                {previousFinalAmount.toLocaleString()} → {finalTotal.toLocaleString()}원
+              </span>
+            </div>
+          );
+        })()}
+
         <DialogFooter className="mt-4 gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             취소
