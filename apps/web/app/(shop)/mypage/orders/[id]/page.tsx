@@ -26,7 +26,6 @@ import {
   ZoomOut,
   RotateCcw,
   Folder,
-  Palette,
   RotateCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -49,6 +48,7 @@ import { ShippingEditWithFeeDialog } from '@/components/order/shipping-edit-with
 import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
 import { ReturnStatusBadge } from '@/components/order/return-status-badge';
 import { resolveOrderFileAccessUrl } from '@/lib/order-file-access';
+import { OrderItemSpecBadges } from '@/components/order/order-item-spec-badges';
 import {
   useReturnRequestsByOrder,
   REPAIR_REASON_LABELS,
@@ -541,19 +541,6 @@ export default function OrderDetailPage() {
                     const hasFiles = thumbnailFiles.length > 0;
                     const isExpanded = expandedItems.has(item.id);
 
-                    const BINDING_DIRECTION_LABEL: Record<string, string> = {
-                      LEFT_START_RIGHT_END: '좌시작우끝',
-                      LEFT_START_LEFT_END: '좌시작좌끝',
-                      RIGHT_START_LEFT_END: '우시작좌끝',
-                      RIGHT_START_RIGHT_END: '우시작우끝',
-                      'ltr-rend': '좌시작우끝',
-                      'ltr-lend': '좌시작좌끝',
-                      'rtl-lend': '우시작좌끝',
-                      'rtl-rend': '우시작우끝',
-                    };
-
-                    const hasFabric = !!item.fabricName;
-                    const hasFoil = !!(item.foilColor || item.foilName || item.foilPosition);
                     const displayThumbUrl = thumbnailFiles[0]?.thumbnailUrl || item.thumbnailUrl;
 
                     return (
@@ -588,108 +575,8 @@ export default function OrderDetailPage() {
                           )}
                         </div>
 
-                        {/* 편집 · 제본방향 행 */}
-                        {(item.bindingType || item.pageLayout || item.bindingDirection || item.printMethod || item.printSide) && (
-                          <div className="flex items-center gap-2 text-[13px] text-gray-600 mb-1.5 flex-wrap">
-                            {item.bindingType && (
-                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200 text-[13px]">
-                                {item.bindingType.split('_')[0].replace(/\s*\(.*?\)$/, '').trim() || item.bindingType}
-                              </span>
-                            )}
-                            {item.pageLayout && (
-                              <>
-                                <span className="text-[13px] text-black">편집</span>
-                                <span className={`px-1.5 py-0.5 text-[13px] rounded border ${
-                                  item.pageLayout === 'spread'
-                                    ? 'bg-blue-500 text-white border-blue-500'
-                                    : 'bg-blue-500 text-white border-blue-500'
-                                }`}>
-                                  {item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : item.pageLayout}
-                                </span>
-                              </>
-                            )}
-                            {item.printSide && (
-                              <>
-                                <span className="text-[13px] text-black ml-2">인쇄</span>
-                                <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 text-[13px]">
-                                  {item.printSide === 'double' ? '양면' : item.printSide === 'single' ? '단면' : item.printSide}
-                                </span>
-                              </>
-                            )}
-                            {item.bindingDirection && (
-                              <>
-                                <span className="text-[13px] text-black ml-2">제본방향</span>
-                                <span className="bg-white text-black px-1.5 py-0.5 rounded border border-gray-300 text-[13px]">
-                                  {BINDING_DIRECTION_LABEL[item.bindingDirection] || item.bindingDirection}
-                                </span>
-                              </>
-                            )}
-                            {item.printMethod && (
-                              <span className="bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200 text-[13px] ml-2">{item.printMethod}</span>
-                            )}
-                            {item.finishingOptions?.map((opt, i) => (
-                              <span key={i} className="bg-gray-50 text-gray-600 px-1.5 py-0.5 rounded border border-gray-200 text-[13px]">{opt}</span>
-                            ))}
-                          </div>
-                        )}
+                        <OrderItemSpecBadges item={item} />
 
-                        {/* 원단 · 동판정보 행 */}
-                        {(hasFabric || hasFoil || item.coverMaterial) && (
-                          <div className="flex items-center gap-1.5 flex-wrap text-[13px] text-gray-500 mb-1.5">
-                            {(hasFabric || item.coverMaterial) && (
-                              <span className="text-[13px] text-black">원단</span>
-                            )}
-                            {item.fabricName && (
-                              <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded border border-pink-200 flex items-center gap-1">
-                                <Palette className="w-2.5 h-2.5" />
-                                {item.fabricName}
-                              </span>
-                            )}
-                            {item.coverMaterial && (
-                              <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded border border-gray-200">{item.coverMaterial}</span>
-                            )}
-                            {hasFoil && (
-                              <span className="text-[13px] text-black ml-3">동판정보</span>
-                            )}
-                            {item.foilName && (
-                              <span className="bg-violet-50 text-violet-700 px-1.5 py-0.5 rounded border border-violet-200">{item.foilName}</span>
-                            )}
-                            {item.foilColor && (
-                              <span className="bg-yellow-50 text-yellow-700 px-1.5 py-0.5 rounded border border-yellow-200">{item.foilColor}</span>
-                            )}
-                            {item.foilPosition && (
-                              <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded border border-blue-200">{item.foilPosition}</span>
-                            )}
-                          </div>
-                        )}
-
-                        {/* 규격 · 페이지 · 부수 · 가격 행 */}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <div className="flex items-center gap-2 text-[13px] flex-1">
-                            {item.size && (
-                              <>
-                                <span className="text-black">규격</span>
-                                <span className="bg-white text-black px-1.5 py-0.5 rounded border border-gray-300 text-[13px]">{item.size}</span>
-                                <span className="text-gray-300">|</span>
-                              </>
-                            )}
-                            {item.pages && (
-                              <>
-                                <span className="text-black">페이지</span>
-                                <span className="text-black">{item.pages}p</span>
-                                <span className="text-gray-300">|</span>
-                              </>
-                            )}
-                            <span className="text-black">부수</span>
-                            <span className="text-black">{item.quantity}</span>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="font-medium text-[13px] text-black">{item.totalPrice.toLocaleString()}원</p>
-                            {item.quantity > 1 && (
-                              <p className="text-[13px] text-gray-400">단가 {item.unitPrice.toLocaleString()}원</p>
-                            )}
-                          </div>
-                        </div>
 
                         {/* 전체 페이지 갤러리 토글 */}
                         {hasFiles && (

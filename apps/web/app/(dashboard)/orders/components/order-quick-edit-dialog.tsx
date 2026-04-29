@@ -54,6 +54,7 @@ import {
   ReprintChangedItemInput,
 } from './reprint-confirm-dialog';
 import { OrderEditHistoryDrawer } from './order-edit-history-drawer';
+import { OrderItemSpecBadges } from '@/components/order/order-item-spec-badges';
 
 // ==================== 편집스타일 / 제본순서 라벨 ====================
 
