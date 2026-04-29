@@ -431,7 +431,7 @@ export class SalesLedgerService {
     }
 
     if (clientId) where.clientId = clientId;
-    if (staffScopeId && !clientId) where.client = { assignedStaffId: staffScopeId };
+    if (staffScopeId && !clientId) where.client = { assignedManager: staffScopeId };
     if (salesType) where.salesType = salesType;
     if (paymentStatus) where.paymentStatus = paymentStatus;
     if (salesStatus) where.salesStatus = salesStatus;
@@ -685,7 +685,7 @@ export class SalesLedgerService {
   async getSummary(staffScopeId?: string) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const scopeFilter = staffScopeId ? { client: { assignedStaffId: staffScopeId } } : {};
+    const scopeFilter = staffScopeId ? { client: { assignedManager: staffScopeId } } : {};
 
     // 당월 매출 합계
     const monthlySales = await this.prisma.salesLedger.aggregate({
@@ -767,7 +767,7 @@ export class SalesLedgerService {
       conditions.push(Prisma.sql`sl."ledgerDate" <= ${end}`);
     }
     if (staffScopeId) {
-      conditions.push(Prisma.sql`c."assignedStaffId" = ${staffScopeId}`);
+      conditions.push(Prisma.sql`c."assignedManager" = ${staffScopeId}`);
     }
 
     const whereClause = Prisma.join(conditions, ' AND ');
@@ -934,7 +934,7 @@ export class SalesLedgerService {
     const startDate = new Date(now.getFullYear(), now.getMonth() - months + 1, 1);
 
     const staffScopeCondition = staffScopeId
-      ? Prisma.sql`AND "clientId" IN (SELECT id FROM clients WHERE "assignedStaffId" = ${staffScopeId})`
+      ? Prisma.sql`AND "clientId" IN (SELECT id FROM clients WHERE "assignedManager" = ${staffScopeId})`
       : Prisma.empty;
 
     // DB 수준 월별 집계
@@ -990,7 +990,7 @@ export class SalesLedgerService {
       conditions.push(Prisma.sql`sl."clientId" = ${clientId}`);
     }
     if (staffScopeId && !clientId) {
-      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedStaffId" = ${staffScopeId})`);
+      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedManager" = ${staffScopeId})`);
     }
 
     const whereClause = Prisma.join(conditions, ' AND ');

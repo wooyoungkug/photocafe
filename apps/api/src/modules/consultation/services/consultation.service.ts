@@ -84,7 +84,7 @@ export class ConsultationService {
     if (clientId) {
       where.clientId = clientId;
     } else if (staffScopeId) {
-      where.client = { assignedStaffId: staffScopeId };
+      where.client = { assignedManager: staffScopeId };
     }
     if (categoryId) where.categoryId = categoryId;
     if (status) where.status = status;

@@ -26,8 +26,8 @@ export class StatisticsService {
     const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
 
-    const orderScope = staffScopeId ? { client: { assignedStaffId: staffScopeId } } : {};
-    const clientScope = staffScopeId ? { assignedStaffId: staffScopeId } : {};
+    const orderScope = staffScopeId ? { client: { assignedManager: staffScopeId } } : {};
+    const clientScope = staffScopeId ? { assignedManager: staffScopeId } : {};
 
     const [
       todayOrders,
@@ -143,7 +143,7 @@ export class StatisticsService {
       conditions.push(Prisma.sql`"orderedAt" <= ${endDate}`);
     }
     if (staffScopeId) {
-      conditions.push(Prisma.sql`"clientId" IN (SELECT id FROM clients WHERE "assignedStaffId" = ${staffScopeId})`);
+      conditions.push(Prisma.sql`"clientId" IN (SELECT id FROM clients WHERE "assignedManager" = ${staffScopeId})`);
     }
 
     const whereClause = Prisma.join(conditions, ' AND ');
@@ -189,7 +189,7 @@ export class StatisticsService {
     const { startDate, endDate, clientId, groupId } = query;
 
     const clientFilter: Prisma.ClientWhereInput = {
-      ...(staffScopeId && { assignedStaffId: staffScopeId }),
+      ...(staffScopeId && { assignedManager: staffScopeId }),
       ...(groupId && { groupId }),
     };
     const where: Prisma.OrderWhereInput = {
@@ -257,7 +257,7 @@ export class StatisticsService {
     const where: Prisma.OrderItemWhereInput = {
       order: {
         status: { not: 'cancelled' },
-        ...(staffScopeId && { client: { assignedStaffId: staffScopeId } }),
+        ...(staffScopeId && { client: { assignedManager: staffScopeId } }),
         ...(startDate || endDate
           ? {
               orderedAt: {
@@ -302,7 +302,7 @@ export class StatisticsService {
     const where: Prisma.OrderItemWhereInput = {
       order: {
         status: { not: 'cancelled' },
-        ...(staffScopeId && { client: { assignedStaffId: staffScopeId } }),
+        ...(staffScopeId && { client: { assignedManager: staffScopeId } }),
         ...(startDate || endDate
           ? {
               orderedAt: {
@@ -360,7 +360,7 @@ export class StatisticsService {
       conditions.push(Prisma.sql`p."categoryId" = ${categoryId}`);
     }
     if (staffScopeId) {
-      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = o."clientId" AND c."assignedStaffId" = ${staffScopeId})`);
+      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = o."clientId" AND c."assignedManager" = ${staffScopeId})`);
     }
 
     conditions.push(Prisma.sql`p."categoryId" IS NOT NULL`);
@@ -447,7 +447,7 @@ export class StatisticsService {
       conditions.push(Prisma.sql`o."orderedAt" <= ${endDate}`);
     }
     if (staffScopeId) {
-      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = o."clientId" AND c."assignedStaffId" = ${staffScopeId})`);
+      conditions.push(Prisma.sql`EXISTS (SELECT 1 FROM clients c WHERE c.id = o."clientId" AND c."assignedManager" = ${staffScopeId})`);
     }
 
     conditions.push(Prisma.sql`p."categoryId" IS NOT NULL`);
@@ -598,7 +598,7 @@ export class StatisticsService {
     startDate.setHours(0, 0, 0, 0);
 
     const staffScopeCondition = staffScopeId
-      ? Prisma.sql`AND "clientId" IN (SELECT id FROM clients WHERE "assignedStaffId" = ${staffScopeId})`
+      ? Prisma.sql`AND "clientId" IN (SELECT id FROM clients WHERE "assignedManager" = ${staffScopeId})`
       : Prisma.empty;
 
     // DB 수준 월별 집계
@@ -629,7 +629,7 @@ export class StatisticsService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const orderScope = staffScopeId ? { client: { assignedStaffId: staffScopeId } } : {};
+    const orderScope = staffScopeId ? { client: { assignedManager: staffScopeId } } : {};
 
     const [statusCounts, processCounts, urgentOrders, todayHistory] = await Promise.all([
       // ORDER_STATUS별 건수

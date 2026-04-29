@@ -69,7 +69,7 @@ export class ClientLedgerService {
 
     // 담당자 스코프 조건
     const staffScopeFragment = staffScopeId
-      ? Prisma.sql`AND c."assignedStaffId" = ${staffScopeId}`
+      ? Prisma.sql`AND c."assignedManager" = ${staffScopeId}`
       : Prisma.empty;
 
     // 매출 서브쿼리

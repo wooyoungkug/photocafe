@@ -45,7 +45,7 @@ export class ClientService {
     const { skip = 0, take = 20, search, groupId, status, memberType, staffScopeId } = params;
 
     const where: Prisma.ClientWhereInput = {
-      ...(staffScopeId && { assignedStaffId: staffScopeId }),
+      ...(staffScopeId && { assignedManager: staffScopeId }),
       ...(search && {
         OR: [
           { clientName: { contains: search } },

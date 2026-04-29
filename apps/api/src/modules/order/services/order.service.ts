@@ -57,7 +57,7 @@ export class OrderService {
 
   /**
    * staff 직원의 salesViewScope 조회
-   * 'own' 이고 isSuperAdmin=false 면 staffId 반환 → client.assignedStaffId 필터에 사용
+   * 'own' 이고 isSuperAdmin=false 면 staffId 반환 → client.assignedManager 필터에 사용
    * 그 외엔 undefined (전체 조회)
    */
   async getStaffSalesScopeId(staffId: string): Promise<string | undefined> {
@@ -395,7 +395,7 @@ export class OrderService {
       ...(clientId && { clientId }),
       ...(createdByUserId && { createdByUserId }),
       ...(clientAssignedStaffId && {
-        client: { assignedStaffId: clientAssignedStaffId },
+        client: { assignedManager: clientAssignedStaffId },
       }),
       ...(statusCondition !== undefined && { status: statusCondition }),
       ...(isUrgent !== undefined && { isUrgent }),

@@ -57,7 +57,7 @@ export class DepositsService {
     if (clientId) {
       whereClause.salesLedger = { clientId };
     } else if (staffScopeId) {
-      whereClause.salesLedger = { client: { assignedStaffId: staffScopeId } };
+      whereClause.salesLedger = { client: { assignedManager: staffScopeId } };
     }
 
     if (paymentMethod) {
@@ -147,7 +147,7 @@ export class DepositsService {
         AND sr."receiptDate" < (${endDate}::date + interval '1 day')
         ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
         ${paymentMethod ? Prisma.sql`AND sr."paymentMethod" = ${paymentMethod}` : Prisma.empty}
-        ${staffScopeId && !clientId ? Prisma.sql`AND EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedStaffId" = ${staffScopeId})` : Prisma.empty}
+        ${staffScopeId && !clientId ? Prisma.sql`AND EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedManager" = ${staffScopeId})` : Prisma.empty}
       GROUP BY DATE(sr."receiptDate"), sl."clientId", sl."clientName"
       ORDER BY date DESC, sl."clientName" ASC
     `;
@@ -209,7 +209,7 @@ export class DepositsService {
       WHERE sr."receiptDate" >= ${startDate}::date
         AND sr."receiptDate" < (${endDate}::date + interval '1 day')
         ${clientId ? Prisma.sql`AND sl."clientId" = ${clientId}` : Prisma.empty}
-        ${staffScopeId && !clientId ? Prisma.sql`AND EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedStaffId" = ${staffScopeId})` : Prisma.empty}
+        ${staffScopeId && !clientId ? Prisma.sql`AND EXISTS (SELECT 1 FROM clients c WHERE c.id = sl."clientId" AND c."assignedManager" = ${staffScopeId})` : Prisma.empty}
       GROUP BY TO_CHAR(sr."receiptDate", 'YYYY-MM'), sl."clientId", sl."clientName"
       ORDER BY month DESC, sl."clientName" ASC
     `;
