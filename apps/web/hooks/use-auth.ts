@@ -179,6 +179,14 @@ export function useImpersonateStaff() {
         refreshToken: response.refreshToken,
         rememberMe: false,
       });
+      // Bearer 헤더용 토큰 저장 (api.ts에서 읽어 Authorization 헤더로 전송)
+      if (typeof window !== 'undefined' && response.accessToken) {
+        sessionStorage.setItem('impersonate-session', 'true');
+        sessionStorage.setItem('impersonate-tokens', JSON.stringify({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken ?? '',
+        }));
+      }
       router.push('/dashboard');
     },
   });
