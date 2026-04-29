@@ -709,11 +709,11 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           aria-label="대시보드로 이동"
         >
           <Image
-            src="/images/photocafe.png"
+            src="/images/photocafe_logo_transparent.png"
             alt="Photocafe 로고"
-            width={200}
-            height={60}
-            className="h-12 w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+            width={260}
+            height={78}
+            className="h-[62px] w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
             priority
           />
         </Link>

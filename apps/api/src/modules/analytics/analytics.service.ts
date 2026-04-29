@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreatePageViewDto } from './dto/create-page-view.dto';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
+import { extractClientIp } from '../../common/utils/extract-client-ip';
 import { Request } from 'express';
 import * as geoip from 'geoip-lite';
 import { UAParser } from 'ua-parser-js';
@@ -11,10 +12,9 @@ export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
   private extractIp(req: Request): string | null {
-    // trust proxy 설정된 Express 환경에서는 req.ip를 신뢰하고,
-    // 클라이언트가 임의로 보낼 수 있는 x-forwarded-for 원문은 직접 신뢰하지 않는다.
-    const ip = req.ip || req.socket?.remoteAddress || null;
-    return ip ? ip.replace(/^::ffff:/, '').trim() : null;
+    // 운영(Cloudflare Proxied)에서 trust proxy=1 만으로는 사용자 IP 추출 불가 →
+    // cf-connecting-ip 우선 정책 헬퍼 사용. 차단 미들웨어와 동일 규칙으로 통일.
+    return extractClientIp(req);
   }
 
   private parseUserAgent(ua: string | undefined) {

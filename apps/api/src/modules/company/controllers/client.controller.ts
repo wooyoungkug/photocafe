@@ -89,6 +89,12 @@ export class ClientController {
     return this.clientService.create(data);
   }
 
+  @Post('bulk')
+  @ApiOperation({ summary: '거래처 엑셀 일괄등록 (성공만 등록 + 실패 리포트)' })
+  async bulkCreate(@Body() body: { rows: Array<Record<string, any>> }) {
+    return this.clientService.bulkCreate(body.rows || []);
+  }
+
   @Put(':id')
   @ApiOperation({ summary: '거래처 수정' })
   async update(@Param('id') id: string, @Body() data: any) {
