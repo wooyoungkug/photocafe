@@ -230,12 +230,12 @@ export default function PrintSlipPage() {
                 )}
               </div>
             </div>
-            <div className="w-16 h-16 border border-gray-300 rounded overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center">
+            <div className="w-24 h-24 border border-gray-300 rounded overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center">
               {d.copperPlateImageUrl ? (
                 <img
                   src={`/uploads/${d.copperPlateImageUrl.replace(/\\/g, '/').replace(/^.*\/uploads\//, '')}`}
                   alt="동판"
-                  className="w-full h-full object-contain"
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <span className="text-[9px] text-gray-400 text-center leading-tight">동판<br/>이미지<br/>없음</span>
