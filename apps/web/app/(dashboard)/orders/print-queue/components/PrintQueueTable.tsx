@@ -286,7 +286,7 @@ export default function PrintQueueTable({
                           </span>
                         )}
                         <a
-                          href={`/orders/print-queue/slip/${item.id}`}
+                          href={`/print-slip/${item.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           title="작업지시서 출력"
