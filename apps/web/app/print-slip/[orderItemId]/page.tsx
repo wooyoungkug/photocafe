@@ -144,6 +144,18 @@ export default function PrintSlipPage() {
   const barcodeValue = order.orderNumber || orderItemId;
   const folderLabel = stripUrgentKeywords(d.folderName || d.productName || '-');
 
+  const orderDateLabel = (() => {
+    const raw = order.createdAt || order.orderedAt || d.orderedAt;
+    if (!raw) return '-';
+    const dt = new Date(raw);
+    const yy = String(dt.getFullYear()).slice(2);
+    const mo = dt.getMonth() + 1;
+    const da = dt.getDate();
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    return `${yy}년${mo}월${da}일 ${hh}시 ${mm}분`;
+  })();
+
   return (
     <>
       <style jsx global>{`
@@ -215,6 +227,11 @@ export default function PrintSlipPage() {
                     )}
                   </>
                 )}
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="border border-green-600 text-green-700 font-bold text-[10pt] px-2 py-0.5 rounded">
+                  {orderDateLabel}
+                </span>
               </div>
             </div>
             <div className="w-16 h-16 border border-gray-300 rounded overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center">
