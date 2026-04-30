@@ -231,8 +231,8 @@ export default function PrintSlipPage() {
           </div>
 
           {/* 폴더명 */}
-          <div className="px-4 py-2">
-            <div className="text-[20pt] font-bold text-center">{folderLabel}</div>
+          <div className="mx-4 my-2 px-4 py-2 border-2 border-green-600 rounded">
+            <div className="text-[24pt] font-bold text-center leading-tight line-clamp-2 break-words">{folderLabel}</div>
           </div>
 
           {/* 메모 */}
