@@ -91,7 +91,7 @@ export default function PrintSlipPage() {
 
   // 전체 파일 목록 유지 (썸네일 없는 파일도 플레이스홀더로 표시)
   const thumbItems: { file: any; url: string | null }[] = (d.files || [])
-    .map((f: any) => ({ file: f, url: toThumbUrl(f.thumbnailPath) }));
+    .map((f: any) => ({ file: f, url: toThumbUrl(f.thumbnailUrl) }));
 
   const totalFiles: number = thumbItems.length;
   const missingThumbCount: number = thumbItems.filter((item) => item.url === null).length;
