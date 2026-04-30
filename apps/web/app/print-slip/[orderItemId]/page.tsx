@@ -232,7 +232,7 @@ export default function PrintSlipPage() {
 
           {/* 폴더명 */}
           <div className="px-4 py-2">
-            <div className="text-[15pt] font-bold text-center leading-tight line-clamp-2 break-words">{folderLabel}</div>
+            <div className="text-[14pt] font-bold text-center leading-tight line-clamp-2 break-words">{folderLabel}</div>
           </div>
 
           {/* 메모 */}
