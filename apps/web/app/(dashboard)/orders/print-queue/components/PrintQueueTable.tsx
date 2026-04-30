@@ -212,7 +212,7 @@ export default function PrintQueueTable({
                           .trim() || item.bindingType
                       : <span className="text-red-600">미설정</span>}
                   </div>
-                  <div className="text-[12px] text-gray-500 text-center">
+                  <div className="text-[14px] text-black text-center">
                     {item.printSide === 'double' ? '양면' : item.printSide === 'single' ? '단면' : ''}
                   </div>
                 </TableCell>
