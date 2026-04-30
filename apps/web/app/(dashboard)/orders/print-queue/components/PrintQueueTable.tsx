@@ -131,7 +131,6 @@ export default function PrintQueueTable({
             <TableHead className="w-10">
               <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </TableHead>
-            <TableHead className="w-12 text-[14px] text-black font-normal">긴급</TableHead>
             <TableHead className="text-[14px] text-black font-normal">주문번호/스튜디오</TableHead>
             <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
             <TableHead className="text-[14px] text-black font-normal">규격</TableHead>
@@ -157,13 +156,6 @@ export default function PrintQueueTable({
                     checked={selectedIds.includes(item.id)}
                     onCheckedChange={() => toggleItem(item.id)}
                   />
-                </TableCell>
-                <TableCell>
-                  {item.isUrgent && (
-                    <Badge variant="destructive" className="text-[11px] px-1.5 py-0">
-                      긴급
-                    </Badge>
-                  )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   <button
@@ -204,13 +196,18 @@ export default function PrintQueueTable({
                 <TableCell
                   className="text-[14px] text-black font-normal whitespace-nowrap"
                 >
-                  {item.bindingType
-                    ? item.bindingType
-                        .replace(/^인디고/, '')
-                        .replace(/\s*\(.*\)$/, '')
-                        .replace(/_/g, ' ')
-                        .trim() || item.bindingType
-                    : <span className="text-red-600">미설정</span>}
+                  <div>
+                    {item.bindingType
+                      ? item.bindingType
+                          .replace(/^인디고/, '')
+                          .replace(/\s*\(.*\)$/, '')
+                          .replace(/_/g, ' ')
+                          .trim() || item.bindingType
+                      : <span className="text-red-600">미설정</span>}
+                  </div>
+                  <div className="text-[12px] text-gray-500">
+                    {item.printSide === 'double' ? '양면' : item.printSide === 'single' ? '단면' : ''}
+                  </div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   {item.nup || <span className="text-red-600">미설정</span>}

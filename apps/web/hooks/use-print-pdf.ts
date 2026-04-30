@@ -28,6 +28,7 @@ export interface PrintQueueItem {
   pdfStatus?: 'pending' | 'in_progress' | 'completed' | 'failed';
   pageLayout?: string;
   bindingDirection?: string;
+  printSide?: string;
   /** OrderItem.pdfPath 존재 여부 — PDF변환성공 배지 클릭 시 인라인 열기 가능 조건 */
   hasPdf?: boolean;
   warnings?: string[];
