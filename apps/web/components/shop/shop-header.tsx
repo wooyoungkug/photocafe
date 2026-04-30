@@ -67,9 +67,9 @@ export function ShopHeader() {
               <Image
                 src="/images/photocafe_logo_transparent.png"
                 alt="Photocafe"
-                width={140}
-                height={40}
-                className="h-8 md:h-10 w-auto object-contain"
+                width={362}
+                height={97}
+                className="h-9 md:h-11 w-auto object-contain"
                 priority
               />
             </Link>
@@ -207,9 +207,9 @@ export function ShopHeader() {
                 <Image
                   src="/images/photocafe_logo_transparent.png"
                   alt="Photocafe"
-                  width={120}
-                  height={34}
-                  className="h-8 w-auto object-contain"
+                  width={362}
+                  height={97}
+                  className="h-9 w-auto object-contain"
                 />
               </Link>
             </div>
