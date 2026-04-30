@@ -17,7 +17,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuthStore } from '@/stores/auth-store';
+import { cn } from '@/lib/utils';
 
 function getMenuItems(user: {
   type?: string;
@@ -80,6 +87,8 @@ export default function MyPageLayout({
   const router = useRouter();
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const menuItems = getMenuItems(user);
+  // 일정관리 페이지에서는 좌측 필터 패널을 위해 사이드바를 아이콘 전용 모드로 축소
+  const isCompactSidebar = pathname?.startsWith('/mypage/schedule') ?? false;
 
   // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
   useEffect(() => {
@@ -173,51 +182,83 @@ export default function MyPageLayout({
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[200px_1fr] gap-5">
+        <div
+          className={cn(
+            'grid gap-5',
+            isCompactSidebar
+              ? 'lg:grid-cols-[64px_1fr]'
+              : 'lg:grid-cols-[200px_1fr]'
+          )}
+        >
           {/* 데스크톱 사이드바 */}
           <aside className="hidden lg:block">
             <Card className="sticky top-4">
               <CardContent className="p-0">
                 <nav>
-                  {menuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive =
-                      pathname === item.href ||
-                      pathname?.startsWith(item.href + '/');
+                  <TooltipProvider delayDuration={200}>
+                    {menuItems.map((item) => {
+                      const Icon = item.icon;
+                      const isActive =
+                        pathname === item.href ||
+                        pathname?.startsWith(item.href + '/');
 
-                    return (
-                      <Link key={item.href} href={item.href}>
+                      const buttonNode = (
                         <button
                           type="button"
-                          className={`w-full flex items-center justify-between px-3.5 py-2.5 text-left text-[14px] font-normal transition-colors ${
+                          className={cn(
+                            'w-full flex items-center text-left text-[14px] font-normal transition-colors',
+                            isCompactSidebar
+                              ? 'justify-center px-2 py-3'
+                              : 'justify-between px-3.5 py-2.5',
                             isActive
                               ? 'bg-primary text-white font-medium'
                               : 'hover:bg-gray-50 text-gray-700'
-                          }`}
+                          )}
                         >
-                          <div className="flex items-center gap-2.5">
+                          {isCompactSidebar ? (
                             <Icon className="h-4 w-4" />
-                            <span>{item.label}</span>
-                          </div>
-                          {isActive && <ChevronRight className="h-3.5 w-3.5" />}
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2.5">
+                                <Icon className="h-4 w-4" />
+                                <span>{item.label}</span>
+                              </div>
+                              {isActive && <ChevronRight className="h-3.5 w-3.5" />}
+                            </>
+                          )}
                         </button>
-                      </Link>
-                    );
-                  })}
+                      );
+
+                      return (
+                        <Link key={item.href} href={item.href}>
+                          {isCompactSidebar ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>{buttonNode}</TooltipTrigger>
+                              <TooltipContent side="right">{item.label}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            buttonNode
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </TooltipProvider>
                 </nav>
               </CardContent>
             </Card>
 
-            {/* User Info Card */}
-            <Card className="mt-3">
-              <CardContent className="p-3">
-                <h3 className="text-[14px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
-                <div className="text-[14px] text-gray-600 space-y-0.5">
-                  <p className="truncate">{user?.clientName}</p>
-                  {user?.email && <p className="truncate" title={user.email}>{user.email}</p>}
-                </div>
-              </CardContent>
-            </Card>
+            {/* User Info Card - 일정관리 컴팩트 모드에서는 숨김 */}
+            {!isCompactSidebar && (
+              <Card className="mt-3">
+                <CardContent className="p-3">
+                  <h3 className="text-[14px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
+                  <div className="text-[14px] text-gray-600 space-y-0.5">
+                    <p className="truncate">{user?.clientName}</p>
+                    {user?.email && <p className="truncate" title={user.email}>{user.email}</p>}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </aside>
 
           {/* Main Content */}
