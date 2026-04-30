@@ -131,15 +131,15 @@ export default function PrintQueueTable({
             <TableHead className="w-10">
               <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </TableHead>
-            <TableHead className="text-[14px] text-black font-normal">주문번호</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">스튜디오<br/>영업담당자</TableHead>
-            <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">규격<br/>Nup</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">편집스타일<br/>제본순서</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">Page<br/>부수</TableHead>
-            <TableHead className="text-[14px] text-black font-normal">용지</TableHead>
-            <TableHead className="text-[14px] text-black font-normal">제본</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">진행상황</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">주문번호</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">스튜디오<br/>영업담당자</TableHead>
+            <TableHead className="text-[14px] text-black font-bold">상품/폴더</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">규격<br/>Nup</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">편집스타일<br/>제본순서</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">Page<br/>부수</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">용지</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">제본</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-bold">진행상황</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -157,7 +157,7 @@ export default function PrintQueueTable({
                     onCheckedChange={() => toggleItem(item.id)}
                   />
                 </TableCell>
-                <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
+                <TableCell className="text-center text-[14px] text-black font-normal whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => onOrderClick?.(item.orderId)}
@@ -197,11 +197,11 @@ export default function PrintQueueTable({
                   <div>{item.pages ?? '-'}p</div>
                   <div className={(item.quantity ?? 1) > 1 ? 'text-[14px] font-bold text-black' : 'text-[12px] text-black'}>{item.quantity ?? 1}부</div>
                 </TableCell>
-                <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
+                <TableCell className="text-center text-[14px] text-black font-normal whitespace-nowrap">
                   {item.paper || <span className="text-red-600">미설정</span>}
                 </TableCell>
                 <TableCell
-                  className="text-[14px] text-black font-normal whitespace-nowrap"
+                  className="text-center text-[14px] text-black font-normal whitespace-nowrap"
                 >
                   <div>
                     {item.bindingType
