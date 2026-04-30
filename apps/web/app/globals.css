@@ -113,6 +113,28 @@
 
 /* 작업지시서 (print-slip) */
 #slip-area { width: 190mm; background: #fff; font-family: sans-serif; }
+
+/* 긴급 도장 */
+.urgent-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #dc2626;
+  border-radius: 6px;
+  color: #dc2626;
+  font-size: 20pt;
+  font-weight: 900;
+  letter-spacing: 0.15em;
+  padding: 2px 10px;
+  line-height: 1.2;
+  transform: rotate(-8deg);
+  opacity: 0.88;
+  box-shadow: inset 0 0 0 2px #dc2626;
+  font-family: 'Noto Sans KR', sans-serif;
+  text-shadow: 1px 1px 0 rgba(220,38,38,0.2);
+  position: relative;
+  top: 2px;
+}
 .slip-barcode-canvas { max-width: 100%; height: auto; }
 .thumb-cell { position: relative; border: 1px solid #ccc; }
 .thumb-page-label {
