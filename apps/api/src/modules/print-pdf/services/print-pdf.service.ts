@@ -330,7 +330,17 @@ export class PrintPdfService implements OnModuleInit {
         '';
     }
 
-    return { ...item, salesRep };
+    // 동판 이미지 조회 (foilName + clientId로 매칭)
+    let copperPlateImageUrl: string | null = null;
+    if (item.foilName && item.order?.clientId) {
+      const plate = await this.prisma.copperPlate.findFirst({
+        where: { clientId: item.order.clientId, plateName: item.foilName },
+        select: { imageUrl: true },
+      });
+      copperPlateImageUrl = plate?.imageUrl || null;
+    }
+
+    return { ...item, salesRep, copperPlateImageUrl };
   }
 
   /**
