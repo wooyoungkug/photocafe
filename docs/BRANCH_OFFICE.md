@@ -48,8 +48,17 @@
 | `prepaid` | 선입금 | 주문 전 충전 → 차감 |
 | `credit` | 신용거래 | 월말/익월 정산 (기존 `creditEnabled` 재활용) |
 | `on_order` | 주문시입금 | 주문 생성 시 무통장입금 (기본값) |
+| `card` | 카드결제 | 주문 생성 시 PG 카드결제 (지사 PG 계정으로 직접 수금) |
 
 지사 단위로 **허용 결제방식 화이트리스트**(`Branch.allowedPaymentTypes`) 보유.
+
+> **카드결제 추가 고려사항**
+> - **PG 계약 주체**: 지사 사업자번호로 자체 PG(토스페이먼츠/나이스페이/KG이니시스 등) 계약 →
+>   매출은 지사 통장으로 직접 입금 (세금계산서 발행자와 일치)
+> - `Branch.pgProvider`, `Branch.pgMerchantId`, `Branch.pgApiKey`(암호화) 필드 추가 필요
+> - 본사 PG 를 공용으로 쓰는 옵션도 가능하나 정산이 복잡 → **지사별 PG 계정 권장**
+> - 카드결제 수수료(약 2.5~3%)는 지사가 부담 (단가 정책에 반영 권장)
+> - 부분취소/환불 처리는 PG 별 SDK 차이 있음 — 1차 범위에서는 “전체 취소만” 으로 한정 권장
 
 ### 2.3 서브도메인 / 도메인
 - `{branchCode}.photocafe.co.kr` (예: `seoul.photocafe.co.kr`)
@@ -150,10 +159,16 @@ model Branch {
   footerText           String?                    // 푸터 사업자정보 추가 문구
 
   // 결제 정책
-  allowedPaymentTypes  String[] @default(["on_order"])  // prepaid|credit|on_order
+  allowedPaymentTypes  String[] @default(["on_order"])  // prepaid|credit|on_order|card
   bankName             String?
   bankAccount          String?
   bankHolder           String?
+
+  // 카드결제 (PG)
+  pgProvider           String?                          // toss|nice|inicis|null
+  pgMerchantId         String?                          // PG 가맹점 ID
+  pgApiKeyEncrypted    String?                          // KMS/Secret 으로 암호화 저장
+  pgEnabled            Boolean  @default(false)
 
   // 본사↔지사 정산
   commissionRate       Decimal  @default(0) @db.Decimal(5, 2)  // 본사 수수료 %
@@ -429,6 +444,8 @@ sequenceDiagram
 4. **반품/환불** — 지사 회원의 반품을 누가 책임지는가 (지사 자체 처리 vs 본사 위임)
 5. **지사간 협업** — 다른 지사의 작업물을 보거나 추천하는 기능 필요 여부
 6. **로그/감사** — `AuditLog` 에 `branchId` 추가하여 지사별 감사 가능하게
+7. **PG(카드결제) 정책** — 지사별 PG 계약 vs 본사 공용 PG 분배 — 정산 복잡도/수수료 부담 주체
+8. **카드 부분취소/할부 환불** — PG 별 지원 차이 → 1차 범위 포함 여부
 
 ---
 
