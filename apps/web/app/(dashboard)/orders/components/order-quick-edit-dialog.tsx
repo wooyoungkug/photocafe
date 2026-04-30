@@ -834,6 +834,12 @@ export function OrderQuickEditDialog({
   };
 
   const handleSave = async () => {
+    // 금액 조정 입력 시 조정사유 필수
+    if (discountAmount !== 0 && !discountReason.trim()) {
+      alert('금액을 조정할 경우 조정 사유를 입력해 주세요.');
+      return;
+    }
+
     // ±20% 변동 시 사용자 확인 1단계 (관리자 사양 편집 안전장치)
     const previousFinalAmount = Number(displayOrder.finalAmount) || 0;
     const newFinalAmount = finalTotal;
@@ -1418,13 +1424,16 @@ export function OrderQuickEditDialog({
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">조정 사유</Label>
+                    <Label className="text-xs">
+                      조정 사유
+                      {discountAmount !== 0 && <span className="text-red-500 ml-1">*필수</span>}
+                    </Label>
                     <Textarea
                       value={discountReason}
                       onChange={(e) => setDiscountReason(e.target.value)}
                       placeholder="예: VIP 고객 할인, 재주문 할인 등"
                       rows={1}
-                      className="text-sm resize-none"
+                      className={`text-sm resize-none${discountAmount !== 0 && !discountReason.trim() ? ' border-red-500' : ''}`}
                     />
                   </div>
                 </div>
