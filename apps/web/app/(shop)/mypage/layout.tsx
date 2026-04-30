@@ -173,7 +173,7 @@ export default function MyPageLayout({
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[18%_1fr] gap-5">
+        <div className="grid lg:grid-cols-[200px_1fr] gap-5">
           {/* 데스크톱 사이드바 */}
           <aside className="hidden lg:block">
             <Card className="sticky top-4">
@@ -213,8 +213,8 @@ export default function MyPageLayout({
               <CardContent className="p-3">
                 <h3 className="text-[14px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
                 <div className="text-[14px] text-gray-600 space-y-0.5">
-                  <p>{user?.clientName}</p>
-                  {user?.email && <p>{user.email}</p>}
+                  <p className="truncate">{user?.clientName}</p>
+                  {user?.email && <p className="truncate" title={user.email}>{user.email}</p>}
                 </div>
               </CardContent>
             </Card>
