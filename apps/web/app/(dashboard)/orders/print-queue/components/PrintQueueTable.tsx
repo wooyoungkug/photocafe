@@ -16,6 +16,11 @@ import { PrintQueueItem } from '@/hooks/use-print-pdf';
 import { useMatchImpositionBatch, MatchResult, BindingType } from '@/hooks/use-imposition';
 import { API_URL } from '@/lib/api';
 
+const URGENT_KEYWORDS = ['긴급', '지급', '즉시', '당일', '특급', '우선처리', '급처리', '촉급', '최급'];
+function hasUrgentKeyword(text: string) {
+  return URGENT_KEYWORDS.some((kw) => text.includes(kw));
+}
+
 interface PrintQueueTableProps {
   items: PrintQueueItem[];
   selectedIds: string[];
@@ -174,7 +179,12 @@ export default function PrintQueueTable({
                   )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
-                  {item.folderName || item.productName || '-'}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {hasUrgentKeyword(item.folderName || item.productName || '') && (
+                      <Badge className="bg-red-600 text-white text-[11px] px-1.5 py-0 h-5 shrink-0">긴급</Badge>
+                    )}
+                    {item.folderName || item.productName || '-'}
+                  </div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.size?.replace(/인치$/,'') || '-'}</div>
