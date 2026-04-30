@@ -572,11 +572,6 @@ export default function OrderListPage() {
                           <p className="text-sm font-normal leading-tight text-center">
                             {item.productName?.split(' - ')?.[0] || item.productName}
                           </p>
-                          {item.size && (
-                            <p className="text-[11px] text-black leading-tight mt-0.5 text-center">
-                              {item.size.replace(/인치$/, '')}{item.nup ? `(${item.nup})` : ''}
-                            </p>
-                          )}
                         </TableCell>
 
                         {/* 주문제목 / 재질 및 규격 - 클릭 시 검증 다이얼로그 */}
