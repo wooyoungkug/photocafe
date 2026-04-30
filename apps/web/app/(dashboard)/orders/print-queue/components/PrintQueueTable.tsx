@@ -131,15 +131,15 @@ export default function PrintQueueTable({
             <TableHead className="w-10">
               <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">주문번호</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">스튜디오<br/>영업담당자</TableHead>
-            <TableHead className="text-[14px] text-black font-bold">상품/폴더</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">규격<br/>Nup</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">편집스타일<br/>제본순서</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">Page<br/>부수</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">용지</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">제본</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-bold">진행상황</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">주문번호</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">스튜디오<br/>영업담당자</TableHead>
+            <TableHead className="text-[14px] text-gray-600 font-bold">상품/폴더</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">규격<br/>Nup</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">편집스타일<br/>제본순서</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">Page<br/>부수</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">용지</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">제본</TableHead>
+            <TableHead className="text-center text-[14px] text-gray-600 font-bold">진행상황</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
