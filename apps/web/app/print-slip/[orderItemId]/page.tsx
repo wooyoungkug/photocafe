@@ -111,11 +111,13 @@ export default function PrintSlipPage() {
 
   const isSpread = d.pageLayout === 'spread';
 
-  // 페이지당 썸네일 수: spread 4열, single 8열
-  // 1페이지 = 헤더+스펙 영역(~110mm) 이후 남은 공간 기준
-  // 이후 페이지 = 미니헤더(~15mm) 제외 전체 높이
-  const PAGE1_COUNT = isSpread ? 20 : 40;   // spread: 5행×4열, single: 5행×8열
-  const PAGE_N_COUNT = isSpread ? 32 : 80;  // spread: 8행×4열, single: 10행×8열
+  // 1페이지: 헤더+스펙(~85mm) 제외 후 남은 ~192mm 기준
+  // spread 4열 행높이 ~36mm → 5행=180mm → 5×4=20, 여유있게 6행=24
+  // single 8열 행높이 ~21mm → 9행=189mm → 9×8=72
+  // 이후 페이지: 미니헤더(~15mm) 제외 ~262mm
+  // spread: 7행×4=28, single: 12행×8=96
+  const PAGE1_COUNT = isSpread ? 24 : 72;
+  const PAGE_N_COUNT = isSpread ? 28 : 96;
 
   const page1Items = thumbItems.slice(0, PAGE1_COUNT);
   const remaining = thumbItems.slice(PAGE1_COUNT);
@@ -149,8 +151,8 @@ export default function PrintSlipPage() {
           .no-print { display: none !important; }
           body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
           #slip-wrapper { padding: 0 !important; gap: 0 !important; }
-          .a4-page { box-shadow: none !important; border: none !important; break-after: page; }
-          .a4-page:last-child { break-after: avoid; }
+          .a4-page, .a4-page-cont { box-shadow: none !important; border: none !important; break-after: page; }
+          .a4-page-cont:last-child { break-after: avoid; }
           @page { size: A4 portrait; margin: 10mm; }
           img, canvas { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
