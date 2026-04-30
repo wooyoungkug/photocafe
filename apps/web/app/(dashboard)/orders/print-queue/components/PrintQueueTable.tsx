@@ -169,7 +169,7 @@ export default function PrintQueueTable({
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   <div className="text-center">{item.studioName}</div>
                   {item.salesRep && (
-                    <div className="text-[11pt] text-black text-center">{item.salesRep}</div>
+                    <div className="text-[9pt] text-black text-center">{item.salesRep}</div>
                   )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
@@ -177,11 +177,11 @@ export default function PrintQueueTable({
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.size?.replace(/인치$/,'') || '-'}</div>
-                  <div className="text-[11pt] text-black">{item.nup || <span className="text-red-600">미설정</span>}</div>
+                  <div className="text-[9pt] text-black">{item.nup || <span className="text-red-600">미설정</span>}</div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : '-'}</div>
-                  <div className="text-[11pt] text-black">
+                  <div className="text-[9pt] text-black">
                     {(() => {
                       const labels: Record<string, string> = {
                         LEFT_START_RIGHT_END: '좌시우끝',
@@ -212,7 +212,7 @@ export default function PrintQueueTable({
                           .trim() || item.bindingType
                       : <span className="text-red-600">미설정</span>}
                   </div>
-                  <div className="text-[11pt] text-black text-center">
+                  <div className="text-[9pt] text-black text-center">
                     {item.printSide === 'double' ? '양면' : item.printSide === 'single' ? '단면' : ''}
                   </div>
                 </TableCell>
