@@ -134,12 +134,11 @@ export default function PrintQueueTable({
             <TableHead className="text-[14px] text-black font-normal">주문번호</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">스튜디오<br/>영업담당자</TableHead>
             <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
-            <TableHead className="text-[14px] text-black font-normal">규격</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">규격<br/>Nup</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">편집스타일<br/>제본순서</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">Page<br/>부수</TableHead>
             <TableHead className="text-[14px] text-black font-normal">용지</TableHead>
             <TableHead className="text-[14px] text-black font-normal">제본</TableHead>
-            <TableHead className="text-center text-[14px] text-black font-normal">Nup</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">진행상황</TableHead>
           </TableRow>
         </TableHeader>
@@ -176,8 +175,9 @@ export default function PrintQueueTable({
                 <TableCell className="text-[14px] text-black font-normal">
                   {item.folderName || item.productName || '-'}
                 </TableCell>
-                <TableCell className="text-[14px] text-black font-normal">
-                  {item.size?.replace(/인치$/,'') || '-'}
+                <TableCell className="text-center text-[14px] text-black font-normal">
+                  <div>{item.size?.replace(/인치$/,'') || '-'}</div>
+                  <div className="text-[12px] text-gray-500">{item.nup || <span className="text-red-600">미설정</span>}</div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : '-'}</div>
@@ -215,9 +215,6 @@ export default function PrintQueueTable({
                   <div className="text-[12px] text-gray-500 text-center">
                     {item.printSide === 'double' ? '양면' : item.printSide === 'single' ? '단면' : ''}
                   </div>
-                </TableCell>
-                <TableCell className="text-center text-[14px] text-black font-normal">
-                  {item.nup || <span className="text-red-600">미설정</span>}
                 </TableCell>
                 <TableCell className="text-center">
                   {(() => {
