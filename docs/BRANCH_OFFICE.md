@@ -456,3 +456,148 @@ sequenceDiagram
 >    되돌릴 수 있는 nullable 컬럼 추가가 대부분이라 위험 낮음.
 > - (2) 미결 항목 1~6 먼저 회의로 결정 — 회계/세금/외부연동 정책이 모델에 영향을 줌.
 > - (3) 기획서 일부 수정 — 본 문서에서 바꾸고 싶은 항목 지적.
+
+---
+
+## 13. 멀티 에이전트 컨펌 결과 (2026-04-30)
+
+> 본 절은 사용자가 제기한 **"본사 기초관리(제품코드)를 지사가 공유해야 의뢰주문 흐름이 깨끗하다"** 는 가설을
+> 6개 전문 에이전트(백엔드 / 회계 / 보안 / UI / 테스트 / 중복분석) 가 병렬 검토한 결과를 통합한 합의안이다.
+> 모든 항목은 **컨펌 완료** 상태이며, Phase 1 구현 전에 본 절의 결정사항이 §3·§4·§6 본문에 우선한다.
+
+### 13.0 핵심 컨펌
+**본사 마스터(`Product`/`Specification`/`Paper`/`HalfProduct`/`Category`) 공유 정책은 6개 에이전트 모두 “옳다(Yes)” 로 컨펌**.
+근거: 의뢰주문(internal) 의 `productId`/`specificationId` 가 동일 ID 공간을 유지해야 매핑 레이어 없이 본사로
+주문이 흘러가며, 단가·생산실적·KPI 집계가 본사 한 곳에서 일관 산출 가능. 다만 아래 6개 영역의
+보강을 1차 범위에 반드시 포함한다.
+
+---
+
+### 13.1 백엔드 (senior-backend-developer)
+
+- **마스터 공유 정책 컨펌**. 의뢰주문 흐름에서 `OrderItem.productId` 가 동일 ID 공간이어야 매핑 테이블 없이 직접 INSERT 가능.
+- **지사 한정 굿즈 확장 여지**: `Product.branchId` 를 nullable 로 도입 (`null`=전사 마스터 / 값=지사 한정).
+  단 지사 전용 상품은 **본사 의뢰주문 대상에서 제외** (자체 생산/외주만 허용) 하는 비즈니스 룰 명문화.
+- **단가 우선순위 명시**: `개별단가(Client) > 그룹단가(ClientGroup, branchId 일치 검증) > 본사 표준단가(Product)`.
+  `resolvePrice(client, product)` 단일 헬퍼로 추출 — 견적/주문/세금계산서 모두 동일 로직 사용.
+- **`branchId` 추가 보강 대상**:
+
+  | 테이블 | 권장 | 이유 |
+  |---|---|---|
+  | `AuditLog` | 추가 | 지사별 감사 추적, 내부통제 |
+  | `OrderFile` | 추가 (또는 Order 통해 파생) | B2 다운로드 권한 검증 시 직접 인덱싱 |
+  | `Coupon`/`Promotion` | nullable 추가 | 본사 전사 쿠폰 + 지사 한정 쿠폰 병행 |
+  | `Holiday`/`DeliveryFee`/`SystemSetting` | 미추가 (전사) | 공통 정책 |
+
+- **본사↔지사 정산 단가는 소비자 단가와 분리** — `commissionRate` + 별도 협상가 운영 필요시 `InternalPriceTable` 도입.
+
+---
+
+### 13.2 회계·세무 (senior-accountant-advisor)
+
+- **마스터 공유 정책 컨펌**. 세금계산서 필수기재사항은 거래 시점(`Order`/`BranchInvoice`)에서 결정되므로 마스터 통합과 무관.
+- **CRITICAL 보강 3건** (Phase 4 재작업 방지):
+  1. **내부거래 식별 필드** — `Order`/`SalesLedger`/`PurchaseLedger` 에 `isIntercompany`, `counterpartyBranchId` 추가.
+     연결결산 시 본사↔지사 내부거래 제거(elimination) 가능하게 함.
+  2. **단가 이력 보존** — `BranchInvoiceItem` 또는 후속 모델에 `standardUnitPrice`/`appliedUnitPrice`/`discountReason` 함께 저장.
+     특수관계자 거래 부당행위계산부인(법인세법 §52) 대응.
+  3. **계정과목 매핑** — `Product` 단일 매핑이 아닌 **`(orderType × product)` 매트릭스** 단위.
+     B2C = 제품매출 / internal = 도급매출 으로 구분 분개.
+- 부가세 신고는 본사·지사 각자 사업자번호로 별건. 동일 제품코드여도 거래·발행자 기준으로 매출/매입처별 합계표 자동 분리됨을 검증 필수.
+
+---
+
+### 13.3 보안 (server-security-advisor)
+
+- 현재 기획안은 **중간 수준** — 격리 의도는 명확하나 강제 메커니즘이 인터셉터 단일 계층에 의존. 운영 전 보강 필수.
+- **3중 방어선(Defense in Depth) 을 Phase 1 필수 산출물로 포함**:
+  1. **DB 계층** — PostgreSQL Row-Level Security(RLS) 정책을 모든 `branchId` 컬럼 테이블에 적용.
+     Prisma `$extends` 미들웨어가 트랜잭션 시작 시 `SET LOCAL app.current_branch_id` 자동 주입.
+  2. **애플리케이션 계층** — `BranchScopeInterceptor` + `@RequireBranchScope()` 데코레이터 강제.
+     **부팅 시 미부착 핸들러 검출 → 기동 실패** (정적 검증).
+  3. **신원 계층** — JWT `branchId` 가 단일 권위(SoT). host 서브도메인은 표시용. 불일치 시 403 + 이상탐지 로그.
+- **PG 시크릿 보관**: KMS envelope encryption 필수 (AWS KMS / GCP KMS / Railway Shared Variables). DB 컬럼은 ciphertext + keyId 만.
+- **다운로드 프리사인드 URL**: TTL **60초 이하** + 1회용 JTI 토큰, 발급 후 즉시 무효화 로그.
+  발급 직전 검증은 트랜잭션 내부 `SELECT ... FOR UPDATE` 또는 RLS 로 race condition 차단.
+- 모든 cross-branch 접근 시도는 `AuditLog.severity=high` 기록 + 운영자 알림.
+
+---
+
+### 13.4 UI/UX (senior-ui-developer)
+
+- §6 은 라우트 목록 위주이고 **역할별 가시성/편집가능성/빈상태**가 빠짐. 4가지 공용 컴포넌트를 Phase 1~3 공통 선반영:
+  1. **`<MasterDataBadge source="HQ" />`** — 자물쇠 + "본사 마스터" 라벨, 입력은 `disabled`+`aria-readonly`. 수정 시도 시 토스트.
+  2. **`<OrderTypeBadge>`** — `/dashboard/orders` 상단 세그먼트 탭(`B2C` | `본사 의뢰`), b2c=중립 회색 / internal=주황 아웃라인.
+     의뢰주문 생성 진입점은 별도 버튼(`/internal-orders/new`) 으로 분리하여 우발 클릭 방지.
+  3. **`<BranchThemeProvider>`** — `headers()` 의존이므로 RSC 캐시키에 반드시 `branchCode` 포함.
+     정적 ISR 페이지는 `revalidateTag('branch:${code}')`. Vercel Edge 캐시는 host 자동 키이지만 `unstable_cache` 사용 시 명시적 태깅.
+  4. **`<EmptyPaymentMethods>`** — `Branch.allowedPaymentTypes` 모두 비활성 시 "지사 관리자에게 문의" 안내 + 주문 차단.
+- 같은 `/dashboard` 라우트가 role 별로 다른 사이드바를 보여줘야 하므로 네비게이션 분기 규칙도 컴포넌트 레벨에서 정의.
+
+---
+
+### 13.5 테스트 (senior-test-engineer)
+
+- 자동 테스트로 **95% 보장 가능**. PG 결제·외부 전자세금계산서·실제 와일드카드 DNS 는 수동/스테이징 검증 병행.
+- **핵심 테스트 케이스 7건** (Phase 1 DoD):
+
+  | # | Given | When | Then |
+  |---|---|---|---|
+  | 1 | 지사 A·B 각 10건 주문 | A `branch_admin` 토큰 `GET /orders` | 정확히 10건, B 0건 |
+  | 2 | 지사 토큰 | `POST/PATCH/DELETE /products` | 403 (`branch_admin` 도 거부, `superadmin` 만 허용) |
+  | 3 | 4 role × 10 endpoint 매트릭스 | `it.each` 로 일괄 | allow/deny 픽스처와 일치 |
+  | 4 | 지사회원 주문 → 처리완료 → `POST /internal-orders` | 본사 처리·발송 | `BranchInvoice`(or 이중 ledger) 자동생성, 매출/매입 일치 |
+  | 5 | `branchId=null` 회원 100건 | 백필 스크립트 2회 실행 | 2회차 `UPDATE` 0건 (멱등) |
+  | 6 | `Host: seoul.localhost:3002` | `/signup` 진입 | `x-branch-code=seoul` + `Client.branchId=seoul` |
+  | 7 | 지사 A 주문 파일 | B 토큰 `GET /orders/:id/download` | 404 (존재 자체 은닉) |
+
+- 목표 커버리지: **격리/권한 모듈 90% 이상, 전체 80% 이상**.
+- 서브도메인 로컬 검증: `seoul.localhost` `/etc/hosts` 매핑 또는 Playwright `extraHTTPHeaders`.
+
+---
+
+### 13.6 중복·충돌 (duplication-analyzer) — **CRITICAL 변경 권고**
+
+> 본 항목은 §4 본문을 일부 수정하는 권고가 포함됨. 채택 시 §4.5 `BranchInvoice` 모델은 **삭제** 한다.
+
+- **C1. `BranchInvoice` ↔ `SalesLedger`/`PurchaseLedger` 이중기장 [높음]**
+  - **권고**: `BranchInvoice` 신규 모델 만들지 말고, 의뢰주문(`orderType=internal`) 도 기존
+    `SalesLedger`(본사 시점) + `PurchaseLedger`(지사 시점) 한 쌍으로 자동 발행.
+    월 정산서는 `clientId=지사를 가리키는 가상 Client` 를 묶는 **집계 뷰** 로 구현.
+  - 효과: 회계 모델 단일화, 회계팀 합의 부담↓.
+
+- **C2. `Order.branchId` 의 진실의 출처(SoT) 모호 [높음]**
+  - **권고**: `Order.branchId` = **주문 접수 시점 스냅샷, 불변(immutable)**. 회계·다운로드·세금계산서 발행자 결정의 SoT.
+  - `Client.branchId`/`ClientGroup.branchId` 는 메타데이터일 뿐. 회원이 그룹/지사 변경해도 과거 주문은 그대로.
+  - 마이그레이션: 기존 주문은 `Client.group.branchId` 로 백필 후 동결.
+
+- **C3. 결제수단·권한 이중화 [중간]**
+  - **결제수단 결정 함수 단일화**: `effective = intersect(branch.allowedPaymentTypes, client.preferredPaymentType)`.
+    `Branch.allowedPaymentTypes` = 테넌트 화이트리스트, `Client.paymentType`/`creditEnabled` = 회원별 실제 적용값.
+  - **권한 우선순위 단일 명시**: `isSuperAdmin > role > permissionTemplate > menu/categoryPermissions`.
+    `PermissionService` 한 곳에 일원화. 신규 boolean 3종(`canIssueTaxInvoice` 등) 은 `role` 매트릭스의 derived 값으로만 노출 (별도 컬럼 추가 금지).
+
+---
+
+### 13.7 §4·§5 본문 변경 사항 (요약)
+
+| 항목 | 기존 (§4) | 컨펌 후 변경 |
+|---|---|---|
+| `BranchInvoice` 모델 | 신규 도입 | **삭제** — 기존 `SalesLedger`/`PurchaseLedger` 재활용 |
+| `Order.branchId` | nullable | **NOT NULL + immutable**, 접수 시점 스냅샷 |
+| `Order` 신규 필드 | `branchId`, `orderType`, `internalOrderType`, `requesterBranchId` | + `isIntercompany`, `counterpartyBranchId` |
+| `Product` | 본사 전용 (branchId 없음) | `branchId` nullable 추가 (지사 한정 굿즈 확장 여지) |
+| `Staff` 권한 boolean 3종 | 신규 컬럼 추가 | **추가하지 않음** — `role` 매트릭스의 derived 값 |
+| RLS 정책 | 미언급 | **Phase 1 필수** — Prisma `$extends` 로 `SET LOCAL app.current_branch_id` |
+| `@RequireBranchScope()` 데코레이터 | 미언급 | **Phase 1 필수** — 부팅 시 정적 검증 |
+| `AuditLog.branchId`, `OrderFile.branchId` | 미언급 | **추가** |
+| `SalesLedger`/`PurchaseLedger` | 미언급 | **`isIntercompany`, `counterpartyBranchId` 추가** |
+| 단가 스냅샷 | 없음 | **`appliedUnitPrice`/`standardUnitPrice`/`discountReason` 보관** |
+
+---
+
+### 13.8 다음 단계
+
+> - **(1) §4·§5 본문에 위 13.7 변경사항 즉시 반영 [추천]** — `BranchInvoice` 삭제, `Order.branchId` 불변화, RLS 명문화. 반영 후 Phase 1 진입.
+> - (2) 회계팀과 `(orderType × product) → 계정과목` 매핑 워크숍 — Phase 4 정산 구현 전 필수.
+> - (3) `<MasterDataBadge>` / `<OrderTypeBadge>` / `<EmptyPaymentMethods>` 공용 컴포넌트 시안 PR 선행 — UI 일관성 기반 마련.
