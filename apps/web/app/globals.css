@@ -114,45 +114,45 @@
 /* 작업지시서 (print-slip) */
 #slip-area { width: 190mm; background: #fff; font-family: sans-serif; }
 
-/* 긴급 도장 */
+/* 긴급 도장 — 인장체 스타일 */
 .urgent-stamp {
   display: inline-block;
   position: relative;
-  border: 4px solid #cc0000;
-  border-radius: 4px;
-  color: #cc0000;
-  font-size: 21pt;
+  border: 4px solid #bb0000;
+  border-radius: 3px;
+  color: #bb0000;
+  font-size: 22pt;
   font-weight: 900;
-  letter-spacing: 0.3em;
-  padding: 4px 16px 4px 20px;
-  line-height: 1.15;
-  transform: rotate(-11deg);
+  font-family: var(--font-noto-serif-kr), 'Noto Serif KR', 'Batang', '바탕', serif;
+  letter-spacing: 0.25em;
+  padding: 6px 18px 6px 22px;
+  line-height: 1.1;
+  transform: rotate(-10deg);
   mix-blend-mode: multiply;
-  opacity: 0.82;
-  font-family: 'Noto Sans KR', sans-serif;
+  opacity: 0.85;
   top: 4px;
-  filter: contrast(1.1);
+  /* 각인(조각) 효과 */
+  -webkit-text-stroke: 0.5px #bb0000;
+  text-shadow:
+    1px 1px 0 rgba(187,0,0,0.15),
+    -1px -1px 0 rgba(187,0,0,0.05);
 }
+/* 이중 테두리 — 도장 안쪽 선 */
 .urgent-stamp::before {
   content: '';
   position: absolute;
   inset: 4px;
-  border: 1.5px solid #cc0000;
-  border-radius: 2px;
-  opacity: 0.55;
+  border: 1.5px solid #bb0000;
+  border-radius: 1px;
+  opacity: 0.6;
 }
+/* 인주(印朱) 번짐 효과 */
 .urgent-stamp::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 3px,
-    rgba(204,0,0,0.04) 3px,
-    rgba(204,0,0,0.04) 4px
-  );
-  border-radius: 4px;
+  inset: -1px;
+  border-radius: 3px;
+  box-shadow: 0 0 4px 1px rgba(187,0,0,0.18);
   pointer-events: none;
 }
 .slip-barcode-canvas { max-width: 100%; height: auto; }

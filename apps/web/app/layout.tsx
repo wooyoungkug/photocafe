@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Noto_Sans_KR } from "next/font/google";
+import { Inter, Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { NextIntlClientProvider } from "next-intl";
@@ -14,6 +14,12 @@ const notoSansKR = Noto_Sans_KR({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-noto-sans-kr",
+});
+
+const notoSerifKR = Noto_Serif_KR({
+  subsets: ["latin"],
+  weight: ["900"],
+  variable: "--font-noto-serif-kr",
 });
 
 export const viewport: Viewport = {
@@ -55,7 +61,7 @@ export default async function RootLayout({
         <meta charSet="utf-8" />
       </head>
       <body
-        className={`${inter.variable} ${notoSansKR.variable} font-sans`}
+        className={`${inter.variable} ${notoSansKR.variable} ${notoSerifKR.variable} font-sans`}
         suppressHydrationWarning
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
