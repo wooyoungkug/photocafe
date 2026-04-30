@@ -50,10 +50,10 @@ import { toast } from '@/hooks/use-toast';
 
 // 출력대기 PDF 변환 진행상황 뱃지 매핑 (PrintQueueTable 과 동일)
 const PDF_INDIGO_BADGE: Record<string, { label: string; className: string }> = {
-  pending: { label: 'PDF변환대기', className: 'bg-gray-100 text-black' },
+  pending: { label: '대기', className: 'bg-gray-100 text-black' },
   in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
   generating: { label: '변환중', className: 'bg-blue-100 text-black' },
-  completed: { label: 'PDF변환성공', className: 'bg-green-100 text-black' },
+  completed: { label: '성공', className: 'bg-green-100 text-black' },
   failed: { label: '변환에러', className: 'bg-red-100 text-red-600' },
 };
 const PDF_INKJET_BADGE: Record<string, { label: string; className: string }> = {

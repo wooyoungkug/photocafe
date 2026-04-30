@@ -68,6 +68,7 @@
     "sharp": "^0.33.0",
     "solapi": "^5.5.4",
     "ua-parser-js": "^2.0.9",
+    "puppeteer-core": "^23.0.0",
     "web-push": "^3.6.7",
     "xmlbuilder2": "^4.0.3"
   },
