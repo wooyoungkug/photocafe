@@ -369,6 +369,7 @@ model Client {
   gender                     String?
   enableRecruitment          Boolean                        @default(true)
   enableSchedule             Boolean                        @default(true)
+  smsNotificationStages      String[]                       @default([])
   assignedStaffId            String?
   addresses                  ClientAddress[]
   albumPreference            ClientAlbumPreference?

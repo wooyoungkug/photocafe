@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, MapPin } from 'lucide-react';
+import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, Bell } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,13 @@ function formatPhone(value: string): string {
   if (nums.length <= 10) return `${nums.slice(0, 3)}-${nums.slice(3, 6)}-${nums.slice(6)}`;
   return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7, 11)}`;
 }
+
+const SMS_STAGES = [
+  { value: 'receipt_completed', label: '접수완료', description: '주문이 접수 확인됐을 때' },
+  { value: 'in_production', label: '생산진행', description: '제작이 시작됐을 때' },
+  { value: 'ready_for_shipping', label: '배송준비', description: '배송 준비가 완료됐을 때' },
+  { value: 'shipped', label: '배송완료', description: '배송이 출고됐을 때' },
+];
 
 // 읽기 전용 필드값 표시 컴포넌트
 function FieldValue({ value }: { value: string }) {
@@ -65,6 +73,7 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [smsStages, setSmsStages] = useState<string[]>([]);
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -74,6 +83,12 @@ export default function ProfilePage() {
     },
     enabled: isAuthenticated && !!user?.id,
   });
+
+  useEffect(() => {
+    if (profile?.smsNotificationStages) {
+      setSmsStages(profile.smsNotificationStages);
+    }
+  }, [profile]);
 
   // profile 데이터가 로드/변경되면 편집용 상태에 동기화
   useEffect(() => {
@@ -110,6 +125,21 @@ export default function ProfilePage() {
       setSuccess('');
     },
   });
+
+  const updateSmsMutation = useMutation({
+    mutationFn: async (stages: string[]) => {
+      return await api.put<any>(`/clients/${user?.id}`, { smsNotificationStages: stages });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+    },
+  });
+
+  const handleSmsToggle = (stage: string, checked: boolean) => {
+    const next = checked ? [...smsStages, stage] : smsStages.filter((s) => s !== stage);
+    setSmsStages(next);
+    updateSmsMutation.mutate(next);
+  };
 
   const changePasswordMutation = useMutation({
     mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
@@ -433,6 +463,48 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* 공정별 문자 알림 카드 - 직원은 비표시 */}
+      {!isEmployee && (
+        <Card>
+          <CardHeader className="pb-3 pt-4 px-5">
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <Bell className="h-4 w-4" />
+              공정별 문자 알림
+            </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              알림 받고 싶은 공정 단계를 선택해 주세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="grid sm:grid-cols-2 gap-3">
+              {SMS_STAGES.map((stage) => (
+                <label
+                  key={stage.value}
+                  className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+                >
+                  <Checkbox
+                    id={`sms-${stage.value}`}
+                    checked={smsStages.includes(stage.value)}
+                    onCheckedChange={(checked) => handleSmsToggle(stage.value, !!checked)}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <p className="text-[14px] font-medium text-black">{stage.label}</p>
+                    <p className="text-[13px] text-gray-500">{stage.description}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+            {updateSmsMutation.isPending && (
+              <p className="text-[13px] text-gray-400 mt-2">저장 중...</p>
+            )}
+            {updateSmsMutation.isSuccess && (
+              <p className="text-[13px] text-green-600 mt-2">저장되었습니다.</p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* 비밀번호 변경 카드 */}
       <Card>

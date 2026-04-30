@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsEmail, IsIn, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsIn, IsInt, Min, Max, IsBoolean, IsArray } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
 
 export class CreateClientDto {
@@ -215,6 +215,12 @@ export class CreateClientDto {
   @IsOptional()
   @IsBoolean()
   enableRecruitment?: boolean;
+
+  @ApiPropertyOptional({ description: '문자 알림 받을 공정 단계 목록', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  smsNotificationStages?: string[];
 }
 
 export class UpdateClientDto extends PartialType(CreateClientDto) { }
