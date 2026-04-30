@@ -177,7 +177,7 @@ export default function PrintQueueTable({
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.size?.replace(/인치$/,'') || '-'}</div>
-                  <div className="text-[9pt] text-black">{item.nup || <span className="text-red-600">미설정</span>}</div>
+                  <div className="text-[9pt] text-black">{item.nup ? `(${item.nup})` : <span className="text-red-600">미설정</span>}</div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : '-'}</div>
