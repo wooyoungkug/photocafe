@@ -210,7 +210,7 @@ export default function PrintSlipPage() {
             <div className="flex-1 flex flex-col justify-center gap-1">
               <div className="flex items-center gap-4">
                 <span className="text-[10pt] text-gray-500">주문날자</span>
-                <span className="text-[10pt] text-gray-500">{orderDateLabel}</span>
+                <span className="text-[10pt] text-black font-normal">{orderDateLabel}</span>
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-[10pt] text-gray-500">주문번호</span>
