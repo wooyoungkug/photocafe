@@ -387,7 +387,7 @@ export default function OrderListPage() {
                             {item.productName?.split(' - ')?.[0] || item.productName}
                           </span>
                           <span className="text-muted-foreground shrink-0">
-                            {item.pages}p / {item.quantity}건
+                            {item.pages}p / {item.quantity}부
                           </span>
                         </div>
                         <div className="text-[11px] text-muted-foreground truncate">
@@ -613,7 +613,7 @@ export default function OrderListPage() {
                         {/* 페이지 / 부수 */}
                         <TableCell className="text-center text-sm">
                           <div>{item.pages}p</div>
-                          <div className={(item.quantity ?? 1) > 1 ? 'text-red-600 font-bold' : ''}>{item.quantity}건</div>
+                          <div className={(item.quantity ?? 1) > 1 ? 'text-red-600 font-bold' : ''}>{item.quantity}부</div>
                         </TableCell>
 
                         {/* 용량 + 원본받기/삭제 */}
