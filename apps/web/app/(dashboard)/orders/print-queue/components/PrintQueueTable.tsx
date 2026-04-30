@@ -181,7 +181,7 @@ export default function PrintQueueTable({
                 <TableCell className="text-[14px] text-black font-normal">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {hasUrgentKeyword(item.folderName || item.productName || '') && (
-                      <Badge className="bg-red-600 text-white text-[11px] px-1.5 py-0 h-5 shrink-0">긴급</Badge>
+                      <span className="inline-flex items-center justify-center shrink-0 w-[34px] h-[34px] rounded-full border-[2.5px] border-red-600 text-red-600 text-[11px] font-bold -rotate-12 opacity-90 select-none tracking-wider">긴급</span>
                     )}
                     {item.folderName || item.productName || '-'}
                   </div>
