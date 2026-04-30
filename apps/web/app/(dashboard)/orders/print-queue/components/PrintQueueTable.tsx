@@ -223,7 +223,7 @@ export default function PrintQueueTable({
                     const indigoMap: Record<string, { label: string; className: string }> = {
                       pending: { label: 'PDF변환대기', className: 'text-black' },
                       in_progress: { label: '변환중', className: 'text-black' },
-                      completed: { label: 'PDF변환성공', className: 'text-black' },
+                      completed: { label: '성공', className: 'text-black' },
                       failed: { label: '변환에러', className: 'text-black' },
                     };
                     const inkjetMap: Record<string, { label: string; className: string }> = {
