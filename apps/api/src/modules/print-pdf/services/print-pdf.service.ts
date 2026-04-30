@@ -126,6 +126,7 @@ export class PrintPdfService implements OnModuleInit {
             select: {
               id: true,
               clientName: true,
+              assignedManager: true,
               assignedStaff: {
                 where: { isPrimary: true },
                 take: 1,
@@ -164,6 +165,21 @@ export class PrintPdfService implements OnModuleInit {
       select: { name: true, nup: true },
     });
     const nupMap = new Map(specs.map((s) => [s.name, s.nup]));
+
+    // assignedManager(영업담당자 staff ID) → 이름 변환
+    const managerIds = Array.from(new Set(
+      orders
+        .map((o) => (o.client as any)?.assignedManager as string | null | undefined)
+        .filter((id): id is string => !!id),
+    ));
+    const managerNameMap: Record<string, string> = {};
+    if (managerIds.length > 0) {
+      const staffRecords = await this.prisma.staff.findMany({
+        where: { id: { in: managerIds } },
+        select: { id: true, name: true },
+      });
+      staffRecords.forEach((s) => { managerNameMap[s.id] = s.name; });
+    }
 
     // 항목별로 규격, 용지 필터 적용 (후처리)
     const items = orders.flatMap((order) =>

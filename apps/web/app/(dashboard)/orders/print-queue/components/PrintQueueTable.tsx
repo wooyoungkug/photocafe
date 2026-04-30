@@ -195,7 +195,7 @@ export default function PrintQueueTable({
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pages ?? '-'}p</div>
-                  <div className={`text-[12px] ${(item.quantity ?? 1) > 1 ? 'text-red-600' : 'text-black'}`}>{item.quantity ?? 1}부</div>
+                  <div className={`${(item.quantity ?? 1) > 1 ? 'text-[14px] text-red-600 font-bold' : 'text-[12px] text-black'}`}>{item.quantity ?? 1}부</div>
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   {item.paper || <span className="text-red-600">미설정</span>}
