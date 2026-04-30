@@ -202,8 +202,7 @@ export default function PrintQueueTable({
                   {item.paper || <span className="text-red-600">미설정</span>}
                 </TableCell>
                 <TableCell
-                  className="text-[14px] text-black font-normal max-w-[120px] truncate"
-                  title={item.bindingType || '미설정'}
+                  className="text-[14px] text-black font-normal whitespace-nowrap"
                 >
                   {item.bindingType
                     ? item.bindingType
