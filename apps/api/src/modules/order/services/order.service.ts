@@ -461,6 +461,7 @@ export class OrderService {
               totalPrice: true,
               originalsDeleted: true,
               pdfStatus: true,
+              specification: { select: { nup: true } },
               files: {
                 select: {
                   thumbnailUrl: true,

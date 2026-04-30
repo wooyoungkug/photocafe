@@ -568,13 +568,13 @@ export default function OrderListPage() {
                         )}
 
                         {/* 상품명 */}
-                        <TableCell className="whitespace-nowrap">
-                          <p className="text-sm font-normal leading-tight">
+                        <TableCell className="whitespace-nowrap text-center">
+                          <p className="text-sm font-normal leading-tight text-center">
                             {item.productName?.split(' - ')?.[0] || item.productName}
                           </p>
                           {item.size && (
-                            <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-                              {item.size.replace(/인치$/, '')}
+                            <p className="text-[11px] text-black leading-tight mt-0.5 text-center">
+                              {item.size.replace(/인치$/, '')}{(item as any).specification?.nup ? `(${(item as any).specification.nup})` : ''}
                             </p>
                           )}
                         </TableCell>
