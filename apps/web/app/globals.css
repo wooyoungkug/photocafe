@@ -156,6 +156,8 @@
   pointer-events: none;
 }
 .slip-barcode-canvas { max-width: 100%; height: auto; }
+.a4-page { width: 210mm; min-height: 297mm; background: #fff; box-sizing: border-box; }
+.a4-page-cont { width: 210mm; background: #fff; box-sizing: border-box; }
 .thumb-cell { position: relative; border: 1px solid #ccc; }
 .thumb-placeholder {
   width: 100%; aspect-ratio: 3/2;

@@ -9,15 +9,6 @@ import { Button } from '@/components/ui/button';
 const URGENT_KEYWORDS = ['긴급', '지급', '즉시', '당일', '특급', '우선처리', '급처리', '촉급', '최급', '급건'];
 const URGENT_REGEX = new RegExp(`(${URGENT_KEYWORDS.join('|')})`, 'g');
 
-function highlightUrgent(text: string, urgentClass: string) {
-  const parts = text.split(URGENT_REGEX);
-  return parts.map((part, i) =>
-    URGENT_KEYWORDS.includes(part)
-      ? <span key={i} className={urgentClass}>{part}</span>
-      : part
-  );
-}
-
 function stripUrgentKeywords(text: string) {
   return text
     .replace(new RegExp(`(${URGENT_KEYWORDS.join('|')})[\\-_\\s]*`, 'g'), '')
@@ -58,24 +49,49 @@ function BarcodeCanvas({ value }: { value: string }) {
   return <canvas ref={canvasRef} className="slip-barcode-canvas" />;
 }
 
+interface ThumbItem { file: any; url: string | null }
+
+function ThumbnailGrid({
+  items,
+  globalOffset,
+  isSpread,
+}: {
+  items: ThumbItem[];
+  globalOffset: number;
+  isSpread: boolean;
+}) {
+  return (
+    <div className={isSpread ? 'grid gap-1 grid-cols-4' : 'grid gap-1 grid-cols-8'}>
+      {items.map(({ file, url }, localIdx) => {
+        const i = globalOffset + localIdx;
+        const pageLabel = isSpread ? `${i * 2 + 1}-${i * 2 + 2}` : `${i + 1}`;
+        return (
+          <div key={file.id ?? i} className="flex flex-col">
+            <div className="thumb-cell">
+              {url ? (
+                <img src={url} alt={pageLabel} className="w-full h-auto block rounded-sm" />
+              ) : (
+                <div className="thumb-placeholder"><span>미생성</span></div>
+              )}
+              <span className="thumb-page-label">{pageLabel}</span>
+            </div>
+            <span className="thumb-filename">{file.fileName || ''}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PrintSlipPage() {
   const { orderItemId } = useParams<{ orderItemId: string }>();
   const { data, isLoading, isError } = usePrintQueueItemDetail(orderItemId);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen text-[14px] text-black font-normal">
-        로딩 중...
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen text-[14px] text-black">로딩 중...</div>;
   }
-
   if (isError || !data) {
-    return (
-      <div className="flex items-center justify-center h-screen text-[14px] text-black font-normal">
-        데이터를 불러올 수 없습니다.
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen text-[14px] text-black">데이터를 불러올 수 없습니다.</div>;
   }
 
   const d = data as any;
@@ -84,52 +100,47 @@ export default function PrintSlipPage() {
   const isUrgent = order.isUrgent;
   const isInkjet = (d.printMethod || '').toLowerCase().includes('inkjet');
   const printMethodLabel = isInkjet ? '잉크젯' : '인디고';
-  const printMethodColor = isInkjet ? 'bg-blue-600' : 'bg-purple-700';
 
   const toThumbUrl = (p: string | undefined) =>
     p ? `/uploads/${p.replace(/\\/g, '/').replace(/^.*\/uploads\//, '')}` : null;
 
-  // 전체 파일 목록 유지 (썸네일 없는 파일도 플레이스홀더로 표시)
-  const thumbItems: { file: any; url: string | null }[] = (d.files || [])
-    .map((f: any) => ({ file: f, url: toThumbUrl(f.thumbnailUrl) }));
+  const thumbItems: ThumbItem[] = (d.files || []).map((f: any) => ({
+    file: f,
+    url: toThumbUrl(f.thumbnailUrl),
+  }));
 
-  const totalFiles: number = thumbItems.length;
-  const missingThumbCount: number = thumbItems.filter((item) => item.url === null).length;
+  const isSpread = d.pageLayout === 'spread';
 
-  const pageLayoutLabel =
-    d.pageLayout === 'spread' ? '펼침면' : d.pageLayout === 'single' ? '낱장' : '-';
+  // 페이지당 썸네일 수: spread 4열, single 8열
+  // 1페이지 = 헤더+스펙 영역(~110mm) 이후 남은 공간 기준
+  // 이후 페이지 = 미니헤더(~15mm) 제외 전체 높이
+  const PAGE1_COUNT = isSpread ? 20 : 40;   // spread: 5행×4열, single: 5행×8열
+  const PAGE_N_COUNT = isSpread ? 32 : 80;  // spread: 8행×4열, single: 10행×8열
 
+  const page1Items = thumbItems.slice(0, PAGE1_COUNT);
+  const remaining = thumbItems.slice(PAGE1_COUNT);
+
+  const subsequentPages: ThumbItem[][] = [];
+  for (let i = 0; i < remaining.length; i += PAGE_N_COUNT) {
+    subsequentPages.push(remaining.slice(i, i + PAGE_N_COUNT));
+  }
+  const totalPages = 1 + subsequentPages.length;
+
+  const totalFiles = thumbItems.length;
+  const missingThumbCount = thumbItems.filter((t) => t.url === null).length;
+
+  const pageLayoutLabel = isSpread ? '펼침면' : d.pageLayout === 'single' ? '낱장' : '-';
   const bindingLabel = d.bindingType
     ? d.bindingType.replace(/^인디고/, '').replace(/\s*\(.*\)$/, '').replace(/_/g, ' ').trim() || d.bindingType
     : '-';
-
   const bindingDirLabel = d.bindingDirection
     ? BINDING_DIRECTION_LABELS[d.bindingDirection] || d.bindingDirection
     : '';
-
-  const printSideLabel =
-    d.printSide === 'double' ? '양면' : d.printSide === 'single' ? '단면' : '';
-
+  const printSideLabel = d.printSide === 'double' ? '양면' : d.printSide === 'single' ? '단면' : '';
   const sizeDisplay = (d.size || '-').replace(/인치$/, '') + (d.size?.includes('인치') ? '인치' : '');
-
-  const deliveryDate = order.requestedDeliveryDate
-    ? new Date(order.requestedDeliveryDate).toLocaleDateString('ko-KR', {
-        year: 'numeric', month: '2-digit', day: '2-digit',
-      })
-    : '-';
-
   const memo = [order.customerMemo, d.productMemo].filter(Boolean).join(' / ');
-
-  const pdfStatusMap: Record<string, string> = {
-    pending: 'PDF변환대기',
-    in_progress: '변환중',
-    completed: '변환완료',
-    failed: '변환에러',
-  };
-  const pdfStatusLabel = pdfStatusMap[d.pdfStatus || 'pending'] || '-';
-
-  // 바코드 값: 주문번호 (공정관리 스캔용)
   const barcodeValue = order.orderNumber || orderItemId;
+  const folderLabel = stripUrgentKeywords(d.folderName || d.productName || '-');
 
   return (
     <>
@@ -137,8 +148,9 @@ export default function PrintSlipPage() {
         @media print {
           .no-print { display: none !important; }
           body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
-          #slip-wrapper { padding: 0 !important; }
-          #slip-area { box-shadow: none !important; border: none !important; width: 100% !important; }
+          #slip-wrapper { padding: 0 !important; gap: 0 !important; }
+          .a4-page { box-shadow: none !important; border: none !important; break-after: page; }
+          .a4-page:last-child { break-after: avoid; }
           @page { size: A4 portrait; margin: 10mm; }
           img, canvas { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
@@ -148,22 +160,20 @@ export default function PrintSlipPage() {
       {/* 툴바 */}
       <div className="no-print flex items-center gap-2 px-4 py-2 border-b bg-white sticky top-0 z-10">
         <Button size="sm" onClick={() => window.print()} className="gap-1">
-          <Printer className="h-4 w-4" />
-          인쇄
+          <Printer className="h-4 w-4" />인쇄
         </Button>
         <Button size="sm" variant="ghost" onClick={() => window.close()} className="gap-1">
-          <X className="h-4 w-4" />
-          닫기
+          <X className="h-4 w-4" />닫기
         </Button>
-        <span className="ml-2 text-[13px] text-gray-500">A4 / 작업지시서</span>
+        <span className="ml-2 text-[13px] text-gray-500">
+          A4 / 작업지시서{totalPages > 1 ? ` (${totalPages}페이지)` : ''}
+        </span>
       </div>
 
-      {/* 작업지시서 본체 — A4 세로 기준 190mm 폭 */}
-      <div id="slip-wrapper" className="flex justify-center py-6 px-4">
-        <div
-          id="slip-area"
-          className="shadow-lg border border-gray-200 text-black"
-        >
+      <div id="slip-wrapper" className="flex flex-col items-center py-6 px-4 gap-6">
+
+        {/* ─── 1페이지 ─── */}
+        <div className="a4-page shadow-lg border border-gray-200 text-black">
           {/* 긴급 배너 */}
           {isUrgent && (
             <div className="bg-red-600 text-white text-center font-bold py-2 text-[14px] tracking-widest">
@@ -172,7 +182,7 @@ export default function PrintSlipPage() {
           )}
 
           {/* 헤더 */}
-          <div className="flex items-center justify-center px-5 py-4 border-b border-gray-300 bg-gray-50 min-h-[72px]">
+          <div className="flex items-center justify-center px-5 py-4 border-b border-gray-300 bg-gray-50">
             <div className="flex items-center gap-2 font-bold text-[30pt]">
               {(isUrgent || URGENT_KEYWORDS.some(kw => (d.folderName || d.productName || '').includes(kw))) && (
                 <span className="urgent-stamp">긴급</span>
@@ -181,7 +191,7 @@ export default function PrintSlipPage() {
             </div>
           </div>
 
-          {/* 바코드 — 헤더 바로 아래 */}
+          {/* 바코드 + 주문정보 */}
           <div className="flex items-center gap-4 px-5 py-2 border-b border-gray-200 bg-white">
             <div className="flex flex-col items-start gap-0.5">
               <BarcodeCanvas value={barcodeValue} />
@@ -194,10 +204,14 @@ export default function PrintSlipPage() {
               <div className="flex items-center gap-4">
                 <span className="text-[10pt] text-gray-500">스튜디오</span>
                 <span className="font-bold text-[10pt]">{client.clientName || '-'}</span>
-                {d.salesRep && <><span className="text-[10pt] text-gray-500">CS담당</span><span className="text-[10pt] text-black">{d.salesRep}</span></>}
+                {d.salesRep && (
+                  <>
+                    <span className="text-[10pt] text-gray-500">영업담당</span>
+                    <span className="text-[10pt] text-black">{d.salesRep}</span>
+                  </>
+                )}
               </div>
             </div>
-            {/* 동판 이미지 */}
             <div className="w-16 h-16 border border-gray-300 rounded overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center">
               {d.copperPlateImageUrl ? (
                 <img
@@ -211,31 +225,20 @@ export default function PrintSlipPage() {
             </div>
           </div>
 
-          {/* 스펙 */}
-          <div className="flex">
-            {/* 스펙 테이블 */}
-            <div className="flex-1 px-4 py-3">
-              <table className="w-full text-[13px] border-collapse">
-                <tbody>
-                  <tr>
-                    <td className="py-1 text-[20pt] font-bold text-center" colSpan={4}>{stripUrgentKeywords(d.folderName || d.productName || '-')}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+          {/* 폴더명 */}
+          <div className="px-4 py-2">
+            <div className="text-[20pt] font-bold text-center">{folderLabel}</div>
           </div>
 
           {/* 메모 */}
           {memo && (
             <div className="mx-4 mb-2 px-3 py-2 bg-yellow-50 border border-yellow-200 rounded text-[13px]">
-              <span className="text-gray-500 mr-1 font-medium">메모:</span>
-              {memo}
+              <span className="text-gray-500 mr-1 font-medium">메모:</span>{memo}
             </div>
           )}
 
-          {/* 표지 및 후가공정보 */}
+          {/* 스펙 박스 */}
           <div className="mx-4 mb-3 px-4 py-2 border border-gray-200 rounded">
-            {/* 규격 1줄 */}
             <div className="flex flex-wrap items-center gap-3 text-[13px] mb-1.5">
               <span className="font-medium">{sizeDisplay}</span>
               <span className="text-gray-400">|</span>
@@ -251,73 +254,57 @@ export default function PrintSlipPage() {
               <span className={(d.quantity ?? 1) > 1 ? 'text-red-600 font-bold' : ''}>{d.quantity ?? 1}부</span>
             </div>
             {(bindingLabel || d.fabricName || d.foilName || d.foilColor || d.foilPosition) && (
-              <div className="flex items-center gap-4">
-                <div className="flex flex-wrap gap-6 text-[13px] flex-1">
-                  {bindingLabel && (
-                    <span><span className="text-gray-500">제본: </span>{bindingLabel}</span>
-                  )}
-                  {d.fabricName && (
-                    <span><span className="text-gray-500">원단: </span>{d.fabricName}</span>
-                  )}
-                  {d.foilName && (
-                    <span><span className="text-gray-500">박이름: </span>{d.foilName}</span>
-                  )}
-                  {d.foilColor && (
-                    <span><span className="text-gray-500">박컬러: </span>{d.foilColor}</span>
-                  )}
-                  {d.foilPosition && (
-                    <span><span className="text-gray-500">박위치: </span>{d.foilPosition}</span>
-                  )}
-                </div>
+              <div className="flex flex-wrap gap-6 text-[13px]">
+                {bindingLabel && <span><span className="text-gray-500">제본: </span>{bindingLabel}</span>}
+                {d.fabricName && <span><span className="text-gray-500">원단: </span>{d.fabricName}</span>}
+                {d.foilName && <span><span className="text-gray-500">박이름: </span>{d.foilName}</span>}
+                {d.foilColor && <span><span className="text-gray-500">박컬러: </span>{d.foilColor}</span>}
+                {d.foilPosition && <span><span className="text-gray-500">박위치: </span>{d.foilPosition}</span>}
               </div>
             )}
           </div>
 
-          {/* 썸네일 그리드 — 하단 전체 폭 */}
-          {thumbItems.length > 0 && (
+          {/* 1페이지 썸네일 */}
+          {page1Items.length > 0 && (
             <div className="border-t border-gray-200 bg-gray-50 p-3">
               <div className="flex items-center gap-2 mb-1.5">
                 <span className="text-[11px] text-gray-400">페이지 썸네일</span>
                 {missingThumbCount > 0 && (
                   <span className="text-[10px] text-orange-500">
-                    (썸네일 미생성 {missingThumbCount}개 포함 — 전체 {totalFiles}개)
+                    (미생성 {missingThumbCount}개 포함 — 전체 {totalFiles}개)
                   </span>
                 )}
+                {totalPages > 1 && (
+                  <span className="text-[10px] text-blue-400 ml-auto">1 / {totalPages}</span>
+                )}
               </div>
-              <div className={`grid gap-1 ${d.pageLayout === 'spread' ? 'grid-cols-4' : 'grid-cols-8'}`}>
-                {thumbItems.map(({ file, url }, i) => {
-                  const isSpread = d.pageLayout === 'spread';
-                  const pageLabel = isSpread
-                    ? `${i * 2 + 1}-${i * 2 + 2}`
-                    : `${i + 1}`;
-                  return (
-                    <div key={file.id ?? i} className="flex flex-col">
-                      <div className="thumb-cell">
-                        {url ? (
-                          <img
-                            src={url}
-                            alt={pageLabel}
-                            className="w-full h-auto block rounded-sm"
-                          />
-                        ) : (
-                          <div className="thumb-placeholder">
-                            <span>미생성</span>
-                          </div>
-                        )}
-                        <span className="thumb-page-label">
-                          {pageLabel}
-                        </span>
-                      </div>
-                      <span className="thumb-filename">
-                        {file.fileName || ''}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
+              <ThumbnailGrid items={page1Items} globalOffset={0} isSpread={isSpread} />
             </div>
           )}
         </div>
+
+        {/* ─── 2페이지~ ─── */}
+        {subsequentPages.map((pageItems, pageIdx) => {
+          const globalOffset = PAGE1_COUNT + pageIdx * PAGE_N_COUNT;
+          const pageNum = pageIdx + 2;
+          return (
+            <div key={pageIdx} className="a4-page-cont shadow-lg border border-gray-200 text-black">
+              {/* 미니 헤더 */}
+              <div className="flex items-center justify-between px-5 py-2 border-b border-gray-300 bg-gray-50">
+                <div className="flex items-center gap-4">
+                  <span className="font-bold text-[10pt] tracking-widest">{order.orderNumber || '-'}</span>
+                  <span className="text-[10pt] text-gray-700">{client.clientName || '-'}</span>
+                </div>
+                <span className="text-[9pt] text-gray-500 truncate max-w-[280px]">{folderLabel}</span>
+                <span className="text-[9pt] text-gray-400 shrink-0">{pageNum} / {totalPages}</span>
+              </div>
+              <div className="p-3">
+                <ThumbnailGrid items={pageItems} globalOffset={globalOffset} isSpread={isSpread} />
+              </div>
+            </div>
+          );
+        })}
+
       </div>
     </>
   );

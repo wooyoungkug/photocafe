@@ -318,10 +318,12 @@ export class PrintPdfService implements OnModuleInit {
     }
 
     let salesRep = '';
+    let salesRepPhone = '';
     const managerId = (item.order.client as any)?.assignedManager as string | undefined;
     if (managerId) {
-      const s = await this.prisma.staff.findUnique({ where: { id: managerId }, select: { name: true } });
+      const s = await this.prisma.staff.findUnique({ where: { id: managerId }, select: { name: true, mobile: true, phone: true } });
       salesRep = s?.name || '';
+      salesRepPhone = s?.mobile || s?.phone || '';
     }
     if (!salesRep) {
       salesRep =
@@ -340,7 +342,7 @@ export class PrintPdfService implements OnModuleInit {
       copperPlateImageUrl = plate?.imageUrl || null;
     }
 
-    return { ...item, salesRep, copperPlateImageUrl };
+    return { ...item, salesRep, salesRepPhone, copperPlateImageUrl };
   }
 
   /**
