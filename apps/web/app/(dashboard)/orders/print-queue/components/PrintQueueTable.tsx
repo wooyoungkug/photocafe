@@ -179,7 +179,12 @@ export default function PrintQueueTable({
                   )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
-                  {item.folderName || item.productName || '-'}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {hasUrgentKeyword(item.folderName || item.productName || '') && (
+                      <Badge className="bg-red-600 text-white text-[11px] px-1.5 py-0 h-5 shrink-0">긴급</Badge>
+                    )}
+                    {item.folderName || item.productName || '-'}
+                  </div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.size?.replace(/인치$/,'') || '-'}</div>
