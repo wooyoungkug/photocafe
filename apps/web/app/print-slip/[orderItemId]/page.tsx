@@ -111,12 +111,9 @@ export default function PrintSlipPage() {
 
   const isSpread = d.pageLayout === 'spread';
 
-  // 1페이지: 헤더+스펙(~85mm) 제외 후 남은 ~192mm 기준
-  // spread 4열 행높이 ~36mm → 5행=180mm → 5×4=20, 여유있게 6행=24
-  // single 8열 행높이 ~21mm → 9행=189mm → 9×8=72
-  // 이후 페이지: 미니헤더(~15mm) 제외 ~262mm
-  // spread: 7행×4=28, single: 12행×8=96
-  const PAGE1_COUNT = isSpread ? 24 : 72;
+  // 1페이지: 최대한 채움 (실제 파일 수가 제한)
+  // 이후 페이지: 미니헤더 포함 A4 한 면 기준
+  const PAGE1_COUNT = isSpread ? 40 : 100;
   const PAGE_N_COUNT = isSpread ? 28 : 96;
 
   const page1Items = thumbItems.slice(0, PAGE1_COUNT);
