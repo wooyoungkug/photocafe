@@ -188,9 +188,8 @@ model Branch {
   staff                Staff[]
   clients              Client[]                   // 신규
   clientGroups         ClientGroup[]
-  orders               Order[]                    // 신규
+  orders               Order[]                    // 신규 (접수 지사)
   internalOrders       Order[]   @relation("InternalRequester")  // 본사로의 의뢰
-  branchInvoices       BranchInvoice[]            // 신규: 본사→지사 청구
 
   @@map("branches")
 }
@@ -209,79 +208,121 @@ model Client {
 - 가입 시 서브도메인 host 로 자동 결정
 - 변경은 슈퍼관리자만 가능
 
-### 4.3 `Order` 변경
+### 4.3 `Order` 변경 (§13 합의 반영)
+
+> `Order.branchId` 는 **NOT NULL + immutable** (접수 시점 스냅샷). 회계·다운로드·세금계산서 발행자 결정의 SoT.
+
 ```prisma
 model Order {
   // ...기존 필드
-  branchId            String?              // 접수 지사 (B2C 주문)
+  branchId            String              // NOT NULL: 접수 지사. 생성 후 변경 불가 (서비스 레이어 강제)
   orderType           String   @default("b2c")  // b2c | internal
-  internalOrderType   String?              // print_only | album | half_product
+  internalOrderType   String?              // print_only | album | half_product (orderType=internal 일 때만)
   requesterBranchId   String?              // internal 일 때, 의뢰한 지사
-  branch              Branch?  @relation(fields: [branchId], references: [id])
+  isIntercompany      Boolean  @default(false)  // 본사↔지사 내부거래 식별 (회계 elimination 용)
+  counterpartyBranchId String?             // 내부거래 상대방 지사 ID
+  branch              Branch   @relation(fields: [branchId], references: [id])
   requesterBranch     Branch?  @relation("InternalRequester", fields: [requesterBranchId], references: [id])
 
   @@index([branchId])
   @@index([orderType])
+  @@index([isIntercompany])
 }
 ```
-- B2C: `branchId=지사`, `orderType=b2c`, `clientId=지사회원`
-- 의뢰: `branchId=본사`, `orderType=internal`, `requesterBranchId=지사`,
-  `clientId=지사를 표현하는 가상 Client` 또는 별도 처리
+- **B2C**: `branchId=지사`, `orderType=b2c`, `isIntercompany=false`, `clientId=지사회원`
+- **의뢰(internal)**: `branchId=본사`, `orderType=internal`, `requesterBranchId=지사`, `isIntercompany=true`,
+  `counterpartyBranchId=지사`, `clientId=지사를 표현하는 가상 Client`
+- 마이그레이션 시 기존 주문은 `Client.group.branchId` 또는 본사 Branch 로 백필 후 동결.
 
-### 4.4 `Staff` 변경 (필드명 호환)
-- `branchId` 이미 존재 → 그대로 사용
-- `role` 에 `branch_admin`, `branch_staff` 추가
-- 신규: `canManageBranchSettings`, `canIssueTaxInvoice`, `canViewBranchSettlement`
+### 4.4 `Order` 단가 스냅샷 (§13.2 회계 보강)
 
-### 4.5 신규 모델 — 본사↔지사 정산
+`OrderItem` (또는 신규 `OrderItemPriceSnapshot`) 에 다음 3필드 추가하여 단가 이력 보존:
 ```prisma
-model BranchInvoice {
-  id              String   @id @default(cuid())
-  invoiceNumber   String   @unique
-  branchId        String                        // 청구받는 지사
-  periodStart     DateTime
-  periodEnd       DateTime
-  subtotal        Decimal  @db.Decimal(12, 2)
-  vat             Decimal  @db.Decimal(12, 2)
-  total           Decimal  @db.Decimal(12, 2)
-  status          String   @default("draft")    // draft|issued|paid|overdue
-  issuedAt        DateTime?
-  paidAt          DateTime?
-  dueDate         DateTime?
-  pdfUrl          String?
-  branch          Branch   @relation(fields: [branchId], references: [id])
-  items           BranchInvoiceItem[]
+model OrderItem {
+  // ...기존 필드
+  standardUnitPrice  Decimal? @db.Decimal(10, 2)  // 본사 표준단가
+  appliedUnitPrice   Decimal? @db.Decimal(10, 2)  // 실제 적용가 (그룹/개별 할인 후)
+  discountReason     String?                      // 할인 근거 (그룹코드/협상가/프로모션 등)
+}
+```
+- 특수관계자 거래 부당행위계산부인(법인세법 §52) 대응
+- 단가 정책 변경 후에도 과거 주문의 산출 근거 보존
+
+### 4.5 `Product` 변경 (§13.1 백엔드 보강)
+
+```prisma
+model Product {
+  // ...기존 필드
+  branchId  String?              // null = 전사 마스터 (본사 관리), 값 = 지사 한정 상품
+  branch    Branch?  @relation(fields: [branchId], references: [id])
 
   @@index([branchId])
-  @@index([status])
-  @@map("branch_invoices")
-}
-
-model BranchInvoiceItem {
-  id              String   @id @default(cuid())
-  invoiceId       String
-  orderId         String?                       // 연결된 internal Order
-  description     String
-  quantity        Int
-  unitPrice       Decimal  @db.Decimal(10, 2)
-  amount          Decimal  @db.Decimal(12, 2)
-  invoice         BranchInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@index([invoiceId])
-  @@map("branch_invoice_items")
 }
 ```
+- 기본은 `null` (본사가 단일 마스터로 관리, 모든 지사가 공유)
+- 지사 한정 상품(굿즈 등)은 `branchId=지사ID` 로 등록
+- **지사 전용 상품은 본사 의뢰주문 대상에서 제외** (자체 생산/외주만 허용) — 서비스 레이어에서 강제
 
-### 4.6 마이그레이션 영향 테이블 요약
+### 4.6 `Staff` 변경 (§13.6 권한 단일화)
 
-| 테이블 | 변경 |
-|---|---|
-| `branches` | 컬럼 다수 추가 (BR-1) |
-| `clients` | `branchId` 추가 (BR-2) |
-| `orders` | `branchId`, `orderType`, `internalOrderType`, `requesterBranchId` 추가 (BR-3) |
-| `staff` | `role` enum 확장 + 권한 boolean 3종 (BR-4) |
-| `branch_invoices` | 신규 (BR-5) |
-| `branch_invoice_items` | 신규 (BR-5) |
+- `branchId` 이미 존재 → 그대로 사용
+- `role` 에 `branch_admin`, `branch_staff` 추가
+- **`canManageBranchSettings` / `canIssueTaxInvoice` / `canViewBranchSettlement` 컬럼은 추가하지 않음**.
+  이들은 `role` 매트릭스의 derived 값으로 `PermissionService` 가 계산.
+- 권한 우선순위: `isSuperAdmin > role > permissionTemplate > menu/categoryPermissions` (`PermissionService` 단일 명시)
+
+### 4.7 `SalesLedger` / `PurchaseLedger` 확장 (§13.6 BranchInvoice 대체)
+
+> `BranchInvoice` 신규 모델은 도입하지 않는다. 본사↔지사 의뢰주문 청구는 기존 회계 원장을 재활용한다.
+
+```prisma
+model SalesLedger {
+  // ...기존 필드
+  branchId             String?               // 매출 발행 지사 (본사면 본사 Branch ID)
+  isIntercompany       Boolean  @default(false)
+  counterpartyBranchId String?               // 내부거래 상대방 (의뢰주문일 때 = 의뢰 지사)
+
+  @@index([branchId])
+  @@index([isIntercompany])
+}
+
+model PurchaseLedger {
+  // ...기존 필드
+  branchId             String?               // 매입 인식 지사 (의뢰주문이면 = 의뢰 지사)
+  isIntercompany       Boolean  @default(false)
+  counterpartyBranchId String?               // 내부거래 상대방 (= 본사)
+
+  @@index([branchId])
+  @@index([isIntercompany])
+}
+```
+- 의뢰주문(`orderType=internal`) 완료 시: 본사 `SalesLedger` + 지사 `PurchaseLedger` 한 쌍을 자동 발행 (양쪽 `isIntercompany=true`)
+- 월 정산서 = `clientId=지사 가상 Client` 로 묶은 `SalesLedger` 집계 뷰 (PDF 출력)
+- 회계 단일 모델 유지 → 연결결산 시 `isIntercompany=true` 항목을 elimination
+
+### 4.8 추가 격리 대상 테이블 (§13.1 백엔드 보강)
+
+| 테이블 | 변경 | 사유 |
+|---|---|---|
+| `AuditLog` | `branchId` 추가 (nullable) | 지사별 감사 추적, 내부통제 |
+| `OrderFile` | `branchId` 추가 (Order 통해 파생) | B2 다운로드 권한 검증 시 직접 인덱싱 |
+| `Coupon`/`Promotion` | `branchId` nullable 추가 | 본사 전사 쿠폰 + 지사 한정 쿠폰 병행 |
+| `Holiday`/`DeliveryFee`/`SystemSetting` | 미추가 | 전사 공통 정책 |
+
+### 4.9 마이그레이션 영향 테이블 요약 (최종)
+
+| 테이블 | 변경 | 마이그레이션 ID |
+|---|---|---|
+| `branches` | 컬럼 다수 추가 (사업자/PG/정산/브랜딩) | BR-1 |
+| `clients` | `branchId` 추가 (nullable) | BR-2 |
+| `orders` | `branchId` NOT NULL + `orderType`/`internalOrderType`/`requesterBranchId`/`isIntercompany`/`counterpartyBranchId` | BR-3 |
+| `order_items` | 단가 스냅샷 3필드 (`standardUnitPrice`/`appliedUnitPrice`/`discountReason`) | BR-3a |
+| `products` | `branchId` 추가 (nullable) | BR-3b |
+| `staff` | `role` enum 확장 (boolean 3종 미추가) | BR-4 |
+| `sales_ledgers` / `purchase_ledgers` | `branchId`/`isIntercompany`/`counterpartyBranchId` 추가 | BR-5 |
+| `audit_logs` | `branchId` 추가 (nullable) | BR-6 |
+| `order_files` | `branchId` 추가 | BR-7 |
+| ~~`branch_invoices` / `branch_invoice_items`~~ | **삭제** — `SalesLedger`/`PurchaseLedger` 재활용 | — |
 
 ---
 
@@ -306,10 +347,32 @@ if (sub && sub !== 'photocafe' && sub !== 'www' && sub !== 'api') {
 - React Server Component / Layout 에서 `headers()` 로 읽어 `BranchProvider` 컨텍스트에 주입
 - 로고/색상/푸터 SSR 렌더링
 
-### 5.3 API 측
-- 로그인 시 JWT 에 `branchId`, `role` 포함
-- `BranchScopeInterceptor` 가 controller 진입 직전 `req.branchId` 세팅
-- 다운로드 엔드포인트는 `Order.branchId === req.branchId` 체크 후 B2 프리사인드 URL 발급
+### 5.3 API 측 — 3중 방어선 (§13.3 보안 보강)
+
+> 단일 인터셉터에만 의존하면 신규 컨트롤러 누락 시 전 지사 데이터 유출 위험. **3중 방어선** 을 Phase 1 필수 산출물로 둔다.
+
+1. **DB 계층 — PostgreSQL Row-Level Security (RLS)**
+   - 모든 `branchId` 컬럼 테이블에 RLS 정책 적용
+   - Prisma `$extends` 미들웨어가 트랜잭션 시작 시 `SET LOCAL app.current_branch_id = '<jwt.branchId>'` 자동 주입
+   - 슈퍼관리자는 `SET LOCAL app.bypass_branch_scope = true` 로 우회
+
+2. **애플리케이션 계층 — 데코레이터 강제**
+   - `BranchScopeInterceptor` + `@RequireBranchScope()` 데코레이터를 모든 보호 컨트롤러에 부착
+   - **부팅 시 정적 검증** — 데코레이터 미부착 핸들러 검출 시 기동 실패 (NestJS `OnModuleInit` 또는 빌드 단계 ESLint 룰)
+
+3. **신원 계층 — JWT 단일 권위**
+   - 로그인 시 JWT 에 `branchId`, `role` 포함 (RS256 서명, 키 로테이션)
+   - host 서브도메인은 표시용일 뿐. 인가는 **JWT `branchId` 만이 SoT**
+   - `host.subdomain ≠ jwt.branchId` 시 403 + `AuditLog.severity=high` 기록 + 운영자 알림
+
+**다운로드 엔드포인트 (이미지 원본)**:
+- 발급 직전 `Order.branchId === req.branchId` 검증을 트랜잭션 내부 `SELECT ... FOR UPDATE` 또는 RLS 로 race condition 차단
+- B2 프리사인드 URL: **TTL 60초 + 1회용 JTI 토큰**, 발급 후 즉시 무효화 로그
+- 권한 없는 접근은 **404** (존재 자체 은닉, 403 아님)
+
+**PG 시크릿**:
+- `Branch.pgApiKeyEncrypted` 는 **KMS envelope encryption** 으로만 저장 (AWS KMS / GCP KMS / Railway Shared Variables)
+- DB 컬럼은 `ciphertext + keyId` 만, 메모리에서만 복호화. 평문 컬럼 절대 금지.
 
 ### 5.4 가입 플로우
 ```
