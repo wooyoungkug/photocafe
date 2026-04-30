@@ -461,7 +461,6 @@ export class OrderService {
               totalPrice: true,
               originalsDeleted: true,
               pdfStatus: true,
-              specification: { select: { nup: true } },
               files: {
                 select: {
                   thumbnailUrl: true,
@@ -571,10 +570,7 @@ export class OrderService {
         items: order.items.map((item: any) => ({
           ...item,
           originalFileCount: originalCountMap.get(item.id) || 0,
-          nup: item.specification?.nup
-            || sizeNupMap.get(item.size)
-            || sizeNupMap.get(normalizeSize(item.size || ''))
-            || null,
+          nup: sizeNupMap.get(item.size) || sizeNupMap.get(normalizeSize(item.size || '')) || null,
         })),
         processHistory: order.processHistory?.map(h => ({
           ...h,
