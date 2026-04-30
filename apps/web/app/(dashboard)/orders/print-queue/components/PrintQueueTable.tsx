@@ -170,7 +170,7 @@ export default function PrintQueueTable({
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   <div className="text-center">{item.studioName}</div>
                   {item.salesRep && (
-                    <div className="text-[12px] text-gray-500 text-center">{item.salesRep}</div>
+                    <div className="text-[14px] text-black text-center">{item.salesRep}</div>
                   )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
@@ -181,7 +181,7 @@ export default function PrintQueueTable({
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : '-'}</div>
-                  <div className="text-[12px] text-gray-500">
+                  <div className="text-[12px] text-black">
                     {(() => {
                       const labels: Record<string, string> = {
                         LEFT_START_RIGHT_END: '좌시우끝',
@@ -195,7 +195,7 @@ export default function PrintQueueTable({
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pages ?? '-'}p</div>
-                  <div className={`${(item.quantity ?? 1) > 1 ? 'text-[14px] text-red-600 font-bold' : 'text-[12px] text-black'}`}>{item.quantity ?? 1}부</div>
+                  <div className={`${(item.quantity ?? 1) > 1 ? 'text-[14px] text-black font-bold' : 'text-[12px] text-black'}`}>{item.quantity ?? 1}부</div>
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
                   {item.paper || <span className="text-red-600">미설정</span>}
