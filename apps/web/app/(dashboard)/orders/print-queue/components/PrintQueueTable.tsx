@@ -243,7 +243,7 @@ export default function PrintQueueTable({
                     const canOpenPdf = status === 'completed' && (item as any).hasPdf;
                     const pdfUrl = `${API_URL}/print-pdf/items/${item.id}/pdf`;
                     const badge = (
-                      <Badge variant="ghost" className={`text-[13px] px-2 py-0.5 border-0 shadow-none ${s.className}${canOpenPdf ? ' cursor-pointer hover:underline' : ''}`}>
+                      <Badge variant="ghost" className={`text-[13px] font-normal px-2 py-0.5 border-0 shadow-none ${s.className}${canOpenPdf ? ' cursor-pointer hover:underline' : ''}`}>
                         {s.label}
                       </Badge>
                     );
