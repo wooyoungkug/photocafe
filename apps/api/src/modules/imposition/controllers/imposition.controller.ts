@@ -512,6 +512,7 @@ export class ImpositionController {
         nup: nupText,
         outputPath: autoSavedPath ?? imagePdfPath ?? '',
         printMethod: item.printMethod ?? undefined,
+        orderItemId: item.id,
       }).catch((err: any) => {
         // 슬립 인쇄 실패는 응답에 영향 없음 (이미 logger.error 호출됨)
       });

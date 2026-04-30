@@ -7,6 +7,7 @@ import {
   Query,
   Res,
   NotFoundException,
+  UnauthorizedException,
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -15,7 +16,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
 import { PrintPdfService } from '../services/print-pdf.service';
+import { PrintPdfSlipPrinterService } from '../services/print-pdf-slip-printer.service';
 import { GeneratePrintPdfDto, PrintQueueQueryDto } from '../dto/print-pdf.dto';
+import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('인쇄용 PDF 변환')
 @ApiBearerAuth()
@@ -23,7 +26,10 @@ import { GeneratePrintPdfDto, PrintQueueQueryDto } from '../dto/print-pdf.dto';
 export class PrintPdfController {
   private readonly logger = new Logger(PrintPdfController.name);
 
-  constructor(private readonly printPdfService: PrintPdfService) {}
+  constructor(
+    private readonly printPdfService: PrintPdfService,
+    private readonly slipPrinterService: PrintPdfSlipPrinterService,
+  ) {}
 
   @Get('printers')
   @ApiOperation({ summary: '설치된 프린터 목록 조회' })
@@ -62,6 +68,19 @@ export class PrintPdfController {
   @Get('queue/:orderItemId')
   @ApiOperation({ summary: '출력대기 항목 상세 (파일목록 포함)' })
   async getQueueItemDetail(@Param('orderItemId') orderItemId: string) {
+    return this.printPdfService.getQueueItemDetail(orderItemId);
+  }
+
+  @Public()
+  @Get('queue/:orderItemId/slip-data')
+  @ApiOperation({ summary: '슬립 인쇄용 공개 데이터 (1회용 printToken 필요)' })
+  async getSlipDataPublic(
+    @Param('orderItemId') orderItemId: string,
+    @Query('printToken') printToken: string,
+  ) {
+    if (!printToken || !this.slipPrinterService.validatePrintToken(printToken, orderItemId)) {
+      throw new UnauthorizedException('유효하지 않은 인쇄 토큰입니다.');
+    }
     return this.printPdfService.getQueueItemDetail(orderItemId);
   }
 

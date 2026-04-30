@@ -165,10 +165,12 @@ export function usePrintQueue(params?: {
   });
 }
 
-export function usePrintQueueItemDetail(orderItemId: string | null) {
+export function usePrintQueueItemDetail(orderItemId: string | null, printToken?: string) {
   return useQuery({
-    queryKey: ['print-queue-item', orderItemId],
-    queryFn: () => api.get(`/print-pdf/queue/${orderItemId}`),
+    queryKey: ['print-queue-item', orderItemId, printToken],
+    queryFn: () => printToken
+      ? api.get(`/print-pdf/queue/${orderItemId}/slip-data?printToken=${printToken}`)
+      : api.get(`/print-pdf/queue/${orderItemId}`),
     enabled: !!orderItemId,
   });
 }

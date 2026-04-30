@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { usePrintQueueItemDetail } from '@/hooks/use-print-pdf';
 import { Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -85,7 +85,9 @@ function ThumbnailGrid({
 
 export default function PrintSlipPage() {
   const { orderItemId } = useParams<{ orderItemId: string }>();
-  const { data, isLoading, isError } = usePrintQueueItemDetail(orderItemId);
+  const searchParams = useSearchParams();
+  const printToken = searchParams.get('printToken') ?? undefined;
+  const { data, isLoading, isError } = usePrintQueueItemDetail(orderItemId, printToken);
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen text-[14px] text-black">로딩 중...</div>;

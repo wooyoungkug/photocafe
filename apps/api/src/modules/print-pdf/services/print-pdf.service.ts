@@ -1063,6 +1063,7 @@ export class PrintPdfService implements OnModuleInit {
           nup: `${nupCountEarly}up`,
           outputPath,
           printMethod: item.printMethod || 'indigo',
+          orderItemId,
         })
         .catch((err: any) => { this.logger.error(`슬립 인쇄 실패 (${item.order.orderNumber}): ${err?.message}`); });
     } catch (err: any) {

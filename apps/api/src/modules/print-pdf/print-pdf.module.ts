@@ -19,6 +19,6 @@ import { UploadModule } from '../upload/upload.module';
     PrintPdfAutoConvertService,
     PrintPdfSlipPrinterService,
   ],
-  exports: [PrintPdfService],
+  exports: [PrintPdfService, PrintPdfSlipPrinterService],
 })
 export class PrintPdfModule {}
