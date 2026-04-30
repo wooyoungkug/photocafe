@@ -194,7 +194,7 @@ export default function PrintSlipPage() {
               <div className="flex items-center gap-4">
                 <span className="text-[10pt] text-gray-500">스튜디오</span>
                 <span className="font-bold text-[10pt]">{client.clientName || '-'}</span>
-                {d.salesRep && <><span className="text-[10pt] text-gray-500">영업담당</span><span className="text-[10pt] text-black">{d.salesRep}</span></>}
+                {d.salesRep && <><span className="text-[10pt] text-gray-500">CS담당</span><span className="text-[10pt] text-black">{d.salesRep}</span></>}
               </div>
             </div>
             {/* 동판 이미지 */}
