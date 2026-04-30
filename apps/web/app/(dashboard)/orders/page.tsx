@@ -713,29 +713,27 @@ export default function OrderListPage() {
                               const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
                               const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
                               const pdfUrl = `${API_URL}/print-pdf/items/${first.id}/pdf`;
-                              const badge = (
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    'text-[13px] font-normal px-2 py-0.5',
-                                    badgeInfo.className,
-                                    canOpenPdf && 'cursor-pointer hover:underline',
-                                  )}
-                                >
+                              const textColorClass = badgeInfo.className.split(' ').filter(c => c.startsWith('text-')).join(' ');
+                              const pdfText = (
+                                <span className={cn('text-[13px] font-normal whitespace-nowrap', textColorClass, canOpenPdf && 'cursor-pointer hover:underline')}>
                                   {badgeInfo.label}
-                                </Badge>
+                                </span>
                               );
-                              return canOpenPdf ? (
-                                <a
-                                  href={pdfUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="새 탭에서 PDF 열기"
-                                >
-                                  {badge}
-                                </a>
-                              ) : (
-                                badge
+                              return (
+                                <div className="space-y-1">
+                                  {canOpenPdf ? (
+                                    <a href={pdfUrl} target="_blank" rel="noopener noreferrer" title="새 탭에서 PDF 열기">
+                                      {pdfText}
+                                    </a>
+                                  ) : (
+                                    pdfText
+                                  )}
+                                  <div>
+                                    <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-600 hover:underline">
+                                      지시서
+                                    </a>
+                                  </div>
+                                </div>
                               );
                             })()}
                           </TableCell>
