@@ -172,7 +172,8 @@
 }
 .thumb-filename {
   font-size: 8px; color: #0000ff; line-height: 1.3;
-  word-break: break-all; margin-top: 2px; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-top: 2px; text-align: center;
 }
 
 /* 표(테이블) 영역 토큰 — 시멘틱 th/td + ARIA grid 셀 모두 적용

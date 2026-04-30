@@ -75,7 +75,7 @@ function ThumbnailGrid({
               )}
               <span className="thumb-page-label">{pageLabel}</span>
             </div>
-            <span className="thumb-filename">{file.fileName || ''}</span>
+            <span className="thumb-filename block w-full truncate">{file.fileName || ''}</span>
           </div>
         );
       })}
