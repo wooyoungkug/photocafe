@@ -406,18 +406,22 @@ export function CopperPlateTab({ clientId, clientName }: CopperPlateTabProps) {
   const getFullImageUrl = (url: string | null | undefined): string | null => {
     if (!url) return null;
 
-    // 중복된 /api/v1/ 경로 수정 (데이터베이스에 잘못 저장된 경우)
-    let cleanUrl = url.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+    // 중복 /api/v1/ 정리
+    let cleanUrl = url
+      .replace(/\/api\/v1\/api\/v1\//g, '/api/v1/')
+      .replace(/^\/api\/v1\//, '/');
 
-    // /api/v1/로 시작하는 경로 정규화 (항상 /api/v1/ 제거)
-    cleanUrl = cleanUrl.replace(/^\/api\/v1\//, '/');
-
-    // 이미 전체 URL인 경우 - /api/v1/ 중복 제거 후 반환
+    // 절대 URL에서 /api/v1/uploads/ → /uploads/ 로 변환 (Next.js 프록시 경유)
     if (cleanUrl.startsWith('http://') || cleanUrl.startsWith('https://')) {
-      return cleanUrl.replace(/\/api\/v1\/api\/v1\//g, '/api/v1/');
+      return cleanUrl.replace(/^https?:\/\/[^/]+\/api\/v1\/(uploads\/)/, '/$1');
     }
 
-    // 상대 경로인 경우 API Base URL 붙이기 (api/v1 포함)
+    // /uploads/ 상대경로 → Next.js rewrites 가 api/v1/upload/serve/:path* 로 프록시
+    if (cleanUrl.startsWith('/uploads/') || cleanUrl.startsWith('uploads/')) {
+      return cleanUrl.startsWith('/') ? cleanUrl : `/${cleanUrl}`;
+    }
+
+    // 기타 상대경로 — API Base URL 붙이기
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
     return `${apiUrl}${cleanUrl.startsWith('/') ? '' : '/'}${cleanUrl}`;
   };
