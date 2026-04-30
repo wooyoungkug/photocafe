@@ -107,6 +107,10 @@
 .fs-menu-mega-header { font-size: var(--fs-menu-mega-header, 12px); }
 .fs-pin { font-size: var(--fs-pin, 14px); }
 
+/* 긴급 키워드 강조 — 작업지시서 폴더명 */
+.urgent-keyword-20pt { color: #dc2626; font-weight: bold; font-size: 23pt; }
+.urgent-keyword-11px { color: #dc2626; font-weight: bold; font-size: 15px; }
+
 /* 표(테이블) 영역 토큰 — 시멘틱 th/td + ARIA grid 셀 모두 적용
    !important 사용 이유: 페이지마다 박혀 있는 .text-xs/.text-sm Tailwind 클래스가
    th/td 요소 선택자보다 우선이라, 사용자 설정값이 묻혀버리는 문제 방지. */
