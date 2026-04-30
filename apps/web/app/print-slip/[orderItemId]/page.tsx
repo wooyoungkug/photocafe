@@ -208,8 +208,8 @@ export default function PrintSlipPage() {
                   <>
                     <span className="text-[10pt] text-gray-500">CS담당</span>
                     <span className="text-[10pt] text-black">{d.salesRep}</span>
-                    {(d as any).salesRepPhone && (
-                      <span className="text-[10pt] text-gray-600 ml-1">{(d as any).salesRepPhone}</span>
+                    {d.salesRepPhone && (
+                      <span className="text-[10pt] text-gray-600 ml-1">{d.salesRepPhone}</span>
                     )}
                   </>
                 )}
