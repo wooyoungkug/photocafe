@@ -719,7 +719,8 @@ export function OrderQuickEditDialog({
         edit.printSide !== (item.printSide || undefined) ||
         edit.fileSpecId !== (item.fileSpecId || undefined) ||
         edit.bindingType !== (item.bindingType || undefined) ||
-        finishingsDiffer(edit.finishingOptions, item.finishingOptions)
+        finishingsDiffer(edit.finishingOptions, item.finishingOptions) ||
+        edit.folderName !== (item.folderName || undefined)
       );
     });
   };
@@ -780,7 +781,8 @@ export function OrderQuickEditDialog({
           edit.printSide !== (item.printSide || undefined) ||
           edit.fileSpecId !== (item.fileSpecId || undefined) ||
           edit.bindingType !== (item.bindingType || undefined) ||
-          finishingsDiffer(edit.finishingOptions, item.finishingOptions)
+          finishingsDiffer(edit.finishingOptions, item.finishingOptions) ||
+          edit.folderName !== (item.folderName || undefined)
         );
       })
       .map((item) => ({
@@ -800,6 +802,7 @@ export function OrderQuickEditDialog({
         fileSpecId: itemEdits[item.id].fileSpecId,
         bindingType: itemEdits[item.id].bindingType,
         finishingOptions: itemEdits[item.id].finishingOptions,
+        folderName: itemEdits[item.id].folderName,
       }));
 
   // 실제 백엔드 저장 호출 (재출력 인터셉트 통과 후 또는 일반 상태에서)
@@ -1038,11 +1041,19 @@ export function OrderQuickEditDialog({
                     {/* Card Header - folder name & specs */}
                     <div className="bg-gray-50 px-4 py-3 border-b">
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <FolderOpen className="h-4 w-4 text-blue-600 shrink-0" />
-                          <span className="font-semibold text-sm truncate">
-                            {item.folderName || item.productName}
-                          </span>
+                          <Input
+                            value={edit.folderName ?? ''}
+                            onChange={(e) =>
+                              setItemEdits((prev) => ({
+                                ...prev,
+                                [item.id]: { ...(prev[item.id] ?? { quantity: item.quantity, unitPrice: Number(item.unitPrice) }), folderName: e.target.value },
+                              }))
+                            }
+                            className="font-semibold text-[14px] h-7 px-2 bg-white/70 border-gray-200 hover:border-gray-400 focus:bg-white min-w-0 flex-1"
+                            placeholder={item.productName || '폴더명 입력'}
+                          />
                           {itemIndex > 0 && (
                             <Badge
                               variant="outline"
