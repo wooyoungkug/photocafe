@@ -131,6 +131,9 @@ export class PrintPdfService implements OnModuleInit {
                 take: 1,
                 select: { staff: { select: { name: true } } },
               },
+              assignedStaffMember: {
+                select: { name: true },
+              },
             },
           },
           items: {
@@ -198,7 +201,9 @@ export class PrintPdfService implements OnModuleInit {
             orderNumber: order.orderNumber,
             isUrgent: order.isUrgent,
             studioName: order.client?.clientName || '-',
-            salesRep: (order.client as any)?.assignedStaff?.[0]?.staff?.name || '',
+            salesRep: (order.client as any)?.assignedStaff?.[0]?.staff?.name
+              || (order.client as any)?.assignedStaffMember?.name
+              || '',
             quantity: item.quantity ?? 1,
             clientId: order.client?.id,
             productionNumber: item.productionNumber,
@@ -615,6 +620,9 @@ export class PrintPdfService implements OnModuleInit {
                     take: 1,
                     include: { staff: { select: { name: true } } },
                   },
+                  assignedStaffMember: {
+                    select: { name: true },
+                  },
                 },
               },
             },
@@ -732,7 +740,9 @@ export class PrintPdfService implements OnModuleInit {
         nup: specData.nup || '1up',
         side: String(item.printSide || '').toLowerCase() === 'double' ? '양면' : '단면',
         imageArea: `${Math.round(imgAreaWMm)}×${Math.round(imgAreaHMm)}`,
-        salesRep: (item.order.client as any)?.assignedStaff?.[0]?.staff?.name || '',
+        salesRep: (item.order.client as any)?.assignedStaff?.[0]?.staff?.name
+              || (item.order.client as any)?.assignedStaffMember?.name
+              || '',
       };
 
       // 파일 준비: originalPath(디스크) 또는 fileUrl(base64/URL) 사용
