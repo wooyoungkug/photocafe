@@ -27,6 +27,7 @@ export interface PrintQueueItem {
   requestedDeliveryDate?: string;
   pdfStatus?: 'pending' | 'in_progress' | 'completed' | 'failed';
   salesRep?: string;
+  quantity?: number;
   pageLayout?: string;
   bindingDirection?: string;
   printSide?: string;

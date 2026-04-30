@@ -129,7 +129,7 @@ export class PrintPdfService implements OnModuleInit {
               assignedStaff: {
                 where: { isPrimary: true },
                 take: 1,
-                include: { staff: { select: { name: true } } },
+                select: { staff: { select: { name: true } } },
               },
             },
           },
@@ -199,6 +199,7 @@ export class PrintPdfService implements OnModuleInit {
             isUrgent: order.isUrgent,
             studioName: order.client?.clientName || '-',
             salesRep: (order.client as any)?.assignedStaff?.[0]?.staff?.name || '',
+            quantity: item.quantity ?? 1,
             clientId: order.client?.id,
             productionNumber: item.productionNumber,
             productName: item.productName,
