@@ -135,6 +135,7 @@ export default function PrintQueueTable({
             <TableHead className="text-[14px] text-black font-normal">주문번호/스튜디오</TableHead>
             <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
             <TableHead className="text-[14px] text-black font-normal">규격</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">편집스타일<br/>제본순서</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">Page(파일수)</TableHead>
             <TableHead className="text-[14px] text-black font-normal">용지</TableHead>
             <TableHead className="text-[14px] text-black font-normal">제본</TableHead>
@@ -179,6 +180,20 @@ export default function PrintQueueTable({
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
                   {item.size?.replace(/인치$/,'') || '-'}
+                </TableCell>
+                <TableCell className="text-center text-[14px] text-black font-normal">
+                  <div>{item.pageLayout === 'spread' ? '펼침면' : item.pageLayout === 'single' ? '낱장' : '-'}</div>
+                  <div className="text-[12px] text-gray-500">
+                    {(() => {
+                      const labels: Record<string, string> = {
+                        LEFT_START_RIGHT_END: '좌시우끝',
+                        LEFT_START_LEFT_END: '좌시좌끝',
+                        RIGHT_START_LEFT_END: '우시좌끝',
+                        RIGHT_START_RIGHT_END: '우시우끝',
+                      };
+                      return item.bindingDirection ? (labels[item.bindingDirection] || item.bindingDirection) : '';
+                    })()}
+                  </div>
                 </TableCell>
                 <TableCell className="text-center text-[14px] text-black font-normal">
                   <div>{item.pages ?? '-'}({item.fileCount ?? '-'})</div>
