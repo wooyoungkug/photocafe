@@ -122,7 +122,17 @@ export class PrintPdfService implements OnModuleInit {
       this.prisma.order.findMany({
         where,
         include: {
-          client: { select: { id: true, clientName: true } },
+          client: {
+            select: {
+              id: true,
+              clientName: true,
+              assignedStaff: {
+                where: { isPrimary: true },
+                take: 1,
+                include: { staff: { select: { name: true } } },
+              },
+            },
+          },
           items: {
             include: {
               files: { orderBy: { sortOrder: 'asc' } },
@@ -188,6 +198,7 @@ export class PrintPdfService implements OnModuleInit {
             orderNumber: order.orderNumber,
             isUrgent: order.isUrgent,
             studioName: order.client?.clientName || '-',
+            salesRep: (order.client as any)?.assignedStaff?.[0]?.staff?.name || '',
             clientId: order.client?.id,
             productionNumber: item.productionNumber,
             productName: item.productName,

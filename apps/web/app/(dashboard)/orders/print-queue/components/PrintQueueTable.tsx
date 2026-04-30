@@ -131,7 +131,8 @@ export default function PrintQueueTable({
             <TableHead className="w-10">
               <Checkbox checked={allSelected} onCheckedChange={toggleAll} />
             </TableHead>
-            <TableHead className="text-[14px] text-black font-normal">주문번호/스튜디오</TableHead>
+            <TableHead className="text-[14px] text-black font-normal">주문번호</TableHead>
+            <TableHead className="text-center text-[14px] text-black font-normal">스튜디오<br/>영업담당자</TableHead>
             <TableHead className="text-[14px] text-black font-normal">상품/폴더</TableHead>
             <TableHead className="text-[14px] text-black font-normal">규격</TableHead>
             <TableHead className="text-center text-[14px] text-black font-normal">편집스타일<br/>제본순서</TableHead>
@@ -165,7 +166,12 @@ export default function PrintQueueTable({
                   >
                     {item.orderNumber}
                   </button>
-                  <span className="text-black ml-1.5">{item.studioName}</span>
+                </TableCell>
+                <TableCell className="text-[14px] text-black font-normal whitespace-nowrap">
+                  <div className="text-center">{item.studioName}</div>
+                  {item.salesRep && (
+                    <div className="text-[12px] text-gray-500 text-center">{item.salesRep}</div>
+                  )}
                 </TableCell>
                 <TableCell className="text-[14px] text-black font-normal">
                   {item.folderName || item.productName || '-'}
