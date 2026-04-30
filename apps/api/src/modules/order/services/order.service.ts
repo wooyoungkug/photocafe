@@ -542,6 +542,20 @@ export class OrderService {
       originalFileCounts.map(r => [r.orderItemId, r._count]),
     );
 
+    // 규격명 → nup 조회 (specificationId FK가 없는 아이템을 위한 size 이름 기반 fallback)
+    const normalizeSize = (s: string) => s.replace(/[×✕]/g, 'x').replace(/인치$/, '').trim();
+    const sizeSet = new Set<string>();
+    data.forEach(order => order.items.forEach((item: any) => {
+      if (item.size) { sizeSet.add(item.size); sizeSet.add(normalizeSize(item.size)); }
+    }));
+    const specNupRows = sizeSet.size > 0
+      ? await this.prisma.specification.findMany({
+          where: { name: { in: Array.from(sizeSet) } },
+          select: { name: true, nup: true },
+        })
+      : [];
+    const sizeNupMap = new Map(specNupRows.map(s => [s.name, s.nup]));
+
     const enrichedData = data.map(order => {
       const client = order.client as any;
       const managerId = client?.assignedManager as string | null | undefined;
@@ -554,9 +568,13 @@ export class OrderService {
           ...client,
           managerName: managerName || fallbackStaffName,
         },
-        items: order.items.map(item => ({
+        items: order.items.map((item: any) => ({
           ...item,
           originalFileCount: originalCountMap.get(item.id) || 0,
+          nup: item.specification?.nup
+            || sizeNupMap.get(item.size)
+            || sizeNupMap.get(normalizeSize(item.size || ''))
+            || null,
         })),
         processHistory: order.processHistory?.map(h => ({
           ...h,

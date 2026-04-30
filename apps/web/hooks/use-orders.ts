@@ -72,6 +72,7 @@ export interface OrderItem {
   colorIntentId?: string;
   printSide?: 'single' | 'double' | 'spread' | string;
   fileSpecId?: string;
+  nup?: string | null;
 }
 
 // 배송 정보 타입

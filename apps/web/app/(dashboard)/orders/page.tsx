@@ -574,7 +574,7 @@ export default function OrderListPage() {
                           </p>
                           {item.size && (
                             <p className="text-[11px] text-black leading-tight mt-0.5 text-center">
-                              {item.size.replace(/인치$/, '')}{(item as any).specification?.nup ? `(${(item as any).specification.nup})` : ''}
+                              {item.size.replace(/인치$/, '')}{item.nup ? `(${item.nup})` : ''}
                             </p>
                           )}
                         </TableCell>
