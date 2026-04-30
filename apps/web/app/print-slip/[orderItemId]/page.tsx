@@ -212,6 +212,9 @@ export default function PrintSlipPage() {
             </div>
             <div className="flex-1 flex flex-col justify-center gap-1">
               <div className="flex items-center gap-4">
+                <span className="text-[10pt] text-black font-normal">주문날자 : {orderDateLabel}</span>
+              </div>
+              <div className="flex items-center gap-4">
                 <span className="text-[10pt] text-gray-500">주문번호</span>
                 <span className="font-bold text-[10pt] tracking-widest">{order.orderNumber || '-'}</span>
               </div>
@@ -227,11 +230,6 @@ export default function PrintSlipPage() {
                     )}
                   </>
                 )}
-              </div>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="border border-green-600 text-green-700 font-bold text-[10pt] px-2 py-0.5 rounded">
-                  {orderDateLabel}
-                </span>
               </div>
             </div>
             <div className="w-16 h-16 border border-gray-300 rounded overflow-hidden shrink-0 bg-gray-50 flex items-center justify-center">
