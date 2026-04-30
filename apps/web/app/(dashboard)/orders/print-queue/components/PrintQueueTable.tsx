@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { FileText } from 'lucide-react';
 import { PrintQueueItem } from '@/hooks/use-print-pdf';
 import { useMatchImpositionBatch, MatchResult, BindingType } from '@/hooks/use-imposition';
 import { API_URL } from '@/lib/api';
@@ -284,6 +285,16 @@ export default function PrintQueueTable({
                             {item.warnings.length}건 누락
                           </span>
                         )}
+                        <a
+                          href={`/orders/print-queue/slip/${item.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="작업지시서 출력"
+                          className="inline-flex items-center gap-1 text-[11px] text-gray-600 hover:text-gray-900 border border-gray-300 rounded px-1.5 py-0.5 hover:bg-gray-50 mt-0.5"
+                        >
+                          <FileText className="h-3 w-3" />
+                          지시서
+                        </a>
                       </div>
                     );
                   })()}

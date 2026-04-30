@@ -295,7 +295,19 @@ export class PrintPdfService implements OnModuleInit {
         files: { orderBy: { sortOrder: 'asc' } },
         order: {
           include: {
-            client: { select: { id: true, clientName: true } },
+            client: {
+              select: {
+                id: true,
+                clientName: true,
+                assignedManager: true,
+                assignedStaff: {
+                  where: { isPrimary: true },
+                  take: 1,
+                  select: { staff: { select: { name: true } } },
+                },
+                assignedStaffMember: { select: { name: true } },
+              },
+            },
           },
         },
       },
@@ -305,7 +317,20 @@ export class PrintPdfService implements OnModuleInit {
       throw new NotFoundException('주문 항목을 찾을 수 없습니다.');
     }
 
-    return item;
+    let salesRep = '';
+    const managerId = (item.order.client as any)?.assignedManager as string | undefined;
+    if (managerId) {
+      const s = await this.prisma.staff.findUnique({ where: { id: managerId }, select: { name: true } });
+      salesRep = s?.name || '';
+    }
+    if (!salesRep) {
+      salesRep =
+        (item.order.client as any)?.assignedStaff?.[0]?.staff?.name ||
+        (item.order.client as any)?.assignedStaffMember?.name ||
+        '';
+    }
+
+    return { ...item, salesRep };
   }
 
   /**
