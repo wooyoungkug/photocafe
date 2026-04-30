@@ -224,16 +224,16 @@ export default function PrintQueueTable({
                     const status = item.pdfStatus || 'pending';
                     const isInkjet = (item.printMethod || '').toLowerCase().includes('inkjet');
                     const indigoMap: Record<string, { label: string; className: string }> = {
-                      pending: { label: 'PDF변환대기', className: 'bg-gray-100 text-black' },
-                      in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
-                      completed: { label: 'PDF변환성공', className: 'bg-green-100 text-black' },
-                      failed: { label: '변환에러', className: 'bg-red-100 text-red-600' },
+                      pending: { label: 'PDF변환대기', className: 'text-black' },
+                      in_progress: { label: '변환중', className: 'text-blue-600' },
+                      completed: { label: 'PDF변환성공', className: 'text-green-600' },
+                      failed: { label: '변환에러', className: 'text-red-600' },
                     };
                     const inkjetMap: Record<string, { label: string; className: string }> = {
-                      pending: { label: '데이타대기', className: 'bg-gray-100 text-black' },
-                      in_progress: { label: '생성중', className: 'bg-blue-100 text-black' },
-                      completed: { label: '출력데이타생성', className: 'bg-green-100 text-black' },
-                      failed: { label: '데이터에러', className: 'bg-red-100 text-red-600' },
+                      pending: { label: '데이타대기', className: 'text-black' },
+                      in_progress: { label: '생성중', className: 'text-blue-600' },
+                      completed: { label: '출력데이타생성', className: 'text-green-600' },
+                      failed: { label: '데이터에러', className: 'text-red-600' },
                     };
                     const map = isInkjet ? inkjetMap : indigoMap;
                     const s = map[status] || map.pending;
@@ -243,7 +243,7 @@ export default function PrintQueueTable({
                     const canOpenPdf = status === 'completed' && (item as any).hasPdf;
                     const pdfUrl = `${API_URL}/print-pdf/items/${item.id}/pdf`;
                     const badge = (
-                      <Badge variant="outline" className={`text-[11px] px-2 py-0.5 ${s.className}${canOpenPdf ? ' cursor-pointer hover:underline' : ''}`}>
+                      <Badge variant="outline" className={`text-[13px] px-2 py-0.5 ${s.className}${canOpenPdf ? ' cursor-pointer hover:underline' : ''}`}>
                         {s.label}
                       </Badge>
                     );
