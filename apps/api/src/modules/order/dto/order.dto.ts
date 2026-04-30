@@ -870,6 +870,11 @@ export class AdjustOrderItemDto {
   @IsArray()
   @IsString({ each: true })
   finishingOptions?: string[];
+
+  @ApiPropertyOptional({ description: '폴더명 (주문항목 제목)' })
+  @IsOptional()
+  @IsString()
+  folderName?: string;
 }
 
 export class AdjustOrderDto {

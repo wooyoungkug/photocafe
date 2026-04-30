@@ -16,7 +16,7 @@ import { PrintQueueItem } from '@/hooks/use-print-pdf';
 import { useMatchImpositionBatch, MatchResult, BindingType } from '@/hooks/use-imposition';
 import { API_URL } from '@/lib/api';
 
-const URGENT_KEYWORDS = ['긴급', '지급', '즉시', '당일', '특급', '우선처리', '급처리', '촉급', '최급'];
+const URGENT_KEYWORDS = ['긴급', '지급', '즉시', '당일', '특급', '우선처리', '급처리', '촉급', '최급', '급건'];
 function hasUrgentKeyword(text: string) {
   return URGENT_KEYWORDS.some((kw) => text.includes(kw));
 }

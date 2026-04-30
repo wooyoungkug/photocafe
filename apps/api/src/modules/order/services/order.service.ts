@@ -1745,6 +1745,7 @@ export class OrderService {
               ...(update.fileSpecId !== undefined && { fileSpecId: update.fileSpecId }),
               ...(update.bindingType !== undefined && { bindingType: update.bindingType }),
               ...(update.finishingOptions !== undefined && { finishingOptions: update.finishingOptions }),
+              ...(update.folderName !== undefined && { folderName: update.folderName }),
             },
           });
         }

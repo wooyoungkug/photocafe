@@ -180,6 +180,7 @@ interface ItemEdit {
   finishingOptions?: string[];
   // 수동 단가 사용 여부 (false=auto: breakdown 계산값, true=admin 수동입력)
   manualUnitPrice?: boolean;
+  folderName?: string;
 }
 
 // ==================== ImageLightbox ====================
@@ -659,6 +660,7 @@ export function OrderQuickEditDialog({
           bindingType: item.bindingType || undefined,
           finishingOptions: item.finishingOptions || undefined,
           manualUnitPrice: false,
+          folderName: item.folderName || undefined,
         };
       });
       setItemEdits(edits);
