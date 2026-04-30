@@ -111,6 +111,20 @@
 .urgent-keyword-20pt { color: #dc2626; font-weight: bold; font-size: 23pt; }
 .urgent-keyword-11px { color: #dc2626; font-weight: bold; font-size: 15px; }
 
+/* 작업지시서 (print-slip) */
+#slip-area { width: 190mm; background: #fff; font-family: sans-serif; }
+.slip-barcode-canvas { max-width: 100%; height: auto; }
+.thumb-cell { position: relative; border: 1px solid #ccc; }
+.thumb-page-label {
+  position: absolute; bottom: 2px; right: 3px;
+  font-size: 10px; font-weight: bold; color: #ff0000;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff; line-height: 1;
+}
+.thumb-filename {
+  font-size: 8px; color: #0000ff; line-height: 1.3;
+  word-break: break-all; margin-top: 2px; text-align: center;
+}
+
 /* 표(테이블) 영역 토큰 — 시멘틱 th/td + ARIA grid 셀 모두 적용
    !important 사용 이유: 페이지마다 박혀 있는 .text-xs/.text-sm Tailwind 클래스가
    th/td 요소 선택자보다 우선이라, 사용자 설정값이 묻혀버리는 문제 방지. */
