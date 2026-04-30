@@ -177,7 +177,7 @@ export function useGeneratePrintPdf() {
 
   return useMutation({
     mutationFn: (data: GeneratePrintPdfRequest) =>
-      api.post<PdfJobProgress>('/print-pdf/generate', data),
+      api.post<PdfJobProgress>('/print-pdf/generate', data, { timeout: 300000 }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['print-queue'] });
     },
