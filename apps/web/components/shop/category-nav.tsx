@@ -152,6 +152,19 @@ export function CategoryNav() {
               </Link>
             </li>
           )}
+          <li>
+            <Link
+              href="/test"
+              className={cn(
+                "px-4 py-2 text-[14px] tracking-wider uppercase font-medium transition-colors",
+                pathname?.startsWith("/test")
+                  ? "text-gold"
+                  : "text-neutral-500 hover:text-neutral-900"
+              )}
+            >
+              테스트
+            </Link>
+          </li>
         </ul>
 
         {/* Mobile Navigation - Horizontal Scroll */}
@@ -212,6 +225,19 @@ export function CategoryNav() {
                 </Link>
               </li>
             )}
+            <li>
+              <Link
+                href="/test"
+                className={cn(
+                  "px-3 py-1 text-[11px] tracking-wider uppercase font-medium transition-colors whitespace-nowrap",
+                  pathname?.startsWith("/test")
+                    ? "text-gold border-b-2 border-gold"
+                    : "text-neutral-500 hover:text-neutral-900"
+                )}
+              >
+                테스트
+              </Link>
+            </li>
           </ul>
         </div>
       </div>
