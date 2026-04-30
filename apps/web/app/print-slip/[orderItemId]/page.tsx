@@ -37,7 +37,7 @@ function BarcodeCanvas({ value }: { value: string }) {
 
   useEffect(() => {
     if (!value || !canvasRef.current) return;
-    import('bwip-js').then((bwipjs) => {
+    import('bwip-js/browser').then((bwipjs) => {
       try {
         bwipjs.toCanvas(canvasRef.current!, {
           bcid: 'code128',
