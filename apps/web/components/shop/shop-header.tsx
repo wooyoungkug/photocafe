@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Search, ShoppingCart, User, Menu, Star, ClipboardList, BarChart3, MapPin, CreditCard, CalendarDays, Users } from 'lucide-react';
 import { useState } from 'react';
@@ -63,9 +64,14 @@ export function ShopHeader() {
 
             {/* Logo */}
             <Link href="/" className="flex items-center">
-              <span className="shop-heading text-xl md:text-2xl font-light tracking-tight text-neutral-900">
-                Photocafe
-              </span>
+              <Image
+                src="/images/photocafe_logo_transparent.png"
+                alt="Photocafe"
+                width={140}
+                height={40}
+                className="h-8 md:h-10 w-auto object-contain"
+                priority
+              />
             </Link>
 
             {/* Search Bar - Desktop */}
@@ -198,9 +204,13 @@ export function ShopHeader() {
             {/* 헤더 */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
-                <span className="text-xl font-light tracking-tight text-neutral-900">
-                  Photocafe
-                </span>
+                <Image
+                  src="/images/photocafe_logo_transparent.png"
+                  alt="Photocafe"
+                  width={120}
+                  height={34}
+                  className="h-8 w-auto object-contain"
+                />
               </Link>
             </div>
 
