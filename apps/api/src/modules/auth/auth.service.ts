@@ -1071,16 +1071,17 @@ export class AuthService {
       data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
+    const isOwner = employment.memberClientId === employment.companyClientId;
+
     const payload = {
       sub: client.id, email: client.email, type: 'employee', role: employment.role,
       clientId: employment.companyClientId, employmentId: employment.id,
+      isOwner,
       canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
       canViewSettlement: employment.canViewSettlement,
       canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
       enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
     };
-
-    const isOwner = employment.memberClientId === employment.companyClientId;
 
     return {
       accessToken: this.jwtService.sign(payload),
@@ -1122,17 +1123,18 @@ export class AuthService {
     }
 
     const client = targetEmployment.member;
+    const isOwner = targetEmployment.memberClientId === targetEmployment.companyClientId;
+
     const payload = {
       sub: client.id, email: client.email, type: 'employee', role: targetEmployment.role,
       clientId: targetEmployment.companyClientId, employmentId: targetEmployment.id,
+      isOwner,
       canViewAllOrders: targetEmployment.canViewAllOrders, canManageProducts: targetEmployment.canManageProducts,
       canViewSettlement: targetEmployment.canViewSettlement,
       canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
       enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment,
       impersonatedBy: requestorSub,
     };
-
-    const isOwner = targetEmployment.memberClientId === targetEmployment.companyClientId;
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),

@@ -24,8 +24,13 @@ export class ClientOwnerOrManagerGuard implements CanActivate {
       request.body?.clientId ||
       request.query?.clientId;
 
-    // 거래처 소유자: type==='client' && sub===clientId
+    // 거래처 소유자: 개인 로그인(type==='client')
     if (user.type === 'client' && user.sub === clientId) {
+      return true;
+    }
+
+    // 거래처 소유자: 회사 컨텍스트 로그인(type==='employee' && isOwner)
+    if (user.type === 'employee' && user.isOwner && user.clientId === clientId) {
       return true;
     }
 
