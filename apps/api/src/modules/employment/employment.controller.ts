@@ -150,9 +150,13 @@ export class EmploymentController {
     @Body() dto: UpdateEmploymentDto,
     @Request() req: any,
   ) {
-    const employment = await this.employmentService.getEmploymentById(id);
-    if (employment.memberClientId === req.user.sub) {
-      throw new ForbiddenException('자신의 권한은 수정할 수 없습니다.');
+    // 대리로그인(관리자 impersonation) 시에는 자기 권한 수정 제한 미적용
+    const isImpersonating = !!req.user.impersonatedBy;
+    if (!isImpersonating) {
+      const employment = await this.employmentService.getEmploymentById(id);
+      if (employment.memberClientId === req.user.sub) {
+        throw new ForbiddenException('자신의 권한은 수정할 수 없습니다.');
+      }
     }
     return this.employmentService.updateEmployment(id, dto);
   }
