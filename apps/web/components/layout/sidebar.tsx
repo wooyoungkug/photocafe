@@ -14,7 +14,6 @@ import {
   Headphones,
   Image as ImageIcon,
   Layers,
-  LayoutDashboard,
   CalendarDays,
   PenTool,
   PieChart,
@@ -70,12 +69,6 @@ const STORAGE_KEY = "sidebar-menu-order";
 const CHILDREN_STORAGE_KEY = "sidebar-children-order";
 
 const DEFAULT_NAVIGATION: NavItem[] = [
-  {
-    id: "dashboard",
-    name: "대시보드",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
   {
     id: "basic-info",
     name: "기초정보",
