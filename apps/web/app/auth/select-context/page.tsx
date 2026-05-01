@@ -256,10 +256,10 @@ export default function SelectContextPage() {
                   )}
                 </div>
                 <div className="text-left min-w-0">
-                  <div className="text-[12px] text-black font-medium truncate">
+                  <div className="text-[15px] text-black font-medium truncate">
                     {title}
                   </div>
-                  <div className="text-[11px] text-black font-normal opacity-60">
+                  <div className="text-[13px] text-black font-normal opacity-60">
                     {subtitle}
                   </div>
                 </div>
