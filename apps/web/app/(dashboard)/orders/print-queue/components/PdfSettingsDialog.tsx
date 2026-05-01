@@ -188,6 +188,12 @@ export default function PdfSettingsDialog({
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
   const [autoPrintNameInkjet, setAutoPrintNameInkjet] = useState('');
 
+  // 프린트 에이전트 상태 확인
+  useEffect(() => {
+    if (!open) return;
+    checkPrintAgentRunning().then(setAgentRunning);
+  }, [open]);
+
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
   useEffect(() => {
     restoreGlobalDirHandle().then((handle) => {
@@ -646,9 +652,30 @@ export default function PdfSettingsDialog({
 
               {autoPrintEnabled && (
                 <div className="space-y-3 pl-4">
-                  {printers.length === 0 && (
+                  {agentRunning === false && (
+                    <div className="text-[12px] bg-amber-50 border border-amber-200 px-3 py-2.5 rounded space-y-1.5">
+                      <p className="text-amber-700 font-medium">로컬 프린트 에이전트가 실행되지 않았습니다.</p>
+                      <p className="text-amber-600">
+                        PC에서 <span className="font-mono bg-amber-100 px-1 rounded">tools/print-agent/print-agent.js</span> 를 실행하면 프린터 목록을 불러올 수 있습니다.
+                      </p>
+                      <p className="text-amber-500">명령어: <span className="font-mono bg-amber-100 px-1 rounded">node tools/print-agent/print-agent.js</span></p>
+                      <button
+                        type="button"
+                        className="text-[11px] text-amber-700 underline"
+                        onClick={() => {
+                          checkPrintAgentRunning().then((ok) => {
+                            setAgentRunning(ok);
+                            if (ok) refetchPrinters();
+                          });
+                        }}
+                      >
+                        에이전트 연결 재시도
+                      </button>
+                    </div>
+                  )}
+                  {agentRunning === true && printers.length === 0 && (
                     <p className="text-[12px] text-amber-600 bg-amber-50 px-3 py-2 rounded">
-                      설치된 프린터를 찾을 수 없습니다. 프린터를 설치한 후 새로고침 해주세요.
+                      에이전트가 실행 중이지만 설치된 프린터가 없습니다.
                     </p>
                   )}
                   <div className="space-y-1.5">
