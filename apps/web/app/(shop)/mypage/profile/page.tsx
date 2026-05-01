@@ -192,6 +192,20 @@ export default function ProfilePage() {
     },
   });
 
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const leaveMutation = useMutation({
+    mutationFn: async () => {
+      return await api.delete('/employments/me');
+    },
+    onSuccess: () => {
+      logout();
+      router.push('/login');
+    },
+    onError: (error: any) => {
+      setError(error.message || '소속 해제에 실패했습니다.');
+    },
+  });
+
   const handleProfileUpdate = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');

@@ -19,6 +19,11 @@ export class ClientOwnerOrManagerGuard implements CanActivate {
       throw new ForbiddenException('인증이 필요합니다.');
     }
 
+    // 관리자(staff) 대리로그인 시 전체 접근 허용
+    if (user.type === 'staff' || user.role === 'admin') {
+      return true;
+    }
+
     const clientId =
       request.params.clientId ||
       request.body?.clientId ||

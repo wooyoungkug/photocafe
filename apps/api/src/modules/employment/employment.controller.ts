@@ -157,6 +157,18 @@ export class EmploymentController {
     return this.employmentService.updateEmployment(id, dto);
   }
 
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '본인 소속 해제 (직원 자기 탈퇴)' })
+  async removeSelf(@Request() req: any) {
+    const employmentId = req.user.employmentId;
+    if (!employmentId) {
+      throw new ForbiddenException('직원 계정만 소속 해제할 수 있습니다.');
+    }
+    return this.employmentService.removeEmployment(employmentId);
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

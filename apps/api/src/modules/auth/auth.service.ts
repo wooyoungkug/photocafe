@@ -551,7 +551,7 @@ export class AuthService {
     return {
       accessToken, refreshToken,
       user: {
-        id: client.id, email: client.email, name: client.clientName, role: 'client',
+        id: client.id, email: client.email, name: client.clientName, role: 'client', type: 'client',
         clientId: client.id, clientName: client.clientName, mobile: client.mobile,
         businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
@@ -1173,7 +1173,7 @@ export class AuthService {
       accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
       refreshToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
       user: {
-        id: client.id, email: client.email, name: client.clientName, role: 'client',
+        id: client.id, email: client.email, name: client.clientName, role: 'client', type: 'client',
         clientId: client.id, clientName: client.clientName, clientCode: client.clientCode,
         mobile: client.mobile, businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
