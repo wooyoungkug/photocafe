@@ -214,8 +214,8 @@ export class PrintPdfController {
     const fileName = result?.fileName || path.basename(pdfPath);
 
     const token = this.printPdfService.generateAgentDownloadToken(pdfPath, fileName);
-    const apiBase = process.env.API_URL || `https://api.photocafe.co.kr`;
-    return { downloadUrl: `${apiBase}/print-pdf/agent-dl?t=${token}`, fileName };
+    const apiBase = (process.env.API_URL || `https://api.photocafe.co.kr`).replace(/\/$/, '');
+    return { downloadUrl: `${apiBase}/api/v1/print-pdf/agent-dl?t=${token}`, fileName };
   }
 
   /** 에이전트용 토큰 기반 PDF 다운로드 (인증 불필요 — 토큰이 인증) */
