@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, Bell } from 'lucide-react';
+import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, Bell, LogOut } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -75,6 +83,8 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('');
   const [smsStages, setSmsStages] = useState<string[]>([]);
   const [notificationChannel, setNotificationChannel] = useState<'sms' | 'kakao'>('sms');
+  const [withdrawConfirmOpen, setWithdrawConfirmOpen] = useState(false);
+  const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -165,6 +175,20 @@ export default function ProfilePage() {
     onError: (error: any) => {
       setError(error.message || '비밀번호 변경에 실패했습니다.');
       setSuccess('');
+    },
+  });
+
+  const { logout } = useAuthStore();
+  const withdrawMutation = useMutation({
+    mutationFn: async () => {
+      return await api.delete('/auth/me');
+    },
+    onSuccess: () => {
+      logout();
+      router.push('/');
+    },
+    onError: (error: any) => {
+      setError(error.message || '회원 탈퇴에 실패했습니다.');
     },
   });
 

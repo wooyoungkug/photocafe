@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   UseGuards,
   Request,
@@ -614,5 +615,15 @@ export class AuthController {
       throw new ForbiddenException('직원 계정만 비밀번호를 초기화할 수 있습니다');
     }
     return this.authService.resetClientPassword(id);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '회원 탈퇴 (개인정보 익명화 처리)' })
+  async withdrawMe(@Request() req: any) {
+    const clientId = req.user.type === 'employee' ? req.user.clientId : req.user.sub;
+    if (!clientId) throw new ForbiddenException('회원 계정만 탈퇴할 수 있습니다');
+    return this.authService.withdrawClient(clientId);
   }
 }

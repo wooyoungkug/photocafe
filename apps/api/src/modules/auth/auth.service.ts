@@ -1197,4 +1197,56 @@ export class AuthService {
 
     return { success: true, message: '비밀번호가 1111로 초기화되었습니다' };
   }
+
+  // ========== 회원 탈퇴 (익명화 처리) ==========
+
+  async withdrawClient(clientId: string) {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new NotFoundException('회원을 찾을 수 없습니다');
+    if (client.status === 'withdrawn') throw new BadRequestException('이미 탈퇴한 회원입니다');
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. 개인정보 익명화 + 상태 변경 (주문/매출 데이터는 보존)
+      await tx.client.update({
+        where: { id: clientId },
+        data: {
+          clientName: '탈퇴회원',
+          email: null,
+          mobile: null,
+          phone: null,
+          postalCode: null,
+          address: null,
+          addressDetail: null,
+          representative: null,
+          businessNumber: null,
+          oauthProvider: null,
+          oauthId: null,
+          password: null,
+          profileImage: null,
+          adminMemo: null,
+          contactPerson: null,
+          contactPhone: null,
+          contactEmail: null,
+          practicalManagerName: null,
+          practicalManagerPhone: null,
+          approvalManagerName: null,
+          approvalManagerPhone: null,
+          status: 'withdrawn',
+          withdrawnAt: new Date(),
+        },
+      });
+
+      // 2. 소속 직원 관계 해제
+      await tx.employment.deleteMany({
+        where: { memberClientId: clientId },
+      });
+
+      // 3. 대기 중인 초대 취소
+      await tx.invitation.deleteMany({
+        where: { clientId, status: 'PENDING' },
+      });
+    });
+
+    return { success: true, message: '회원 탈퇴가 완료되었습니다' };
+  }
 }
