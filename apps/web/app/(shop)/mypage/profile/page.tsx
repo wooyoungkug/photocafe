@@ -635,21 +635,36 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* 회원 탈퇴 카드 */}
+      {/* 소속 해제 / 회원 탈퇴 카드 */}
       {isEmployee ? (
-        <Card className="border-gray-200">
+        <Card className="border-orange-100">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
-              <LogOut className="h-4 w-4 text-gray-400" />
+              <LogOut className="h-4 w-4 text-orange-500" />
               소속 해제
             </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              소속을 해제하면 {user?.clientName || '현재 회사'}의 직원 권한이 즉시 사라집니다.
+            </CardDescription>
           </CardHeader>
           <CardContent className="px-5 pb-5">
-            <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-[13px] text-gray-600">
-              소속 멤버는 직접 탈퇴할 수 없습니다.<br />
-              소속 해제가 필요하면 <strong>소속 회사 관리자</strong>에게 요청하세요.<br />
-              <span className="text-gray-400 text-[12px]">관리자: 마이페이지 → 직원 관리 → 내보내기</span>
+            <div className="bg-orange-50 border border-orange-100 rounded-md p-3 mb-4 text-[13px] text-orange-700 space-y-1">
+              <p className="font-medium">소속 해제 전 확인사항</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>해제 후 해당 회사의 주문·설정에 접근할 수 없습니다</li>
+                <li>개인 계정(이메일·주문내역)은 그대로 유지됩니다</li>
+                <li>재소속이 필요하면 회사 관리자에게 재초대를 요청하세요</li>
+              </ul>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+              onClick={() => setLeaveConfirmOpen(true)}
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1.5" />
+              소속 해제 신청
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -686,7 +701,41 @@ export default function ProfilePage() {
         </Card>
       )}
 
-      {/* 탈퇴 확인 모달 */}
+      {/* 소속 해제 확인 모달 */}
+      <Dialog open={leaveConfirmOpen} onOpenChange={setLeaveConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] font-bold flex items-center gap-2 text-orange-600">
+              <AlertCircle className="h-5 w-5" />
+              소속 해제 확인
+            </DialogTitle>
+            <DialogDescription className="text-[14px]">
+              <strong>{user?.clientName || '현재 회사'}</strong>의 직원 소속을 해제합니다.
+              해제 후에는 이 회사의 메뉴에 접근할 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLeaveConfirmOpen(false)}
+              disabled={leaveMutation.isPending}
+            >
+              취소
+            </Button>
+            <Button
+              size="sm"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              disabled={leaveMutation.isPending}
+              onClick={() => leaveMutation.mutate()}
+            >
+              {leaveMutation.isPending ? '처리 중...' : '소속 해제'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 회원 탈퇴 확인 모달 */}
       <Dialog open={withdrawConfirmOpen} onOpenChange={setWithdrawConfirmOpen}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
