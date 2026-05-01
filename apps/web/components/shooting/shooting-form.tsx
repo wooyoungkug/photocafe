@@ -533,8 +533,8 @@ export function ShootingForm({
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[14px] text-black font-normal">촬영파트너에도 동시 등록</p>
-              <p className="text-[12px] text-gray-500">
+              <p className="text-[15px] text-black font-normal">촬영파트너에도 동시 등록</p>
+              <p className="text-[13px] text-gray-500">
                 내부 작가 배정이 어려운 경우, 외부 작가 구인을 함께 등록합니다
               </p>
             </div>
