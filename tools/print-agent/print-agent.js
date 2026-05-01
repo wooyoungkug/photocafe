@@ -26,6 +26,7 @@ const ALLOWED_ORIGINS = [
 // ==================== 설정 파일 ====================
 
 const CONFIG_PATH = path.join(__dirname, 'print-agent-config.json');
+const SAVE_CONFIG_PATH = path.join(__dirname, 'agent-config.json');
 
 /** @type {{ watchEnabled: boolean, watchFolder: string, indigoPrinter: string, inkjetPrinter: string, printedFiles: string[] }} */
 let config = {
@@ -35,6 +36,30 @@ let config = {
   inkjetPrinter: '',
   printedFiles: [],
 };
+
+/** @type {{ savePath: string }} */
+let saveConfigData = {
+  savePath: '',
+};
+
+function loadSaveConfig() {
+  try {
+    if (fs.existsSync(SAVE_CONFIG_PATH)) {
+      const raw = fs.readFileSync(SAVE_CONFIG_PATH, 'utf8');
+      saveConfigData = { ...saveConfigData, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.warn('[에이전트] 저장 설정 로드 실패, 기본값 사용:', e.message);
+  }
+}
+
+function persistSaveConfig() {
+  try {
+    fs.writeFileSync(SAVE_CONFIG_PATH, JSON.stringify(saveConfigData, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[에이전트] 저장 설정 파일 저장 실패:', e.message);
+  }
+}
 
 function loadConfig() {
   try {
@@ -67,7 +92,34 @@ function setCorsHeaders(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename, X-Subpath');
+}
+
+// ==================== 저장 경로 유틸 ====================
+
+/** 파일/폴더명에 위험한 문자 치환 */
+function sanitizeSegment(seg) {
+  return seg.replace(/[<>:"|?*\x00-\x1f]/g, '_').trim();
+}
+
+/** subPath ("260418/4도/양면") 를 안전한 절대경로로 결합 */
+function resolveSavePath(subPath, fileName) {
+  const base = saveConfigData.savePath;
+  if (!base) return null;
+  const safeFileName = sanitizeSegment(fileName).replace(/[\\/]/g, '_');
+
+  let targetDir = base;
+  if (subPath) {
+    const segments = subPath
+      .split(/[\\/]/)
+      .map(sanitizeSegment)
+      .filter(Boolean);
+    for (const seg of segments) {
+      targetDir = path.join(targetDir, seg);
+    }
+  }
+  const fullPath = path.join(targetDir, safeFileName);
+  return { targetDir, fullPath };
 }
 
 // ==================== 프린터 조회 ====================
@@ -278,6 +330,101 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // GET /save-config
+  if (req.url === '/save-config' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ savePath: saveConfigData.savePath }));
+    return;
+  }
+
+  // POST /save-config { savePath }
+  if (req.url === '/save-config' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      if (typeof body.savePath === 'string') {
+        saveConfigData.savePath = body.savePath.trim();
+        persistSaveConfig();
+        console.log(`[에이전트] PDF 저장 경로 설정: ${saveConfigData.savePath || '(없음)'}`);
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, savePath: saveConfigData.savePath }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
+  // POST /save-pdf  (스트리밍 바디, 헤더 X-Filename / X-Subpath 사용)
+  if (req.url === '/save-pdf' && req.method === 'POST') {
+    try {
+      if (!saveConfigData.savePath) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: '에이전트에 저장 경로가 설정되지 않았습니다.' }));
+        return;
+      }
+
+      const rawFileName = req.headers['x-filename'] || '';
+      const rawSubPath = req.headers['x-subpath'] || '';
+      let fileName = '';
+      let subPath = '';
+      try {
+        fileName = decodeURIComponent(Array.isArray(rawFileName) ? rawFileName[0] : rawFileName);
+      } catch {
+        fileName = String(rawFileName);
+      }
+      try {
+        subPath = decodeURIComponent(Array.isArray(rawSubPath) ? rawSubPath[0] : rawSubPath);
+      } catch {
+        subPath = String(rawSubPath);
+      }
+
+      if (!fileName) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'X-Filename 헤더가 필요합니다.' }));
+        return;
+      }
+
+      const resolved = resolveSavePath(subPath, fileName);
+      if (!resolved) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: '저장 경로를 결정할 수 없습니다.' }));
+        return;
+      }
+
+      try {
+        fs.mkdirSync(resolved.targetDir, { recursive: true });
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: `폴더 생성 실패: ${e.message}` }));
+        return;
+      }
+
+      const writeStream = fs.createWriteStream(resolved.fullPath);
+      writeStream.on('error', (err) => {
+        console.error('[에이전트] PDF 저장 실패:', err.message);
+        try {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: err.message }));
+        } catch { /* already responded */ }
+      });
+      writeStream.on('finish', () => {
+        console.log(`[에이전트] PDF 저장 완료: ${resolved.fullPath}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, path: resolved.fullPath }));
+      });
+      req.on('error', (err) => {
+        console.error('[에이전트] PDF 업로드 스트림 오류:', err.message);
+        writeStream.destroy();
+      });
+      req.pipe(writeStream);
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
   // POST /print-file  { filePath, printerName? }
   if (req.url === '/print-file' && req.method === 'POST') {
     try {
@@ -306,6 +453,7 @@ const server = http.createServer(async (req, res) => {
 // ==================== 시작 ====================
 
 loadConfig();
+loadSaveConfig();
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log('');
@@ -328,6 +476,12 @@ server.listen(PORT, '127.0.0.1', () => {
     startWatcher();
   } else {
     console.log('[에이전트] 폴더 감시 비활성 (설정에서 활성화 가능)');
+  }
+
+  if (saveConfigData.savePath) {
+    console.log(`[에이전트] PDF 저장 경로: ${saveConfigData.savePath}`);
+  } else {
+    console.log('[에이전트] PDF 저장 경로 미설정 (설정에서 지정 가능)');
   }
 });
 

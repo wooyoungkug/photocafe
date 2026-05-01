@@ -302,3 +302,68 @@ export function useDownloadPdf() {
       api.downloadBlob(`/print-pdf/jobs/${jobId}/download`, 'print-output.pdf'),
   });
 }
+
+// ==================== 에이전트 PDF 저장 ====================
+
+/**
+ * 로컬 프린트 에이전트(localhost:9199)에 PDF blob을 직접 저장한다.
+ * 브라우저 권한 팝업 없이 Z:\ 등 모든 경로에 저장 가능하다.
+ * 에이전트 미실행 / 미설정 시 false 반환 → 호출측에서 폴백 사용.
+ */
+export async function savePdfViaAgent(
+  blob: Blob,
+  fileName: string,
+  subPath: string,
+): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000); // 2분 타임아웃 (대용량 PDF 대비)
+    const res = await fetch(`${PRINT_AGENT_URL}/save-pdf`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Filename': encodeURIComponent(fileName),
+        'X-Subpath': encodeURIComponent(subPath),
+      },
+      body: blob,
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** 에이전트가 현재 사용 중인 PDF 저장 경로 조회 */
+export async function getAgentSavePath(): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+    const res = await fetch(`${PRINT_AGENT_URL}/save-config`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return '';
+    const data = await res.json();
+    return data.savePath || '';
+  } catch {
+    return '';
+  }
+}
+
+/** 에이전트의 PDF 저장 경로를 설정 (agent-config.json에 영속화) */
+export async function setAgentSavePath(savePath: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`${PRINT_AGENT_URL}/save-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ savePath }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

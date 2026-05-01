@@ -37,6 +37,8 @@ import {
   checkPrintAgentRunning,
   fetchAgentWatchConfig,
   saveAgentWatchConfig,
+  getAgentSavePath,
+  setAgentSavePath as saveAgentSavePathToAgent,
 } from '@/hooks/use-print-pdf';
 
 interface PdfSettingsDialogProps {
@@ -201,6 +203,8 @@ export default function PdfSettingsDialog({
   const [watchIndigoPrinter, setWatchIndigoPrinter] = useState('');
   const [watchInkjetPrinter, setWatchInkjetPrinter] = useState('');
   const [watchSaving, setWatchSaving] = useState(false);
+  // 에이전트 PDF 저장 경로 (브라우저 권한 무관, 가장 권장)
+  const [agentSavePath, setAgentSavePath] = useState('');
 
   // 프린트 에이전트 상태 + watch 설정 로드
   useEffect(() => {
@@ -215,9 +219,16 @@ export default function PdfSettingsDialog({
           setWatchIndigoPrinter(cfg.indigoPrinter);
           setWatchInkjetPrinter(cfg.inkjetPrinter);
         });
+        getAgentSavePath().then(setAgentSavePath);
       }
     });
   }, [open]);
+
+  const handleSaveAgentPath = async () => {
+    const ok = await saveAgentSavePathToAgent(agentSavePath);
+    if (ok) toast.success('에이전트 저장 경로가 설정되었습니다.');
+    else toast.error('에이전트에 연결할 수 없습니다.');
+  };
 
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
   useEffect(() => {
@@ -579,6 +590,38 @@ export default function PdfSettingsDialog({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-3">
+                {/* 에이전트 저장 경로 (가장 권장 — 브라우저 권한 무관) */}
+                <div className="space-y-1.5 p-3 bg-green-50 border border-green-200 rounded">
+                  <Label className="text-[14px] text-black font-bold">
+                    에이전트 저장 경로 ✅ 권장
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={String.raw`예: C:\PDF저장  또는  Z:\출력팀\접수대기`}
+                      value={agentSavePath}
+                      onChange={(e) => setAgentSavePath(e.target.value)}
+                      className="h-9 text-[14px] bg-white flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 whitespace-nowrap"
+                      onClick={handleSaveAgentPath}
+                      disabled={!agentRunning}
+                    >
+                      적용
+                    </Button>
+                  </div>
+                  <p className="text-[12px] text-green-700">
+                    {agentRunning
+                      ? '로컬 프린트 에이전트가 실행 중입니다. 여기에 경로를 설정하면 브라우저 권한 팝업 없이 항상 이 폴더에 저장됩니다.'
+                      : '에이전트가 실행되지 않았습니다. tools/print-agent/프린트에이전트_실행.bat을 먼저 실행하세요.'}
+                  </p>
+                </div>
+
+                <Separator />
+
                 {/* 서버 자동 저장 경로 (무인 모드) */}
                 <div className="space-y-1.5 p-3 bg-blue-50 border border-blue-200 rounded">
                   <Label className="text-[14px] text-black font-bold">
