@@ -30,7 +30,14 @@ import {
   useBulkUpdateSettings,
   settingsToMap,
 } from '@/hooks/use-system-settings';
-import { IndexOptions, DEFAULT_INDEX_OPTIONS, usePrinterList, checkPrintAgentRunning } from '@/hooks/use-print-pdf';
+import {
+  IndexOptions,
+  DEFAULT_INDEX_OPTIONS,
+  usePrinterList,
+  checkPrintAgentRunning,
+  fetchAgentWatchConfig,
+  saveAgentWatchConfig,
+} from '@/hooks/use-print-pdf';
 
 interface PdfSettingsDialogProps {
   open: boolean;
@@ -188,11 +195,28 @@ export default function PdfSettingsDialog({
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
   const [autoPrintNameInkjet, setAutoPrintNameInkjet] = useState('');
+  // 폴더 감시 자동 인쇄 (에이전트 로컬 설정)
+  const [watchEnabled, setWatchEnabled] = useState(false);
+  const [watchFolder, setWatchFolder] = useState('');
+  const [watchIndigoPrinter, setWatchIndigoPrinter] = useState('');
+  const [watchInkjetPrinter, setWatchInkjetPrinter] = useState('');
+  const [watchSaving, setWatchSaving] = useState(false);
 
-  // 프린트 에이전트 상태 확인
+  // 프린트 에이전트 상태 + watch 설정 로드
   useEffect(() => {
     if (!open) return;
-    checkPrintAgentRunning().then(setAgentRunning);
+    checkPrintAgentRunning().then((running) => {
+      setAgentRunning(running);
+      if (running) {
+        fetchAgentWatchConfig().then((cfg) => {
+          if (!cfg) return;
+          setWatchEnabled(cfg.watchEnabled);
+          setWatchFolder(cfg.watchFolder);
+          setWatchIndigoPrinter(cfg.indigoPrinter);
+          setWatchInkjetPrinter(cfg.inkjetPrinter);
+        });
+      }
+    });
   }, [open]);
 
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
@@ -635,7 +659,120 @@ export default function PdfSettingsDialog({
             </CardContent>
           </Card>
 
-          {/* ===== 4. 작업지시서 자동 인쇄 ===== */}
+          {/* ===== 4. PDF 파일 자동 인쇄 (에이전트 폴더 감시) ===== */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[14px] text-black font-bold">PDF 파일 자동 인쇄 (출력 에이전트)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-[12px] text-gray-500">
+                에이전트가 지정 폴더를 감시하다가 새 PDF가 생기면 자동으로 인쇄합니다.
+                "무인 자동 저장 경로"와 동일한 경로를 입력하면 변환 즉시 인쇄됩니다.
+              </p>
+
+              {agentRunning === false && (
+                <div className="text-[12px] bg-amber-50 border border-amber-200 px-3 py-2.5 rounded">
+                  <p className="text-amber-700 font-medium">에이전트가 실행 중이 아닙니다.</p>
+                  <p className="text-amber-600 mt-0.5">
+                    <span className="font-mono bg-amber-100 px-1 rounded">tools/print-agent/프린트에이전트_실행.bat</span> 를 실행한 뒤 연결 재시도를 눌러주세요.
+                  </p>
+                </div>
+              )}
+
+              {agentRunning !== false && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-[14px] text-black font-normal">폴더 감시 자동 인쇄</Label>
+                      <p className="text-[12px] text-gray-500 mt-0.5">
+                        활성화하면 에이전트 재시작 시에도 자동으로 감시를 재개합니다.
+                      </p>
+                    </div>
+                    <Switch checked={watchEnabled} onCheckedChange={setWatchEnabled} />
+                  </div>
+
+                  {watchEnabled && (
+                    <div className="space-y-3 pl-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[14px] text-black font-normal">감시 폴더 경로</Label>
+                        <Input
+                          placeholder={String.raw`예: Z:\출력팀\Wooceo_출력백업\!2025년\접수대기`}
+                          value={watchFolder}
+                          onChange={(e) => setWatchFolder(e.target.value)}
+                          className="h-9 text-[14px]"
+                        />
+                        <p className="text-[12px] text-gray-500">
+                          하위 폴더(날짜/인디고/단면 등)까지 재귀적으로 감시합니다.
+                        </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[14px] text-black font-normal">인디고 프린터 (4도/6도)</Label>
+                        <Select value={watchIndigoPrinter || '__none__'} onValueChange={(v) => setWatchIndigoPrinter(v === '__none__' ? '' : v)}>
+                          <SelectTrigger className="h-9 text-[14px]">
+                            <SelectValue placeholder="프린터 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">미지정</SelectItem>
+                            {printers.map((p) => (
+                              <SelectItem key={`watch-indigo-${p.name}`} value={p.name}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[14px] text-black font-normal">잉크젯 프린터</Label>
+                        <Select value={watchInkjetPrinter || '__none__'} onValueChange={(v) => setWatchInkjetPrinter(v === '__none__' ? '' : v)}>
+                          <SelectTrigger className="h-9 text-[14px]">
+                            <SelectValue placeholder="프린터 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">미지정</SelectItem>
+                            {printers.map((p) => (
+                              <SelectItem key={`watch-inkjet-${p.name}`} value={p.name}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <p className="text-[12px] text-gray-500">
+                        폴더명에 "잉크젯"이 포함된 파일은 잉크젯 프린터로, 나머지는 인디고 프린터로 전송합니다.
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={watchSaving || agentRunning !== true}
+                    className="text-[14px]"
+                    onClick={async () => {
+                      setWatchSaving(true);
+                      const ok = await saveAgentWatchConfig({
+                        watchEnabled,
+                        watchFolder,
+                        indigoPrinter: watchIndigoPrinter,
+                        inkjetPrinter: watchInkjetPrinter,
+                      });
+                      setWatchSaving(false);
+                      if (ok) {
+                        toast.success('에이전트 감시 설정이 저장되었습니다.');
+                      } else {
+                        toast.error('저장 실패. 에이전트가 실행 중인지 확인해주세요.');
+                      }
+                    }}
+                  >
+                    {watchSaving ? '저장 중...' : '에이전트에 저장'}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== 6. 작업지시서 자동 인쇄 ===== */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-[14px] text-black font-bold">작업지시서 자동 인쇄</CardTitle>

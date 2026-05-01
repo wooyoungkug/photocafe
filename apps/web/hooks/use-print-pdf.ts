@@ -158,6 +158,47 @@ export async function checkPrintAgentRunning(): Promise<boolean> {
   }
 }
 
+export interface AgentWatchConfig {
+  watchEnabled: boolean;
+  watchFolder: string;
+  indigoPrinter: string;
+  inkjetPrinter: string;
+  watching: boolean;
+  printedCount: number;
+}
+
+export async function fetchAgentWatchConfig(): Promise<AgentWatchConfig | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+    const res = await fetch(`${PRINT_AGENT_URL}/watch-config`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function saveAgentWatchConfig(
+  cfg: Partial<Pick<AgentWatchConfig, 'watchEnabled' | 'watchFolder' | 'indigoPrinter' | 'inkjetPrinter'>>,
+): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 3000);
+    const res = await fetch(`${PRINT_AGENT_URL}/watch-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function usePrinterList() {
   return useQuery<PrinterInfo[]>({
     queryKey: ['printers'],
