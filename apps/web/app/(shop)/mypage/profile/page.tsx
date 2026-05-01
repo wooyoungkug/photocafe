@@ -620,6 +620,80 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* 회원 탈퇴 카드 */}
+      <Card className="border-red-100">
+        <CardHeader className="pb-3 pt-4 px-5">
+          <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+            <LogOut className="h-4 w-4 text-red-500" />
+            회원 탈퇴
+          </CardTitle>
+          <CardDescription className="text-[14px] mt-0.5">
+            탈퇴 시 개인정보는 즉시 삭제되며, 주문 내역은 법적 의무에 따라 보존됩니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          <div className="bg-red-50 border border-red-100 rounded-md p-3 mb-4 text-[13px] text-red-700 space-y-1">
+            <p className="font-medium">탈퇴 전 확인사항</p>
+            <ul className="list-disc list-inside space-y-0.5 font-normal">
+              <li>이름, 이메일, 연락처, 주소 등 개인정보가 즉시 삭제됩니다</li>
+              <li>소속된 스튜디오에서 자동으로 탈퇴됩니다</li>
+              <li>탈퇴 후 동일 계정으로 재가입이 불가능합니다</li>
+              <li>주문·결제 내역은 세법에 따라 5년간 보존됩니다</li>
+            </ul>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={() => { setWithdrawConfirmText(''); setWithdrawConfirmOpen(true); }}
+          >
+            <LogOut className="h-3.5 w-3.5 mr-1.5" />
+            회원 탈퇴 신청
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* 탈퇴 확인 모달 */}
+      <Dialog open={withdrawConfirmOpen} onOpenChange={setWithdrawConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] font-bold flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              회원 탈퇴 확인
+            </DialogTitle>
+            <DialogDescription className="text-[14px]">
+              이 작업은 되돌릴 수 없습니다. 탈퇴를 원하시면 아래에 <strong>탈퇴합니다</strong>를 입력해주세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="탈퇴합니다"
+              value={withdrawConfirmText}
+              onChange={(e) => setWithdrawConfirmText(e.target.value)}
+              className="text-[14px]"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWithdrawConfirmOpen(false)}
+              disabled={withdrawMutation.isPending}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={withdrawConfirmText !== '탈퇴합니다' || withdrawMutation.isPending}
+              onClick={() => withdrawMutation.mutate()}
+            >
+              {withdrawMutation.isPending ? '처리 중...' : '탈퇴 확인'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

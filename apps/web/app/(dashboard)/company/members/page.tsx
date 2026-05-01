@@ -511,6 +511,8 @@ function MembersPageContent() {
         return <Badge variant="secondary">비활성</Badge>;
       case 'suspended':
         return <Badge variant="destructive">정지</Badge>;
+      case 'withdrawn':
+        return <Badge variant="outline" className="text-gray-400 border-gray-200">탈퇴</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
