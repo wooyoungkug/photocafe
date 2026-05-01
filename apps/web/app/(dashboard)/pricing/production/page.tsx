@@ -866,7 +866,7 @@ const SettingCard = ({
           <div className="flex items-center gap-3 mb-2">
             {/* 세팅명 (클릭 시 수정모드) */}
             <span
-              className="text-base font-bold text-gray-900 cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+              className="text-[11pt] font-normal text-gray-900 cursor-pointer hover:text-blue-600 hover:underline transition-colors"
               onClick={() => onEdit(setting)}
               title="클릭하여 수정"
             >
