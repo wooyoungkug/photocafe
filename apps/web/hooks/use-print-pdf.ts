@@ -367,3 +367,83 @@ export async function setAgentSavePath(savePath: string): Promise<boolean> {
     return false;
   }
 }
+
+// ==================== 에이전트 풀(pull) 방식 저장 / 슬립 인쇄 ====================
+
+/**
+ * 브라우저 blob 전송 없이 에이전트가 Railway에서 직접 PDF를 다운로드하여 저장.
+ * 기존 savePdfViaAgent(blob...) 보다 신뢰성 높음 (대용량 PDF에서도 안정).
+ *
+ * 흐름:
+ *   1) Railway에서 일회용 다운로드 토큰 발급 → downloadUrl 획득
+ *   2) 에이전트(localhost:9199)에 downloadUrl 전달 → 에이전트가 직접 Railway에서 PDF 다운로드 후 저장
+ */
+export async function downloadAndSaveViaAgent(
+  jobId: string,
+  itemId: string,
+  fileName: string,
+  subPath: string,
+): Promise<boolean> {
+  try {
+    // 1. Railway에서 일회용 에이전트 다운로드 토큰 발급
+    const tokenData = await api.post<{ downloadUrl?: string; fileName?: string }>(
+      `/print-pdf/jobs/${jobId}/items/${itemId}/agent-token`,
+    );
+    if (!tokenData?.downloadUrl) return false;
+
+    // 2. 에이전트에게 URL 전달 (에이전트가 직접 Railway에서 다운로드)
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 60000);
+    const agentRes = await fetch(`${PRINT_AGENT_URL}/pull-and-save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        downloadUrl: tokenData.downloadUrl,
+        fileName,
+        subPath,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return agentRes.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 에이전트가 로컬 Chrome으로 슬립(작업지시서) 페이지를 인쇄.
+ *
+ * 흐름:
+ *   1) Railway에서 슬립 인쇄 토큰 발급 → slipUrl 획득
+ *   2) 에이전트(localhost:9199)에 slipUrl + 프린터명 전달 → 로컬 Chrome으로 인쇄
+ */
+export async function printSlipViaAgent(
+  orderItemId: string,
+  printerName: string,
+): Promise<boolean> {
+  try {
+    // 1. Railway에서 슬립 인쇄 토큰 발급
+    const tokenData = await api.post<{ token?: string; slipUrl?: string }>(
+      `/print-pdf/queue/${orderItemId}/print-token`,
+    );
+    if (!tokenData?.slipUrl) return false;
+
+    // 2. 에이전트에게 URL 인쇄 요청
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 90000); // 인쇄는 시간이 걸림
+    const agentRes = await fetch(`${PRINT_AGENT_URL}/print-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: tokenData.slipUrl,
+        printerName,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    return agentRes.ok;
+  } catch {
+    return false;
+  }
+}

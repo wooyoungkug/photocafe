@@ -6,7 +6,12 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { PdfJobProgress, savePdfViaAgent } from '@/hooks/use-print-pdf';
+import {
+  PdfJobProgress,
+  savePdfViaAgent,
+  downloadAndSaveViaAgent,
+  printSlipViaAgent,
+} from '@/hooks/use-print-pdf';
 import { API_URL } from '@/lib/api';
 import {
   saveToLocalFolder,
@@ -25,6 +30,12 @@ interface PdfProgressTrackerProps {
   saveToLocal?: boolean;
   /** 서버가 이미 지정 경로에 저장했을 경우 브라우저 저장을 스킵하기 위한 플래그 */
   serverAutoSavedPath?: string;
+  /** 작업지시서(슬립) 자동 인쇄 활성화 여부 */
+  autoPrintEnabled?: boolean;
+  /** 인디고용 슬립 인쇄 프린터명 */
+  autoPrintNameIndigo?: string;
+  /** 잉크젯용 슬립 인쇄 프린터명 */
+  autoPrintNameInkjet?: string;
 }
 
 const statusIcon = {
