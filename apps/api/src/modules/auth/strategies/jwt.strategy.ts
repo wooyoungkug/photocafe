@@ -40,6 +40,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       // Employee fields
       clientId: payload.clientId,
       employmentId: payload.employmentId,
+      isOwner: payload.isOwner ?? false,
       canViewAllOrders: payload.canViewAllOrders,
       canManageProducts: payload.canManageProducts,
       canViewSettlement: payload.canViewSettlement,

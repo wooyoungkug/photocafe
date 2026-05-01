@@ -156,7 +156,12 @@ export default function EmployeesPage() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
             </div>
-          ) : !employees || employees.length === 0 ? (
+          ) : employees === undefined ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-[12px] text-red-500">
+              <AlertCircle className="h-4 w-4" />
+              직원 목록을 불러오지 못했습니다. 권한을 확인하거나 다시 로그인해주세요.
+            </div>
+          ) : employees.length === 0 ? (
             <div className="text-center py-8 text-[12px] text-gray-500">
               등록된 직원이 없습니다. 직원 초대 버튼을 눌러 직원을 초대하세요.
             </div>
@@ -186,6 +191,7 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2">
                         {isOwner && emp.memberClientId !== emp.companyClientId && emp.status === 'ACTIVE' ? (
                           <button
+                            type="button"
                             className="text-blue-600 hover:underline cursor-pointer"
                             title="대리 로그인"
                             onClick={() => {
