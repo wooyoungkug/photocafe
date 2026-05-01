@@ -261,7 +261,7 @@ export function ShopHeader() {
                   </Link>
                   <Link href="/mypage/schedule" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
                     <CalendarDays className="h-4 w-4 text-neutral-400" />
-                    일정관리
+                    촬영관리
                   </Link>
                   <Link href="/mypage/recruitment" className="flex items-center gap-3 py-2.5 text-sm text-neutral-700 hover:text-neutral-900 transition-colors" onClick={() => setMobileMenuOpen(false)}>
                     <Users className="h-4 w-4 text-neutral-400" />

@@ -67,7 +67,7 @@ function getMenuItems(user: {
 
   // 일정관리: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
   if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
-    items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
+    items.push({ icon: Camera, label: '촬영관리', href: '/mypage/schedule' });
   }
 
   // 촬영파트너: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)

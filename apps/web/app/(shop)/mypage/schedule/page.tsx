@@ -106,8 +106,8 @@ export default function SchedulePage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center">
         <Camera className="h-12 w-12 text-gray-300 mb-4" />
-        <p className="text-[18px] text-black font-bold mb-2">일정관리</p>
-        <p className="text-[14px] text-gray-500">관리자 계정은 일정관리를 이용할 수 없습니다.</p>
+        <p className="text-[18px] text-black font-bold mb-2">촬영관리</p>
+        <p className="text-[14px] text-gray-500">관리자 계정은 촬영관리를 이용할 수 없습니다.</p>
         <p className="text-[14px] text-gray-400">스튜디오 계정으로 로그인해 주세요.</p>
       </div>
     );
@@ -225,7 +225,7 @@ export default function SchedulePage() {
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Camera className="h-5 w-5 text-gray-700" />
-          <h2 className="text-[18px] text-black font-bold">일정관리</h2>
+          <h2 className="text-[18px] text-black font-bold">촬영관리</h2>
         </div>
         <div className="flex items-center gap-3">
           {/* 일정/할일 뷰 전환 */}
