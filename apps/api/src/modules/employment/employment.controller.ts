@@ -132,8 +132,10 @@ export class EmploymentController {
 
   /** Manager 또는 거래처 소유자 권한 검증 */
   private ensureManagerOrOwner(user: any, clientId: string) {
-    // 거래처 소유자
+    // 거래처 소유자 (개인 로그인)
     if (user.type === 'client' && user.sub === clientId) return;
+    // 거래처 소유자 (회사 컨텍스트 로그인)
+    if (user.type === 'employee' && user.isOwner && user.clientId === clientId) return;
     // MANAGER 직원
     if (user.type === 'employee' && user.role === 'MANAGER' && user.clientId === clientId) return;
     throw new ForbiddenException('부서 관리는 Manager 또는 소유자만 가능합니다.');
