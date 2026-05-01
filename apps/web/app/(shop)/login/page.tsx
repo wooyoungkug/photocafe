@@ -106,6 +106,8 @@ function LoginForm() {
     } else if (errorParam === 'EMAIL_DUPLICATE') {
       const message = searchParams.get('message');
       setError(message || '이미 다른 소셜 계정으로 가입된 이메일입니다.');
+    } else if (errorParam === 'session_expired') {
+      setError('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
   }, [searchParams]);
 
