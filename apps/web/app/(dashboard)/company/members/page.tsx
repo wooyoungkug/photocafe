@@ -496,8 +496,9 @@ function MembersPageContent() {
         await deleteMember.mutateAsync(deleteConfirm.id);
         toast({ title: '회원이 삭제되었습니다.' });
         setDeleteConfirm(null);
-      } catch (err) {
-        toast({ title: '삭제에 실패했습니다.', variant: 'destructive' });
+      } catch (err: any) {
+        const message = err?.message || '삭제 중 오류가 발생했습니다.';
+        toast({ title: '삭제할 수 없습니다.', description: message, variant: 'destructive' });
       }
     }
   };
