@@ -166,11 +166,79 @@ function printFile(filePath, printerName) {
     execSync(cmd, { timeout: 60000 });
     return;
   }
-  const safePath = filePath.replace(/'/g, "''");
-  const cmd = printerName
-    ? `powershell -NoProfile -Command "Start-Process -FilePath '${safePath}' -Verb PrintTo -ArgumentList '${printerName.replace(/'/g, "''")}' -Wait -WindowStyle Hidden"`
-    : `powershell -NoProfile -Command "Start-Process -FilePath '${safePath}' -Verb Print -Wait -WindowStyle Hidden"`;
-  execSync(cmd, { timeout: 60000 });
+
+  // Windows PDF 인쇄 전략 (우선순위):
+  // 1. SumatraPDF (무음 인쇄, 가장 신뢰성 높음)
+  // 2. Adobe Reader (/t 플래그로 silent print)
+  // 3. Foxit Reader (-t 플래그)
+  // 4. PowerShell -Verb PrintTo (PDF 뷰어가 핸들러 등록되어 있어야 함)
+  // 5. PowerShell -Verb Print (기본 동작)
+
+  const sumatraPaths = [
+    'C:\\Program Files\\SumatraPDF\\SumatraPDF.exe',
+    'C:\\Program Files (x86)\\SumatraPDF\\SumatraPDF.exe',
+    path.join(process.env.LOCALAPPDATA || '', 'SumatraPDF\\SumatraPDF.exe'),
+  ];
+  const sumatraPath = sumatraPaths.find(p => { try { return fs.existsSync(p); } catch { return false; } });
+
+  const acrobatPaths = [
+    'C:\\Program Files\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe',
+    'C:\\Program Files (x86)\\Adobe\\Acrobat DC\\Acrobat\\Acrobat.exe',
+    'C:\\Program Files (x86)\\Adobe\\Reader 11.0\\Reader\\AcroRd32.exe',
+    'C:\\Program Files (x86)\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe',
+    'C:\\Program Files\\Adobe\\Acrobat Reader DC\\Reader\\AcroRd32.exe',
+  ];
+  const acrobatPath = acrobatPaths.find(p => { try { return fs.existsSync(p); } catch { return false; } });
+
+  const foxitPaths = [
+    'C:\\Program Files\\Foxit Software\\Foxit PDF Reader\\FoxitPDFReader.exe',
+    'C:\\Program Files (x86)\\Foxit Software\\Foxit Reader\\FoxitReader.exe',
+  ];
+  const foxitPath = foxitPaths.find(p => { try { return fs.existsSync(p); } catch { return false; } });
+
+  let cmd;
+  let strategy;
+  if (sumatraPath) {
+    const printerArg = printerName ? `-print-to "${printerName}"` : '-print-to-default';
+    cmd = `& '${sumatraPath.replace(/'/g, "''")}' -silent ${printerArg} '${filePath.replace(/'/g, "''")}'`;
+    strategy = 'SumatraPDF';
+  } else if (acrobatPath) {
+    // Adobe: /t "filepath" "printer" — silent print 후 종료
+    const args = printerName
+      ? `'/t','${filePath.replace(/'/g, "''")}','${printerName.replace(/'/g, "''")}'`
+      : `'/p','${filePath.replace(/'/g, "''")}'`;
+    cmd = `Start-Process -FilePath '${acrobatPath.replace(/'/g, "''")}' -ArgumentList ${args} -Wait -WindowStyle Hidden`;
+    strategy = 'Adobe Reader';
+  } else if (foxitPath) {
+    // Foxit: -t "file.pdf" "printer"
+    const args = printerName
+      ? `'-t','${filePath.replace(/'/g, "''")}','${printerName.replace(/'/g, "''")}'`
+      : `'-p','${filePath.replace(/'/g, "''")}'`;
+    cmd = `Start-Process -FilePath '${foxitPath.replace(/'/g, "''")}' -ArgumentList ${args} -Wait -WindowStyle Hidden`;
+    strategy = 'Foxit Reader';
+  } else {
+    // 마지막 폴백: PowerShell -Verb PrintTo (PDF 핸들러 필요)
+    cmd = printerName
+      ? `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb PrintTo -ArgumentList '${printerName.replace(/'/g, "''")}' -Wait -WindowStyle Hidden`
+      : `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print -Wait -WindowStyle Hidden`;
+    strategy = 'Shell PrintTo (PDF 뷰어 필요)';
+  }
+
+  console.log(`[에이전트] PDF 인쇄 (${strategy}) → ${printerName || '기본 프린터'}`);
+  try {
+    execSync(`powershell -NoProfile -Command "${cmd.replace(/"/g, '\\"')}"`, { timeout: 60000 });
+  } catch (e) {
+    const errMsg = (e.stderr || e.message || '').toString().slice(0, 300);
+    if (!sumatraPath && !acrobatPath && !foxitPath) {
+      throw new Error(
+        'PDF 인쇄 실패: PDF 뷰어가 설치되지 않았습니다. ' +
+        'SumatraPDF 무료 다운로드: https://www.sumatrapdfreader.org/download-free-pdf-viewer ' +
+        '— 설치 후 에이전트 재시작 없이 즉시 사용 가능. ' +
+        `원본 오류: ${errMsg}`
+      );
+    }
+    throw new Error(`PDF 인쇄 실패 (${strategy}): ${errMsg}`);
+  }
 }
 
 // ==================== 폴더 감시 ====================
