@@ -1023,6 +1023,7 @@ export class AuthService {
       type: 'employee', employmentId: e.id, companyClientId: e.companyClientId,
       companyName: e.company.clientName, clientName: client.clientName,
       role: e.role, isOwner: e.memberClientId === e.companyClientId,
+      department: e.department || null,
     }));
 
     return {

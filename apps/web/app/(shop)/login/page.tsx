@@ -32,6 +32,7 @@ interface LoginContext {
   companyName?: string;
   role?: string;
   isOwner?: boolean;
+  department?: string | null;
 }
 
 function LoginForm() {
@@ -238,6 +239,9 @@ function LoginForm() {
                     </div>
                     <div className="text-[12px] text-muted-foreground">
                       {context.clientName} ({context.isOwner ? '최고관리자' : context.role === 'MANAGER' ? 'Manager' : context.role === 'EDITOR' ? 'Editor' : 'Staff'})
+                      {context.department && (
+                        <span className="ml-1 text-[11px] opacity-70">· {context.department}</span>
+                      )}
                     </div>
                   </>
                 )}

@@ -18,6 +18,7 @@ interface ContextOption {
   companyName?: string;
   role?: string;
   isOwner?: boolean;
+  department?: string | null;
 }
 
 interface PendingContextSelection {
@@ -232,9 +233,12 @@ export default function SelectContextPage() {
             const title = isPersonal
               ? '내 계정'
               : context.companyName || '알 수 없는 회사';
-            const subtitle = isPersonal
+            const roleLabel = isPersonal
               ? (context.clientName || '개인 계정')
               : (context.isOwner ? '최고관리자' : context.role === 'MANAGER' ? 'Manager' : context.role === 'EDITOR' ? 'Editor' : 'Staff');
+            const subtitle = !isPersonal && context.department
+              ? `${roleLabel} · ${context.department}`
+              : roleLabel;
 
             return (
               <Button
