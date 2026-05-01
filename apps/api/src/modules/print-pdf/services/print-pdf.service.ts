@@ -24,6 +24,9 @@ export class PrintPdfService implements OnModuleInit {
   /** 메모리 기반 Job 상태 캐시 (DB와 병행) */
   private jobs = new Map<string, PdfJobProgress>();
 
+  /** 에이전트용 일회성 다운로드 토큰 (10분 유효) */
+  private agentDownloadTokens = new Map<string, { pdfPath: string; fileName: string; expires: number }>();
+
   /**
    * 동일 outputPath 동시 쓰기 차단용 락 Set.
    * 2개 concurrent job이 같은 PDF 파일에 doc.pipe(writeStream)하여
@@ -553,6 +556,32 @@ export class PrintPdfService implements OnModuleInit {
       this.jobs.delete(jobId);
       this.logger.warn(`Stuck job cleared from memory: ${jobId}`);
     }
+  }
+
+  /** 에이전트용 일회성 다운로드 토큰 생성 (10분 유효) */
+  generateAgentDownloadToken(pdfPath: string, fileName: string): string {
+    const token = crypto.randomUUID();
+    this.agentDownloadTokens.set(token, {
+      pdfPath,
+      fileName,
+      expires: Date.now() + 10 * 60 * 1000,
+    });
+    // 만료 토큰 자동 정리
+    for (const [t, v] of this.agentDownloadTokens.entries()) {
+      if (v.expires < Date.now()) this.agentDownloadTokens.delete(t);
+    }
+    return token;
+  }
+
+  /** 토큰 소비: pdfPath 반환 (없거나 만료 시 null) */
+  consumeAgentDownloadToken(token: string): { pdfPath: string; fileName: string } | null {
+    const entry = this.agentDownloadTokens.get(token);
+    if (!entry || entry.expires < Date.now()) {
+      this.agentDownloadTokens.delete(token);
+      return null;
+    }
+    this.agentDownloadTokens.delete(token); // 일회용
+    return { pdfPath: entry.pdfPath, fileName: entry.fileName };
   }
 
   // ==================== Private ====================
