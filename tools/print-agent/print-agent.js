@@ -93,6 +93,8 @@ function setCorsHeaders(req, res) {
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Filename, X-Subpath');
+  // Chrome Private Network Access: https 사이트 → localhost POST 허용
+  res.setHeader('Access-Control-Allow-Private-Network', 'true');
 }
 
 // ==================== 저장 경로 유틸 ====================
