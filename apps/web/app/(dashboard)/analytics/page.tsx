@@ -255,9 +255,9 @@ export default function AnalyticsPage() {
     }
   }
 
-  // 거래처/상품 통계 (any 단언)
-  const clientStats = (clientStatsRaw as ClientStatItem[] | undefined) ?? [];
-  const productStats = (productStatsRaw as ProductStatItem[] | undefined) ?? [];
+  // 거래처/상품 통계: API가 { data: [...], totals: {...} } 형태로 반환
+  const clientStats = ((clientStatsRaw as any)?.data as ClientStatItem[] | undefined) ?? [];
+  const productStats = ((productStatsRaw as any)?.data as ProductStatItem[] | undefined) ?? [];
 
   // 비즈니스 KPI 카드
   const growthRate = dashboardSummary?.thisMonth.growthRate ?? 0;
