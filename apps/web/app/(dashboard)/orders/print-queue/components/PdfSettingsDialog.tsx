@@ -30,7 +30,7 @@ import {
   useBulkUpdateSettings,
   settingsToMap,
 } from '@/hooks/use-system-settings';
-import { IndexOptions, DEFAULT_INDEX_OPTIONS, usePrinterList } from '@/hooks/use-print-pdf';
+import { IndexOptions, DEFAULT_INDEX_OPTIONS, usePrinterList, checkPrintAgentRunning } from '@/hooks/use-print-pdf';
 
 interface PdfSettingsDialogProps {
   open: boolean;
@@ -181,7 +181,8 @@ export default function PdfSettingsDialog({
   const [markColorBar, setMarkColorBar] = useState(true);
   const [markFold, setMarkFold] = useState(true);
   const [markJobMeta, setMarkJobMeta] = useState(true);
-  const { data: printers = [] } = usePrinterList();
+  const { data: printers = [], refetch: refetchPrinters } = usePrinterList();
+  const [agentRunning, setAgentRunning] = useState<boolean | null>(null);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');

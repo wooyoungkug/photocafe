@@ -130,11 +130,46 @@ export interface PrinterInfo {
   port: string;
 }
 
+const PRINT_AGENT_URL = 'http://localhost:9199';
+const AGENT_TIMEOUT_MS = 2000;
+
+async function fetchPrintersFromAgent(): Promise<PrinterInfo[] | null> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+    const res = await fetch(`${PRINT_AGENT_URL}/printers`, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function checkPrintAgentRunning(): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), AGENT_TIMEOUT_MS);
+    const res = await fetch(`${PRINT_AGENT_URL}/health`, { signal: controller.signal });
+    clearTimeout(timer);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export function usePrinterList() {
   return useQuery<PrinterInfo[]>({
     queryKey: ['printers'],
-    queryFn: () => api.get<PrinterInfo[]>('/print-pdf/printers'),
-    staleTime: 60 * 1000, // 1분 캐시
+    queryFn: async () => {
+      // 로컬 에이전트 우선 시도
+      const fromAgent = await fetchPrintersFromAgent();
+      if (fromAgent !== null) return fromAgent;
+      // 에이전트 없으면 서버 API (로컬 개발 환경용)
+      return api.get<PrinterInfo[]>('/print-pdf/printers');
+    },
+    staleTime: 60 * 1000,
+    retry: false,
   });
 }
 
