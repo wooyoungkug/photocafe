@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -293,6 +293,21 @@ export class ClientService {
 
   async delete(id: string) {
     await this.findOne(id);
+
+    const [orderCount, quotationCount] = await Promise.all([
+      this.prisma.order.count({ where: { clientId: id } }),
+      this.prisma.quotation.count({ where: { clientId: id } }),
+    ]);
+
+    const reasons: string[] = [];
+    if (orderCount > 0) reasons.push(`주문 ${orderCount}건`);
+    if (quotationCount > 0) reasons.push(`견적서 ${quotationCount}건`);
+
+    if (reasons.length > 0) {
+      throw new BadRequestException(
+        `${reasons.join(', ')}이 있어 삭제할 수 없습니다. 해당 데이터를 먼저 삭제해 주세요.`,
+      );
+    }
 
     return this.prisma.client.delete({
       where: { id },
