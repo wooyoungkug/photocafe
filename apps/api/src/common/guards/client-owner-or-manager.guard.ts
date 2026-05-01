@@ -43,6 +43,11 @@ export class ClientOwnerOrManagerGuard implements CanActivate {
       return true;
     }
 
+    // 일반 직원(STAFF/EDITOR/PHOTOGRAPHER): 자기 회사 조회만 허용 (읽기 전용)
+    if (user.type === 'employee' && user.clientId === clientId) {
+      return true;
+    }
+
     throw new ForbiddenException(
       '거래처 소유자 또는 관리자 직원만 접근할 수 있습니다.',
     );
