@@ -29,7 +29,7 @@ import {
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
-import { downloadImpositionViaAgent, checkPrintAgentRunning } from '@/hooks/use-print-pdf';
+import { downloadImpositionViaAgent, checkPrintAgentRunning, printSlipViaAgent } from '@/hooks/use-print-pdf';
 import { usePdfSettings } from './PdfSettingsDialog';
 
 type ImpositionSeed = {
@@ -442,6 +442,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
     const failed: { label: string; error: string }[] = [];
     const succeededJobs: {
       id: string;
+      orderItemId: string;
       pdfPath?: string | null;
       imagePdfPath?: string | null;
       autoSaved?: boolean;
@@ -462,6 +463,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
         succeeded++;
         succeededJobs.push({
           id: job.id,
+          orderItemId: t.orderItemId,
           pdfPath: job.pdfPath,
           imagePdfPath: job.imagePdfPath,
           autoSaved: job.autoSaved,
@@ -513,6 +515,27 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
           }
         } else if (succeededJobs.length > 1) {
           dlBatchZip.mutate(succeededJobs.map((j) => j.id));
+        }
+      }
+    }
+
+    // 작업지시서(슬립) 자동 인쇄 — 설정에서 활성화되어 있고 에이전트가 실행 중이면 실행
+    // Railway(Linux)에서는 슬립 인쇄가 불가하므로 로컬 에이전트가 Chrome headless로 처리.
+    if (
+      pdfSettings.autoPrintEnabled &&
+      succeededJobs.length > 0 &&
+      (pdfSettings.autoPrintNameIndigo || pdfSettings.autoPrintNameInkjet)
+    ) {
+      const agentUp = await checkPrintAgentRunning();
+      if (agentUp) {
+        const printerName =
+          pdfSettings.autoPrintNameInkjet || pdfSettings.autoPrintNameIndigo;
+        for (const job of succeededJobs) {
+          try {
+            await printSlipViaAgent(job.orderItemId, printerName);
+          } catch {
+            // 개별 인쇄 실패는 무시 (다음 항목 계속 시도)
+          }
         }
       }
     }
