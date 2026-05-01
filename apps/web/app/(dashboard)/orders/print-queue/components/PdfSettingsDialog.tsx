@@ -183,6 +183,7 @@ export default function PdfSettingsDialog({
   const [markJobMeta, setMarkJobMeta] = useState(true);
   const { data: printers = [], refetch: refetchPrinters } = usePrinterList();
   const [agentRunning, setAgentRunning] = useState<boolean | null>(null);
+  const [agentRetrying, setAgentRetrying] = useState(false);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
@@ -661,15 +662,22 @@ export default function PdfSettingsDialog({
                       <p className="text-amber-500">명령어: <span className="font-mono bg-amber-100 px-1 rounded">node tools/print-agent/print-agent.js</span></p>
                       <button
                         type="button"
-                        className="text-[11px] text-amber-700 underline"
-                        onClick={() => {
-                          checkPrintAgentRunning().then((ok) => {
-                            setAgentRunning(ok);
-                            if (ok) refetchPrinters();
-                          });
+                        disabled={agentRetrying}
+                        className="text-[11px] text-amber-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={async () => {
+                          setAgentRetrying(true);
+                          const ok = await checkPrintAgentRunning();
+                          setAgentRunning(ok);
+                          if (ok) {
+                            refetchPrinters();
+                            toast.success('에이전트 연결 성공! 프린터 목록을 불러옵니다.');
+                          } else {
+                            toast.error('에이전트에 연결할 수 없습니다. 에이전트가 실행 중인지 확인해주세요.');
+                          }
+                          setAgentRetrying(false);
                         }}
                       >
-                        에이전트 연결 재시도
+                        {agentRetrying ? '확인 중...' : '에이전트 연결 재시도'}
                       </button>
                     </div>
                   )}
