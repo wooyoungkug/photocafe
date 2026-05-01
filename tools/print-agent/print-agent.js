@@ -427,6 +427,140 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // POST /pull-and-save  { downloadUrl, fileName, subPath }
+  // 브라우저 blob 전송 없이 에이전트가 Railway에서 직접 다운로드하여 저장
+  if (req.url === '/pull-and-save' && req.method === 'POST') {
+    try {
+      if (!saveConfigData.savePath) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: '에이전트에 저장 경로가 설정되지 않았습니다.' }));
+        return;
+      }
+      const body = await readBody(req);
+      const { downloadUrl, fileName, subPath } = body;
+      if (!downloadUrl || !fileName) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'downloadUrl, fileName 필수' }));
+        return;
+      }
+      const resolved = resolveSavePath(subPath || '', fileName);
+      if (!resolved) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: '저장 경로를 결정할 수 없습니다.' }));
+        return;
+      }
+      try {
+        fs.mkdirSync(resolved.targetDir, { recursive: true });
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: `폴더 생성 실패: ${e.message}` }));
+        return;
+      }
+      // Railway에서 직접 HTTP(S) 스트리밍 다운로드
+      const https = require('https');
+      const http = require('http');
+      const parsedUrl = new URL(downloadUrl);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+      const writeStream = fs.createWriteStream(resolved.fullPath);
+      const download = new Promise((resolve, reject) => {
+        const request = client.get(downloadUrl, (dlRes) => {
+          if (dlRes.statusCode !== 200) {
+            dlRes.resume();
+            return reject(new Error(`Railway 다운로드 실패: HTTP ${dlRes.statusCode}`));
+          }
+          dlRes.pipe(writeStream);
+          writeStream.on('finish', resolve);
+          writeStream.on('error', reject);
+        });
+        request.on('error', reject);
+        request.setTimeout(120000, () => {
+          request.destroy();
+          reject(new Error('다운로드 타임아웃 (120초)'));
+        });
+      });
+      try {
+        await download;
+        console.log(`[에이전트] pull-and-save 완료: ${resolved.fullPath}`);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, path: resolved.fullPath }));
+      } catch (e) {
+        try { fs.unlinkSync(resolved.fullPath); } catch { /* ignore */ }
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: e.message }));
+      }
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
+  // POST /print-url  { url, printerName? }
+  // 로컬 Chrome/Edge headless로 URL을 렌더링해서 프린터에 출력 (슬립 인쇄용)
+  if (req.url === '/print-url' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const { url: printUrl, printerName } = body;
+      if (!printUrl) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'url 필수' }));
+        return;
+      }
+      if (process.platform !== 'win32') {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Windows 전용 기능입니다.' }));
+        return;
+      }
+      const chromePaths = [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
+        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      ];
+      const chromePath = chromePaths.find(p => { try { return fs.existsSync(p); } catch { return false; } });
+      if (!chromePath) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: 'Chrome/Edge를 찾을 수 없습니다.' }));
+        return;
+      }
+      const tempPdf = path.join(require('os').tmpdir(), `slip-${Date.now()}.pdf`);
+      const { spawnSync } = require('child_process');
+      // Chrome headless → PDF
+      const chromeResult = spawnSync(
+        chromePath,
+        [
+          '--headless=new',
+          '--disable-gpu',
+          '--no-sandbox',
+          '--disable-dev-shm-usage',
+          `--print-to-pdf=${tempPdf}`,
+          '--print-to-pdf-no-header',
+          '--run-all-compositor-stages-before-draw',
+          '--virtual-time-budget=5000',
+          printUrl,
+        ],
+        { timeout: 60000, windowsHide: true },
+      );
+      if (!fs.existsSync(tempPdf)) {
+        const errMsg = chromeResult.stderr ? chromeResult.stderr.toString().slice(0, 300) : '알 수 없는 오류';
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: `PDF 생성 실패: ${errMsg}` }));
+        return;
+      }
+      // PowerShell로 프린터에 출력
+      printFile(tempPdf, printerName || '');
+      try { setTimeout(() => { try { fs.unlinkSync(tempPdf); } catch { /* ignore */ } }, 30000); } catch { /* ignore */ }
+      console.log(`[에이전트] 슬립 인쇄 완료: ${printUrl} → ${printerName || '기본 프린터'}`);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
   // POST /print-file  { filePath, printerName? }
   if (req.url === '/print-file' && req.method === 'POST') {
     try {

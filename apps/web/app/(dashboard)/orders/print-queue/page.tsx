@@ -304,6 +304,9 @@ export default function PrintQueuePage() {
               ? pdfSettings.outputPath
               : undefined
           }
+          autoPrintEnabled={pdfSettings.autoPrintEnabled}
+          autoPrintNameIndigo={pdfSettings.autoPrintNameIndigo}
+          autoPrintNameInkjet={pdfSettings.autoPrintNameInkjet}
         />
       )}
 

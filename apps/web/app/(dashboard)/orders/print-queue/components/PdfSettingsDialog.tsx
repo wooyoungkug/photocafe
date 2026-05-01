@@ -1179,6 +1179,10 @@ export function usePdfSettings() {
       markColorBar: true,
       markFold: true,
       markJobMeta: true,
+      autoPrintEnabled: false,
+      autoPrintName: '',
+      autoPrintNameIndigo: '',
+      autoPrintNameInkjet: '',
       isLoaded: false,
     };
   }
@@ -1230,6 +1234,10 @@ export function usePdfSettings() {
     markColorBar: map[SETTING_KEYS.MARK_COLOR_BAR] !== 'false',
     markFold: map[SETTING_KEYS.MARK_FOLD] !== 'false',
     markJobMeta: map[SETTING_KEYS.MARK_JOB_META] !== 'false',
+    autoPrintEnabled: map[SETTING_KEYS.AUTO_PRINT_ENABLED] === 'true',
+    autoPrintName: map[SETTING_KEYS.AUTO_PRINT_NAME] || '',
+    autoPrintNameIndigo: map[SETTING_KEYS.AUTO_PRINT_NAME_INDIGO] || '',
+    autoPrintNameInkjet: map[SETTING_KEYS.AUTO_PRINT_NAME_INKJET] || '',
     isLoaded: true,
   };
 }

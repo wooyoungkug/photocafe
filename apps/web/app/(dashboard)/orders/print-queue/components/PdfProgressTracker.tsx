@@ -52,6 +52,9 @@ export default function PdfProgressTracker({
   isDownloading,
   saveToLocal = true,
   serverAutoSavedPath,
+  autoPrintEnabled = false,
+  autoPrintNameIndigo = '',
+  autoPrintNameInkjet = '',
 }: PdfProgressTrackerProps) {
   // 페이지 단위 진행률을 우선 사용 (1% 단위). 페이지 정보가 없으면 항목 단위로 fallback.
   const progress = (() => {
@@ -76,6 +79,7 @@ export default function PdfProgressTracker({
 
   /**
    * 모든 completed 항목을 에이전트로만 저장 시도.
+   * 신규: 브라우저는 blob을 받지 않고, Railway → 에이전트 직접 다운로드 방식 사용 (대용량 안정성 ↑)
    * 하나라도 실패하면 allSaved=false 반환 → 호출측은 폴백 경로로 진입.
    * 단, 일부 성공한 PDF는 에이전트에 이미 저장된 상태이므로 다시 저장하지 않는다.
    */
@@ -89,16 +93,6 @@ export default function PdfProgressTracker({
     for (const result of job.results) {
       if (result.status !== 'completed') continue;
 
-      const response = await fetch(
-        `${API_URL}/print-pdf/jobs/${job.jobId}/download?itemId=${result.orderItemId}`,
-        { credentials: 'include' },
-      );
-      if (!response.ok) {
-        allSaved = false;
-        continue;
-      }
-
-      const blob = await response.blob();
       const fileName = resolveFileName(result);
       const today = new Date();
       const yy = String(today.getFullYear()).slice(-2);
@@ -106,7 +100,8 @@ export default function PdfProgressTracker({
       const dd = String(today.getDate()).padStart(2, '0');
       const subfolder = `${yy}${mm}${dd}/${result.colorMode || '기타'}/${result.side || '기타'}`;
 
-      const ok = await savePdfViaAgent(blob, fileName, subfolder);
+      // 신규: 에이전트가 Railway에서 직접 다운로드 (브라우저 blob 전송 없음)
+      const ok = await downloadAndSaveViaAgent(job.jobId, result.orderItemId, fileName, subfolder);
       if (ok) {
         savedItemIds.add(result.orderItemId);
       } else {
@@ -200,11 +195,13 @@ export default function PdfProgressTracker({
         // IDB에서 폴더 핸들 복원 (새로고침 후 첫 완료 시 대비)
         const handle = await restoreGlobalDirHandle();
 
-        // 핸들이 없거나 권한 미확보면 사용자 클릭 필요 상태로 전환 (브라우저 다운로드 대화상자 방지)
+        // 핸들이 없으면 → 브라우저 기본 다운로드 폴더로 폴백 (사용자에게 알림)
         if (!handle) {
-          setLocalSaveStatus('permission-needed');
+          // 에이전트도 없고 폴더 핸들도 없으면 브라우저 기본 다운로드로 폴백
+          await saveCompletedPdfs();
+          setLocalSaveStatus('done');
           toast.info(
-            '에이전트가 실행되지 않았습니다. 아래 "폴더에 저장"을 누르거나, 에이전트를 실행하세요.',
+            'C:\\PDF저장 폴더가 설정되지 않았습니다. 다운로드 폴더에 저장됩니다.',
           );
           return;
         }
@@ -231,6 +228,34 @@ export default function PdfProgressTracker({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isJobDone, saveToLocal, hasCompletedPdfs]);
+
+  // 슬립 자동 인쇄 (작업지시서)
+  // PDF 변환 완료 후, 설정에서 활성화되어 있으면 에이전트가 로컬 Chrome으로 슬립을 인쇄.
+  useEffect(() => {
+    if (!isJobDone || !autoPrintEnabled || !hasCompletedPdfs) return;
+
+    (async () => {
+      for (const result of job.results) {
+        if (result.status !== 'completed') continue;
+
+        // colorMode 에 '잉크젯' 포함이면 잉크젯 프린터, 아니면 인디고 프린터 사용
+        const isInkjet = (result.colorMode || '').toLowerCase().includes('잉크젯');
+        const printerName = isInkjet
+          ? (autoPrintNameInkjet || '')
+          : (autoPrintNameIndigo || '');
+
+        const ok = await printSlipViaAgent(result.orderItemId, printerName);
+        if (ok) {
+          // eslint-disable-next-line no-console
+          console.log(`[슬립] 인쇄 요청 완료: ${result.orderNumber}`);
+        } else {
+          // eslint-disable-next-line no-console
+          console.warn(`[슬립] 인쇄 실패: ${result.orderNumber}`);
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isJobDone, autoPrintEnabled, hasCompletedPdfs]);
 
   /** 서버가 내려준 fileName 우선, 없으면 레거시 포맷 */
   const resolveFileName = (result: PdfJobProgress['results'][number]): string => {
