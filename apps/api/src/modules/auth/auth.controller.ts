@@ -622,7 +622,10 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '회원 탈퇴 (개인정보 익명화 처리)' })
   async withdrawMe(@Request() req: any) {
-    const clientId = req.user.type === 'employee' ? req.user.clientId : req.user.sub;
+    if (req.user.type === 'employee') {
+      throw new ForbiddenException('소속 멤버는 직접 탈퇴할 수 없습니다. 소속 회사의 직원 관리 페이지에서 내보내기를 요청하세요.');
+    }
+    const clientId = req.user.sub;
     if (!clientId) throw new ForbiddenException('회원 계정만 탈퇴할 수 있습니다');
     return this.authService.withdrawClient(clientId);
   }

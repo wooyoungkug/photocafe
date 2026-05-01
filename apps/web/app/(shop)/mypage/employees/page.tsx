@@ -270,7 +270,7 @@ export default function EmployeesPage() {
                                   onClick={() => setRemoveTarget(emp)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                  제거
+                                  내보내기
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -1033,11 +1033,11 @@ function RemoveDialog({
   const handleRemove = () => {
     removeMutation.mutate(employment.id, {
       onSuccess: () => {
-        toast.success('직원이 제거되었습니다');
+        toast.success('멤버를 내보냈습니다');
         onClose();
       },
       onError: () => {
-        toast.error('직원 제거에 실패했습니다');
+        toast.error('내보내기에 실패했습니다');
       },
     });
   };
@@ -1048,11 +1048,11 @@ function RemoveDialog({
         <DialogHeader>
           <DialogTitle className="text-[14px] flex items-center gap-2 text-red-600">
             <AlertCircle className="h-4 w-4" />
-            직원 제거
+            멤버 내보내기
           </DialogTitle>
           <DialogDescription className="text-[12px]">
             <strong>{employment.member.clientName}</strong> ({employment.member.email})님을
-            거래처에서 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            소속에서 내보내시겠습니까? 해당 멤버의 계정은 유지되며 소속 관계만 해제됩니다.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -1066,7 +1066,7 @@ function RemoveDialog({
             onClick={handleRemove}
           >
             {removeMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-            제거
+            내보내기
           </Button>
         </DialogFooter>
       </DialogContent>

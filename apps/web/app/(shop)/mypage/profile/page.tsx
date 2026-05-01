@@ -622,37 +622,55 @@ export default function ProfilePage() {
       </Card>
 
       {/* 회원 탈퇴 카드 */}
-      <Card className="border-red-100">
-        <CardHeader className="pb-3 pt-4 px-5">
-          <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
-            <LogOut className="h-4 w-4 text-red-500" />
-            회원 탈퇴
-          </CardTitle>
-          <CardDescription className="text-[14px] mt-0.5">
-            탈퇴 시 개인정보는 즉시 삭제되며, 주문 내역은 법적 의무에 따라 보존됩니다.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-5 pb-5">
-          <div className="bg-red-50 border border-red-100 rounded-md p-3 mb-4 text-[13px] text-red-700 space-y-1">
-            <p className="font-medium">탈퇴 전 확인사항</p>
-            <ul className="list-disc list-inside space-y-0.5 font-normal">
-              <li>이름, 이메일, 연락처, 주소 등 개인정보가 즉시 삭제됩니다</li>
-              <li>소속된 스튜디오에서 자동으로 탈퇴됩니다</li>
-              <li>탈퇴 후 동일 계정으로 재가입이 불가능합니다</li>
-              <li>주문·결제 내역은 세법에 따라 5년간 보존됩니다</li>
-            </ul>
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
-            onClick={() => { setWithdrawConfirmText(''); setWithdrawConfirmOpen(true); }}
-          >
-            <LogOut className="h-3.5 w-3.5 mr-1.5" />
-            회원 탈퇴 신청
-          </Button>
-        </CardContent>
-      </Card>
+      {isEmployee ? (
+        <Card className="border-gray-200">
+          <CardHeader className="pb-3 pt-4 px-5">
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <LogOut className="h-4 w-4 text-gray-400" />
+              소속 해제
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="bg-gray-50 border border-gray-200 rounded-md p-3 text-[13px] text-gray-600">
+              소속 멤버는 직접 탈퇴할 수 없습니다.<br />
+              소속 해제가 필요하면 <strong>소속 회사 관리자</strong>에게 요청하세요.<br />
+              <span className="text-gray-400 text-[12px]">관리자: 마이페이지 → 직원 관리 → 내보내기</span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-red-100">
+          <CardHeader className="pb-3 pt-4 px-5">
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <LogOut className="h-4 w-4 text-red-500" />
+              회원 탈퇴
+            </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              탈퇴 시 개인정보는 즉시 삭제되며, 주문 내역은 법적 의무에 따라 보존됩니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <div className="bg-red-50 border border-red-100 rounded-md p-3 mb-4 text-[13px] text-red-700 space-y-1">
+              <p className="font-medium">탈퇴 전 확인사항</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>이름, 이메일, 연락처, 주소 등 개인정보가 즉시 삭제됩니다</li>
+                <li>소속된 스튜디오에서 자동으로 탈퇴됩니다</li>
+                <li>탈퇴 후 동일 계정으로 재가입이 불가능합니다</li>
+                <li>주문·결제 내역은 세법에 따라 5년간 보존됩니다</li>
+              </ul>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => { setWithdrawConfirmText(''); setWithdrawConfirmOpen(true); }}
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1.5" />
+              회원 탈퇴 신청
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 탈퇴 확인 모달 */}
       <Dialog open={withdrawConfirmOpen} onOpenChange={setWithdrawConfirmOpen}>
