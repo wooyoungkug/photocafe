@@ -609,10 +609,15 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ ok: false, error: 'Chrome/Edge를 찾을 수 없습니다.' }));
         return;
       }
+      // 즉시 응답 — Chrome 렌더링 + 인쇄는 모두 백그라운드 (이벤트 루프 블록 방지)
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, queued: true }));
+
       const tempPdf = path.join(require('os').tmpdir(), `slip-${Date.now()}.pdf`);
-      const { spawnSync } = require('child_process');
-      // Chrome headless → PDF
-      const chromeResult = spawnSync(
+      const { spawn } = require('child_process');
+      console.log(`[에이전트] 슬립 인쇄 큐 추가: ${printUrl}`);
+
+      const chromeProc = spawn(
         chromePath,
         [
           '--headless=new',
@@ -625,18 +630,20 @@ const server = http.createServer(async (req, res) => {
           '--virtual-time-budget=5000',
           printUrl,
         ],
-        { timeout: 60000, windowsHide: true },
+        { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
       );
-      if (!fs.existsSync(tempPdf)) {
-        const errMsg = chromeResult.stderr ? chromeResult.stderr.toString().slice(0, 300) : '알 수 없는 오류';
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: `PDF 생성 실패: ${errMsg}` }));
-        return;
-      }
-      // 인쇄는 백그라운드로 실행 (실패해도 응답은 ok 반환 — 다른 요청을 블록하지 않음)
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ ok: true }));
-      setImmediate(() => {
+      let chromeStderr = '';
+      chromeProc.stderr.on('data', (d) => { chromeStderr += d.toString().slice(0, 500); });
+      const killTimer = setTimeout(() => {
+        try { chromeProc.kill('SIGKILL'); } catch { /* ignore */ }
+        console.error(`[에이전트] Chrome 렌더 타임아웃 (60초): ${printUrl}`);
+      }, 60000);
+      chromeProc.on('close', (code) => {
+        clearTimeout(killTimer);
+        if (!fs.existsSync(tempPdf)) {
+          console.error(`[에이전트] 슬립 PDF 생성 실패 (code ${code}): ${chromeStderr.slice(0, 200)}`);
+          return;
+        }
         try {
           printFile(tempPdf, printerName || '');
           console.log(`[에이전트] 슬립 인쇄 완료: ${printUrl} → ${printerName || '기본 프린터'}`);
@@ -645,6 +652,10 @@ const server = http.createServer(async (req, res) => {
         } finally {
           setTimeout(() => { try { fs.unlinkSync(tempPdf); } catch { /* ignore */ } }, 30000);
         }
+      });
+      chromeProc.on('error', (err) => {
+        clearTimeout(killTimer);
+        console.error(`[에이전트] Chrome 실행 오류: ${err.message}`);
       });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
