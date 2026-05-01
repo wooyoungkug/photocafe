@@ -146,6 +146,15 @@ export function useImpersonateEmployee() {
       ),
     onSuccess: (response) => {
       sessionStorage.setItem('impersonate-session', 'true');
+      // 직원 토큰을 impersonate-tokens에 저장 → api.ts가 Bearer 헤더로 전송
+      if (response.accessToken) {
+        const tokenJson = JSON.stringify({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken ?? '',
+        });
+        sessionStorage.setItem('impersonate-tokens', tokenJson);
+        localStorage.setItem('impersonate-tokens', tokenJson);
+      }
       setAuth({
         user: response.user,
         accessToken: response.accessToken,
