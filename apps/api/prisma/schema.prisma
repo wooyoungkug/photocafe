@@ -370,6 +370,7 @@ model Client {
   enableRecruitment          Boolean                        @default(true)
   enableSchedule             Boolean                        @default(true)
   smsNotificationStages      String[]                       @default([])
+  notificationChannel        String                         @default("sms")
   assignedStaffId            String?
   addresses                  ClientAddress[]
   albumPreference            ClientAlbumPreference?

@@ -221,6 +221,11 @@ export class CreateClientDto {
   @IsArray()
   @IsString({ each: true })
   smsNotificationStages?: string[];
+
+  @ApiPropertyOptional({ description: '알림 수신 채널 (sms | kakao)', default: 'sms' })
+  @IsOptional()
+  @IsIn(['sms', 'kakao'])
+  notificationChannel?: string;
 }
 
 export class UpdateClientDto extends PartialType(CreateClientDto) { }

@@ -141,7 +141,14 @@ export default function SelectContextPage() {
       // 메인 페이지로 이동
       router.push('/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
+      const msg = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.';
+      const isAuthExpired = msg.includes('만료') || msg.includes('인증');
+      if (isAuthExpired) {
+        sessionStorage.removeItem('pending-context-selection');
+        router.push('/login?error=session_expired');
+        return;
+      }
+      setError(msg);
     } finally {
       setIsSelecting(false);
     }

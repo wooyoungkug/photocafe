@@ -74,6 +74,7 @@ export default function ProfilePage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [smsStages, setSmsStages] = useState<string[]>([]);
+  const [notificationChannel, setNotificationChannel] = useState<'sms' | 'kakao'>('sms');
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -87,6 +88,9 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile?.smsNotificationStages) {
       setSmsStages(profile.smsNotificationStages);
+    }
+    if (profile?.notificationChannel) {
+      setNotificationChannel(profile.notificationChannel as 'sms' | 'kakao');
     }
   }, [profile]);
 
@@ -127,8 +131,8 @@ export default function ProfilePage() {
   });
 
   const updateSmsMutation = useMutation({
-    mutationFn: async (stages: string[]) => {
-      return await api.put<any>(`/clients/${user?.id}`, { smsNotificationStages: stages });
+    mutationFn: async (data: { smsNotificationStages: string[]; notificationChannel: string }) => {
+      return await api.put<any>(`/clients/${user?.id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
@@ -138,7 +142,12 @@ export default function ProfilePage() {
   const handleSmsToggle = (stage: string, checked: boolean) => {
     const next = checked ? [...smsStages, stage] : smsStages.filter((s) => s !== stage);
     setSmsStages(next);
-    updateSmsMutation.mutate(next);
+    updateSmsMutation.mutate({ smsNotificationStages: next, notificationChannel });
+  };
+
+  const handleChannelChange = (channel: 'sms' | 'kakao') => {
+    setNotificationChannel(channel);
+    updateSmsMutation.mutate({ smsNotificationStages: smsStages, notificationChannel: channel });
   };
 
   const changePasswordMutation = useMutation({
@@ -475,31 +484,66 @@ export default function ProfilePage() {
               알림 받고 싶은 공정 단계를 선택해 주세요.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="grid sm:grid-cols-2 gap-3">
-              {SMS_STAGES.map((stage) => (
-                <label
-                  key={stage.value}
-                  className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+          <CardContent className="px-5 pb-5 space-y-5">
+
+            {/* 알림 수신 채널 */}
+            <div>
+              <p className="text-[14px] font-medium text-gray-700 mb-2">알림 수신 방법</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleChannelChange('sms')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-[14px] font-medium transition-colors ${
+                    notificationChannel === 'sms'
+                      ? 'border-pink-500 bg-pink-50 text-pink-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
                 >
-                  <Checkbox
-                    id={`sms-${stage.value}`}
-                    checked={smsStages.includes(stage.value)}
-                    onCheckedChange={(checked) => handleSmsToggle(stage.value, !!checked)}
-                    className="mt-0.5"
-                  />
-                  <div>
-                    <p className="text-[14px] font-medium text-black">{stage.label}</p>
-                    <p className="text-[13px] text-gray-500">{stage.description}</p>
-                  </div>
-                </label>
-              ))}
+                  <span>📱</span> 문자(SMS)
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-[14px] font-medium cursor-not-allowed"
+                >
+                  <span>💬</span> 카카오 알림톡
+                  <span className="ml-1 text-[11px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">준비 중</span>
+                </button>
+              </div>
+              <p className="text-[12px] text-gray-400 mt-1.5">카카오 알림톡은 서비스 준비 중으로 추후 이용 가능합니다.</p>
             </div>
+
+            <Separator />
+
+            {/* 알림 받을 공정 선택 */}
+            <div>
+              <p className="text-[14px] font-medium text-gray-700 mb-2">알림 받을 공정 단계</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {SMS_STAGES.map((stage) => (
+                  <label
+                    key={stage.value}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <Checkbox
+                      id={`sms-${stage.value}`}
+                      checked={smsStages.includes(stage.value)}
+                      onCheckedChange={(checked) => handleSmsToggle(stage.value, !!checked)}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <p className="text-[14px] font-medium text-black">{stage.label}</p>
+                      <p className="text-[13px] text-gray-500">{stage.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             {updateSmsMutation.isPending && (
-              <p className="text-[13px] text-gray-400 mt-2">저장 중...</p>
+              <p className="text-[13px] text-gray-400">저장 중...</p>
             )}
             {updateSmsMutation.isSuccess && (
-              <p className="text-[13px] text-green-600 mt-2">저장되었습니다.</p>
+              <p className="text-[13px] text-green-600">저장되었습니다.</p>
             )}
           </CardContent>
         </Card>

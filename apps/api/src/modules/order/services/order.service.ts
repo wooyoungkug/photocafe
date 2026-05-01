@@ -80,22 +80,39 @@ export class OrderService {
               email: true,
               clientName: true,
               smsNotificationStages: true,
+              notificationChannel: true,
             },
           },
         },
       });
       if (!order?.client) return;
 
-      const { mobile, phone, email, clientName, smsNotificationStages } = order.client;
+      const { mobile, phone, email, clientName, smsNotificationStages, notificationChannel } = order.client;
       if (!smsNotificationStages.includes(newStatus)) return;
 
       const contactNo = mobile || phone;
       if (!contactNo) return;
 
       const text = `[포토카페] ${clientName}님, 주문번호 ${order.orderNumber} 공정이 [${label}] 단계로 변경되었습니다.`;
-      await this.kakaoAlimtalk.sendPlainSms(contactNo, text);
+
+      if (notificationChannel === 'kakao') {
+        // 카카오 알림톡 → SMS fallback 자동 처리
+        await this.kakaoAlimtalk.send({
+          templateCode: 'ORDER_STATUS_CHANGE',
+          recipients: [{ phone: contactNo, email: email || undefined, name: clientName }],
+          variables: {
+            '#{고객명}': clientName,
+            '#{주문번호}': order.orderNumber,
+            '#{공정}': label,
+            '#{내용}': text,
+          },
+          emailFallback: { subject: `[포토카페] 주문 공정 변경 알림`, html: `<p>${text}</p>` },
+        });
+      } else {
+        await this.kakaoAlimtalk.sendPlainSms(contactNo, text);
+      }
     } catch (err) {
-      this.logger.error(`주문 상태 SMS 발송 실패: ${(err as Error).message}`);
+      this.logger.error(`주문 상태 알림 발송 실패: ${(err as Error).message}`);
     }
   }
 

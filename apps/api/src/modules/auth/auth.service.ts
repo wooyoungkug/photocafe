@@ -1000,7 +1000,7 @@ export class AuthService {
   generateTempAuthToken(client: any): string {
     return this.jwtService.sign(
       { sub: client.id, email: client.email, purpose: 'context-selection' },
-      { expiresIn: '5m' },
+      { expiresIn: '15m' },
     );
   }
 
