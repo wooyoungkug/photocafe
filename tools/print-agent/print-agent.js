@@ -13,7 +13,15 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
+
+// 프로세스 레벨 에러 핸들러 — 비동기 예외/거부로 인한 크래시 방지
+process.on('uncaughtException', (err) => {
+  console.error('[에이전트] uncaughtException:', err && (err.stack || err.message || err));
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[에이전트] unhandledRejection:', reason && (reason.stack || reason.message || reason));
+});
 
 const PORT = 9199;
 const ALLOWED_ORIGINS = [
@@ -196,48 +204,57 @@ function printFile(filePath, printerName) {
   ];
   const foxitPath = foxitPaths.find(p => { try { return fs.existsSync(p); } catch { return false; } });
 
-  let cmd;
+  let exePath;
+  let args;
   let strategy;
   if (sumatraPath) {
-    const printerArg = printerName ? `-print-to "${printerName}"` : '-print-to-default';
-    cmd = `& '${sumatraPath.replace(/'/g, "''")}' -silent ${printerArg} '${filePath.replace(/'/g, "''")}'`;
+    exePath = sumatraPath;
+    args = printerName
+      ? ['-silent', '-print-to', printerName, filePath]
+      : ['-silent', '-print-to-default', filePath];
     strategy = 'SumatraPDF';
   } else if (acrobatPath) {
-    // Adobe: /t "filepath" "printer" — silent print 후 종료
-    const args = printerName
-      ? `'/t','${filePath.replace(/'/g, "''")}','${printerName.replace(/'/g, "''")}'`
-      : `'/p','${filePath.replace(/'/g, "''")}'`;
-    cmd = `Start-Process -FilePath '${acrobatPath.replace(/'/g, "''")}' -ArgumentList ${args} -Wait -WindowStyle Hidden`;
+    exePath = acrobatPath;
+    args = printerName
+      ? ['/t', filePath, printerName]
+      : ['/p', filePath];
     strategy = 'Adobe Reader';
   } else if (foxitPath) {
-    // Foxit: -t "file.pdf" "printer"
-    const args = printerName
-      ? `'-t','${filePath.replace(/'/g, "''")}','${printerName.replace(/'/g, "''")}'`
-      : `'-p','${filePath.replace(/'/g, "''")}'`;
-    cmd = `Start-Process -FilePath '${foxitPath.replace(/'/g, "''")}' -ArgumentList ${args} -Wait -WindowStyle Hidden`;
+    exePath = foxitPath;
+    args = printerName
+      ? ['-t', filePath, printerName]
+      : ['-p', filePath];
     strategy = 'Foxit Reader';
   } else {
-    // 마지막 폴백: PowerShell -Verb PrintTo (PDF 핸들러 필요)
-    cmd = printerName
+    // 마지막 폴백: PowerShell + 기본 PDF 핸들러
+    const psCmd = printerName
       ? `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb PrintTo -ArgumentList '${printerName.replace(/'/g, "''")}' -Wait -WindowStyle Hidden`
       : `Start-Process -FilePath '${filePath.replace(/'/g, "''")}' -Verb Print -Wait -WindowStyle Hidden`;
-    strategy = 'Shell PrintTo (PDF 뷰어 필요)';
-  }
-
-  console.log(`[에이전트] PDF 인쇄 (${strategy}) → ${printerName || '기본 프린터'}`);
-  try {
-    execSync(`powershell -NoProfile -Command "${cmd.replace(/"/g, '\\"')}"`, { timeout: 60000 });
-  } catch (e) {
-    const errMsg = (e.stderr || e.message || '').toString().slice(0, 300);
-    if (!sumatraPath && !acrobatPath && !foxitPath) {
+    console.log(`[에이전트] PDF 인쇄 (Shell) → ${printerName || '기본 프린터'}`);
+    try {
+      execSync(`powershell -NoProfile -Command "${psCmd.replace(/"/g, '\\"')}"`, { timeout: 60000 });
+    } catch (e) {
+      const errMsg = (e.stderr || e.message || '').toString().slice(0, 300);
       throw new Error(
         'PDF 인쇄 실패: PDF 뷰어가 설치되지 않았습니다. ' +
         'SumatraPDF 무료 다운로드: https://www.sumatrapdfreader.org/download-free-pdf-viewer ' +
-        '— 설치 후 에이전트 재시작 없이 즉시 사용 가능. ' +
         `원본 오류: ${errMsg}`
       );
     }
-    throw new Error(`PDF 인쇄 실패 (${strategy}): ${errMsg}`);
+    return;
+  }
+
+  console.log(`[에이전트] PDF 인쇄 (${strategy}) → ${printerName || '기본 프린터'}`);
+  const result = spawnSync(exePath, args, { timeout: 60000, windowsHide: true });
+  if (result.error) {
+    throw new Error(`PDF 인쇄 실패 (${strategy}): ${result.error.message}`);
+  }
+  if (result.status !== 0 && result.status !== null) {
+    const stderr = result.stderr ? result.stderr.toString().slice(0, 300) : '';
+    // SumatraPDF는 성공해도 종료코드가 0이 아닐 수 있음 → stderr 비어있으면 성공으로 간주
+    if (stderr.trim()) {
+      throw new Error(`PDF 인쇄 종료코드 ${result.status} (${strategy}): ${stderr}`);
+    }
   }
 }
 
@@ -616,12 +633,19 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ ok: false, error: `PDF 생성 실패: ${errMsg}` }));
         return;
       }
-      // PowerShell로 프린터에 출력
-      printFile(tempPdf, printerName || '');
-      try { setTimeout(() => { try { fs.unlinkSync(tempPdf); } catch { /* ignore */ } }, 30000); } catch { /* ignore */ }
-      console.log(`[에이전트] 슬립 인쇄 완료: ${printUrl} → ${printerName || '기본 프린터'}`);
+      // 인쇄는 백그라운드로 실행 (실패해도 응답은 ok 반환 — 다른 요청을 블록하지 않음)
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true }));
+      setImmediate(() => {
+        try {
+          printFile(tempPdf, printerName || '');
+          console.log(`[에이전트] 슬립 인쇄 완료: ${printUrl} → ${printerName || '기본 프린터'}`);
+        } catch (err) {
+          console.error(`[에이전트] 슬립 인쇄 실패: ${err.message || err}`);
+        } finally {
+          setTimeout(() => { try { fs.unlinkSync(tempPdf); } catch { /* ignore */ } }, 30000);
+        }
+      });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: e.message }));
