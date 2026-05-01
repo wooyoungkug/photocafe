@@ -213,7 +213,7 @@ export default function SelectContextPage() {
             </div>
           </Link>
           <CardTitle className="text-2xl">계정 선택</CardTitle>
-          <CardDescription className="text-[11px] text-black font-normal">
+          <CardDescription className="text-[16px] text-black font-normal">
             {email
               ? `${email} 계정으로 로그인할 방법을 선택해주세요`
               : '로그인할 계정을 선택해주세요'}
