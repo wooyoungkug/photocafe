@@ -204,7 +204,11 @@ export default function PdfSettingsDialog({
   const [watchInkjetPrinter, setWatchInkjetPrinter] = useState('');
   const [watchSaving, setWatchSaving] = useState(false);
   // 에이전트 PDF 저장 경로 (브라우저 권한 무관, 가장 권장)
-  const [agentSavePath, setAgentSavePath] = useState('');
+  // localStorage에 캐시 → 대화상자 열 때 즉시 표시 (에이전트 응답 전에도)
+  const LS_AGENT_PATH_KEY = 'photocafe:agent-save-path';
+  const [agentSavePath, setAgentSavePath] = useState(
+    () => typeof window !== 'undefined' ? (localStorage.getItem('photocafe:agent-save-path') || '') : '',
+  );
 
   // 프린트 에이전트 상태 + watch 설정 로드
   useEffect(() => {
@@ -219,15 +223,24 @@ export default function PdfSettingsDialog({
           setWatchIndigoPrinter(cfg.indigoPrinter);
           setWatchInkjetPrinter(cfg.inkjetPrinter);
         });
-        getAgentSavePath().then(setAgentSavePath);
+        getAgentSavePath().then((path) => {
+          if (path) {
+            setAgentSavePath(path);
+            localStorage.setItem(LS_AGENT_PATH_KEY, path);
+          }
+        });
       }
     });
   }, [open]);
 
   const handleSaveAgentPath = async () => {
     const ok = await saveAgentSavePathToAgent(agentSavePath);
-    if (ok) toast.success('에이전트 저장 경로가 설정되었습니다.');
-    else toast.error('에이전트에 연결할 수 없습니다.');
+    if (ok) {
+      localStorage.setItem(LS_AGENT_PATH_KEY, agentSavePath);
+      toast.success('에이전트 저장 경로가 설정되었습니다.');
+    } else {
+      toast.error('에이전트에 연결할 수 없습니다.');
+    }
   };
 
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
@@ -623,7 +636,7 @@ export default function PdfSettingsDialog({
                 <Separator />
 
                 {/* 서버 자동 저장 경로 (무인 모드) */}
-                <div className="space-y-1.5 p-3 bg-blue-50 border border-blue-200 rounded">
+                <div className={`space-y-1.5 p-3 rounded border ${/^[A-Za-z]:[/\\]/.test(outputPath) ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-200'}`}>
                   <Label className="text-[14px] text-black font-bold">
                     무인 자동 저장 경로 (야간 자동 변환 권장)
                   </Label>
@@ -633,20 +646,36 @@ export default function PdfSettingsDialog({
                     onChange={(e) => setOutputPath(e.target.value)}
                     className="h-9 text-[14px] bg-white"
                   />
-                  <p className="text-[12px] text-gray-600">
-                    서버가 이 경로에 <code className="bg-white px-1 rounded">YYMMDD/인디고도수/양면|단면/</code> 구조로 PDF를 직접 저장합니다.<br/>
-                    브라우저 팝업/다운로드 대화상자 없이 완전 무인으로 동작합니다.<br/>
-                    <strong className="text-blue-700">경로가 설정되면 아래 "로컬 PC 저장"은 무시됩니다.</strong>
-                  </p>
+                  {/^[A-Za-z]:[/\\]/.test(outputPath) ? (
+                    <p className="text-[12px] text-red-700 font-medium">
+                      ⚠️ <strong>C:\, Z:\ 같은 Windows 경로는 서버(Railway)가 접근할 수 없습니다.</strong><br/>
+                      이 경로는 PDF 저장에 사용되지 않습니다. <strong>위의 에이전트 저장 경로(초록색)를 사용하세요.</strong><br/>
+                      이 칸을 비워두면 에이전트가 자동으로 저장합니다.
+                    </p>
+                  ) : (
+                    <p className="text-[12px] text-gray-600">
+                      서버가 이 경로에 <code className="bg-white px-1 rounded">YYMMDD/인디고도수/양면|단면/</code> 구조로 PDF를 직접 저장합니다.<br/>
+                      브라우저 팝업/다운로드 대화상자 없이 완전 무인으로 동작합니다.<br/>
+                      <strong className="text-blue-700">경로가 설정되면 아래 "로컬 PC 저장"은 무시됩니다.</strong>
+                    </p>
+                  )}
                 </div>
 
                 <Separator />
+
+                {/* 에이전트 실행 중이면 폴더선택 불필요 안내 */}
+                {agentRunning === true && agentSavePath ? (
+                  <div className="px-3 py-2 bg-green-50 border border-green-200 rounded text-[12px] text-green-700">
+                    ✅ 에이전트가 <strong>{agentSavePath}</strong>에 자동 저장합니다.<br/>
+                    아래 "로컬 PC에 저장" 설정은 에이전트를 사용하지 않을 때의 폴백입니다.
+                  </div>
+                ) : null}
 
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-[14px] text-black font-normal">로컬 PC에 저장 (폴백)</Label>
                     <p className="text-[12px] text-gray-500 mt-0.5">
-                      서버 자동 저장 경로가 비어있을 때만 적용. 브라우저 폴더 선택이 필요합니다.
+                      에이전트가 없을 때만 사용. 브라우저 폴더 선택이 필요하며 새로고침 시 재선택이 필요합니다.
                     </p>
                   </div>
                   <Switch
