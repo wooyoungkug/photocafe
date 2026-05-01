@@ -122,14 +122,18 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
-  // impersonate 중이면 Bearer 헤더로 전송 (sessionStorage 우선, 없으면 localStorage)
+  // 대리로그인 탭(impersonate-session이 있는 탭)에서만 Bearer 토큰 사용
+  // localStorage는 탭 간 공유되므로 사용 금지 - sessionStorage만 참조
   let impersonateAuth: Record<string, string> = {};
   if (typeof window !== 'undefined') {
     try {
-      const raw = sessionStorage.getItem('impersonate-tokens') || localStorage.getItem('impersonate-tokens');
-      if (raw) {
-        const tokens = JSON.parse(raw);
-        if (tokens?.accessToken) impersonateAuth = { Authorization: `Bearer ${tokens.accessToken}` };
+      const isImpersonateTab = !!sessionStorage.getItem('impersonate-session');
+      if (isImpersonateTab) {
+        const raw = sessionStorage.getItem('impersonate-tokens');
+        if (raw) {
+          const tokens = JSON.parse(raw);
+          if (tokens?.accessToken) impersonateAuth = { Authorization: `Bearer ${tokens.accessToken}` };
+        }
       }
     } catch { /* ignore */ }
   }

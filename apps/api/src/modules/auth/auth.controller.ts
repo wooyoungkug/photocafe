@@ -600,8 +600,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
   async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
-    if (req.user.type !== 'staff') {
-      throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
+    if (req.user.type !== 'staff' && req.user.role !== 'admin') {
+      throw new ForbiddenException('관리자 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
   }
