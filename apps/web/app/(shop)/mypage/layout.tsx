@@ -87,8 +87,7 @@ export default function MyPageLayout({
   const router = useRouter();
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const menuItems = getMenuItems(user);
-  // 촬영관리 목록 페이지에서만 좌측 필터 패널을 위해 사이드바를 아이콘 전용 모드로 축소
-  const isCompactSidebar = pathname === '/mypage/schedule';
+  const isCompactSidebar = false;
 
   // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
   useEffect(() => {
