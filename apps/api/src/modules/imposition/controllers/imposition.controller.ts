@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -11,6 +12,7 @@ import {
   Query,
   Res,
   StreamableFile,
+  forwardRef,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -40,6 +42,7 @@ import { PrismaClient } from '@prisma/client';
 import { seedImposition } from '../seed-imposition';
 import { B2StorageService } from '../../upload/services/b2-storage.service';
 import { PrintPdfSlipPrinterService } from '../../print-pdf/services/print-pdf-slip-printer.service';
+import { PrintPdfService } from '../../print-pdf/services/print-pdf.service';
 
 const IMPOSITION_OUTPUT_DIR = path.join(process.cwd(), 'uploads', 'imposition');
 
@@ -58,6 +61,8 @@ export class ImpositionController {
     private readonly settings: SystemSettingsService,
     private readonly b2Storage: B2StorageService,
     private readonly slipPrinter: PrintPdfSlipPrinterService,
+    @Inject(forwardRef(() => PrintPdfService))
+    private readonly printPdfService: PrintPdfService,
   ) {
     if (!fs.existsSync(IMPOSITION_OUTPUT_DIR)) {
       fs.mkdirSync(IMPOSITION_OUTPUT_DIR, { recursive: true });
@@ -536,6 +541,46 @@ export class ImpositionController {
       });
       throw err;
     }
+  }
+
+  /**
+   * 에이전트용 일회성 다운로드 토큰 발급 (JDF + PDF + ImagePDF 묶음)
+   * 브라우저는 토큰을 받아 로컬 에이전트로 전달하면, 에이전트가 Railway에서 직접 다운로드.
+   * 폴백: 파일이 없는 종류는 응답에서 제외.
+   */
+  @Post('jobs/:jobId/agent-tokens')
+  @ApiOperation({ summary: '임포지션 결과(JDF/PDF/ImagePDF) 에이전트 다운로드용 일회성 토큰 발급' })
+  async generateAgentTokens(@Param('jobId') jobId: string) {
+    const job = await this.prisma.impositionJob.findUnique({ where: { id: jobId } });
+    if (!job) throw new NotFoundException('임포지션 작업을 찾을 수 없습니다');
+
+    const apiBase = (process.env.API_URL || 'https://api.photocafe.co.kr').replace(/\/$/, '');
+    const result: {
+      jdf?: { downloadUrl: string; fileName: string };
+      pdf?: { downloadUrl: string; fileName: string };
+      imagePdf?: { downloadUrl: string; fileName: string };
+    } = {};
+
+    if (job.jdfPath && fs.existsSync(job.jdfPath)) {
+      const fileName = `imposition_${jobId}.jdf`;
+      const token = this.printPdfService.generateAgentDownloadToken(job.jdfPath, fileName);
+      result.jdf = { downloadUrl: `${apiBase}/api/v1/print-pdf/agent-dl?t=${token}`, fileName };
+    }
+    if (job.pdfPath && fs.existsSync(job.pdfPath)) {
+      const fileName = `imposition_${jobId}.pdf`;
+      const token = this.printPdfService.generateAgentDownloadToken(job.pdfPath, fileName);
+      result.pdf = { downloadUrl: `${apiBase}/api/v1/print-pdf/agent-dl?t=${token}`, fileName };
+    }
+    if (job.imagePdfPath && fs.existsSync(job.imagePdfPath)) {
+      const fileName = `imposition_image_${jobId}.pdf`;
+      const token = this.printPdfService.generateAgentDownloadToken(job.imagePdfPath, fileName);
+      result.imagePdf = { downloadUrl: `${apiBase}/api/v1/print-pdf/agent-dl?t=${token}`, fileName };
+    }
+
+    if (!result.jdf && !result.pdf && !result.imagePdf) {
+      throw new NotFoundException('다운로드 가능한 파일이 없습니다');
+    }
+    return result;
   }
 
   @Get('jobs/:jobId/jdf')

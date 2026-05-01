@@ -412,6 +412,58 @@ export async function downloadAndSaveViaAgent(
 }
 
 /**
+ * 임포지션 결과(JDF + PDF + ImagePDF)를 에이전트로 다운로드.
+ *
+ * 흐름:
+ *   1) Railway POST /imposition/jobs/:jobId/agent-tokens → 3종의 downloadUrl + fileName 획득
+ *   2) 각 파일을 에이전트 /pull-and-save 에 순차 전달 → 에이전트가 Railway에서 직접 다운로드
+ *
+ * 반환: 다운로드 시도/성공 카운트
+ */
+export async function downloadImpositionViaAgent(
+  jobId: string,
+  subPath: string,
+): Promise<{ requested: number; saved: number }> {
+  try {
+    const tokens = await api.post<{
+      jdf?: { downloadUrl: string; fileName: string };
+      pdf?: { downloadUrl: string; fileName: string };
+      imagePdf?: { downloadUrl: string; fileName: string };
+    }>(`/imposition/jobs/${jobId}/agent-tokens`);
+
+    const targets = [tokens?.jdf, tokens?.pdf, tokens?.imagePdf].filter(
+      (t): t is { downloadUrl: string; fileName: string } => !!t?.downloadUrl,
+    );
+    if (targets.length === 0) return { requested: 0, saved: 0 };
+
+    let saved = 0;
+    for (const t of targets) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 60000);
+        const res = await fetch(`${PRINT_AGENT_URL}/pull-and-save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            downloadUrl: t.downloadUrl,
+            fileName: t.fileName,
+            subPath,
+          }),
+          signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (res.ok) saved += 1;
+      } catch {
+        // 개별 파일 실패해도 다음 파일 계속 시도
+      }
+    }
+    return { requested: targets.length, saved };
+  } catch {
+    return { requested: 0, saved: 0 };
+  }
+}
+
+/**
  * 에이전트가 로컬 Chrome으로 슬립(작업지시서) 페이지를 인쇄.
  *
  * 흐름:

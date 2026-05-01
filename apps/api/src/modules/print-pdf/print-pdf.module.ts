@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrintPdfController } from './controllers/print-pdf.controller';
 import { PrintPdfService } from './services/print-pdf.service';
 import { PrintPdfRendererService } from './services/print-pdf-renderer.service';
@@ -10,7 +10,7 @@ import { ImpositionModule } from '../imposition/imposition.module';
 import { UploadModule } from '../upload/upload.module';
 
 @Module({
-  imports: [SystemSettingsModule, ImpositionModule, UploadModule],
+  imports: [SystemSettingsModule, forwardRef(() => ImpositionModule), UploadModule],
   controllers: [PrintPdfController],
   providers: [
     PrintPdfService,

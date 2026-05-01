@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PrismaModule } from '@/common/prisma/prisma.module';
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { UploadModule } from '../upload/upload.module';
+import { PrintPdfModule } from '../print-pdf/print-pdf.module';
 import { ImpositionController } from './controllers/imposition.controller';
 import { ImpositionCalcService } from './services/imposition-calc.service';
 import { ImpositionJdfService } from './services/imposition-jdf.service';
@@ -13,7 +14,7 @@ import { ImpositionImagePdfService } from './services/imposition-image-pdf.servi
 import { PrintPdfSlipPrinterService } from '../print-pdf/services/print-pdf-slip-printer.service';
 
 @Module({
-  imports: [PrismaModule, SystemSettingsModule, UploadModule],
+  imports: [PrismaModule, SystemSettingsModule, UploadModule, forwardRef(() => PrintPdfModule)],
   controllers: [ImpositionController],
   providers: [
     ImpositionCalcService,
