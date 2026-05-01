@@ -464,9 +464,8 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* 공정별 문자 알림 카드 - 직원은 비표시 */}
-      {!isEmployee && (
-        <Card>
+      {/* 공정별 문자 알림 카드 */}
+      <Card>
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <Bell className="h-4 w-4" />
@@ -504,7 +503,6 @@ export default function ProfilePage() {
             )}
           </CardContent>
         </Card>
-      )}
 
       {/* 비밀번호 변경 카드 */}
       <Card>
