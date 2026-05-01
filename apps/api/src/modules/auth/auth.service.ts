@@ -1236,9 +1236,14 @@ export class AuthService {
         },
       });
 
-      // 2. 소속 직원 관계 해제
+      // 2. 고용 관계 해제: 본인이 멤버인 것 + 본인이 운영하는 회사의 직원들
       await tx.employment.deleteMany({
-        where: { memberClientId: clientId },
+        where: {
+          OR: [
+            { memberClientId: clientId },
+            { companyClientId: clientId },
+          ],
+        },
       });
 
       // 3. 대기 중인 초대 취소

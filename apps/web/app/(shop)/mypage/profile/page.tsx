@@ -683,7 +683,7 @@ export default function ProfilePage() {
               <p className="font-medium">탈퇴 전 확인사항</p>
               <ul className="list-disc list-inside space-y-0.5 font-normal">
                 <li>이름, 이메일, 연락처, 주소 등 개인정보가 즉시 삭제됩니다</li>
-                <li>소속된 스튜디오에서 자동으로 탈퇴됩니다</li>
+                <li>소속 직원들의 고용 관계가 모두 해제됩니다</li>
                 <li>탈퇴 후 동일 계정으로 재가입이 불가능합니다</li>
                 <li>주문·결제 내역은 세법에 따라 5년간 보존됩니다</li>
               </ul>
