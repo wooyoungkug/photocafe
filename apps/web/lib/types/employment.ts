@@ -69,7 +69,7 @@ export interface CreateInvitationRequest {
   clientId: string;
   inviteeEmail: string;
   role: EmployeeRole;
-  oauthProvider: 'naver' | 'kakao' | 'google';
+  oauthProvider?: 'naver' | 'kakao' | 'google';
 }
 
 export interface UpdateEmploymentRequest {
