@@ -647,13 +647,25 @@ export default function ProfilePage() {
               소속을 해제하면 {user?.clientName || '현재 회사'}의 직원 권한이 즉시 사라집니다.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="bg-orange-50 border border-orange-100 rounded-md p-3 mb-4 text-[13px] text-orange-700 space-y-1">
-              <p className="font-medium">소속 해제 전 확인사항</p>
+          <CardContent className="px-5 pb-5 space-y-3">
+            {/* 권리 */}
+            <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-[13px] text-blue-800 space-y-1">
+              <p className="font-medium">귀하의 권리</p>
               <ul className="list-disc list-inside space-y-0.5 font-normal">
-                <li>해제 후 해당 회사의 주문·설정에 접근할 수 없습니다</li>
-                <li>개인 계정(이메일·주문내역)은 그대로 유지됩니다</li>
-                <li>재소속이 필요하면 회사 관리자에게 재초대를 요청하세요</li>
+                <li>언제든지 소속 해제를 자유롭게 신청할 수 있습니다</li>
+                <li>개인 계정(이름·이메일·비밀번호)은 해제 후에도 그대로 유지됩니다</li>
+                <li>본인이 직접 등록한 개인정보는 계속 보관되며 열람·수정할 수 있습니다</li>
+                <li>재소속이 필요하면 회사 관리자에게 재초대를 요청할 수 있습니다</li>
+              </ul>
+            </div>
+            {/* 책임사항 */}
+            <div className="rounded-md border border-orange-100 bg-orange-50 p-3 text-[13px] text-orange-800 space-y-1">
+              <p className="font-medium">소속 해제 후 변경사항</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>해제 즉시 해당 회사의 주문·설정·통계 메뉴 접근이 차단됩니다</li>
+                <li>진행 중인 업무는 해제 전 담당자에게 인수인계해 주세요</li>
+                <li>재직 중 처리한 주문·이력은 회사 기록에 보존됩니다</li>
+                <li>회사 내부 정보에 대한 기밀 유지 의무는 해제 후에도 유지됩니다</li>
               </ul>
             </div>
             <Button
@@ -678,14 +690,24 @@ export default function ProfilePage() {
               탈퇴 시 개인정보는 즉시 삭제되며, 주문 내역은 법적 의무에 따라 보존됩니다.
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="bg-red-50 border border-red-100 rounded-md p-3 mb-4 text-[13px] text-red-700 space-y-1">
-              <p className="font-medium">탈퇴 전 확인사항</p>
+          <CardContent className="px-5 pb-5 space-y-3">
+            {/* 권리 */}
+            <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-[13px] text-blue-800 space-y-1">
+              <p className="font-medium">귀하의 권리</p>
               <ul className="list-disc list-inside space-y-0.5 font-normal">
-                <li>이름, 이메일, 연락처, 주소 등 개인정보가 즉시 삭제됩니다</li>
-                <li>소속 직원들의 고용 관계가 모두 해제됩니다</li>
-                <li>탈퇴 후 동일 계정으로 재가입이 불가능합니다</li>
-                <li>주문·결제 내역은 세법에 따라 5년간 보존됩니다</li>
+                <li>언제든지 탈퇴를 신청할 수 있으며 즉시 처리됩니다</li>
+                <li>탈퇴 시 개인정보(이름·이메일·연락처·주소)는 즉시 삭제됩니다</li>
+                <li>탈퇴 전 본인 데이터를 열람하거나 내보낼 수 있습니다</li>
+              </ul>
+            </div>
+            {/* 책임사항 */}
+            <div className="rounded-md border border-red-100 bg-red-50 p-3 text-[13px] text-red-700 space-y-1">
+              <p className="font-medium">탈퇴 후 변경사항 (되돌릴 수 없음)</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>소속 직원들의 고용 관계가 모두 즉시 해제됩니다</li>
+                <li>탈퇴 후 동일 이메일·소셜 계정으로 재가입이 불가능합니다</li>
+                <li>주문·결제 내역은 국세기본법에 따라 <strong>5년간 보존</strong>됩니다</li>
+                <li>미정산 잔액·크레딧이 있을 경우 소멸될 수 있습니다</li>
               </ul>
             </div>
             <Button
