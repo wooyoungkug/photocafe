@@ -6,10 +6,13 @@
  *
  * - 이 파일을 실행하면 localhost:9199 에서 프린터 목록 API가 열립니다.
  * - photocafe.co.kr 에서 로컬 PC의 프린터 목록을 조회할 수 있게 됩니다.
- * - 이 창을 닫으면 프린터 목록이 조회되지 않습니다.
+ * - 설정에서 "폴더 감시 자동 인쇄"를 활성화하면 지정 폴더에 새 PDF가 생길 때 자동 인쇄합니다.
+ * - 이 창을 닫으면 프린터 목록 조회 및 자동 인쇄가 중단됩니다.
  */
 
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 const { execSync } = require('child_process');
 
 const PORT = 9199;
@@ -20,14 +23,54 @@ const ALLOWED_ORIGINS = [
   'http://localhost:3000',
 ];
 
-function setPrinterCorsHeaders(req, res) {
+// ==================== 설정 파일 ====================
+
+const CONFIG_PATH = path.join(__dirname, 'print-agent-config.json');
+
+/** @type {{ watchEnabled: boolean, watchFolder: string, indigoPrinter: string, inkjetPrinter: string, printedFiles: string[] }} */
+let config = {
+  watchEnabled: false,
+  watchFolder: '',
+  indigoPrinter: '',
+  inkjetPrinter: '',
+  printedFiles: [],
+};
+
+function loadConfig() {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+      config = { ...config, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    console.warn('[에이전트] 설정 파일 로드 실패, 기본값 사용:', e.message);
+  }
+}
+
+function saveConfig() {
+  try {
+    // printedFiles 는 최근 2000개만 유지
+    if (config.printedFiles.length > 2000) {
+      config.printedFiles = config.printedFiles.slice(-2000);
+    }
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[에이전트] 설정 파일 저장 실패:', e.message);
+  }
+}
+
+// ==================== CORS ====================
+
+function setCorsHeaders(req, res) {
   const origin = req.headers.origin || '';
   if (ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
+
+// ==================== 프린터 조회 ====================
 
 function getPrinters() {
   if (process.platform === 'win32') {
@@ -43,7 +86,6 @@ function getPrinters() {
       port: p.PortName || '',
     }));
   }
-  // macOS / Linux
   const output = execSync('lpstat -a 2>/dev/null || echo ""', { encoding: 'utf8', timeout: 5000 });
   return output
     .split('\n')
@@ -51,8 +93,123 @@ function getPrinters() {
     .map((line) => ({ name: line.split(' ')[0], driver: '', port: '' }));
 }
 
-const server = http.createServer((req, res) => {
-  setPrinterCorsHeaders(req, res);
+// ==================== 인쇄 ====================
+
+function detectPrinter(filePath) {
+  const isInkjet =
+    filePath.includes('잉크젯') ||
+    filePath.toLowerCase().includes('inkjet');
+  if (isInkjet && config.inkjetPrinter) return config.inkjetPrinter;
+  if (!isInkjet && config.indigoPrinter) return config.indigoPrinter;
+  return '';
+}
+
+function printFile(filePath, printerName) {
+  if (process.platform !== 'win32') {
+    const cmd = printerName
+      ? `lpr -P "${printerName}" "${filePath}"`
+      : `lpr "${filePath}"`;
+    execSync(cmd, { timeout: 60000 });
+    return;
+  }
+  const safePath = filePath.replace(/'/g, "''");
+  const cmd = printerName
+    ? `powershell -NoProfile -Command "Start-Process -FilePath '${safePath}' -Verb PrintTo -ArgumentList '${printerName.replace(/'/g, "''")}' -Wait -WindowStyle Hidden"`
+    : `powershell -NoProfile -Command "Start-Process -FilePath '${safePath}' -Verb Print -Wait -WindowStyle Hidden"`;
+  execSync(cmd, { timeout: 60000 });
+}
+
+// ==================== 폴더 감시 ====================
+
+let activeWatcher = null;
+const pendingFiles = new Map(); // debounce용
+
+function startWatcher() {
+  stopWatcher();
+
+  if (!config.watchEnabled || !config.watchFolder) return;
+  if (!fs.existsSync(config.watchFolder)) {
+    console.log(`[에이전트] 감시 폴더 없음: ${config.watchFolder}`);
+    return;
+  }
+
+  console.log(`[에이전트] 폴더 감시 시작: ${config.watchFolder}`);
+
+  try {
+    activeWatcher = fs.watch(
+      config.watchFolder,
+      { recursive: true },
+      (event, filename) => {
+        if (!filename) return;
+        if (!filename.toLowerCase().endsWith('.pdf')) return;
+
+        // debounce: 동일 파일은 1초 내 중복 이벤트 무시
+        if (pendingFiles.has(filename)) return;
+        pendingFiles.set(filename, true);
+
+        setTimeout(() => {
+          pendingFiles.delete(filename);
+          const fullPath = path.join(config.watchFolder, filename);
+
+          if (!fs.existsSync(fullPath)) return;
+          if (config.printedFiles.includes(fullPath)) return;
+
+          const printer = detectPrinter(fullPath);
+          console.log(
+            `[에이전트] 새 PDF 감지: ${path.basename(fullPath)}` +
+            (printer ? ` → 프린터: ${printer}` : ' → 기본 프린터'),
+          );
+
+          try {
+            printFile(fullPath, printer);
+            config.printedFiles.push(fullPath);
+            saveConfig();
+            console.log(`[에이전트] 인쇄 완료: ${path.basename(fullPath)}`);
+          } catch (e) {
+            console.error(`[에이전트] 인쇄 실패: ${path.basename(fullPath)}`, e.message);
+          }
+        }, 1500);
+      },
+    );
+
+    activeWatcher.on('error', (e) => {
+      console.error('[에이전트] 감시 오류:', e.message);
+      stopWatcher();
+    });
+  } catch (e) {
+    console.error('[에이전트] 감시 시작 실패:', e.message);
+  }
+}
+
+function stopWatcher() {
+  if (activeWatcher) {
+    activeWatcher.close();
+    activeWatcher = null;
+    console.log('[에이전트] 폴더 감시 중지');
+  }
+}
+
+// ==================== 요청 body 파싱 ====================
+
+function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        resolve({});
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+// ==================== HTTP 서버 ====================
+
+const server = http.createServer(async (req, res) => {
+  setCorsHeaders(req, res);
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -60,12 +217,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  if (req.url === '/health') {
+  // GET /health
+  if (req.url === '/health' && req.method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ ok: true, agent: 'photocafe-print-agent', version: '1.0.0' }));
+    res.end(JSON.stringify({
+      ok: true,
+      agent: 'photocafe-print-agent',
+      version: '1.1.0',
+      watchEnabled: config.watchEnabled,
+      watchFolder: config.watchFolder,
+      watching: !!activeWatcher,
+    }));
     return;
   }
 
+  // GET /printers
   if (req.url === '/printers' && req.method === 'GET') {
     try {
       const printers = getPrinters();
@@ -79,9 +245,67 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // GET /watch-config
+  if (req.url === '/watch-config' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      watchEnabled: config.watchEnabled,
+      watchFolder: config.watchFolder,
+      indigoPrinter: config.indigoPrinter,
+      inkjetPrinter: config.inkjetPrinter,
+      watching: !!activeWatcher,
+      printedCount: config.printedFiles.length,
+    }));
+    return;
+  }
+
+  // POST /watch-config  { watchEnabled, watchFolder, indigoPrinter, inkjetPrinter }
+  if (req.url === '/watch-config' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      if (typeof body.watchEnabled === 'boolean') config.watchEnabled = body.watchEnabled;
+      if (typeof body.watchFolder === 'string') config.watchFolder = body.watchFolder.trim();
+      if (typeof body.indigoPrinter === 'string') config.indigoPrinter = body.indigoPrinter.trim();
+      if (typeof body.inkjetPrinter === 'string') config.inkjetPrinter = body.inkjetPrinter.trim();
+      saveConfig();
+      startWatcher();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, watching: !!activeWatcher }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
+  // POST /print-file  { filePath, printerName? }
+  if (req.url === '/print-file' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const filePath = body.filePath || '';
+      if (!filePath || !fs.existsSync(filePath)) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: false, error: '파일을 찾을 수 없습니다.' }));
+        return;
+      }
+      const printer = body.printerName || detectPrinter(filePath);
+      printFile(filePath, printer);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: true, printer: printer || '(기본 프린터)' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    }
+    return;
+  }
+
   res.writeHead(404);
   res.end('Not found');
 });
+
+// ==================== 시작 ====================
+
+loadConfig();
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log('');
@@ -91,12 +315,19 @@ server.listen(PORT, '127.0.0.1', () => {
   console.log('  이 창을 닫으면 프린터 조회가 중단됩니다.');
   console.log('======================================');
   console.log('');
+
   try {
     const printers = getPrinters();
     console.log(`[에이전트] 감지된 프린터 ${printers.length}개:`);
     printers.forEach((p) => console.log(`  - ${p.name}`));
   } catch (e) {
     console.log('[에이전트] 프린터 조회 실패:', e.message);
+  }
+
+  if (config.watchEnabled && config.watchFolder) {
+    startWatcher();
+  } else {
+    console.log('[에이전트] 폴더 감시 비활성 (설정에서 활성화 가능)');
   }
 });
 
