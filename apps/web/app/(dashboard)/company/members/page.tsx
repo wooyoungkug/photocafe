@@ -85,7 +85,9 @@ import {
   LogIn,
   LogOut,
   Settings,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { ClientBulkImportDialog } from '@/components/client/client-bulk-import-dialog';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -227,6 +229,7 @@ function MembersPageContent() {
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
@@ -601,10 +604,16 @@ function MembersPageContent() {
             <Users className="h-5 w-5 text-blue-600" />
             회원 목록
           </CardTitle>
-          <Button onClick={() => handleOpenDialog(undefined, memberTypeTab !== 'all' ? memberTypeTab : undefined)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
-            <Plus className="h-4 w-4 mr-2" />
-            회원 추가
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              엑셀 일괄등록
+            </Button>
+            <Button onClick={() => handleOpenDialog(undefined, memberTypeTab !== 'all' ? memberTypeTab : undefined)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
+              <Plus className="h-4 w-4 mr-2" />
+              회원 추가
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           {/* 회원 타입 탭 */}
@@ -1808,6 +1817,9 @@ function MembersPageContent() {
           }}
         />
       )}
+
+      {/* 엑셀 일괄등록 다이얼로그 */}
+      <ClientBulkImportDialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen} />
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

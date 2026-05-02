@@ -84,7 +84,9 @@ import {
   Image,
   FileText,
   MapPin,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { ClientBulkImportDialog } from '@/components/client/client-bulk-import-dialog';
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
@@ -92,6 +94,7 @@ export default function ClientsPage() {
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
 
@@ -377,10 +380,16 @@ export default function ClientsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>거래처 목록</CardTitle>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            거래처 추가
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              엑셀 일괄등록
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              거래처 추가
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {/* 필터 영역 */}
@@ -1379,6 +1388,9 @@ export default function ClientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 엑셀 일괄등록 다이얼로그 */}
+      <ClientBulkImportDialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen} />
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
