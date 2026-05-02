@@ -26,6 +26,12 @@
         "-y",
         "@modelcontextprotocol/server-memory"
       ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "@upstash/context7-mcp"
+      ]
     }
   }
 }
