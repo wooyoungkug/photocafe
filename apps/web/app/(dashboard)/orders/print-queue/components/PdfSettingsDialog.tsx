@@ -30,7 +30,16 @@ import {
   useBulkUpdateSettings,
   settingsToMap,
 } from '@/hooks/use-system-settings';
-import { IndexOptions, DEFAULT_INDEX_OPTIONS, usePrinterList } from '@/hooks/use-print-pdf';
+import {
+  IndexOptions,
+  DEFAULT_INDEX_OPTIONS,
+  usePrinterList,
+  checkPrintAgentRunning,
+  fetchAgentWatchConfig,
+  saveAgentWatchConfig,
+  getAgentSavePath,
+  setAgentSavePath as saveAgentSavePathToAgent,
+} from '@/hooks/use-print-pdf';
 
 interface PdfSettingsDialogProps {
   open: boolean;
@@ -181,11 +190,58 @@ export default function PdfSettingsDialog({
   const [markColorBar, setMarkColorBar] = useState(true);
   const [markFold, setMarkFold] = useState(true);
   const [markJobMeta, setMarkJobMeta] = useState(true);
-  const { data: printers = [] } = usePrinterList();
+  const { data: printers = [], refetch: refetchPrinters } = usePrinterList();
+  const [agentRunning, setAgentRunning] = useState<boolean | null>(null);
+  const [agentRetrying, setAgentRetrying] = useState(false);
   const [autoPrintEnabled, setAutoPrintEnabled] = useState(false);
   const [autoPrintName, setAutoPrintName] = useState('');
   const [autoPrintNameIndigo, setAutoPrintNameIndigo] = useState('');
   const [autoPrintNameInkjet, setAutoPrintNameInkjet] = useState('');
+  // 폴더 감시 자동 인쇄 (에이전트 로컬 설정)
+  const [watchEnabled, setWatchEnabled] = useState(false);
+  const [watchFolder, setWatchFolder] = useState('');
+  const [watchIndigoPrinter, setWatchIndigoPrinter] = useState('');
+  const [watchInkjetPrinter, setWatchInkjetPrinter] = useState('');
+  const [watchSaving, setWatchSaving] = useState(false);
+  // 에이전트 PDF 저장 경로 (브라우저 권한 무관, 가장 권장)
+  // localStorage에 캐시 → 대화상자 열 때 즉시 표시 (에이전트 응답 전에도)
+  const LS_AGENT_PATH_KEY = 'photocafe:agent-save-path';
+  const [agentSavePath, setAgentSavePath] = useState(
+    () => typeof window !== 'undefined' ? (localStorage.getItem('photocafe:agent-save-path') || '') : '',
+  );
+
+  // 프린트 에이전트 상태 + watch 설정 로드
+  useEffect(() => {
+    if (!open) return;
+    checkPrintAgentRunning().then((running) => {
+      setAgentRunning(running);
+      if (running) {
+        fetchAgentWatchConfig().then((cfg) => {
+          if (!cfg) return;
+          setWatchEnabled(cfg.watchEnabled);
+          setWatchFolder(cfg.watchFolder);
+          setWatchIndigoPrinter(cfg.indigoPrinter);
+          setWatchInkjetPrinter(cfg.inkjetPrinter);
+        });
+        getAgentSavePath().then((path) => {
+          if (path) {
+            setAgentSavePath(path);
+            localStorage.setItem(LS_AGENT_PATH_KEY, path);
+          }
+        });
+      }
+    });
+  }, [open]);
+
+  const handleSaveAgentPath = async () => {
+    const ok = await saveAgentSavePathToAgent(agentSavePath);
+    if (ok) {
+      localStorage.setItem(LS_AGENT_PATH_KEY, agentSavePath);
+      toast.success('에이전트 저장 경로가 설정되었습니다.');
+    } else {
+      toast.error('에이전트에 연결할 수 없습니다.');
+    }
+  };
 
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
   useEffect(() => {
@@ -547,8 +603,40 @@ export default function PdfSettingsDialog({
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-3">
+                {/* 에이전트 저장 경로 (가장 권장 — 브라우저 권한 무관) */}
+                <div className="space-y-1.5 p-3 bg-green-50 border border-green-200 rounded">
+                  <Label className="text-[14px] text-black font-bold">
+                    에이전트 저장 경로 ✅ 권장
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder={String.raw`예: C:\PDF저장  또는  Z:\출력팀\접수대기`}
+                      value={agentSavePath}
+                      onChange={(e) => setAgentSavePath(e.target.value)}
+                      className="h-9 text-[14px] bg-white flex-1"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 whitespace-nowrap"
+                      onClick={handleSaveAgentPath}
+                      disabled={!agentRunning}
+                    >
+                      적용
+                    </Button>
+                  </div>
+                  <p className="text-[12px] text-green-700">
+                    {agentRunning
+                      ? '로컬 프린트 에이전트가 실행 중입니다. 여기에 경로를 설정하면 브라우저 권한 팝업 없이 항상 이 폴더에 저장됩니다.'
+                      : '에이전트가 실행되지 않았습니다. tools/print-agent/프린트에이전트_실행.bat을 먼저 실행하세요.'}
+                  </p>
+                </div>
+
+                <Separator />
+
                 {/* 서버 자동 저장 경로 (무인 모드) */}
-                <div className="space-y-1.5 p-3 bg-blue-50 border border-blue-200 rounded">
+                <div className={`space-y-1.5 p-3 rounded border ${/^[A-Za-z]:[/\\]/.test(outputPath) ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-200'}`}>
                   <Label className="text-[14px] text-black font-bold">
                     무인 자동 저장 경로 (야간 자동 변환 권장)
                   </Label>
@@ -558,20 +646,36 @@ export default function PdfSettingsDialog({
                     onChange={(e) => setOutputPath(e.target.value)}
                     className="h-9 text-[14px] bg-white"
                   />
-                  <p className="text-[12px] text-gray-600">
-                    서버가 이 경로에 <code className="bg-white px-1 rounded">YYMMDD/인디고도수/양면|단면/</code> 구조로 PDF를 직접 저장합니다.<br/>
-                    브라우저 팝업/다운로드 대화상자 없이 완전 무인으로 동작합니다.<br/>
-                    <strong className="text-blue-700">경로가 설정되면 아래 "로컬 PC 저장"은 무시됩니다.</strong>
-                  </p>
+                  {/^[A-Za-z]:[/\\]/.test(outputPath) ? (
+                    <p className="text-[12px] text-red-700 font-medium">
+                      ⚠️ <strong>C:\, Z:\ 같은 Windows 경로는 서버(Railway)가 접근할 수 없습니다.</strong><br/>
+                      이 경로는 PDF 저장에 사용되지 않습니다. <strong>위의 에이전트 저장 경로(초록색)를 사용하세요.</strong><br/>
+                      이 칸을 비워두면 에이전트가 자동으로 저장합니다.
+                    </p>
+                  ) : (
+                    <p className="text-[12px] text-gray-600">
+                      서버가 이 경로에 <code className="bg-white px-1 rounded">YYMMDD/인디고도수/양면|단면/</code> 구조로 PDF를 직접 저장합니다.<br/>
+                      브라우저 팝업/다운로드 대화상자 없이 완전 무인으로 동작합니다.<br/>
+                      <strong className="text-blue-700">경로가 설정되면 아래 "로컬 PC 저장"은 무시됩니다.</strong>
+                    </p>
+                  )}
                 </div>
 
                 <Separator />
+
+                {/* 에이전트 실행 중이면 폴더선택 불필요 안내 */}
+                {agentRunning === true && agentSavePath ? (
+                  <div className="px-3 py-2 bg-green-50 border border-green-200 rounded text-[12px] text-green-700">
+                    ✅ 에이전트가 <strong>{agentSavePath}</strong>에 자동 저장합니다.<br/>
+                    아래 "로컬 PC에 저장" 설정은 에이전트를 사용하지 않을 때의 폴백입니다.
+                  </div>
+                ) : null}
 
                 <div className="flex items-center justify-between">
                   <div>
                     <Label className="text-[14px] text-black font-normal">로컬 PC에 저장 (폴백)</Label>
                     <p className="text-[12px] text-gray-500 mt-0.5">
-                      서버 자동 저장 경로가 비어있을 때만 적용. 브라우저 폴더 선택이 필요합니다.
+                      에이전트가 없을 때만 사용. 브라우저 폴더 선택이 필요하며 새로고침 시 재선택이 필요합니다.
                     </p>
                   </div>
                   <Switch
@@ -627,7 +731,120 @@ export default function PdfSettingsDialog({
             </CardContent>
           </Card>
 
-          {/* ===== 4. 작업지시서 자동 인쇄 ===== */}
+          {/* ===== 4. PDF 파일 자동 인쇄 (에이전트 폴더 감시) ===== */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-[14px] text-black font-bold">PDF 파일 자동 인쇄 (출력 에이전트)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-[12px] text-gray-500">
+                에이전트가 지정 폴더를 감시하다가 새 PDF가 생기면 자동으로 인쇄합니다.
+                "무인 자동 저장 경로"와 동일한 경로를 입력하면 변환 즉시 인쇄됩니다.
+              </p>
+
+              {agentRunning === false && (
+                <div className="text-[12px] bg-amber-50 border border-amber-200 px-3 py-2.5 rounded">
+                  <p className="text-amber-700 font-medium">에이전트가 실행 중이 아닙니다.</p>
+                  <p className="text-amber-600 mt-0.5">
+                    <span className="font-mono bg-amber-100 px-1 rounded">tools/print-agent/프린트에이전트_실행.bat</span> 를 실행한 뒤 연결 재시도를 눌러주세요.
+                  </p>
+                </div>
+              )}
+
+              {agentRunning !== false && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-[14px] text-black font-normal">폴더 감시 자동 인쇄</Label>
+                      <p className="text-[12px] text-gray-500 mt-0.5">
+                        활성화하면 에이전트 재시작 시에도 자동으로 감시를 재개합니다.
+                      </p>
+                    </div>
+                    <Switch checked={watchEnabled} onCheckedChange={setWatchEnabled} />
+                  </div>
+
+                  {watchEnabled && (
+                    <div className="space-y-3 pl-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-[14px] text-black font-normal">감시 폴더 경로</Label>
+                        <Input
+                          placeholder={String.raw`예: Z:\출력팀\Wooceo_출력백업\!2025년\접수대기`}
+                          value={watchFolder}
+                          onChange={(e) => setWatchFolder(e.target.value)}
+                          className="h-9 text-[14px]"
+                        />
+                        <p className="text-[12px] text-gray-500">
+                          하위 폴더(날짜/인디고/단면 등)까지 재귀적으로 감시합니다.
+                        </p>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[14px] text-black font-normal">인디고 프린터 (4도/6도)</Label>
+                        <Select value={watchIndigoPrinter || '__none__'} onValueChange={(v) => setWatchIndigoPrinter(v === '__none__' ? '' : v)}>
+                          <SelectTrigger className="h-9 text-[14px]">
+                            <SelectValue placeholder="프린터 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">미지정</SelectItem>
+                            {printers.map((p) => (
+                              <SelectItem key={`watch-indigo-${p.name}`} value={p.name}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-[14px] text-black font-normal">잉크젯 프린터</Label>
+                        <Select value={watchInkjetPrinter || '__none__'} onValueChange={(v) => setWatchInkjetPrinter(v === '__none__' ? '' : v)}>
+                          <SelectTrigger className="h-9 text-[14px]">
+                            <SelectValue placeholder="프린터 선택" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">미지정</SelectItem>
+                            {printers.map((p) => (
+                              <SelectItem key={`watch-inkjet-${p.name}`} value={p.name}>
+                                {p.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <p className="text-[12px] text-gray-500">
+                        폴더명에 "잉크젯"이 포함된 파일은 잉크젯 프린터로, 나머지는 인디고 프린터로 전송합니다.
+                      </p>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={watchSaving || agentRunning !== true}
+                    className="text-[14px]"
+                    onClick={async () => {
+                      setWatchSaving(true);
+                      const ok = await saveAgentWatchConfig({
+                        watchEnabled,
+                        watchFolder,
+                        indigoPrinter: watchIndigoPrinter,
+                        inkjetPrinter: watchInkjetPrinter,
+                      });
+                      setWatchSaving(false);
+                      if (ok) {
+                        toast.success('에이전트 감시 설정이 저장되었습니다.');
+                      } else {
+                        toast.error('저장 실패. 에이전트가 실행 중인지 확인해주세요.');
+                      }
+                    }}
+                  >
+                    {watchSaving ? '저장 중...' : '에이전트에 저장'}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ===== 6. 작업지시서 자동 인쇄 ===== */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-[14px] text-black font-bold">작업지시서 자동 인쇄</CardTitle>
@@ -645,9 +862,37 @@ export default function PdfSettingsDialog({
 
               {autoPrintEnabled && (
                 <div className="space-y-3 pl-4">
-                  {printers.length === 0 && (
+                  {agentRunning === false && (
+                    <div className="text-[12px] bg-amber-50 border border-amber-200 px-3 py-2.5 rounded space-y-1.5">
+                      <p className="text-amber-700 font-medium">로컬 프린트 에이전트가 실행되지 않았습니다.</p>
+                      <p className="text-amber-600">
+                        PC에서 <span className="font-mono bg-amber-100 px-1 rounded">tools/print-agent/print-agent.js</span> 를 실행하면 프린터 목록을 불러올 수 있습니다.
+                      </p>
+                      <p className="text-amber-500">명령어: <span className="font-mono bg-amber-100 px-1 rounded">node tools/print-agent/print-agent.js</span></p>
+                      <button
+                        type="button"
+                        disabled={agentRetrying}
+                        className="text-[11px] text-amber-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                        onClick={async () => {
+                          setAgentRetrying(true);
+                          const ok = await checkPrintAgentRunning();
+                          setAgentRunning(ok);
+                          if (ok) {
+                            refetchPrinters();
+                            toast.success('에이전트 연결 성공! 프린터 목록을 불러옵니다.');
+                          } else {
+                            toast.error('에이전트에 연결할 수 없습니다. 에이전트가 실행 중인지 확인해주세요.');
+                          }
+                          setAgentRetrying(false);
+                        }}
+                      >
+                        {agentRetrying ? '확인 중...' : '에이전트 연결 재시도'}
+                      </button>
+                    </div>
+                  )}
+                  {agentRunning === true && printers.length === 0 && (
                     <p className="text-[12px] text-amber-600 bg-amber-50 px-3 py-2 rounded">
-                      설치된 프린터를 찾을 수 없습니다. 프린터를 설치한 후 새로고침 해주세요.
+                      에이전트가 실행 중이지만 설치된 프린터가 없습니다.
                     </p>
                   )}
                   <div className="space-y-1.5">
@@ -934,6 +1179,10 @@ export function usePdfSettings() {
       markColorBar: true,
       markFold: true,
       markJobMeta: true,
+      autoPrintEnabled: false,
+      autoPrintName: '',
+      autoPrintNameIndigo: '',
+      autoPrintNameInkjet: '',
       isLoaded: false,
     };
   }
@@ -985,6 +1234,10 @@ export function usePdfSettings() {
     markColorBar: map[SETTING_KEYS.MARK_COLOR_BAR] !== 'false',
     markFold: map[SETTING_KEYS.MARK_FOLD] !== 'false',
     markJobMeta: map[SETTING_KEYS.MARK_JOB_META] !== 'false',
+    autoPrintEnabled: map[SETTING_KEYS.AUTO_PRINT_ENABLED] === 'true',
+    autoPrintName: map[SETTING_KEYS.AUTO_PRINT_NAME] || '',
+    autoPrintNameIndigo: map[SETTING_KEYS.AUTO_PRINT_NAME_INDIGO] || '',
+    autoPrintNameInkjet: map[SETTING_KEYS.AUTO_PRINT_NAME_INKJET] || '',
     isLoaded: true,
   };
 }

@@ -151,22 +151,22 @@ const MemberTableRow = memo(({
         )}
       </TableCell>
       <TableCell className="text-center">
-        <div className="flex flex-col items-center gap-0.5">
-          {(() => {
-            const oauth = member.oauthProvider;
-            const channel = member.acquisitionChannel;
-            if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
-            if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
-            if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
-            if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
-            if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
-            if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
-            if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
-            if (channel === 'etc') return <Badge variant="outline" className="text-xs">기타</Badge>;
-            return <span className="text-sm text-muted-foreground">직접가입</span>;
-          })()}
-          <span className="text-xs text-muted-foreground">{format(new Date(member.createdAt), 'yy.MM.dd')}</span>
-        </div>
+        <span className="text-sm text-muted-foreground">{format(new Date(member.createdAt), 'yy.MM.dd')}</span>
+      </TableCell>
+      <TableCell className="text-center">
+        {(() => {
+          const oauth = member.oauthProvider;
+          const channel = member.acquisitionChannel;
+          if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
+          if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
+          if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
+          if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
+          if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
+          if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
+          if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
+          if (channel === 'etc') return <Badge variant="outline" className="text-xs">기타</Badge>;
+          return <span className="text-sm text-muted-foreground">직접</span>;
+        })()}
       </TableCell>
       <TableCell className="text-center">
         <span className="text-sm font-medium">{member._count?.consultations ?? 0}</span>
@@ -499,8 +499,9 @@ function MembersPageContent() {
         await deleteMember.mutateAsync(deleteConfirm.id);
         toast({ title: '회원이 삭제되었습니다.' });
         setDeleteConfirm(null);
-      } catch (err) {
-        toast({ title: '삭제에 실패했습니다.', variant: 'destructive' });
+      } catch (err: any) {
+        const message = err?.message || '삭제 중 오류가 발생했습니다.';
+        toast({ title: '삭제할 수 없습니다.', description: message, variant: 'destructive' });
       }
     }
   };
@@ -513,6 +514,8 @@ function MembersPageContent() {
         return <Badge variant="secondary">비활성</Badge>;
       case 'suspended':
         return <Badge variant="destructive">정지</Badge>;
+      case 'withdrawn':
+        return <Badge variant="outline" className="text-gray-400 border-gray-200">탈퇴</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -694,23 +697,24 @@ function MembersPageContent() {
                 <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow className="bg-slate-50/80">
-                      <TableHead className="w-[13%] text-center">회원명</TableHead>
-                      <TableHead className="w-[15%] text-center">이메일</TableHead>
-                      <TableHead className="w-[9%] text-center">연락처</TableHead>
-                      <TableHead className="w-[8%] text-center">그룹</TableHead>
-                      <TableHead className="w-[7%] text-center whitespace-nowrap">가입경로</TableHead>
-                      <TableHead className="w-[5%] text-center whitespace-nowrap">상담</TableHead>
-                      <TableHead className="w-[5%] text-center whitespace-nowrap">미완료</TableHead>
+                      <TableHead className="w-[12%] text-center">회원명</TableHead>
+                      <TableHead className="w-[14%] text-center">이메일</TableHead>
+                      <TableHead className="w-[8%] text-center">연락처</TableHead>
+                      <TableHead className="w-[7%] text-center">그룹</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">가입일</TableHead>
+                      <TableHead className="w-[6%] text-center whitespace-nowrap">가입경로</TableHead>
+                      <TableHead className="w-[4%] text-center whitespace-nowrap">상담</TableHead>
+                      <TableHead className="w-[4%] text-center whitespace-nowrap">미완료</TableHead>
                       <TableHead className="w-[7%] text-center whitespace-nowrap">영업담당</TableHead>
-                      <TableHead className="w-[6%] text-center whitespace-nowrap">신용</TableHead>
-                      <TableHead className="w-[6%] text-center whitespace-nowrap">상태</TableHead>
-                      <TableHead className="w-[8%] text-center whitespace-nowrap">작업</TableHead>
+                      <TableHead className="w-[5%] text-center whitespace-nowrap">신용</TableHead>
+                      <TableHead className="w-[5%] text-center whitespace-nowrap">상태</TableHead>
+                      <TableHead className="w-[7%] text-center whitespace-nowrap">작업</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {membersData?.data?.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={12} className="text-center py-12 text-muted-foreground">
+                        <TableCell colSpan={13} className="text-center py-12 text-muted-foreground">
                           <Users className="h-12 w-12 mx-auto mb-4 opacity-20" />
                           등록된 회원이 없습니다.
                         </TableCell>

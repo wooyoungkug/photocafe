@@ -99,40 +99,43 @@ export function PinBar() {
   };
 
   return (
-    <div className="h-10 flex items-center gap-2 px-4 bg-white border-b border-slate-200 shadow-[0_1px_2px_-1px_rgba(15,23,42,0.06)] overflow-x-auto">
-      {/* 좌측 라벨 영역 (Pin 아이콘 + 라벨) — 시선 진입점 */}
-      <div className="flex items-center gap-1.5 shrink-0 text-slate-400">
+    <div className="h-10 flex items-center px-4 bg-white border-b border-slate-200 shadow-[0_1px_2px_-1px_rgba(15,23,42,0.06)] overflow-x-auto">
+      {/* 좌측: Pin 아이콘 */}
+      <div className="flex items-center gap-1.5 shrink-0 text-slate-400 w-6">
         <Pin className="h-3.5 w-3.5" />
       </div>
 
-      {visiblePins.length === 0 ? (
-        <span className="fs-pin font-normal text-slate-400 shrink-0">
-          자주 쓰는 메뉴를 핀으로 고정해보세요
-        </span>
-      ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={visiblePins.map((p) => p.href)} strategy={horizontalListSortingStrategy}>
-            <ul className="flex items-center gap-1 shrink-0">
-              {visiblePins.map((p) => {
-                const active = pathname === p.href || pathname.startsWith(p.href + "/");
-                return (
-                  <SortablePin
-                    key={p.href}
-                    href={p.href}
-                    name={p.name}
-                    parentName={p.parentName}
-                    active={active}
-                    onRemove={() => handleRemove(p.href)}
-                  />
-                );
-              })}
-            </ul>
-          </SortableContext>
-        </DndContext>
-      )}
+      {/* 중앙: 핀 목록 */}
+      <div className="flex-1 flex items-center justify-center">
+        {visiblePins.length === 0 ? (
+          <span className="fs-pin font-normal text-slate-400 shrink-0">
+            자주 쓰는 메뉴를 핀으로 고정해보세요
+          </span>
+        ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={visiblePins.map((p) => p.href)} strategy={horizontalListSortingStrategy}>
+              <ul className="flex items-center gap-1">
+                {visiblePins.map((p) => {
+                  const active = pathname === p.href || pathname.startsWith(p.href + "/");
+                  return (
+                    <SortablePin
+                      key={p.href}
+                      href={p.href}
+                      name={p.name}
+                      parentName={p.parentName}
+                      active={active}
+                      onRemove={() => handleRemove(p.href)}
+                    />
+                  );
+                })}
+              </ul>
+            </SortableContext>
+          </DndContext>
+        )}
+      </div>
 
-      {/* 우측 + 핀 추가 — 좌측 구분선으로 핀 그룹과 분리 */}
-      <div className="ml-auto flex items-center gap-2 shrink-0 pl-2 border-l border-slate-200/80">
+      {/* 우측: + 핀 추가 */}
+      <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-slate-200/80">
         <button
           type="button"
           onClick={() => setDialogOpen(true)}

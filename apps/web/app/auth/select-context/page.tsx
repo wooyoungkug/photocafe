@@ -18,6 +18,7 @@ interface ContextOption {
   companyName?: string;
   role?: string;
   isOwner?: boolean;
+  department?: string | null;
 }
 
 interface PendingContextSelection {
@@ -140,7 +141,14 @@ export default function SelectContextPage() {
       // 메인 페이지로 이동
       router.push('/');
     } catch (e) {
-      setError(e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.');
+      const msg = e instanceof Error ? e.message : '알 수 없는 오류가 발생했습니다.';
+      const isAuthExpired = msg.includes('만료') || msg.includes('인증');
+      if (isAuthExpired) {
+        sessionStorage.removeItem('pending-context-selection');
+        router.push('/login?error=session_expired');
+        return;
+      }
+      setError(msg);
     } finally {
       setIsSelecting(false);
     }
@@ -212,7 +220,7 @@ export default function SelectContextPage() {
             </div>
           </Link>
           <CardTitle className="text-2xl">계정 선택</CardTitle>
-          <CardDescription className="text-[11px] text-black font-normal">
+          <CardDescription className="text-[16px] text-black font-normal">
             {email
               ? `${email} 계정으로 로그인할 방법을 선택해주세요`
               : '로그인할 계정을 선택해주세요'}
@@ -232,9 +240,12 @@ export default function SelectContextPage() {
             const title = isPersonal
               ? '내 계정'
               : context.companyName || '알 수 없는 회사';
-            const subtitle = isPersonal
+            const roleLabel = isPersonal
               ? (context.clientName || '개인 계정')
               : (context.isOwner ? '최고관리자' : context.role === 'MANAGER' ? 'Manager' : context.role === 'EDITOR' ? 'Editor' : 'Staff');
+            const subtitle = !isPersonal && context.department
+              ? `${roleLabel} · ${context.department}`
+              : roleLabel;
 
             return (
               <Button
@@ -252,10 +263,10 @@ export default function SelectContextPage() {
                   )}
                 </div>
                 <div className="text-left min-w-0">
-                  <div className="text-[12px] text-black font-medium truncate">
+                  <div className="text-[15px] text-black font-medium truncate">
                     {title}
                   </div>
-                  <div className="text-[11px] text-black font-normal opacity-60">
+                  <div className="text-[13px] text-black font-normal opacity-60">
                     {subtitle}
                   </div>
                 </div>

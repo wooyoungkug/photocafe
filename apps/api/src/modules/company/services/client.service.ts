@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -294,9 +294,54 @@ export class ClientService {
   async delete(id: string) {
     await this.findOne(id);
 
-    return this.prisma.client.delete({
-      where: { id },
-    });
+    // 사전 검증 — 사용자에게 친절한 메시지로 알려줄 수 있는 주요 참조들
+    const [orderCount, quotationCount, recruitmentCount, recruitmentBidCount] = await Promise.all([
+      this.prisma.order.count({ where: { clientId: id } }),
+      this.prisma.quotation.count({ where: { clientId: id } }),
+      this.prisma.recruitment.count({ where: { clientId: id } }),
+      this.prisma.recruitmentBid.count({ where: { bidderId: id } }),
+    ]);
+
+    const reasons: string[] = [];
+    if (orderCount > 0) reasons.push(`주문 ${orderCount}건`);
+    if (quotationCount > 0) reasons.push(`견적서 ${quotationCount}건`);
+    if (recruitmentCount > 0) reasons.push(`채용공고 ${recruitmentCount}건`);
+    if (recruitmentBidCount > 0) reasons.push(`입찰 ${recruitmentBidCount}건`);
+
+    if (reasons.length > 0) {
+      throw new BadRequestException(
+        `${reasons.join(', ')}이 있어 삭제할 수 없습니다. 해당 데이터를 먼저 삭제해 주세요.`,
+      );
+    }
+
+    try {
+      return await this.prisma.client.delete({
+        where: { id },
+      });
+    } catch (e: any) {
+      // Prisma FK 제약 위반 (P2003) — 사전 검증에서 놓친 다른 참조가 있을 때
+      const code = e?.code || e?.meta?.code;
+      const msg: string = e?.message || '';
+      if (code === 'P2003' || msg.includes('foreign key constraint') || msg.includes('23001') || msg.includes('23503')) {
+        // 메시지에서 참조 테이블명 추출 시도 (예: "recruitments_clientId_fkey")
+        const m = msg.match(/"([a-z_]+)_(?:clientId|bidderId|createdBy)_fkey"/i);
+        const tableName = m ? m[1] : '';
+        const tableLabel: Record<string, string> = {
+          recruitments: '채용공고',
+          recruitment_bids: '입찰',
+          orders: '주문',
+          quotations: '견적서',
+          shooting_schedules: '촬영 일정',
+          shooting_assignments: '촬영 배정',
+        };
+        const label = tableLabel[tableName] || (tableName ? `[${tableName}]` : '연결된 데이터');
+        throw new BadRequestException(
+          `이 회원에게 ${label}이(가) 남아있어 삭제할 수 없습니다. ` +
+          `해당 데이터를 먼저 삭제하거나, 회원을 비활성화(상태 변경)로 처리해 주세요.`,
+        );
+      }
+      throw e;
+    }
   }
 
   async updateGroup(id: string, groupId: string | null) {

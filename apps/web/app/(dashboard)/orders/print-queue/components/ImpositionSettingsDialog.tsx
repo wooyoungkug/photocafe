@@ -29,6 +29,7 @@ import {
   CalculateImpositionRequest,
   ImpositionResult,
 } from '@/hooks/use-imposition';
+import { downloadImpositionViaAgent, checkPrintAgentRunning, printSlipViaAgent } from '@/hooks/use-print-pdf';
 import { usePdfSettings } from './PdfSettingsDialog';
 
 type ImpositionSeed = {
@@ -441,6 +442,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
     const failed: { label: string; error: string }[] = [];
     const succeededJobs: {
       id: string;
+      orderItemId: string;
       pdfPath?: string | null;
       imagePdfPath?: string | null;
       autoSaved?: boolean;
@@ -461,6 +463,7 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
         succeeded++;
         succeededJobs.push({
           id: job.id,
+          orderItemId: t.orderItemId,
           pdfPath: job.pdfPath,
           imagePdfPath: job.imagePdfPath,
           autoSaved: job.autoSaved,
@@ -476,22 +479,64 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
 
     // 다운로드 전략:
     // - 서버 자동저장이 활성화된 경우(모든 성공 작업이 autoSaved=true): 다운로드 트리거 생략
-    //   (브라우저 다운로드 폴더 오염 방지, 출력팀이 설정된 폴더에서 일괄 확인)
-    // - 단건 + 자동저장 OFF: 개별 파일 (jdf/pdf/imagePdf) 다운로드
-    // - 다건 + 자동저장 OFF: ZIP 1개로 묶어 다운로드 (브라우저 동시 다운로드 차단 회피)
+    // - 로컬 에이전트가 실행 중이면: 에이전트가 Railway에서 직접 다운로드 (C:\PDF저장 등 설정된 경로)
+    //   → 브라우저 다운로드 폴더 오염 방지
+    // - 에이전트 미실행: 기존 방식(개별 파일 또는 ZIP)으로 폴백
     const allAutoSaved = succeededJobs.length > 0 && succeededJobs.every((j) => j.autoSaved);
-    if (!allAutoSaved) {
-      if (succeededJobs.length === 1) {
-        const job = succeededJobs[0];
-        dlJdf.mutate(job.id);
-        if (job.pdfPath) {
-          setTimeout(() => dlPdf.mutate(job.id), 300);
+    let agentSaved = 0;
+    let agentTried = false;
+    if (!allAutoSaved && succeededJobs.length > 0) {
+      const agentRunning = await checkPrintAgentRunning();
+      if (agentRunning) {
+        agentTried = true;
+        // 저장 경로: {YYMMDD}/imposition/
+        const today = new Date();
+        const yy = String(today.getFullYear()).slice(-2);
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const subPath = `${yy}${mm}${dd}/imposition`;
+
+        for (const job of succeededJobs) {
+          const r = await downloadImpositionViaAgent(job.id, subPath);
+          if (r.saved > 0 && r.saved === r.requested) agentSaved += 1;
         }
-        if (job.imagePdfPath) {
-          setTimeout(() => dlImagePdf.mutate(job.id), 700);
+      }
+
+      // 에이전트가 모든 작업을 저장하지 못했으면 기존 방식으로 폴백
+      if (agentSaved < succeededJobs.length) {
+        if (succeededJobs.length === 1) {
+          const job = succeededJobs[0];
+          dlJdf.mutate(job.id);
+          if (job.pdfPath) {
+            setTimeout(() => dlPdf.mutate(job.id), 300);
+          }
+          if (job.imagePdfPath) {
+            setTimeout(() => dlImagePdf.mutate(job.id), 700);
+          }
+        } else if (succeededJobs.length > 1) {
+          dlBatchZip.mutate(succeededJobs.map((j) => j.id));
         }
-      } else if (succeededJobs.length > 1) {
-        dlBatchZip.mutate(succeededJobs.map((j) => j.id));
+      }
+    }
+
+    // 작업지시서(슬립) 자동 인쇄 — 설정에서 활성화되어 있고 에이전트가 실행 중이면 실행
+    // Railway(Linux)에서는 슬립 인쇄가 불가하므로 로컬 에이전트가 Chrome headless로 처리.
+    if (
+      pdfSettings.autoPrintEnabled &&
+      succeededJobs.length > 0 &&
+      (pdfSettings.autoPrintNameIndigo || pdfSettings.autoPrintNameInkjet)
+    ) {
+      const agentUp = await checkPrintAgentRunning();
+      if (agentUp) {
+        const printerName =
+          pdfSettings.autoPrintNameInkjet || pdfSettings.autoPrintNameIndigo;
+        for (const job of succeededJobs) {
+          try {
+            await printSlipViaAgent(job.orderItemId, printerName);
+          } catch {
+            // 개별 인쇄 실패는 무시 (다음 항목 계속 시도)
+          }
+        }
       }
     }
 
@@ -499,6 +544,8 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
       if (succeeded === 1) {
         if (allAutoSaved) {
           toast.success('JDF + PDF 생성 완료 — 설정된 자동저장 폴더에 저장됨');
+        } else if (agentTried && agentSaved === succeededJobs.length) {
+          toast.success('JDF + PDF 생성 완료 — 에이전트가 C:\\PDF저장 폴더에 저장함');
         } else {
           toast.success('JDF + PDF 생성 완료');
         }
@@ -513,6 +560,8 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
       if (failed.length === 0) {
         if (allAutoSaved) {
           toast.success(`${succeeded}건 모두 생성 완료 — 자동저장 폴더에 저장됨`);
+        } else if (agentTried && agentSaved === succeededJobs.length) {
+          toast.success(`${succeeded}건 모두 생성 완료 — 에이전트가 C:\\PDF저장 폴더에 저장함`);
         } else {
           toast.success(`${succeeded}건 모두 생성 완료 — ZIP 다운로드 시작`);
         }

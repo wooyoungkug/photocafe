@@ -551,7 +551,7 @@ export class AuthService {
     return {
       accessToken, refreshToken,
       user: {
-        id: client.id, email: client.email, name: client.clientName, role: 'client',
+        id: client.id, email: client.email, name: client.clientName, role: 'client', type: 'client',
         clientId: client.id, clientName: client.clientName, mobile: client.mobile,
         businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
@@ -1000,7 +1000,7 @@ export class AuthService {
   generateTempAuthToken(client: any): string {
     return this.jwtService.sign(
       { sub: client.id, email: client.email, purpose: 'context-selection' },
-      { expiresIn: '5m' },
+      { expiresIn: '15m' },
     );
   }
 
@@ -1023,6 +1023,7 @@ export class AuthService {
       type: 'employee', employmentId: e.id, companyClientId: e.companyClientId,
       companyName: e.company.clientName, clientName: client.clientName,
       role: e.role, isOwner: e.memberClientId === e.companyClientId,
+      department: e.department || null,
     }));
 
     return {
@@ -1070,16 +1071,17 @@ export class AuthService {
       data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
+    const isOwner = employment.memberClientId === employment.companyClientId;
+
     const payload = {
       sub: client.id, email: client.email, type: 'employee', role: employment.role,
       clientId: employment.companyClientId, employmentId: employment.id,
+      isOwner,
       canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
       canViewSettlement: employment.canViewSettlement,
       canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
       enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
     };
-
-    const isOwner = employment.memberClientId === employment.companyClientId;
 
     return {
       accessToken: this.jwtService.sign(payload),
@@ -1121,17 +1123,18 @@ export class AuthService {
     }
 
     const client = targetEmployment.member;
+    const isOwner = targetEmployment.memberClientId === targetEmployment.companyClientId;
+
     const payload = {
       sub: client.id, email: client.email, type: 'employee', role: targetEmployment.role,
       clientId: targetEmployment.companyClientId, employmentId: targetEmployment.id,
+      isOwner,
       canViewAllOrders: targetEmployment.canViewAllOrders, canManageProducts: targetEmployment.canManageProducts,
       canViewSettlement: targetEmployment.canViewSettlement,
       canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
       enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment,
       impersonatedBy: requestorSub,
     };
-
-    const isOwner = targetEmployment.memberClientId === targetEmployment.companyClientId;
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
@@ -1170,7 +1173,7 @@ export class AuthService {
       accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
       refreshToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
       user: {
-        id: client.id, email: client.email, name: client.clientName, role: 'client',
+        id: client.id, email: client.email, name: client.clientName, role: 'client', type: 'client',
         clientId: client.id, clientName: client.clientName, clientCode: client.clientCode,
         mobile: client.mobile, businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
@@ -1193,5 +1196,62 @@ export class AuthService {
     });
 
     return { success: true, message: '비밀번호가 1111로 초기화되었습니다' };
+  }
+
+  // ========== 회원 탈퇴 (익명화 처리) ==========
+
+  async withdrawClient(clientId: string) {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) throw new NotFoundException('회원을 찾을 수 없습니다');
+    if (client.status === 'withdrawn') throw new BadRequestException('이미 탈퇴한 회원입니다');
+
+    await this.prisma.$transaction(async (tx) => {
+      // 1. 개인정보 익명화 + 상태 변경 (주문/매출 데이터는 보존)
+      await tx.client.update({
+        where: { id: clientId },
+        data: {
+          clientName: '탈퇴회원',
+          email: null,
+          mobile: null,
+          phone: null,
+          postalCode: null,
+          address: null,
+          addressDetail: null,
+          representative: null,
+          businessNumber: null,
+          oauthProvider: null,
+          oauthId: null,
+          password: null,
+          profileImage: null,
+          adminMemo: null,
+          contactPerson: null,
+          contactPhone: null,
+          contactEmail: null,
+          practicalManagerName: null,
+          practicalManagerPhone: null,
+          approvalManagerName: null,
+          approvalManagerPhone: null,
+          status: 'withdrawn',
+          withdrawnAt: new Date(),
+        },
+      });
+
+      // 2. 고용 관계 해제: 본인이 멤버인 것 + 본인이 운영하는 회사의 직원들
+      await tx.employment.deleteMany({
+        where: {
+          OR: [
+            { memberClientId: clientId },
+            { companyClientId: clientId },
+          ],
+        },
+      });
+
+      // 3. 대기 중인 초대 취소
+      await tx.invitation.deleteMany({
+        where: { clientId, status: 'PENDING' },
+      });
+    });
+
+    return { success: true, message: '회원 탈퇴가 완료되었습니다' };
   }
 }

@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Body,
   UseGuards,
   Request,
@@ -599,8 +600,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
   async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
-    if (req.user.type !== 'staff') {
-      throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
+    if (req.user.type !== 'staff' && req.user.role !== 'admin') {
+      throw new ForbiddenException('관리자 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
   }
@@ -614,5 +615,18 @@ export class AuthController {
       throw new ForbiddenException('직원 계정만 비밀번호를 초기화할 수 있습니다');
     }
     return this.authService.resetClientPassword(id);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '회원 탈퇴 (개인정보 익명화 처리)' })
+  async withdrawMe(@Request() req: any) {
+    if (req.user.type === 'employee') {
+      throw new ForbiddenException('소속 멤버는 직접 탈퇴할 수 없습니다. 소속 회사의 직원 관리 페이지에서 내보내기를 요청하세요.');
+    }
+    const clientId = req.user.sub;
+    if (!clientId) throw new ForbiddenException('회원 계정만 탈퇴할 수 있습니다');
+    return this.authService.withdrawClient(clientId);
   }
 }

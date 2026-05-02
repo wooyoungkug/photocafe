@@ -22,9 +22,10 @@ export class CreateInvitationDto {
   @IsIn(['MANAGER', 'STAFF', 'EDITOR', 'PHOTOGRAPHER'])
   role: 'MANAGER' | 'STAFF' | 'EDITOR' | 'PHOTOGRAPHER';
 
-  @ApiProperty({ enum: ['naver', 'kakao', 'google'], description: '소셜 로그인 제공자' })
+  @ApiPropertyOptional({ enum: ['naver', 'kakao', 'google'], description: '소셜 로그인 제공자 (미지정 시 모든 방법 허용)' })
+  @IsOptional()
   @IsIn(['naver', 'kakao', 'google'])
-  oauthProvider: 'naver' | 'kakao' | 'google';
+  oauthProvider?: 'naver' | 'kakao' | 'google';
 }
 
 export class UpdateEmploymentDto {

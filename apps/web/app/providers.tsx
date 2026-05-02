@@ -109,12 +109,14 @@ export function Providers({ children }: { children: React.ReactNode }) {
             refreshToken: data.refreshToken ?? '',
           });
           sessionStorage.setItem('impersonate-tokens', tokenJson);
-          localStorage.setItem('impersonate-tokens', tokenJson);
         }
       } catch {
         localStorage.removeItem('impersonate-data');
       }
     }
+
+    // 잔존 localStorage impersonate-tokens 제거 (탭 간 토큰 오염 방지)
+    localStorage.removeItem('impersonate-tokens');
 
     useAuthStore.persist.rehydrate();
 

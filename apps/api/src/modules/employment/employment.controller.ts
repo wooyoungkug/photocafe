@@ -132,8 +132,10 @@ export class EmploymentController {
 
   /** Manager 또는 거래처 소유자 권한 검증 */
   private ensureManagerOrOwner(user: any, clientId: string) {
-    // 거래처 소유자
+    // 거래처 소유자 (개인 로그인)
     if (user.type === 'client' && user.sub === clientId) return;
+    // 거래처 소유자 (회사 컨텍스트 로그인)
+    if (user.type === 'employee' && user.isOwner && user.clientId === clientId) return;
     // MANAGER 직원
     if (user.type === 'employee' && user.role === 'MANAGER' && user.clientId === clientId) return;
     throw new ForbiddenException('부서 관리는 Manager 또는 소유자만 가능합니다.');
@@ -148,11 +150,27 @@ export class EmploymentController {
     @Body() dto: UpdateEmploymentDto,
     @Request() req: any,
   ) {
-    const employment = await this.employmentService.getEmploymentById(id);
-    if (employment.memberClientId === req.user.sub) {
-      throw new ForbiddenException('자신의 권한은 수정할 수 없습니다.');
+    // 대리로그인(관리자 impersonation) 시에는 자기 권한 수정 제한 미적용
+    const isImpersonating = !!req.user.impersonatedBy;
+    if (!isImpersonating) {
+      const employment = await this.employmentService.getEmploymentById(id);
+      if (employment.memberClientId === req.user.sub) {
+        throw new ForbiddenException('자신의 권한은 수정할 수 없습니다.');
+      }
     }
     return this.employmentService.updateEmployment(id, dto);
+  }
+
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '본인 소속 해제 (직원 자기 탈퇴)' })
+  async removeSelf(@Request() req: any) {
+    const employmentId = req.user.employmentId;
+    if (!employmentId) {
+      throw new ForbiddenException('직원 계정만 소속 해제할 수 있습니다.');
+    }
+    return this.employmentService.removeEmployment(employmentId);
   }
 
   @Delete(':id')

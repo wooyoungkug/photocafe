@@ -38,6 +38,7 @@ import {
 import { SalesLedgerService } from '../../accounting/services/sales-ledger.service';
 import { NotificationService } from '@/modules/notification/notification.service';
 import { NOTIFICATION_TYPES } from '@/modules/notification/dto/notification.dto';
+import { KakaoAlimtalkService } from '@/common/kakao-alimtalk/kakao-alimtalk.service';
 
 @Injectable()
 export class OrderService {
@@ -53,7 +54,67 @@ export class OrderService {
     private b2Storage: B2StorageService,
     private auditLogService: AuditLogService,
     private notificationService: NotificationService,
+    private kakaoAlimtalk: KakaoAlimtalkService,
   ) { }
+
+  private readonly STATUS_LABELS: Record<string, string> = {
+    receipt_completed: '접수완료',
+    in_production: '생산진행',
+    ready_for_shipping: '배송준비',
+    shipped: '배송완료',
+  };
+
+  private async sendOrderStatusSms(orderId: string, newStatus: string): Promise<void> {
+    const label = this.STATUS_LABELS[newStatus];
+    if (!label) return;
+
+    try {
+      const order = await this.prisma.order.findUnique({
+        where: { id: orderId },
+        select: {
+          orderNumber: true,
+          client: {
+            select: {
+              mobile: true,
+              phone: true,
+              email: true,
+              clientName: true,
+              smsNotificationStages: true,
+              notificationChannel: true,
+            },
+          },
+        },
+      });
+      if (!order?.client) return;
+
+      const { mobile, phone, email, clientName, smsNotificationStages, notificationChannel } = order.client;
+      if (!smsNotificationStages.includes(newStatus)) return;
+
+      const contactNo = mobile || phone;
+      if (!contactNo) return;
+
+      const text = `[포토카페] ${clientName}님, 주문번호 ${order.orderNumber} 공정이 [${label}] 단계로 변경되었습니다.`;
+
+      if (notificationChannel === 'kakao') {
+        // 카카오 알림톡 → SMS fallback 자동 처리
+        await this.kakaoAlimtalk.send({
+          templateCode: 'ORDER_STATUS_CHANGE',
+          recipients: [{ phone: contactNo, email: email || undefined, name: clientName }],
+          variables: {
+            '#{고객명}': clientName,
+            '#{주문번호}': order.orderNumber,
+            '#{공정}': label,
+            '#{내용}': text,
+          },
+          emailFallback: { subject: `[포토카페] 주문 공정 변경 알림`, html: `<p>${text}</p>` },
+        });
+      } else {
+        await this.kakaoAlimtalk.sendPlainSms(contactNo, text);
+      }
+    } catch (err) {
+      this.logger.error(`주문 상태 알림 발송 실패: ${(err as Error).message}`);
+    }
+  }
 
   /**
    * staff 직원의 salesViewScope 조회
@@ -1248,7 +1309,7 @@ export class OrderService {
       historyEntries.push({ ...queuePatch.historyEntry, processedBy: userId });
     }
 
-    return this.prisma.order.update({
+    const updated = await this.prisma.order.update({
       where: { id },
       data: {
         status: dto.status,
@@ -1265,6 +1326,9 @@ export class OrderService {
         },
       },
     });
+
+    this.sendOrderStatusSms(id, dto.status).catch(() => {});
+    return updated;
   }
 
   // ==================== 배송 정보 업데이트 ====================

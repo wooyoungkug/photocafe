@@ -2,7 +2,16 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, MapPin } from 'lucide-react';
+import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, Bell, LogOut } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,6 +38,13 @@ function formatPhone(value: string): string {
   if (nums.length <= 10) return `${nums.slice(0, 3)}-${nums.slice(3, 6)}-${nums.slice(6)}`;
   return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7, 11)}`;
 }
+
+const SMS_STAGES = [
+  { value: 'receipt_completed', label: '접수완료', description: '주문이 접수 확인됐을 때' },
+  { value: 'in_production', label: '생산진행', description: '제작이 시작됐을 때' },
+  { value: 'ready_for_shipping', label: '배송준비', description: '배송 준비가 완료됐을 때' },
+  { value: 'shipped', label: '배송완료', description: '배송이 출고됐을 때' },
+];
 
 // 읽기 전용 필드값 표시 컴포넌트
 function FieldValue({ value }: { value: string }) {
@@ -65,6 +81,10 @@ export default function ProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [smsStages, setSmsStages] = useState<string[]>([]);
+  const [notificationChannel, setNotificationChannel] = useState<'sms' | 'kakao'>('sms');
+  const [withdrawConfirmOpen, setWithdrawConfirmOpen] = useState(false);
+  const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -74,6 +94,15 @@ export default function ProfilePage() {
     },
     enabled: isAuthenticated && !!user?.id,
   });
+
+  useEffect(() => {
+    if (profile?.smsNotificationStages) {
+      setSmsStages(profile.smsNotificationStages);
+    }
+    if (profile?.notificationChannel) {
+      setNotificationChannel(profile.notificationChannel as 'sms' | 'kakao');
+    }
+  }, [profile]);
 
   // profile 데이터가 로드/변경되면 편집용 상태에 동기화
   useEffect(() => {
@@ -111,6 +140,26 @@ export default function ProfilePage() {
     },
   });
 
+  const updateSmsMutation = useMutation({
+    mutationFn: async (data: { smsNotificationStages: string[]; notificationChannel: string }) => {
+      return await api.put<any>(`/clients/${user?.id}`, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
+    },
+  });
+
+  const handleSmsToggle = (stage: string, checked: boolean) => {
+    const next = checked ? [...smsStages, stage] : smsStages.filter((s) => s !== stage);
+    setSmsStages(next);
+    updateSmsMutation.mutate({ smsNotificationStages: next, notificationChannel });
+  };
+
+  const handleChannelChange = (channel: 'sms' | 'kakao') => {
+    setNotificationChannel(channel);
+    updateSmsMutation.mutate({ smsNotificationStages: smsStages, notificationChannel: channel });
+  };
+
   const changePasswordMutation = useMutation({
     mutationFn: async (data: { currentPassword: string; newPassword: string }) => {
       return await api.patch('/auth/change-password', data);
@@ -126,6 +175,34 @@ export default function ProfilePage() {
     onError: (error: any) => {
       setError(error.message || '비밀번호 변경에 실패했습니다.');
       setSuccess('');
+    },
+  });
+
+  const { logout } = useAuthStore();
+  const withdrawMutation = useMutation({
+    mutationFn: async () => {
+      return await api.delete('/auth/me');
+    },
+    onSuccess: () => {
+      logout();
+      router.push('/');
+    },
+    onError: (error: any) => {
+      setError(error.message || '회원 탈퇴에 실패했습니다.');
+    },
+  });
+
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const leaveMutation = useMutation({
+    mutationFn: async () => {
+      return await api.delete('/employments/me');
+    },
+    onSuccess: () => {
+      logout();
+      router.push('/login');
+    },
+    onError: (error: any) => {
+      setError(error.message || '소속 해제에 실패했습니다.');
     },
   });
 
@@ -434,6 +511,81 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
+      {/* 공정별 문자 알림 카드 */}
+      <Card>
+          <CardHeader className="pb-3 pt-4 px-5">
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <Bell className="h-4 w-4" />
+              공정별 문자 알림
+            </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              알림 받고 싶은 공정 단계를 선택해 주세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-5">
+
+            {/* 알림 수신 채널 */}
+            <div>
+              <p className="text-[14px] font-medium text-gray-700 mb-2">알림 수신 방법</p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleChannelChange('sms')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg border text-[14px] font-medium transition-colors ${
+                    notificationChannel === 'sms'
+                      ? 'border-pink-500 bg-pink-50 text-pink-700'
+                      : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>📱</span> 문자(SMS)
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-400 text-[14px] font-medium cursor-not-allowed"
+                >
+                  <span>💬</span> 카카오 알림톡
+                  <span className="ml-1 text-[11px] bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-full">준비 중</span>
+                </button>
+              </div>
+              <p className="text-[12px] text-gray-400 mt-1.5">카카오 알림톡은 서비스 준비 중으로 추후 이용 가능합니다.</p>
+            </div>
+
+            <Separator />
+
+            {/* 알림 받을 공정 선택 */}
+            <div>
+              <p className="text-[14px] font-medium text-gray-700 mb-2">알림 받을 공정 단계</p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {SMS_STAGES.map((stage) => (
+                  <label
+                    key={stage.value}
+                    className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    <Checkbox
+                      id={`sms-${stage.value}`}
+                      checked={smsStages.includes(stage.value)}
+                      onCheckedChange={(checked) => handleSmsToggle(stage.value, !!checked)}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <p className="text-[14px] font-medium text-black">{stage.label}</p>
+                      <p className="text-[13px] text-gray-500">{stage.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {updateSmsMutation.isPending && (
+              <p className="text-[13px] text-gray-400">저장 중...</p>
+            )}
+            {updateSmsMutation.isSuccess && (
+              <p className="text-[13px] text-green-600">저장되었습니다.</p>
+            )}
+          </CardContent>
+        </Card>
+
       {/* 비밀번호 변경 카드 */}
       <Card>
         <CardHeader className="pb-3 pt-4 px-5">
@@ -482,6 +634,169 @@ export default function ProfilePage() {
           </form>
         </CardContent>
       </Card>
+
+      {/* 소속 해제 / 회원 탈퇴 카드 */}
+      {isEmployee ? (
+        <Card className="border-orange-100">
+          <CardHeader className="pb-3 pt-4 px-5">
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <LogOut className="h-4 w-4 text-orange-500" />
+              소속 해제
+            </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              소속을 해제하면 {user?.clientName || '현재 회사'}의 직원 권한이 즉시 사라집니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-3">
+            {/* 권리 */}
+            <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-[13px] text-blue-800 space-y-1">
+              <p className="font-medium">귀하의 권리</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>언제든지 소속 해제를 자유롭게 신청할 수 있습니다</li>
+                <li>개인 계정(이름·이메일·비밀번호)은 해제 후에도 그대로 유지됩니다</li>
+                <li>본인이 직접 등록한 개인정보는 계속 보관되며 열람·수정할 수 있습니다</li>
+                <li>재소속이 필요하면 회사 관리자에게 재초대를 요청할 수 있습니다</li>
+              </ul>
+            </div>
+            {/* 책임사항 */}
+            <div className="rounded-md border border-orange-100 bg-orange-50 p-3 text-[13px] text-orange-800 space-y-1">
+              <p className="font-medium">소속 해제 후 변경사항</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>해제 즉시 해당 회사의 주문·설정·통계 메뉴 접근이 차단됩니다</li>
+                <li>진행 중인 업무는 해제 전 담당자에게 인수인계해 주세요</li>
+                <li>재직 중 처리한 주문·이력은 회사 기록에 보존됩니다</li>
+                <li>회사 내부 정보에 대한 기밀 유지 의무는 해제 후에도 유지됩니다</li>
+              </ul>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-orange-300 text-orange-600 hover:bg-orange-50 hover:text-orange-700"
+              onClick={() => setLeaveConfirmOpen(true)}
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1.5" />
+              소속 해제 신청
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-red-100">
+          <CardHeader className="pb-3 pt-4 px-5">
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <LogOut className="h-4 w-4 text-red-500" />
+              회원 탈퇴
+            </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              탈퇴 시 개인정보는 즉시 삭제되며, 주문 내역은 법적 의무에 따라 보존됩니다.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-5 pb-5 space-y-3">
+            {/* 권리 */}
+            <div className="rounded-md border border-blue-100 bg-blue-50 p-3 text-[13px] text-blue-800 space-y-1">
+              <p className="font-medium">귀하의 권리</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>언제든지 탈퇴를 신청할 수 있으며 즉시 처리됩니다</li>
+                <li>탈퇴 시 개인정보(이름·이메일·연락처·주소)는 즉시 삭제됩니다</li>
+                <li>탈퇴 전 본인 데이터를 열람하거나 내보낼 수 있습니다</li>
+              </ul>
+            </div>
+            {/* 책임사항 */}
+            <div className="rounded-md border border-red-100 bg-red-50 p-3 text-[13px] text-red-700 space-y-1">
+              <p className="font-medium">탈퇴 후 변경사항 (되돌릴 수 없음)</p>
+              <ul className="list-disc list-inside space-y-0.5 font-normal">
+                <li>소속 직원들의 고용 관계가 모두 즉시 해제됩니다</li>
+                <li>탈퇴 후 동일 이메일·소셜 계정으로 재가입이 불가능합니다</li>
+                <li>주문·결제 내역은 국세기본법에 따라 <strong>5년간 보존</strong>됩니다</li>
+                <li>미정산 잔액·크레딧이 있을 경우 소멸될 수 있습니다</li>
+              </ul>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+              onClick={() => { setWithdrawConfirmText(''); setWithdrawConfirmOpen(true); }}
+            >
+              <LogOut className="h-3.5 w-3.5 mr-1.5" />
+              회원 탈퇴 신청
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 소속 해제 확인 모달 */}
+      <Dialog open={leaveConfirmOpen} onOpenChange={setLeaveConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] font-bold flex items-center gap-2 text-orange-600">
+              <AlertCircle className="h-5 w-5" />
+              소속 해제 확인
+            </DialogTitle>
+            <DialogDescription className="text-[14px]">
+              <strong>{user?.clientName || '현재 회사'}</strong>의 직원 소속을 해제합니다.
+              해제 후에는 이 회사의 메뉴에 접근할 수 없습니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLeaveConfirmOpen(false)}
+              disabled={leaveMutation.isPending}
+            >
+              취소
+            </Button>
+            <Button
+              size="sm"
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              disabled={leaveMutation.isPending}
+              onClick={() => leaveMutation.mutate()}
+            >
+              {leaveMutation.isPending ? '처리 중...' : '소속 해제'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 회원 탈퇴 확인 모달 */}
+      <Dialog open={withdrawConfirmOpen} onOpenChange={setWithdrawConfirmOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] font-bold flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-5 w-5" />
+              회원 탈퇴 확인
+            </DialogTitle>
+            <DialogDescription className="text-[14px]">
+              이 작업은 되돌릴 수 없습니다. 탈퇴를 원하시면 아래에 <strong>탈퇴합니다</strong>를 입력해주세요.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <Input
+              placeholder="탈퇴합니다"
+              value={withdrawConfirmText}
+              onChange={(e) => setWithdrawConfirmText(e.target.value)}
+              className="text-[14px]"
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWithdrawConfirmOpen(false)}
+              disabled={withdrawMutation.isPending}
+            >
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={withdrawConfirmText !== '탈퇴합니다' || withdrawMutation.isPending}
+              onClick={() => withdrawMutation.mutate()}
+            >
+              {withdrawMutation.isPending ? '처리 중...' : '탈퇴 확인'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -67,7 +67,7 @@ function getMenuItems(user: {
 
   // 일정관리: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
   if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
-    items.push({ icon: Camera, label: '일정관리', href: '/mypage/schedule' });
+    items.push({ icon: Camera, label: '촬영관리', href: '/mypage/schedule' });
   }
 
   // 촬영파트너: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
@@ -87,8 +87,7 @@ export default function MyPageLayout({
   const router = useRouter();
   const { user, isAuthenticated, updateUser } = useAuthStore();
   const menuItems = getMenuItems(user);
-  // 일정관리 페이지에서는 좌측 필터 패널을 위해 사이드바를 아이콘 전용 모드로 축소
-  const isCompactSidebar = pathname?.startsWith('/mypage/schedule') ?? false;
+  const isCompactSidebar = false;
 
   // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
   useEffect(() => {

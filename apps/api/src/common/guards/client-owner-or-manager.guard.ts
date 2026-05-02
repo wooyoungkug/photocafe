@@ -19,13 +19,23 @@ export class ClientOwnerOrManagerGuard implements CanActivate {
       throw new ForbiddenException('인증이 필요합니다.');
     }
 
+    // 관리자(staff) 대리로그인 시 전체 접근 허용
+    if (user.type === 'staff' || user.role === 'admin') {
+      return true;
+    }
+
     const clientId =
       request.params.clientId ||
       request.body?.clientId ||
       request.query?.clientId;
 
-    // 거래처 소유자: type==='client' && sub===clientId
+    // 거래처 소유자: 개인 로그인(type==='client')
     if (user.type === 'client' && user.sub === clientId) {
+      return true;
+    }
+
+    // 거래처 소유자: 회사 컨텍스트 로그인(type==='employee' && isOwner)
+    if (user.type === 'employee' && user.isOwner && user.clientId === clientId) {
       return true;
     }
 
@@ -35,6 +45,11 @@ export class ClientOwnerOrManagerGuard implements CanActivate {
       user.role === 'MANAGER' &&
       user.clientId === clientId
     ) {
+      return true;
+    }
+
+    // 일반 직원(STAFF/EDITOR/PHOTOGRAPHER): 자기 회사 조회만 허용 (읽기 전용)
+    if (user.type === 'employee' && user.clientId === clientId) {
       return true;
     }
 

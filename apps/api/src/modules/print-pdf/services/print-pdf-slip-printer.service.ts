@@ -47,6 +47,11 @@ export class PrintPdfSlipPrinterService {
   }
 
   async printSlipIfEnabled(data: SlipData): Promise<void> {
+    // Railway(Linux)에서는 Windows 프린터 접근 불가 → 로컬 에이전트가 처리
+    if (process.platform !== 'win32') {
+      this.logger.log(`[슬립인쇄] Linux 환경 감지 - 로컬 에이전트가 슬립 인쇄를 처리합니다. 주문: ${data.orderNumber}`);
+      return;
+    }
     try {
       const enabledRaw = await this.settings.getValue('print_pdf_auto_print_enabled', 'false');
       this.logger.log(`[슬립인쇄] enabled=${enabledRaw}, platform=${process.platform}, order=${data.orderNumber}`);

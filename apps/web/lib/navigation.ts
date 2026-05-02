@@ -16,7 +16,6 @@ import {
   CreditCard,
   Headphones,
   Layers,
-  LayoutDashboard,
   PieChart,
   Receipt,
   ShoppingBag,
@@ -72,12 +71,6 @@ export interface PermissionEntry {
 // ---------------------------------------------------------------------------
 
 export const NAVIGATION: NavItem[] = [
-  {
-    id: "dashboard",
-    name: "대시보드",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
   {
     id: "basic-info",
     name: "기초정보",

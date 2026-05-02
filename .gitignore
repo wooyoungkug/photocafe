@@ -55,3 +55,7 @@ apps/api/uploads/orders/
 apps/api/uploads/temp/
 apps/api/uploads/imposition/
 *.sql
+
+# Print agent local configs (PC별로 다른 경로 저장)
+tools/print-agent/agent-config.json
+tools/print-agent/print-agent-config.json

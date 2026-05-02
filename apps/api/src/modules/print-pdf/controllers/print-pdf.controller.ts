@@ -198,6 +198,54 @@ export class PrintPdfController {
     fs.createReadStream(abs).pipe(res);
   }
 
+  /** 에이전트용 일회성 다운로드 토큰 발급 (브라우저에서 에이전트로 전달) */
+  @Post('jobs/:jobId/items/:itemId/agent-token')
+  @ApiOperation({ summary: '에이전트 PDF 다운로드용 일회성 토큰 발급' })
+  async generateAgentToken(
+    @Param('jobId') jobId: string,
+    @Param('itemId') itemId: string,
+  ) {
+    const pdfPath = await this.printPdfService.getDownloadPath(jobId, itemId);
+    if (!pdfPath || !fs.existsSync(pdfPath)) {
+      throw new NotFoundException('PDF 파일을 찾을 수 없습니다.');
+    }
+    const job = await this.printPdfService.getJobStatus(jobId);
+    const result = job?.results.find(r => r.orderItemId === itemId);
+    const fileName = result?.fileName || path.basename(pdfPath);
+
+    const token = this.printPdfService.generateAgentDownloadToken(pdfPath, fileName);
+    const apiBase = (process.env.API_URL || `https://api.photocafe.co.kr`).replace(/\/$/, '');
+    return { downloadUrl: `${apiBase}/api/v1/print-pdf/agent-dl?t=${token}`, fileName };
+  }
+
+  /** 에이전트용 토큰 기반 PDF 다운로드 (인증 불필요 — 토큰이 인증) */
+  @Public()
+  @Get('agent-dl')
+  @ApiOperation({ summary: '에이전트 토큰 기반 PDF 다운로드 (인증 불필요)' })
+  async agentDownload(@Query('t') token: string, @Res() res: Response) {
+    if (!token) throw new NotFoundException('토큰이 필요합니다.');
+    const result = this.printPdfService.consumeAgentDownloadToken(token);
+    if (!result || !fs.existsSync(result.pdfPath)) {
+      throw new NotFoundException('유효하지 않거나 만료된 토큰입니다.');
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(result.fileName)}"`);
+    res.setHeader('Content-Length', fs.statSync(result.pdfPath).size);
+    fs.createReadStream(result.pdfPath).pipe(res);
+  }
+
+  /** 슬립 인쇄용 1회용 토큰 발급 (에이전트가 로컬에서 인쇄) */
+  @Post('queue/:orderItemId/print-token')
+  @ApiOperation({ summary: '슬립 인쇄용 1회용 토큰 발급' })
+  async generateSlipPrintToken(@Param('orderItemId') orderItemId: string) {
+    const token = this.slipPrinterService.generatePrintToken(orderItemId);
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://photocafe.co.kr').replace(/\/$/, '');
+    return {
+      token,
+      slipUrl: `${frontendUrl}/print-slip/${orderItemId}?printToken=${token}`,
+    };
+  }
+
   @Get('jobs/:jobId/download')
   @ApiOperation({ summary: '생성된 PDF 다운로드 (itemId 지정 시 해당 항목의 PDF만 반환)' })
   async downloadPdf(

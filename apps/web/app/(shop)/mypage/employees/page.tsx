@@ -128,7 +128,6 @@ export default function EmployeesPage() {
                     <th className="text-left px-3 py-2 font-medium">이메일</th>
                     <th className="text-left px-3 py-2 font-medium">가입 URL</th>
                     <th className="text-left px-3 py-2 font-medium">역할</th>
-                    <th className="text-left px-3 py-2 font-medium">로그인</th>
                     <th className="text-left px-3 py-2 font-medium">만료일</th>
                     <th className="text-center px-3 py-2 font-medium">권한</th>
                   </tr>
@@ -157,7 +156,12 @@ export default function EmployeesPage() {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
             </div>
-          ) : !employees || employees.length === 0 ? (
+          ) : employees === undefined ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-[12px] text-red-500">
+              <AlertCircle className="h-4 w-4" />
+              직원 목록을 불러오지 못했습니다. 권한을 확인하거나 다시 로그인해주세요.
+            </div>
+          ) : employees.length === 0 ? (
             <div className="text-center py-8 text-[12px] text-gray-500">
               등록된 직원이 없습니다. 직원 초대 버튼을 눌러 직원을 초대하세요.
             </div>
@@ -187,6 +191,7 @@ export default function EmployeesPage() {
                       <td className="px-3 py-2">
                         {isOwner && emp.memberClientId !== emp.companyClientId && emp.status === 'ACTIVE' ? (
                           <button
+                            type="button"
                             className="text-blue-600 hover:underline cursor-pointer"
                             title="대리 로그인"
                             onClick={() => {
@@ -265,7 +270,7 @@ export default function EmployeesPage() {
                                   onClick={() => setRemoveTarget(emp)}
                                 >
                                   <Trash2 className="h-3.5 w-3.5 mr-2" />
-                                  제거
+                                  내보내기
                                 </DropdownMenuItem>
                               )}
                             </DropdownMenuContent>
@@ -353,9 +358,6 @@ function InvitationRow({ invitation }: { invitation: Invitation }) {
           {invitation.role === 'MANAGER' ? 'Manager' : invitation.role === 'EDITOR' ? 'Artist' : invitation.role === 'PHOTOGRAPHER' ? 'Photographer' : 'STAFF'}
         </span>
       </td>
-      <td className="px-3 py-2 text-[14px] text-gray-500">
-        {invitation.oauthProvider === 'naver' ? '네이버' : invitation.oauthProvider === 'kakao' ? '카카오' : invitation.oauthProvider === 'google' ? 'Google' : '-'}
-      </td>
       <td className="px-3 py-2 text-gray-500">
         {(() => { const d = new Date(invitation.expiresAt); return `${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`; })()}
       </td>
@@ -393,14 +395,13 @@ function InviteDialog({
 }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<EmployeeRole>('STAFF');
-  const [oauthProvider, setOauthProvider] = useState<'naver' | 'kakao' | 'google'>('naver');
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const createMutation = useCreateInvitation();
 
   const handleSubmit = () => {
     createMutation.mutate(
-      { clientId, inviteeEmail: email, role, oauthProvider },
+      { clientId, inviteeEmail: email, role },
       {
         onSuccess: (result) => {
           setInviteLink(result.inviteLink);
@@ -424,7 +425,6 @@ function InviteDialog({
   const handleClose = () => {
     setEmail('');
     setRole('STAFF');
-    setOauthProvider('naver');
     setInviteLink(null);
     setCopied(false);
     onClose();
@@ -485,19 +485,6 @@ function InviteDialog({
                   <SelectItem value="EDITOR" className="text-[14px]">Artist</SelectItem>
                   <SelectItem value="PHOTOGRAPHER" className="text-[14px]">Photographer</SelectItem>
                   <SelectItem value="STAFF" className="text-[14px]">STAFF</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-[14px]">로그인 방법</Label>
-              <Select value={oauthProvider} onValueChange={(v) => setOauthProvider(v as 'naver' | 'kakao' | 'google')}>
-                <SelectTrigger className="text-[14px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="naver" className="text-[14px]">네이버</SelectItem>
-                  <SelectItem value="kakao" className="text-[14px]">카카오</SelectItem>
-                  <SelectItem value="google" className="text-[14px]">Google</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1046,11 +1033,11 @@ function RemoveDialog({
   const handleRemove = () => {
     removeMutation.mutate(employment.id, {
       onSuccess: () => {
-        toast.success('직원이 제거되었습니다');
+        toast.success('멤버를 내보냈습니다');
         onClose();
       },
       onError: () => {
-        toast.error('직원 제거에 실패했습니다');
+        toast.error('내보내기에 실패했습니다');
       },
     });
   };
@@ -1061,11 +1048,11 @@ function RemoveDialog({
         <DialogHeader>
           <DialogTitle className="text-[14px] flex items-center gap-2 text-red-600">
             <AlertCircle className="h-4 w-4" />
-            직원 제거
+            멤버 내보내기
           </DialogTitle>
           <DialogDescription className="text-[12px]">
             <strong>{employment.member.clientName}</strong> ({employment.member.email})님을
-            거래처에서 제거하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            소속에서 내보내시겠습니까? 해당 멤버의 계정은 유지되며 소속 관계만 해제됩니다.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
@@ -1079,7 +1066,7 @@ function RemoveDialog({
             onClick={handleRemove}
           >
             {removeMutation.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-            제거
+            내보내기
           </Button>
         </DialogFooter>
       </DialogContent>
