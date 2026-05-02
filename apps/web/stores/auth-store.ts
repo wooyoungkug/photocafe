@@ -34,6 +34,7 @@ interface User {
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
   menuPermissions?: Record<string, boolean>;
+  oauthProvider?: string | null;
 }
 
 interface AuthState {
