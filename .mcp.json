@@ -32,6 +32,10 @@
       "args": [
         "@upstash/context7-mcp"
       ]
+    },
+    "vercel": {
+      "url": "https://mcp.vercel.com",
+      "type": "http"
     }
   }
 }
