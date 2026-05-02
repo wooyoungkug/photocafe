@@ -23,6 +23,13 @@ import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AddressSearch } from '@/components/address-search';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 // 전화번호 자동 하이픈 포맷
 function formatPhone(value: string): string {
@@ -74,6 +81,13 @@ export default function ProfilePage() {
     businessNumber: '',
     representative: '',
     contactPerson: '',
+    fileRetentionMonths: 3 as number,
+    acquisitionChannel: '',
+    acquisitionChannelNote: '',
+    practicalManagerName: '',
+    practicalManagerPhone: '',
+    approvalManagerName: '',
+    approvalManagerPhone: '',
   });
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -85,6 +99,8 @@ export default function ProfilePage() {
   const [notificationChannel, setNotificationChannel] = useState<'sms' | 'kakao'>('sms');
   const [withdrawConfirmOpen, setWithdrawConfirmOpen] = useState(false);
   const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
+  const [isApartmentAddress, setIsApartmentAddress] = useState(false);
+  const [addressEmbedOpen, setAddressEmbedOpen] = useState(false);
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -104,6 +120,15 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
+  // 수정 모드 진입 시 주소 embed 자동 오픈 (직원 제외)
+  useEffect(() => {
+    if (isEditMode && !isEmployee) {
+      setAddressEmbedOpen(true);
+    } else {
+      setAddressEmbedOpen(false);
+    }
+  }, [isEditMode, isEmployee]);
+
   // profile 데이터가 로드/변경되면 편집용 상태에 동기화
   useEffect(() => {
     if (profile) {
@@ -118,6 +143,13 @@ export default function ProfilePage() {
         businessNumber: profile.businessNumber || '',
         representative: profile.representative || '',
         contactPerson: profile.contactPerson || '',
+        fileRetentionMonths: profile.fileRetentionMonths ?? 3,
+        acquisitionChannel: profile.acquisitionChannel || '',
+        acquisitionChannelNote: profile.acquisitionChannelNote || '',
+        practicalManagerName: profile.practicalManagerName || '',
+        practicalManagerPhone: profile.practicalManagerPhone || '',
+        approvalManagerName: profile.approvalManagerName || '',
+        approvalManagerPhone: profile.approvalManagerPhone || '',
       });
     }
   }, [profile]);
@@ -131,6 +163,8 @@ export default function ProfilePage() {
       setError('');
       if (data) updateUser(data);
       setIsEditMode(false);
+      setIsApartmentAddress(false);
+      setAddressEmbedOpen(false);
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
       setTimeout(() => setSuccess(''), 3000);
     },
@@ -214,6 +248,14 @@ export default function ProfilePage() {
       setError('이름과 이메일은 필수 입력 항목입니다.');
       return;
     }
+    if (!isEmployee && !profileData.address) {
+      setError('주소는 필수 입력 항목입니다. 주소 검색으로 입력해 주세요.');
+      return;
+    }
+    if (!isEmployee && isApartmentAddress && !profileData.addressDetail.trim()) {
+      setError('아파트·연립주택은 동, 호수를 필수로 입력해야 합니다.');
+      return;
+    }
     // 직원은 개인 기본 정보만 저장 (주소/사업자 정보 제외)
     const dataToSave = isEmployee
       ? { clientName: profileData.clientName, email: profileData.email, mobile: profileData.mobile, phone: profileData.phone }
@@ -234,9 +276,18 @@ export default function ProfilePage() {
         businessNumber: profile.businessNumber || '',
         representative: profile.representative || '',
         contactPerson: profile.contactPerson || '',
+        fileRetentionMonths: profile.fileRetentionMonths ?? 3,
+        acquisitionChannel: profile.acquisitionChannel || '',
+        acquisitionChannelNote: profile.acquisitionChannelNote || '',
+        practicalManagerName: profile.practicalManagerName || '',
+        practicalManagerPhone: profile.practicalManagerPhone || '',
+        approvalManagerName: profile.approvalManagerName || '',
+        approvalManagerPhone: profile.approvalManagerPhone || '',
       });
     }
     setIsEditMode(false);
+    setIsApartmentAddress(false);
+    setAddressEmbedOpen(false);
     setError('');
     setSuccess('');
   };
@@ -396,23 +447,99 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+              {!isEmployee && (
+                <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">가입경로</Label>
+                    {isEditMode ? (
+                      <div className="space-y-1.5">
+                        <Select
+                          value={profileData.acquisitionChannel || 'none'}
+                          onValueChange={(v) => setProfileData({ ...profileData, acquisitionChannel: v === 'none' ? '' : v, acquisitionChannelNote: v !== 'etc' ? '' : profileData.acquisitionChannelNote })}
+                        >
+                          <SelectTrigger className={inputCls}>
+                            <SelectValue placeholder="선택 안함" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">선택 안함</SelectItem>
+                            <SelectItem value="direct">직접가입</SelectItem>
+                            <SelectItem value="referral">소개</SelectItem>
+                            <SelectItem value="naver_search">네이버 검색</SelectItem>
+                            <SelectItem value="google_search">구글 검색</SelectItem>
+                            <SelectItem value="exhibition">전시회</SelectItem>
+                            <SelectItem value="sns">SNS</SelectItem>
+                            <SelectItem value="etc">기타</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {profileData.acquisitionChannel === 'etc' && (
+                          <Input
+                            className={inputCls}
+                            value={profileData.acquisitionChannelNote}
+                            onChange={(e) => setProfileData({ ...profileData, acquisitionChannelNote: e.target.value })}
+                            placeholder="기타 내용을 입력해 주세요"
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      <FieldValue value={
+                        profile?.acquisitionChannel === 'etc'
+                          ? `기타${profile?.acquisitionChannelNote ? `: ${profile.acquisitionChannelNote}` : ''}`
+                          : ({ direct: '직접가입', referral: '소개', naver_search: '네이버 검색', google_search: '구글 검색', exhibition: '전시회', sns: 'SNS' } as Record<string, string>)[profile?.acquisitionChannel || ''] || '-'
+                      } />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">
+                      원본 데이터 보관기간 <span className="text-red-500">*</span>
+                    </Label>
+                    {isEditMode ? (
+                      <Select
+                        value={String(profileData.fileRetentionMonths ?? 3)}
+                        onValueChange={(v) => setProfileData({ ...profileData, fileRetentionMonths: parseInt(v) })}
+                      >
+                        <SelectTrigger className={inputCls}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1개월 (30일)</SelectItem>
+                          <SelectItem value="2">2개월 (60일)</SelectItem>
+                          <SelectItem value="3">3개월 (90일)</SelectItem>
+                          <SelectItem value="6">6개월 (180일)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <FieldValue value={
+                        ({ 1: '1개월 (30일)', 2: '2개월 (60일)', 3: '3개월 (90일)', 6: '6개월 (180일)' } as Record<number, string>)[profile?.fileRetentionMonths ?? 3] || '3개월 (90일)'
+                      } />
+                    )}
+                    <p className="text-[12px] text-gray-400">제품 출고일로부터 원본 파일 보관 기간</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {!isEmployee && <Separator />}
 
             {/* 주소 정보 - 직원은 비표시 */}
             {!isEmployee && <div className="space-y-3">
-              <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">주소 정보</h3>
+              <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">
+                주소 정보 <span className="text-red-500">*</span>
+              </h3>
               {isEditMode && (
                 <AddressSearch
                   inline={true}
+                  isOpen={addressEmbedOpen}
+                  onOpenChange={setAddressEmbedOpen}
                   size="sm"
                   className="h-8 text-[14px]"
                   onComplete={(data) => {
+                    const needsDetail = data.isApartment || (!!data.buildingCode && !!data.buildingName);
+                    setIsApartmentAddress(needsDetail);
                     setProfileData({
                       ...profileData,
                       postalCode: data.postalCode,
                       address: data.address,
+                      addressDetail: needsDetail ? '' : profileData.addressDetail,
                     });
                   }}
                 />
@@ -438,11 +565,19 @@ export default function ProfilePage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="addressDetail" className="text-[14px] font-normal text-gray-600">상세주소</Label>
+                <Label htmlFor="addressDetail" className="text-[14px] font-normal text-gray-600">
+                  상세주소
+                  {isEditMode && isApartmentAddress && <span className="text-red-500 ml-1">*</span>}
+                </Label>
                 {isEditMode ? (
-                  <Input id="addressDetail" className={inputCls} value={profileData.addressDetail}
-                    onChange={(e) => setProfileData({ ...profileData, addressDetail: e.target.value })}
-                    placeholder="상세주소를 입력하세요" />
+                  <>
+                    <Input id="addressDetail" className={inputCls} value={profileData.addressDetail}
+                      onChange={(e) => setProfileData({ ...profileData, addressDetail: e.target.value })}
+                      placeholder={isApartmentAddress ? '동, 호수를 입력하세요 (예: 101동 1502호)' : '상세주소를 입력하세요'} />
+                    {isApartmentAddress && (
+                      <p className="text-[12px] text-orange-500">아파트·연립주택은 동, 호수 입력이 필수입니다.</p>
+                    )}
+                  </>
                 ) : (
                   <FieldValue value={profile?.addressDetail || ''} />
                 )}
@@ -491,6 +626,61 @@ export default function ProfilePage() {
                 ) : (
                   <FieldValue value={profile?.contactPerson || ''} />
                 )}
+              </div>
+            </div>}
+
+            {!isEmployee && <Separator />}
+
+            {/* 담당자 정보 - 직원은 비표시 */}
+            {!isEmployee && <div className="space-y-3">
+              <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">담당자 정보 (선택)</h3>
+              <div className="grid md:grid-cols-2 gap-x-6 gap-y-4">
+                <div className="space-y-3">
+                  <p className="text-[13px] font-medium text-gray-700">실무담당자</p>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">이름</Label>
+                    {isEditMode ? (
+                      <Input className={inputCls} value={profileData.practicalManagerName}
+                        onChange={(e) => setProfileData({ ...profileData, practicalManagerName: e.target.value })}
+                        placeholder="실무 담당자 이름" />
+                    ) : (
+                      <FieldValue value={profile?.practicalManagerName || ''} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">연락처</Label>
+                    {isEditMode ? (
+                      <Input className={inputCls} value={profileData.practicalManagerPhone}
+                        onChange={(e) => setProfileData({ ...profileData, practicalManagerPhone: formatPhone(e.target.value) })}
+                        placeholder="010-0000-0000" maxLength={13} />
+                    ) : (
+                      <FieldValue value={formatPhone(profile?.practicalManagerPhone || '')} />
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-[13px] font-medium text-gray-700">결재담당자</p>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">이름</Label>
+                    {isEditMode ? (
+                      <Input className={inputCls} value={profileData.approvalManagerName}
+                        onChange={(e) => setProfileData({ ...profileData, approvalManagerName: e.target.value })}
+                        placeholder="결재 담당자 이름" />
+                    ) : (
+                      <FieldValue value={profile?.approvalManagerName || ''} />
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">연락처</Label>
+                    {isEditMode ? (
+                      <Input className={inputCls} value={profileData.approvalManagerPhone}
+                        onChange={(e) => setProfileData({ ...profileData, approvalManagerPhone: formatPhone(e.target.value) })}
+                        placeholder="010-0000-0000" maxLength={13} />
+                    ) : (
+                      <FieldValue value={formatPhone(profile?.approvalManagerPhone || '')} />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>}
 
@@ -707,7 +897,7 @@ export default function ProfilePage() {
                 <li>소속 직원들의 고용 관계가 모두 즉시 해제됩니다</li>
                 <li>탈퇴 후 동일 이메일·소셜 계정으로 재가입이 불가능합니다</li>
                 <li>주문·결제 내역은 국세기본법에 따라 <strong>5년간 보존</strong>됩니다</li>
-                <li>미정산 잔액·크레딧이 있을 경우 소멸될 수 있습니다</li>
+                <li>미정산 잔액·크레딧이 있을 경우 탈퇴 전 반환 요청을 하실 수 있으며, 반환 요청 없이 탈퇴 시 소멸될 수 있습니다</li>
               </ul>
             </div>
             <Button

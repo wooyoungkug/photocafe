@@ -206,6 +206,11 @@ export class CreateClientDto {
   @IsIn(['direct', 'referral', 'search', 'exhibition', 'sns', 'etc'])
   acquisitionChannel?: string;
 
+  @ApiPropertyOptional({ description: '가입경로 기타 내용' })
+  @IsOptional()
+  @IsString()
+  acquisitionChannelNote?: string;
+
   @ApiPropertyOptional({ description: '일정관리 기능 사용 여부', default: true })
   @IsOptional()
   @IsBoolean()

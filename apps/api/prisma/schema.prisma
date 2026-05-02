@@ -327,6 +327,7 @@ model Client {
   createdAt                  DateTime                       @default(now())
   updatedAt                  DateTime                       @updatedAt
   acquisitionChannel         String?
+  acquisitionChannelNote     String?
   assignedManager            String?
   businessCategory           String?
   businessType               String?
