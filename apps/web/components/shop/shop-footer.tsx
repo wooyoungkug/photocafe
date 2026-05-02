@@ -102,7 +102,7 @@ export function ShopFooter() {
       <div className="border-t border-neutral-800">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div className="text-[12pt] text-neutral-500 text-center md:text-left space-y-1">
+            <div className="text-[11pt] text-neutral-500 text-center md:text-left space-y-1">
               <p>
                 {t('tradeName')} {companyName} | {t('ceo')} {ceoName} | {companyInfo.company_business_number || '123-45-67890'}
                 {companyInfo.company_ecommerce_number && ` | ${t('ecommerceNumber')} ${companyInfo.company_ecommerce_number}`}

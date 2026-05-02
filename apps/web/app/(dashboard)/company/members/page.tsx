@@ -908,7 +908,7 @@ function MembersPageContent() {
                           id="representative"
                           value={formData.representative}
                           onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                          placeholder="풀로우스튜디오"
+                          placeholder="예: 포토스튜디오"
                           className="bg-white"
                         />
                       </div>
@@ -956,38 +956,6 @@ function MembersPageContent() {
                             </div>
                           </div>
                         )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
-                        <Select
-                          value={formData.gender || ''}
-                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
-                        >
-                          <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">남성</SelectItem>
-                            <SelectItem value="female">여성</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
-                        <Input
-                          id="birthday"
-                          value={formData.birthday}
-                          onChange={(e) => {
-                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            let formatted = numbers;
-                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
-                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
-                            setFormData({ ...formData, birthday: formatted });
-                          }}
-                          placeholder="1990-01-01"
-                          maxLength={10}
-                          className="bg-white"
-                        />
                       </div>
                     </>
                   )}
@@ -1077,38 +1045,6 @@ function MembersPageContent() {
                           </div>
                         )}
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
-                        <Select
-                          value={formData.gender || ''}
-                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
-                        >
-                          <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">남성</SelectItem>
-                            <SelectItem value="female">여성</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
-                        <Input
-                          id="birthday"
-                          value={formData.birthday}
-                          onChange={(e) => {
-                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            let formatted = numbers;
-                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
-                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
-                            setFormData({ ...formData, birthday: formatted });
-                          }}
-                          placeholder="1990-01-01"
-                          maxLength={10}
-                          className="bg-white"
-                        />
-                      </div>
                     </>
                   )}
 
@@ -1194,10 +1130,10 @@ function MembersPageContent() {
                     </Select>
                   </div>
 
-                  {/* 원본 데이터 삭제기간 */}
+                  {/* 원본 데이터 보관기간 */}
                   <div className="space-y-2">
                     <Label htmlFor="fileRetentionMonths" className="text-sm font-medium">
-                      원본 데이터 삭제기간
+                      원본 데이터 보관기간
                     </Label>
                     <Select
                       value={String(formData.fileRetentionMonths ?? 3)}
@@ -1211,7 +1147,6 @@ function MembersPageContent() {
                         <SelectItem value="2">2개월 (60일)</SelectItem>
                         <SelectItem value="3">3개월 (90일)</SelectItem>
                         <SelectItem value="6">6개월 (180일)</SelectItem>
-                        <SelectItem value="12">12개월 (1년)</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">거래 완료 후 원본 파일 보관 기간</p>
@@ -1348,7 +1283,7 @@ function MembersPageContent() {
                     </div>
                   </div>
                   <div className="p-3 bg-white rounded-lg border space-y-3">
-                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">결재담당자</p>
+                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide flex items-center gap-1.5">결재담당자 <span className="text-xs font-normal bg-red-100 text-red-600 px-2 py-0.5 rounded-full normal-case">고객 비공개</span></p>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">이름</Label>
                       <Input
