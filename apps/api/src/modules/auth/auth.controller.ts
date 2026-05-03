@@ -422,7 +422,8 @@ export class AuthController {
 
   @Public()
   @Post('staff/login')
-  @Throttle({ default: { ttl: 60000, limit: 20 } })
+  // 설계서 v1.1: 분당 5회 (브루트포스 방어). IP 단위로 1분간 5회 초과 시 429
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @ApiOperation({ summary: '직원 ID/PW 로그인' })
   async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);

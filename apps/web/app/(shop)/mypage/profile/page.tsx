@@ -81,7 +81,7 @@ export default function ProfilePage() {
     businessNumber: '',
     representative: '',
     contactPerson: '',
-    fileRetentionMonths: 3 as number,
+    fileRetentionDays: 90 as number,
     acquisitionChannel: '',
     acquisitionChannelNote: '',
     practicalManagerName: '',
@@ -134,7 +134,7 @@ export default function ProfilePage() {
         businessNumber: profile.businessNumber || '',
         representative: profile.representative || '',
         contactPerson: profile.contactPerson || '',
-        fileRetentionMonths: profile.fileRetentionMonths ?? 3,
+        fileRetentionDays: profile.fileRetentionDays ?? 90,
         acquisitionChannel: profile.acquisitionChannel || '',
         acquisitionChannelNote: profile.acquisitionChannelNote || '',
         practicalManagerName: profile.practicalManagerName || '',
@@ -267,7 +267,7 @@ export default function ProfilePage() {
         businessNumber: profile.businessNumber || '',
         representative: profile.representative || '',
         contactPerson: profile.contactPerson || '',
-        fileRetentionMonths: profile.fileRetentionMonths ?? 3,
+        fileRetentionDays: profile.fileRetentionDays ?? 90,
         acquisitionChannel: profile.acquisitionChannel || '',
         acquisitionChannelNote: profile.acquisitionChannelNote || '',
         practicalManagerName: profile.practicalManagerName || '',
@@ -488,22 +488,23 @@ export default function ProfilePage() {
                     </Label>
                     {isEditMode ? (
                       <Select
-                        value={String(profileData.fileRetentionMonths ?? 3)}
-                        onValueChange={(v) => setProfileData({ ...profileData, fileRetentionMonths: parseInt(v) })}
+                        value={String(profileData.fileRetentionDays ?? 90)}
+                        onValueChange={(v) => setProfileData({ ...profileData, fileRetentionDays: parseInt(v) })}
                       >
                         <SelectTrigger className={inputCls}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="1">1개월 (30일)</SelectItem>
-                          <SelectItem value="2">2개월 (60일)</SelectItem>
-                          <SelectItem value="3">3개월 (90일)</SelectItem>
-                          <SelectItem value="6">6개월 (180일)</SelectItem>
+                          <SelectItem value="7">1주일 (7일)</SelectItem>
+                          <SelectItem value="30">1개월 (30일)</SelectItem>
+                          <SelectItem value="60">2개월 (60일)</SelectItem>
+                          <SelectItem value="90">3개월 (90일)</SelectItem>
+                          <SelectItem value="180">6개월 (180일)</SelectItem>
                         </SelectContent>
                       </Select>
                     ) : (
                       <FieldValue value={
-                        ({ 1: '1개월 (30일)', 2: '2개월 (60일)', 3: '3개월 (90일)', 6: '6개월 (180일)' } as Record<number, string>)[profile?.fileRetentionMonths ?? 3] || '3개월 (90일)'
+                        ({ 7: '1주일 (7일)', 30: '1개월 (30일)', 60: '2개월 (60일)', 90: '3개월 (90일)', 180: '6개월 (180일)' } as Record<number, string>)[profile?.fileRetentionDays ?? 90] || '3개월 (90일)'
                       } />
                     )}
                     <p className="text-[12px] text-gray-400">제품 출고일로부터 원본 파일 보관 기간</p>

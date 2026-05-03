@@ -104,7 +104,7 @@ async function main() {
             "priceType", "paymentType", "creditEnabled", "creditBlocked",
             "shippingType", "freeShippingThreshold", "pendingAdjustmentAmount",
             "creditGrade", "paymentTerms", "hasLogo", "isBlacklist", "isWhitelist",
-            "memberGrade", "sensitivityScore", "totalClaims", "fileRetentionMonths",
+            "memberGrade", "sensitivityScore", "totalClaims", "fileRetentionDays",
             "userId", "createdAt", "updatedAt"
           ) VALUES (
             $1, $2, $3, $4, $5,

@@ -48,6 +48,49 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 365, // 1 year
+    remotePatterns: [
+      // Backblaze B2 + Cloudflare CDN (운영)
+      {
+        protocol: "https",
+        hostname: "cdn.photocafe.co.kr",
+        pathname: "/**",
+      },
+      // Backblaze B2 직접 (백업/임시)
+      {
+        protocol: "https",
+        hostname: "f005.backblazeb2.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "*.backblazeb2.com",
+        pathname: "/**",
+      },
+      // Railway API (프리사인드 URL/이미지 서빙)
+      {
+        protocol: "https",
+        hostname: "api.photocafe.co.kr",
+        pathname: "/**",
+      },
+      // 카카오 프로필 이미지 (소셜 로그인)
+      {
+        protocol: "https",
+        hostname: "k.kakaocdn.net",
+        pathname: "/**",
+      },
+      // 구글 프로필 이미지
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
+        pathname: "/**",
+      },
+      // 네이버 프로필 이미지
+      {
+        protocol: "https",
+        hostname: "phinf.pstatic.net",
+        pathname: "/**",
+      },
+    ],
   },
 
   // Experimental optimizations

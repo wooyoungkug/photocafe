@@ -121,6 +121,41 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+/// 보안 이벤트 로그 (설계서 v1.1)
+/// 로그인 성공/실패, 권한 오류, 의심 패턴, 2FA 시도, IP 차단 등 보안 관련 이벤트 기록.
+/// AuditLog(비즈니스 변경 이력) 와 분리: SecurityLog 는 침해 분석 / SIEM 연동 전용.
+model SecurityLog {
+  id           String   @id @default(cuid())
+  /// 이벤트 종류: login_success, login_failed, login_blocked,
+  ///              password_reset, password_changed,
+  ///              2fa_enabled, 2fa_disabled, 2fa_failed,
+  ///              token_refresh, token_revoked,
+  ///              permission_denied, suspicious_activity,
+  ///              ip_blocked, rate_limited
+  eventType    String
+  /// info | warn | critical — SIEM 알림 우선순위
+  severity     String   @default("info")
+  /// 영향 받은 사용자 (없으면 null — 비인증 사용자 시도)
+  userId       String?
+  userType     String?  // staff | client | employee | unknown
+  loginId      String?  // 로그인 시도 ID (실패 추적용)
+  ipAddress    String?
+  userAgent    String?
+  country      String?  // GeoIP 분석 결과
+  /// 추가 컨텍스트 (실패 사유, 차단 룰 ID 등)
+  metadata     Json?
+  /// 실패 시 관련 메시지 (개인정보 미포함)
+  message      String?
+  createdAt    DateTime @default(now())
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([ipAddress])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("security_logs")
+}
+
 model Staff {
   id                      String                  @id @default(cuid())
   staffId                 String?                 @unique
@@ -178,6 +213,12 @@ model Staff {
   specialties             String[]                @default([])
   layoutMode              String                  @default("top")
   pinnedMenus             String[]                @default([])
+  // 2FA (TOTP) — 설계서 v1.1 보안 요구사항 (관리자 2단계 인증)
+  // totpSecret 는 암호화 저장(별도 PII 키 적용) 또는 향후 KMS 연동 예정.
+  twoFactorEnabled        Boolean                 @default(false)
+  twoFactorSecret         String?                 // base32 인코딩된 TOTP 시크릿 (암호화 저장)
+  twoFactorBackupCodes    String[]                @default([]) // 1회용 백업코드 (해시 저장)
+  twoFactorEnabledAt      DateTime?
   assignedClientsAsStaff  Client[]                @relation("ClientAssignedStaff")
   agendaVotes             HrAgendaVote[]          @relation("AgendaVoter")
   targetAgendas           HrAgenda[]              @relation("AgendaTarget")
@@ -350,7 +391,8 @@ model Client {
   taxInvoiceMethod           String?
   totalClaims                Int                            @default(0)
   duplicateCheckMonths       Int?
-  fileRetentionMonths        Int                            @default(3)
+  fileRetentionDays          Int                            @default(90)
+  thumbnailRetentionMonths   Int                            @default(6)
   adminMemo                  String?
   approvalManagerName        String?
   approvalManagerPhone       String?

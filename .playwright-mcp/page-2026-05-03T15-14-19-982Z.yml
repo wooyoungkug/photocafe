@@ -1,0 +1,157 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: (주)프린팅솔루션즈 - 고품질 인쇄 서비스
+      - generic [ref=e7]:
+        - link "공지사항" [ref=e8] [cursor=pointer]:
+          - /url: /notice
+        - link "이용안내" [ref=e9] [cursor=pointer]:
+          - /url: /guide
+        - link "고객센터" [ref=e10] [cursor=pointer]:
+          - /url: /support
+    - generic [ref=e13]:
+      - link "Photocafe" [ref=e14] [cursor=pointer]:
+        - /url: /
+        - img "Photocafe" [ref=e15]
+      - generic [ref=e17]:
+        - searchbox "상품명, 카테고리 검색..." [ref=e18]
+        - button "검색" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+      - generic [ref=e23]:
+        - link [ref=e24] [cursor=pointer]:
+          - /url: /cart
+          - img [ref=e25]
+        - generic [ref=e29]:
+          - link "로그인" [ref=e30] [cursor=pointer]:
+            - /url: /login
+            - button "로그인" [ref=e31]
+          - link "회원가입" [ref=e32] [cursor=pointer]:
+            - /url: /register
+            - button "회원가입" [ref=e33]
+  - navigation [ref=e34]
+  - main [ref=e43]:
+    - generic [ref=e44]:
+      - generic [ref=e49]:
+        - paragraph [ref=e50]: 프리미엄 포토 프린팅
+        - heading "아름다운 순간을 완벽하게 담다" [level=1] [ref=e51]
+        - paragraph [ref=e52]: 포토북, 앨범, 출력물 전문 인쇄 최상의 품질과 장인 정신으로 소중한 순간을 영원히
+        - generic [ref=e53]:
+          - link "제품 보기" [ref=e54] [cursor=pointer]:
+            - /url: /category/all
+            - button "제품 보기" [ref=e55]:
+              - text: 제품 보기
+              - img [ref=e56]
+          - link "시작하기" [ref=e58] [cursor=pointer]:
+            - /url: /register
+            - button "시작하기" [ref=e59]
+      - generic [ref=e63]:
+        - generic [ref=e64]:
+          - img [ref=e65]
+          - generic [ref=e68]:
+            - paragraph [ref=e69]: 최상의 품질
+            - paragraph [ref=e70]: 프리미엄 인쇄
+        - generic [ref=e71]:
+          - img [ref=e72]
+          - generic [ref=e77]:
+            - paragraph [ref=e78]: 빠른 배송
+            - paragraph [ref=e79]: 전국 당일발송
+        - generic [ref=e80]:
+          - img [ref=e81]
+          - generic [ref=e83]:
+            - paragraph [ref=e84]: 품질 보증
+            - paragraph [ref=e85]: 100% 만족보장
+        - generic [ref=e86]:
+          - img [ref=e87]
+          - generic [ref=e90]:
+            - paragraph [ref=e91]: 24시간 접수
+            - paragraph [ref=e92]: 온라인 주문
+      - generic [ref=e94]:
+        - generic [ref=e95]:
+          - paragraph [ref=e96]: 제품 라인업
+          - heading "카테고리별 상품" [level=2] [ref=e97]
+        - link "전체보기" [ref=e106] [cursor=pointer]:
+          - /url: /category/all
+          - button "전체보기" [ref=e107]:
+            - text: 전체보기
+            - img [ref=e108]
+      - generic [ref=e112]:
+        - img [ref=e113]
+        - generic [ref=e116]:
+          - generic [ref=e117]:
+            - paragraph [ref=e118]: “색감과 인쇄 품질이 정말 뛰어납니다. 고객님들께 자신있게 추천드릴 수 있는 업체입니다.”
+            - paragraph [ref=e119]: 김서영 — 스튜디오 봄
+          - generic [ref=e120]:
+            - paragraph [ref=e121]: “빠른 배송과 꼼꼼한 포장에 항상 감사드립니다. 10년 넘게 믿고 맡기고 있어요.”
+            - paragraph [ref=e122]: 박준호 — 포토하우스
+          - generic [ref=e123]:
+            - paragraph [ref=e124]: “온라인 주문 시스템이 편리하고 직관적이에요. 대량 주문도 문제없이 처리됩니다.”
+            - paragraph [ref=e125]: 이미진 — 라이프스튜디오
+        - generic [ref=e126]:
+          - button "Testimonial 1" [ref=e127] [cursor=pointer]
+          - button "Testimonial 2" [ref=e128] [cursor=pointer]
+          - button "Testimonial 3" [ref=e129] [cursor=pointer]
+          - button "자동 전환 일시정지" [ref=e130] [cursor=pointer]:
+            - img [ref=e131]
+      - generic [ref=e135]:
+        - paragraph [ref=e136]: 지금 시작하세요
+        - heading "함께 만들어가는 아름다운 작품" [level=2] [ref=e137]
+        - paragraph [ref=e138]: 회원가입 후 다양한 혜택과 할인을 받으실 수 있습니다. 첫 주문 시 특별 할인이 적용됩니다.
+        - generic [ref=e139]:
+          - link "무료 회원가입" [ref=e140] [cursor=pointer]:
+            - /url: /register
+            - button "무료 회원가입" [ref=e141]
+          - link "로그인" [ref=e142] [cursor=pointer]:
+            - /url: /login
+            - button "로그인" [ref=e143]
+  - contentinfo [ref=e144]:
+    - generic [ref=e146]:
+      - generic [ref=e147]:
+        - link "PhotoCafe" [ref=e148] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e149]: PhotoCafe
+        - paragraph [ref=e150]: 고품질 포토북, 앨범, 출력물 인쇄 전문업체입니다. 최상의 품질과 빠른 배송으로 고객님께 감동을 드립니다.
+      - generic [ref=e151]:
+        - heading "빠른 링크" [level=4] [ref=e152]
+        - list [ref=e153]:
+          - listitem [ref=e154]:
+            - link "회사소개" [ref=e155] [cursor=pointer]:
+              - /url: /about
+          - listitem [ref=e156]:
+            - link "상품안내" [ref=e157] [cursor=pointer]:
+              - /url: /products
+          - listitem [ref=e158]:
+            - link "이용안내" [ref=e159] [cursor=pointer]:
+              - /url: /guide
+          - listitem [ref=e160]:
+            - link "자주묻는질문" [ref=e161] [cursor=pointer]:
+              - /url: /faq
+      - generic [ref=e162]:
+        - heading "고객센터" [level=4] [ref=e163]
+        - generic [ref=e164]:
+          - paragraph [ref=e165]: 1588-0000
+          - paragraph [ref=e166]: 평일 09:00 - 18:00
+          - paragraph [ref=e167]: 점심시간 12:00 - 13:00
+          - paragraph [ref=e168]: 주말/공휴일 휴무
+          - paragraph [ref=e169]:
+            - link "support@photocafe.com" [ref=e170] [cursor=pointer]:
+              - /url: mailto:support@photocafe.com
+      - generic [ref=e171]:
+        - heading "입금계좌" [level=4] [ref=e172]
+        - generic [ref=e173]:
+          - paragraph [ref=e174]: 국민은행
+          - paragraph [ref=e175]: 123-456-789012
+          - paragraph [ref=e176]: "예금주: (주)프린팅솔루션즈"
+    - generic [ref=e178]:
+      - generic [ref=e179]:
+        - generic [ref=e180]:
+          - paragraph [ref=e181]: "상호: (주)프린팅솔루션즈 | 대표: 우영국 | 123-45-67890"
+          - paragraph [ref=e182]: "주소:"
+          - paragraph [ref=e183]: "대표전화: 02-1234-5678 | 팩스: 02-1234-5679"
+        - generic [ref=e184]:
+          - link "이용약관" [ref=e185] [cursor=pointer]:
+            - /url: /terms
+          - link "개인정보처리방침" [ref=e186] [cursor=pointer]:
+            - /url: /privacy
+      - paragraph [ref=e188]: © 2026 (주)프린팅솔루션즈. All rights reserved.
+  - region "Notifications (F8)":
+    - list

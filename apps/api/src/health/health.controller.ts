@@ -4,11 +4,13 @@ import { Public } from '@/common/decorators/public.decorator';
 import {
   HealthCheckService,
   HealthCheck,
+  HealthIndicatorResult,
   PrismaHealthIndicator,
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { B2StorageService } from '@/modules/upload/services/b2-storage.service';
 
 @ApiTags('health')
 @Public()
@@ -20,15 +22,35 @@ export class HealthController {
     private memory: MemoryHealthIndicator,
     private disk: DiskHealthIndicator,
     private prisma: PrismaService,
+    private b2: B2StorageService,
   ) {}
+
+  /**
+   * Terminus 호환 indicator: B2 활성/비활성 상태를 반환.
+   * - 운영(B2 미설정 시점)에서 빨간불을 띄우고 싶지 않으므로 비활성도 ok 로 처리하고
+   *   `enabled=false` 메타로 구분.
+   */
+  private async checkB2(): Promise<HealthIndicatorResult> {
+    const enabled = this.b2.isEnabled();
+    return {
+      b2: {
+        status: 'up',
+        enabled,
+        privateBucket: enabled ? this.b2.getPrivateBucket() : null,
+        publicBucket: enabled ? this.b2.getPublicBucket() || null : null,
+      },
+    };
+  }
 
   @Get()
   @HealthCheck()
-  @ApiOperation({ summary: '서버 Health Check' })
+  @ApiOperation({ summary: '서버 Health Check (db + b2 + memory + disk)' })
   check() {
     return this.health.check([
       // DB 연결 체크
       () => this.prismaHealth.pingCheck('database', this.prisma),
+      // B2 스토리지 활성 여부
+      () => this.checkB2(),
       // 메모리 체크 (힙 메모리 1GB 이하)
       () => this.memory.checkHeap('memory_heap', 1024 * 1024 * 1024),
       // RSS 메모리 체크 (1.5GB 이하)

@@ -53,7 +53,8 @@ export interface Client {
   paymentCondition?: '당월말' | '익월말' | '2개월여신';
   creditPaymentDay?: number;
   duplicateCheckMonths?: number;
-  fileRetentionMonths?: number;
+  fileRetentionDays?: number;
+  thumbnailRetentionMonths?: number;
   acquisitionChannel?: string;
   assignedManager?: string;
   practicalManagerName?: string;
@@ -113,7 +114,8 @@ export interface CreateClientDto {
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
   duplicateCheckMonths?: number;
-  fileRetentionMonths?: number;
+  fileRetentionDays?: number;
+  thumbnailRetentionMonths?: number;
   acquisitionChannel?: string;
   // 단일 담당직원
   assignedStaffId?: string | null;

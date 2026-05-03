@@ -306,7 +306,8 @@ function MembersPageContent() {
     gender: '',
     birthday: '',
     status: 'active',
-    fileRetentionMonths: 3,
+    fileRetentionDays: 90,
+    thumbnailRetentionMonths: 6,
     assignedManager: '',
     practicalManagerName: '',
     practicalManagerPhone: '',
@@ -376,7 +377,8 @@ function MembersPageContent() {
         gender: member.gender || '',
         birthday: member.birthday || '',
         status: member.status || 'active',
-        fileRetentionMonths: member.fileRetentionMonths ?? 3,
+        fileRetentionDays: member.fileRetentionDays ?? 90,
+        thumbnailRetentionMonths: member.thumbnailRetentionMonths ?? 6,
         assignedManager: member.assignedManager || '',
         practicalManagerName: member.practicalManagerName || '',
         practicalManagerPhone: member.practicalManagerPhone || '',
@@ -413,7 +415,8 @@ function MembersPageContent() {
           gender: '',
           birthday: '',
           status: 'active',
-          fileRetentionMonths: 3,
+          fileRetentionDays: 90,
+          thumbnailRetentionMonths: 6,
           assignedManager: '',
           practicalManagerName: '',
           practicalManagerPhone: '',
@@ -1136,20 +1139,42 @@ function MembersPageContent() {
                       원본 데이터 보관기간
                     </Label>
                     <Select
-                      value={String(formData.fileRetentionMonths ?? 3)}
-                      onValueChange={(v) => setFormData({ ...formData, fileRetentionMonths: parseInt(v) })}
+                      value={String(formData.fileRetentionDays ?? 90)}
+                      onValueChange={(v) => setFormData({ ...formData, fileRetentionDays: parseInt(v) })}
                     >
                       <SelectTrigger className="bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">1개월 (30일)</SelectItem>
-                        <SelectItem value="2">2개월 (60일)</SelectItem>
-                        <SelectItem value="3">3개월 (90일)</SelectItem>
-                        <SelectItem value="6">6개월 (180일)</SelectItem>
+                        <SelectItem value="7">1주일 (7일)</SelectItem>
+                        <SelectItem value="30">1개월 (30일)</SelectItem>
+                        <SelectItem value="60">2개월 (60일)</SelectItem>
+                        <SelectItem value="90">3개월 (90일)</SelectItem>
+                        <SelectItem value="180">6개월 (180일)</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">거래 완료 후 원본 파일 보관 기간</p>
+                  </div>
+
+                  {/* 썸네일 보관기간 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="thumbnailRetentionMonths" className="text-sm font-medium">
+                      썸네일 보관기간
+                    </Label>
+                    <Select
+                      value={String(formData.thumbnailRetentionMonths ?? 6)}
+                      onValueChange={(v) => setFormData({ ...formData, thumbnailRetentionMonths: parseInt(v) })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="6">6개월 (180일)</SelectItem>
+                        <SelectItem value="12">1년 (12개월)</SelectItem>
+                        <SelectItem value="24">2년 (24개월)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">거래 완료 후 썸네일 파일 보관 기간</p>
                   </div>
                 </div>
               </div>

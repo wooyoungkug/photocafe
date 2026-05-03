@@ -193,7 +193,7 @@ export default function ClientsPage() {
         paymentTerms: client.paymentTerms || 30,
         status: client.status || 'active',
         duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
-        fileRetentionMonths: client.fileRetentionMonths ?? undefined,
+        fileRetentionDays: client.fileRetentionDays ?? undefined,
         enableSchedule: client.enableSchedule ?? true,
         enableRecruitment: client.enableRecruitment ?? true,
         assignedStaffId: client.assignedStaffId ?? null,
@@ -924,19 +924,19 @@ export default function ClientsPage() {
                     <p className="text-xs text-muted-foreground">비워두면 시스템 기본값 사용. 0이면 체크 안 함.</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="fileRetentionMonths">데이터 원본 보존기간</Label>
+                    <Label htmlFor="fileRetentionDays">데이터 원본 보존기간</Label>
                     <div className="flex items-center gap-2">
                       <Input
-                        id="fileRetentionMonths"
+                        id="fileRetentionDays"
                         type="number"
                         min={1}
-                        max={120}
-                        value={formData.fileRetentionMonths ?? ''}
-                        onChange={(e) => setFormData({ ...formData, fileRetentionMonths: e.target.value ? parseInt(e.target.value) : undefined })}
-                        placeholder="기본값 3"
+                        max={3650}
+                        value={formData.fileRetentionDays ?? ''}
+                        onChange={(e) => setFormData({ ...formData, fileRetentionDays: e.target.value ? parseInt(e.target.value) : undefined })}
+                        placeholder="기본값 90"
                         className="w-32"
                       />
-                      <span className="text-sm text-muted-foreground">개월</span>
+                      <span className="text-sm text-muted-foreground">일</span>
                     </div>
                     <p className="text-xs text-muted-foreground">거래완료 후 원본파일 보관기간. 비워두면 기본 3개월.</p>
                   </div>

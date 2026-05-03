@@ -57,8 +57,14 @@ RUN chown -R nestjs:nodejs /app
 # Railway Volume 이 /app/uploads 에 마운트되면 root 소유로 시작되므로
 # 컨테이너 시작 시점에 nestjs:nodejs 로 chown 후 nestjs 권한으로 node 실행.
 # (su-exec 로 PID 1 안 잃고 우아하게 권한 강하)
-RUN printf '#!/bin/sh\nset -e\nchown -R nestjs:nodejs /app/uploads 2>/dev/null || true\nexec su-exec nestjs:nodejs node dist/main.js\n' > /app/entrypoint.sh && \
-    chmod +x /app/entrypoint.sh
+#
+# DB_MIGRATE_STRATEGY 환경변수로 마이그레이션 동작 분기:
+#   - none           (기본) : 마이그레이션 실행 안 함 (안전, 수동 운영)
+#   - db-push        : prisma db push --accept-data-loss (초기 셋업/스키마 강제 동기화)
+#   - migrate-deploy : prisma migrate deploy (운영 안정화 후 권장 — INFRASTRUCTURE.md v1.1)
+COPY scripts/docker-entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh && \
+    sed -i 's/\r$//' /app/entrypoint.sh
 
 # 의도적으로 USER 지정 안 함 — 시작 시 root 로 chown 후 entrypoint 가 nestjs 로 강하한다.
 
@@ -68,5 +74,5 @@ EXPOSE 3001
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD curl -f http://localhost:3001/health || exit 1
 
-# 서버 시작 (prisma db push는 배포 스크립트에서 1회 실행 - 컨테이너 재시작마다 실행 방지)
+# 서버 시작 (DB 마이그레이션은 DB_MIGRATE_STRATEGY 환경변수로 제어)
 CMD ["/app/entrypoint.sh"]

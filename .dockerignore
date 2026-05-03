@@ -54,7 +54,10 @@ nul
 LICENSE
 
 # Scripts & tools (not needed for build)
-scripts
+# 주의: 루트 컨텍스트로 빌드할 때만 적용됨.
+# apps/api/.dockerignore 가 자체 컨텍스트(=apps/api/)를 별도 관리하므로
+# 그 안의 scripts/ (entrypoint 포함) 는 영향받지 않는다.
+/scripts
 deploy.sh
 tools
 docs
