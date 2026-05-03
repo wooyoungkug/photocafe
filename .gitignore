@@ -49,6 +49,7 @@ nul
 # Claude Code
 .claude/settings.local.json
 .claude/worktrees/
+.mcp.json
 
 # Uploaded files - 고객 업로드 원본/썸네일만 제외 (시스템 이미지는 git 관리)
 apps/api/uploads/orders/
