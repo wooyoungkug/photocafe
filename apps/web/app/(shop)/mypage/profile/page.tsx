@@ -120,15 +120,6 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
-  // 수정 모드 진입 시 주소 embed 자동 오픈 (직원 제외)
-  useEffect(() => {
-    if (isEditMode && !isEmployee) {
-      setAddressEmbedOpen(true);
-    } else {
-      setAddressEmbedOpen(false);
-    }
-  }, [isEditMode, isEmployee]);
-
   // profile 데이터가 로드/변경되면 편집용 상태에 동기화
   useEffect(() => {
     if (profile) {
@@ -385,7 +376,10 @@ export default function ProfilePage() {
               </CardDescription>
             </div>
             {!isEditMode && (
-              <Button onClick={() => setIsEditMode(true)} variant="outline" size="sm" className="h-7 text-[14px] px-3">
+              <Button
+                onClick={() => { setIsEditMode(true); if (!isEmployee) setAddressEmbedOpen(true); }}
+                variant="outline" size="sm" className="h-7 text-[14px] px-3"
+              >
                 <Edit className="h-3 w-3 mr-1" />
                 수정
               </Button>
