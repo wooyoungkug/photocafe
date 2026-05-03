@@ -915,8 +915,8 @@ export default function AnalyticsPage() {
                         }
                       />
                       <Tooltip
-                        formatter={(value: number | undefined) => [
-                          `${(value ?? 0).toLocaleString()}회`,
+                        formatter={(value) => [
+                          `${(Number(value) ?? 0).toLocaleString()}회`,
                           '방문 수',
                         ]}
                         contentStyle={{
@@ -1023,8 +1023,8 @@ export default function AnalyticsPage() {
                       <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
                       <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={11} width={64} />
                       <Tooltip
-                        formatter={(value: number | undefined) => [
-                          `${(value ?? 0).toLocaleString()}회`,
+                        formatter={(value) => [
+                          `${(Number(value) ?? 0).toLocaleString()}회`,
                           '방문 수',
                         ]}
                         contentStyle={{
@@ -1063,8 +1063,8 @@ export default function AnalyticsPage() {
                       <XAxis type="number" stroke="#64748b" fontSize={11} allowDecimals={false} />
                       <YAxis type="category" dataKey="name" stroke="#64748b" fontSize={11} width={64} />
                       <Tooltip
-                        formatter={(value: number | undefined) => [
-                          `${(value ?? 0).toLocaleString()}회`,
+                        formatter={(value) => [
+                          `${(Number(value) ?? 0).toLocaleString()}회`,
                           '방문 수',
                         ]}
                         contentStyle={{
