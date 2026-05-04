@@ -8,15 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Shield, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
-function resolveApiUrl() {
+function getApiUrl() {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-  if (typeof window === 'undefined') return '/api/v1';
-  // 운영 환경에서 env 누락 시 프론트 도메인 상대경로 대신 API 도메인으로 강제
-  if (window.location.hostname.endsWith('photocafe.co.kr')) {
+  if (typeof window !== 'undefined' && window.location.hostname.endsWith('photocafe.co.kr')) {
     return 'https://api.photocafe.co.kr/api/v1';
   }
-  return '/api/v1';
+  return 'http://localhost:3001/api/v1';
 }
+
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,7 +30,7 @@ export default function AdminLoginPage() {
     setIsLoading(true);
 
     try {
-      const apiUrl = resolveApiUrl();
+      const apiUrl = getApiUrl();
       const res = await fetch(`${apiUrl}/auth/staff/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

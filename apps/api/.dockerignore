@@ -1,0 +1,59 @@
+# ===========================================
+# apps/api Docker build context
+# Build context root = apps/api/
+# scripts/docker-entrypoint.sh 는 반드시 포함되어야 함.
+# ===========================================
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+build
+out
+coverage
+.nyc_output
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+
+# IDE & Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Logs
+*.log
+npm-debug.log*
+
+# Uploads (production data — Railway Volume 으로 분리)
+uploads
+
+# Tests
+test
+**/*.spec.ts
+**/*.test.ts
+
+# Misc
+*.bat
+*.ps1
+.dockerignore
+Dockerfile
+railway.toml
+
+# Local development helpers
+setup-and-run.bat
+assign-staff-to-clients.js
+check-deposits.js
+check-staff-clients.js
+update-payment-status.js

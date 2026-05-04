@@ -556,6 +556,7 @@ export class AuthService {
         businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
         enableSchedule: client.enableSchedule ?? true, enableRecruitment: client.enableRecruitment ?? true,
+        oauthProvider: client.oauthProvider ?? null,
       },
     };
   }

@@ -739,14 +739,14 @@ export class OrderService {
     }
 
     // 파일 보관정책 정보 계산
-    const retentionMonths = (order.client as any).fileRetentionMonths ?? 3;
+    const retentionDays = (order.client as any).fileRetentionDays ?? 90;
     const shippedAt = order.shipping?.shippedAt;
     let retentionDeadline: string | null = null;
     let isExpired = false;
 
     if (shippedAt) {
       const deadline = new Date(shippedAt);
-      deadline.setMonth(deadline.getMonth() + retentionMonths);
+      deadline.setDate(deadline.getDate() + retentionDays);
       retentionDeadline = deadline.toISOString();
       isExpired = new Date() > deadline;
     }

@@ -31,11 +31,38 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // HTTP 보안 헤더 (XSS, 클릭재킹, MIME 스니핑, HSTS 등)
+  // 설계서 v1.1 보안 요구사항: helmet 미들웨어 적용
+  const isProd = process.env.NODE_ENV === 'production';
   app.use(
     helmet({
-      contentSecurityPolicy: false, // Swagger UI와 호환을 위해 비활성화 (필요 시 세부 설정)
-      crossOriginEmbedderPolicy: false, // 프론트엔드 리소스 로딩 호환
-      crossOriginResourcePolicy: { policy: 'cross-origin' }, // 이미지 등 정적 리소스 크로스오리진 허용
+      // 운영환경에서만 CSP 활성화 (개발/Swagger 호환을 위해 dev 비활성)
+      contentSecurityPolicy: isProd
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "'unsafe-inline'"],
+              styleSrc: ["'self'", "'unsafe-inline'", 'https:'],
+              imgSrc: ["'self'", 'data:', 'https:'],
+              connectSrc: ["'self'", 'https:'],
+              fontSrc: ["'self'", 'data:', 'https:'],
+              objectSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+              upgradeInsecureRequests: [],
+            },
+          }
+        : false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: 'cross-origin' },
+      // HSTS: 운영환경에서 1년간 HTTPS 강제, 서브도메인 포함
+      hsts: isProd ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
+      // 클릭재킹 방어 (iframe 차단)
+      frameguard: { action: 'deny' },
+      // Referrer 정책: 외부로 URL 정보 최소화
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      // 브라우저가 응답을 MIME-sniffing 하지 않도록
+      noSniff: true,
+      // X-Powered-By 노출 제거
+      hidePoweredBy: true,
     }),
   );
 
@@ -66,7 +93,11 @@ async function bootstrap() {
   logger.log(`Upload base path: ${uploadPath}`);
 
   // Global prefix
-  app.setGlobalPrefix('api/v1');
+  // /health, /health/ready, /health/live 는 Railway/Cloudflare 헬스체크 호환을 위해
+  // prefix 적용에서 제외 (HealthController 가 /health 로 응답 — db/b2/memory/disk 포함)
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['health', 'health/ready', 'health/live'],
+  });
 
   // CORS - 환경변수 기반 origin 설정
   app.enableCors({
@@ -107,16 +138,9 @@ async function bootstrap() {
       res.redirect('/api/docs');
     }
   });
-  expressApp.get('/health', (req: any, res: any) => {
-    res.json({
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-      service: '인쇄업 ERP API',
-      version: '1.0.0',
-    });
-  });
-
-  // Database health check (global prefix 우회)
+  // /health, /health/ready, /health/live 는 HealthController(@Controller('health'))가 응답
+  // — Terminus 기반 db + b2 + memory + disk 통합 체크
+  // 추가로 /health/db (단순 DB ping) 만 운영 모니터링 호환을 위해 유지
   const prismaService = app.get(PrismaService);
   expressApp.get('/health/db', async (req: any, res: any) => {
     const startTime = Date.now();

@@ -21,28 +21,28 @@ declare global {
 }
 
 interface DaumPostcodeData {
-  zonecode: string; // 우편번호
-  address: string; // 기본주소
-  addressEnglish: string; // 영문주소
-  addressType: 'R' | 'J'; // R: 도로명, J: 지번
+  zonecode: string;
+  address: string;
+  addressEnglish: string;
+  addressType: 'R' | 'J';
   userSelectedType: 'R' | 'J';
-  roadAddress: string; // 도로명주소
+  roadAddress: string;
   roadAddressEnglish: string;
-  jibunAddress: string; // 지번주소
+  jibunAddress: string;
   jibunAddressEnglish: string;
   buildingCode: string;
   buildingName: string;
   apartment: 'Y' | 'N';
-  sido: string; // 시도
-  sigungu: string; // 시군구
+  sido: string;
+  sigungu: string;
   sigunguCode: string;
   roadnameCode: string;
-  bcode: string; // 법정동코드
-  roadname: string; // 도로명
-  bname: string; // 법정동/법정리
+  bcode: string;
+  roadname: string;
+  bname: string;
   bname1: string;
   bname2: string;
-  hname: string; // 행정동
+  hname: string;
   query: string;
 }
 
@@ -52,6 +52,8 @@ interface AddressSearchProps {
     address: string;
     addressDetail?: string;
     isApartment?: boolean;
+    buildingCode?: string;
+    buildingName?: string;
   }) => void;
   className?: string;
   variant?: 'default' | 'outline' | 'secondary' | 'ghost' | 'link' | 'destructive';
@@ -80,6 +82,9 @@ export function AddressSearch({
   embedHeight = 400,
 }: AddressSearchProps) {
   const [internalOpen, setInternalOpen] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(
+    typeof window !== 'undefined' && !!window.daum
+  );
   const embedRef = useRef<HTMLDivElement>(null);
 
   // controlled vs uncontrolled
@@ -89,14 +94,26 @@ export function AddressSearch({
     setInternalOpen(open);
   }, [onOpenChange]);
 
-  // 다음 우편번호 스크립트 로드
+  // 다음 우편번호 스크립트 로드 — onload로 scriptLoaded 감지
   useEffect(() => {
-    if (typeof window !== 'undefined' && !window.daum) {
-      const script = document.createElement('script');
-      script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-      script.async = true;
-      document.head.appendChild(script);
+    if (typeof window === 'undefined') return;
+    if (window.daum) {
+      setScriptLoaded(true);
+      return;
     }
+    // 이미 스크립트 태그가 삽입되었는지 확인
+    const existing = document.querySelector(
+      'script[src*="postcode.v2.js"]'
+    ) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => setScriptLoaded(true));
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    script.async = true;
+    script.onload = () => setScriptLoaded(true);
+    document.head.appendChild(script);
   }, []);
 
   const handleComplete = useCallback(
@@ -117,6 +134,8 @@ export function AddressSearch({
         postalCode: data.zonecode,
         address: address + (extraAddress ? ` (${extraAddress})` : ''),
         isApartment: data.apartment === 'Y',
+        buildingCode: data.buildingCode,
+        buildingName: data.buildingName,
       });
 
       setShowEmbed(false);
@@ -125,7 +144,7 @@ export function AddressSearch({
   );
 
   const handleSearch = useCallback(() => {
-    if (typeof window === 'undefined' || !window.daum) {
+    if (!scriptLoaded || !window.daum) {
       alert('주소 검색 서비스를 불러오는 중입니다. 잠시 후 다시 시도해주세요.');
       return;
     }
@@ -137,12 +156,11 @@ export function AddressSearch({
         oncomplete: handleComplete,
       }).open();
     }
-  }, [inline, headless, handleComplete, setShowEmbed]);
+  }, [inline, headless, handleComplete, setShowEmbed, scriptLoaded]);
 
-  // 인라인 모드: showEmbed가 true가 되면 embed 렌더
+  // 인라인 모드: showEmbed && scriptLoaded가 되면 embed 렌더
   useEffect(() => {
-    if ((inline || headless) && showEmbed && embedRef.current) {
-      if (!window.daum) return;
+    if ((inline || headless) && showEmbed && scriptLoaded && embedRef.current) {
       embedRef.current.innerHTML = '';
       new window.daum.Postcode({
         oncomplete: handleComplete,
@@ -150,7 +168,7 @@ export function AddressSearch({
         height: '100%',
       }).embed(embedRef.current, { autoClose: false });
     }
-  }, [inline, headless, showEmbed, handleComplete]);
+  }, [inline, headless, showEmbed, handleComplete, scriptLoaded]);
 
   return (
     <div className={(inline || headless) ? 'w-full' : undefined}>

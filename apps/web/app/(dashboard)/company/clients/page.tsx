@@ -84,7 +84,9 @@ import {
   Image,
   FileText,
   MapPin,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { ClientBulkImportDialog } from '@/components/client/client-bulk-import-dialog';
 
 export default function ClientsPage() {
   const [search, setSearch] = useState('');
@@ -92,6 +94,7 @@ export default function ClientsPage() {
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
 
@@ -190,7 +193,7 @@ export default function ClientsPage() {
         paymentTerms: client.paymentTerms || 30,
         status: client.status || 'active',
         duplicateCheckMonths: client.duplicateCheckMonths ?? undefined,
-        fileRetentionMonths: client.fileRetentionMonths ?? undefined,
+        fileRetentionDays: client.fileRetentionDays ?? undefined,
         enableSchedule: client.enableSchedule ?? true,
         enableRecruitment: client.enableRecruitment ?? true,
         assignedStaffId: client.assignedStaffId ?? null,
@@ -377,10 +380,16 @@ export default function ClientsPage() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>거래처 목록</CardTitle>
-          <Button onClick={() => handleOpenDialog()}>
-            <Plus className="h-4 w-4 mr-2" />
-            거래처 추가
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              엑셀 일괄등록
+            </Button>
+            <Button onClick={() => handleOpenDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              거래처 추가
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {/* 필터 영역 */}
@@ -915,19 +924,19 @@ export default function ClientsPage() {
                     <p className="text-xs text-muted-foreground">비워두면 시스템 기본값 사용. 0이면 체크 안 함.</p>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="fileRetentionMonths">데이터 원본 보존기간</Label>
+                    <Label htmlFor="fileRetentionDays">데이터 원본 보존기간</Label>
                     <div className="flex items-center gap-2">
                       <Input
-                        id="fileRetentionMonths"
+                        id="fileRetentionDays"
                         type="number"
                         min={1}
-                        max={120}
-                        value={formData.fileRetentionMonths ?? ''}
-                        onChange={(e) => setFormData({ ...formData, fileRetentionMonths: e.target.value ? parseInt(e.target.value) : undefined })}
-                        placeholder="기본값 3"
+                        max={3650}
+                        value={formData.fileRetentionDays ?? ''}
+                        onChange={(e) => setFormData({ ...formData, fileRetentionDays: e.target.value ? parseInt(e.target.value) : undefined })}
+                        placeholder="기본값 90"
                         className="w-32"
                       />
-                      <span className="text-sm text-muted-foreground">개월</span>
+                      <span className="text-sm text-muted-foreground">일</span>
                     </div>
                     <p className="text-xs text-muted-foreground">거래완료 후 원본파일 보관기간. 비워두면 기본 3개월.</p>
                   </div>
@@ -1379,6 +1388,9 @@ export default function ClientsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 엑셀 일괄등록 다이얼로그 */}
+      <ClientBulkImportDialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen} />
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

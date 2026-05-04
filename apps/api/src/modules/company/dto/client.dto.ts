@@ -150,12 +150,19 @@ export class CreateClientDto {
   @Max(24)
   duplicateCheckMonths?: number;
 
-  @ApiPropertyOptional({ description: '데이터 원본 보관 기간 (개월), 기본값 3개월' })
+  @ApiPropertyOptional({ description: '데이터 원본 보관 기간 (일), 기본값 90일' })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(3650)
+  fileRetentionDays?: number;
+
+  @ApiPropertyOptional({ description: '썸네일 보관 기간 (개월), 기본값 6개월' })
   @IsOptional()
   @IsInt()
   @Min(1)
   @Max(120)
-  fileRetentionMonths?: number;
+  thumbnailRetentionMonths?: number;
 
   @ApiPropertyOptional({ description: '영업담당자 (직원 ID)', nullable: true })
   @IsOptional()
@@ -205,6 +212,11 @@ export class CreateClientDto {
   @IsOptional()
   @IsIn(['direct', 'referral', 'search', 'exhibition', 'sns', 'etc'])
   acquisitionChannel?: string;
+
+  @ApiPropertyOptional({ description: '가입경로 기타 내용' })
+  @IsOptional()
+  @IsString()
+  acquisitionChannelNote?: string;
 
   @ApiPropertyOptional({ description: '일정관리 기능 사용 여부', default: true })
   @IsOptional()

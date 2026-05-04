@@ -85,7 +85,9 @@ import {
   LogIn,
   LogOut,
   Settings,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { ClientBulkImportDialog } from '@/components/client/client-bulk-import-dialog';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
@@ -227,6 +229,7 @@ function MembersPageContent() {
   const [groupFilter, setGroupFilter] = useState<string>('all');
   const [page, setPage] = useState(1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Client | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Client | null>(null);
   const [activeTab, setActiveTab] = useState('basic');
@@ -303,7 +306,8 @@ function MembersPageContent() {
     gender: '',
     birthday: '',
     status: 'active',
-    fileRetentionMonths: 3,
+    fileRetentionDays: 90,
+    thumbnailRetentionMonths: 6,
     assignedManager: '',
     practicalManagerName: '',
     practicalManagerPhone: '',
@@ -373,7 +377,8 @@ function MembersPageContent() {
         gender: member.gender || '',
         birthday: member.birthday || '',
         status: member.status || 'active',
-        fileRetentionMonths: member.fileRetentionMonths ?? 3,
+        fileRetentionDays: member.fileRetentionDays ?? 90,
+        thumbnailRetentionMonths: member.thumbnailRetentionMonths ?? 6,
         assignedManager: member.assignedManager || '',
         practicalManagerName: member.practicalManagerName || '',
         practicalManagerPhone: member.practicalManagerPhone || '',
@@ -410,7 +415,8 @@ function MembersPageContent() {
           gender: '',
           birthday: '',
           status: 'active',
-          fileRetentionMonths: 3,
+          fileRetentionDays: 90,
+          thumbnailRetentionMonths: 6,
           assignedManager: '',
           practicalManagerName: '',
           practicalManagerPhone: '',
@@ -604,10 +610,16 @@ function MembersPageContent() {
             <Users className="h-5 w-5 text-blue-600" />
             회원 목록
           </CardTitle>
-          <Button onClick={() => handleOpenDialog(undefined, memberTypeTab !== 'all' ? memberTypeTab : undefined)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
-            <Plus className="h-4 w-4 mr-2" />
-            회원 추가
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              엑셀 일괄등록
+            </Button>
+            <Button onClick={() => handleOpenDialog(undefined, memberTypeTab !== 'all' ? memberTypeTab : undefined)} className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-md">
+              <Plus className="h-4 w-4 mr-2" />
+              회원 추가
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           {/* 회원 타입 탭 */}
@@ -899,7 +911,7 @@ function MembersPageContent() {
                           id="representative"
                           value={formData.representative}
                           onChange={(e) => setFormData({ ...formData, representative: e.target.value })}
-                          placeholder="풀로우스튜디오"
+                          placeholder="예: 포토스튜디오"
                           className="bg-white"
                         />
                       </div>
@@ -947,38 +959,6 @@ function MembersPageContent() {
                             </div>
                           </div>
                         )}
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
-                        <Select
-                          value={formData.gender || ''}
-                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
-                        >
-                          <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">남성</SelectItem>
-                            <SelectItem value="female">여성</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
-                        <Input
-                          id="birthday"
-                          value={formData.birthday}
-                          onChange={(e) => {
-                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            let formatted = numbers;
-                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
-                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
-                            setFormData({ ...formData, birthday: formatted });
-                          }}
-                          placeholder="1990-01-01"
-                          maxLength={10}
-                          className="bg-white"
-                        />
                       </div>
                     </>
                   )}
@@ -1068,38 +1048,6 @@ function MembersPageContent() {
                           </div>
                         )}
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="gender" className="text-sm font-medium">성별</Label>
-                        <Select
-                          value={formData.gender || ''}
-                          onValueChange={(value) => setFormData({ ...formData, gender: value || undefined })}
-                        >
-                          <SelectTrigger className="bg-white">
-                            <SelectValue placeholder="선택" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">남성</SelectItem>
-                            <SelectItem value="female">여성</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="birthday" className="text-sm font-medium">생년월일</Label>
-                        <Input
-                          id="birthday"
-                          value={formData.birthday}
-                          onChange={(e) => {
-                            const numbers = e.target.value.replace(/\D/g, '').slice(0, 8);
-                            let formatted = numbers;
-                            if (numbers.length > 6) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4, 6)}-${numbers.slice(6)}`;
-                            else if (numbers.length > 4) formatted = `${numbers.slice(0, 4)}-${numbers.slice(4)}`;
-                            setFormData({ ...formData, birthday: formatted });
-                          }}
-                          placeholder="1990-01-01"
-                          maxLength={10}
-                          className="bg-white"
-                        />
-                      </div>
                     </>
                   )}
 
@@ -1185,27 +1133,48 @@ function MembersPageContent() {
                     </Select>
                   </div>
 
-                  {/* 원본 데이터 삭제기간 */}
+                  {/* 원본 데이터 보관기간 */}
                   <div className="space-y-2">
                     <Label htmlFor="fileRetentionMonths" className="text-sm font-medium">
-                      원본 데이터 삭제기간
+                      원본 데이터 보관기간
                     </Label>
                     <Select
-                      value={String(formData.fileRetentionMonths ?? 3)}
-                      onValueChange={(v) => setFormData({ ...formData, fileRetentionMonths: parseInt(v) })}
+                      value={String(formData.fileRetentionDays ?? 90)}
+                      onValueChange={(v) => setFormData({ ...formData, fileRetentionDays: parseInt(v) })}
                     >
                       <SelectTrigger className="bg-white">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="1">1개월 (30일)</SelectItem>
-                        <SelectItem value="2">2개월 (60일)</SelectItem>
-                        <SelectItem value="3">3개월 (90일)</SelectItem>
-                        <SelectItem value="6">6개월 (180일)</SelectItem>
-                        <SelectItem value="12">12개월 (1년)</SelectItem>
+                        <SelectItem value="7">1주일 (7일)</SelectItem>
+                        <SelectItem value="30">1개월 (30일)</SelectItem>
+                        <SelectItem value="60">2개월 (60일)</SelectItem>
+                        <SelectItem value="90">3개월 (90일)</SelectItem>
+                        <SelectItem value="180">6개월 (180일)</SelectItem>
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">거래 완료 후 원본 파일 보관 기간</p>
+                  </div>
+
+                  {/* 썸네일 보관기간 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="thumbnailRetentionMonths" className="text-sm font-medium">
+                      썸네일 보관기간
+                    </Label>
+                    <Select
+                      value={String(formData.thumbnailRetentionMonths ?? 6)}
+                      onValueChange={(v) => setFormData({ ...formData, thumbnailRetentionMonths: parseInt(v) })}
+                    >
+                      <SelectTrigger className="bg-white">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="6">6개월 (180일)</SelectItem>
+                        <SelectItem value="12">1년 (12개월)</SelectItem>
+                        <SelectItem value="24">2년 (24개월)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">거래 완료 후 썸네일 파일 보관 기간</p>
                   </div>
                 </div>
               </div>
@@ -1339,7 +1308,7 @@ function MembersPageContent() {
                     </div>
                   </div>
                   <div className="p-3 bg-white rounded-lg border space-y-3">
-                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">결재담당자</p>
+                    <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide flex items-center gap-1.5">결재담당자 <span className="text-xs font-normal bg-red-100 text-red-600 px-2 py-0.5 rounded-full normal-case">고객 비공개</span></p>
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">이름</Label>
                       <Input
@@ -1812,6 +1781,9 @@ function MembersPageContent() {
           }}
         />
       )}
+
+      {/* 엑셀 일괄등록 다이얼로그 */}
+      <ClientBulkImportDialog open={isBulkImportOpen} onOpenChange={setIsBulkImportOpen} />
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

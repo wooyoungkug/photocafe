@@ -40,6 +40,7 @@ import { ImpositionModule } from './modules/imposition/imposition.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { CryptoModule } from './common/crypto/crypto.module';
 import { EmailModule } from './common/email/email.module';
 import { KakaoAlimtalkModule } from './common/kakao-alimtalk/kakao-alimtalk.module';
 import { SmsModule } from './common/sms/sms.module';
@@ -68,10 +69,11 @@ import { AppController } from './app.controller';
       {
         name: 'default',
         ttl: 60000,  // 1분 (ms)
-        limit: 60,   // 분당 60회 (일반 API)
+        limit: 100,  // 분당 100회 (설계서 v1.1: /api/* 분당 100회)
       },
     ]),
     NestScheduleModule.forRoot(),
+    CryptoModule,
     PrismaModule,
     EmailModule,
     KakaoAlimtalkModule,
