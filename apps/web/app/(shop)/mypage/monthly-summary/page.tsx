@@ -469,7 +469,9 @@ export default function MonthlySummaryPage() {
     [...allMonthOrders.data]
       .sort((a, b) => new Date(a.orderedAt).getTime() - new Date(b.orderedAt).getTime())
       .forEach(order => {
-        running += Number(order.finalAmount) - Number(order.salesLedger?.receivedAmount || 0);
+        if (order.status !== 'cancelled') {
+          running += Number(order.finalAmount) - Number(order.salesLedger?.receivedAmount || 0);
+        }
         map.set(order.id, running);
       });
     return map;
@@ -1347,7 +1349,7 @@ export default function MonthlySummaryPage() {
                                           </Link>
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[13px] text-black font-normal">
-                                          {formatAmount(Number(order.finalAmount))}원
+                                          {order.status === 'cancelled' ? '-' : `${formatAmount(Number(order.finalAmount))}원`}
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
                                           {receivedAmt > 0
