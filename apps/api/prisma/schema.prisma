@@ -1108,6 +1108,8 @@ model OrderItem {
   foilPosition      String?
   originalsDeleted  Boolean             @default(false)
   pdfGeneratedAt    DateTime?
+  /// 작업지시서 자동인쇄 완료 시각(Windows 서버 인쇄 또는 로컬 에이전트 확인). null이면 에이전트 폴링 대상 가능.
+  slipAutoPrintedAt DateTime?
   pdfPath           String?
   pdfStatus         String?
   fabricSnapshot    Json?

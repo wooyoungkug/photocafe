@@ -36,6 +36,8 @@ interface PdfProgressTrackerProps {
   autoPrintNameIndigo?: string;
   /** 잉크젯용 슬립 인쇄 프린터명 */
   autoPrintNameInkjet?: string;
+  /** 인디고/잉크젯 미지정 시 사용 (Windows 기본 프린터 또는 목록에서 고른 공통기) */
+  autoPrintName?: string;
 }
 
 const statusIcon = {
@@ -55,6 +57,7 @@ export default function PdfProgressTracker({
   autoPrintEnabled = false,
   autoPrintNameIndigo = '',
   autoPrintNameInkjet = '',
+  autoPrintName = '',
 }: PdfProgressTrackerProps) {
   // 페이지 단위 진행률을 우선 사용 (1% 단위). 페이지 정보가 없으면 항목 단위로 fallback.
   const progress = (() => {
@@ -240,9 +243,8 @@ export default function PdfProgressTracker({
 
         // colorMode 에 '잉크젯' 포함이면 잉크젯 프린터, 아니면 인디고 프린터 사용
         const isInkjet = (result.colorMode || '').toLowerCase().includes('잉크젯');
-        const printerName = isInkjet
-          ? (autoPrintNameInkjet || '')
-          : (autoPrintNameIndigo || '');
+        const specific = isInkjet ? autoPrintNameInkjet : autoPrintNameIndigo;
+        const printerName = (specific || '').trim() || (autoPrintName || '').trim();
 
         const ok = await printSlipViaAgent(result.orderItemId, printerName);
         if (ok) {
@@ -251,11 +253,14 @@ export default function PdfProgressTracker({
         } else {
           // eslint-disable-next-line no-console
           console.warn(`[슬립] 인쇄 실패: ${result.orderNumber}`);
+          toast.warning(
+            `작업지시서 자동 인쇄 실패: ${result.orderNumber}. 에이전트 실행·프린터 지정(인디고/잉크젯 또는 공통)을 확인해주세요.`,
+          );
         }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isJobDone, autoPrintEnabled, hasCompletedPdfs]);
+  }, [isJobDone, autoPrintEnabled, hasCompletedPdfs, autoPrintName, autoPrintNameIndigo, autoPrintNameInkjet]);
 
   /** 서버가 내려준 fileName 우선, 없으면 레거시 포맷 */
   const resolveFileName = (result: PdfJobProgress['results'][number]): string => {

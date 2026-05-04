@@ -45,6 +45,8 @@ type ImpositionSeed = {
   label?: string;
   /** 원본 size 문자열 (예: "8×11인치") — bleed 자동 lookup 용 */
   productSize?: string;
+  /** 작업지시서 자동인쇄 시 프린터 선택 (잉크젯 등) */
+  printMethod?: string;
 };
 
 interface Props {
@@ -521,17 +523,18 @@ export default function ImpositionSettingsDialog({ open, onOpenChange, seed, add
 
     // 작업지시서(슬립) 자동 인쇄 — 설정에서 활성화되어 있고 에이전트가 실행 중이면 실행
     // Railway(Linux)에서는 슬립 인쇄가 불가하므로 로컬 에이전트가 Chrome headless로 처리.
-    if (
-      pdfSettings.autoPrintEnabled &&
-      succeededJobs.length > 0 &&
-      (pdfSettings.autoPrintNameIndigo || pdfSettings.autoPrintNameInkjet)
-    ) {
+    const com = (pdfSettings.autoPrintName || '').trim();
+    const ind = (pdfSettings.autoPrintNameIndigo || '').trim();
+    const ink = (pdfSettings.autoPrintNameInkjet || '').trim();
+    if (pdfSettings.autoPrintEnabled && succeededJobs.length > 0 && (ind || ink || com)) {
       const agentUp = await checkPrintAgentRunning();
       if (agentUp) {
-        const printerName =
-          pdfSettings.autoPrintNameInkjet || pdfSettings.autoPrintNameIndigo;
         for (const job of succeededJobs) {
           try {
+            const seed = targets.find((t) => t.orderItemId === job.orderItemId);
+            const isInkjet = (seed?.printMethod || '').toLowerCase().includes('inkjet');
+            const specific = isInkjet ? ink : ind;
+            const printerName = specific || com;
             await printSlipViaAgent(job.orderItemId, printerName);
           } catch {
             // 개별 인쇄 실패는 무시 (다음 항목 계속 시도)

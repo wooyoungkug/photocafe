@@ -767,12 +767,19 @@ export default function PdfSettingsDialog({
           {/* ===== 4. PDF 파일 자동 인쇄 (에이전트 폴더 감시) ===== */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-[14px] text-black font-bold">PDF 파일 자동 인쇄 (출력 에이전트)</CardTitle>
+              <CardTitle className="text-[14px] text-black font-bold">
+                인쇄용 PDF 자동 인쇄 (폴더 감시)
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-[12px] text-gray-500">
-                에이전트가 지정 폴더를 감시하다가 새 PDF가 생기면 자동으로 인쇄합니다.
-                "무인 자동 저장 경로"와 동일한 경로를 입력하면 변환 즉시 인쇄됩니다.
+              <p className="text-[12px] text-gray-600 leading-relaxed">
+                <strong className="text-black">작업지시서(슬립)는 여기가 아닙니다.</strong> 아래「작업지시서 자동 인쇄」에서 따로 켭니다.
+              </p>
+              <p className="text-[12px] text-gray-500 leading-relaxed">
+                여기서 말하는 PDF는 <strong className="text-black">출력대기에서 JDF+PDF 변환으로 만들어진 인쇄용 PDF 파일</strong>입니다.
+                PC에 둔 프린트 에이전트가 감시 폴더를 보다가 <strong className="text-black">그 PDF가 새로 생기면</strong> 곧바로 지정한
+                인디고/잉크젯 프린터로 인쇄합니다. 위「무인 자동 저장 경로」와 <strong className="text-black">같은 경로</strong>를 넣으면
+                변환 직후 곧바로 출력됩니다.
               </p>
 
               {agentRunning === false && (
@@ -848,6 +855,11 @@ export default function PdfSettingsDialog({
                     </div>
                   )}
 
+                  <p className="text-[12px] text-gray-500 border-t pt-3">
+                    <strong className="text-black">「감시 설정을 PC에 저장」</strong>은 PDF 파일을 서버에 올리는 기능이 아닙니다.
+                    감시 켜기/끄기, 감시 폴더 경로, 인디고·잉크젯 프린터 이름만{' '}
+                    <strong className="text-black">이 PC에서 돌아가는 프린트 에이전트 설정</strong>에 기록합니다.
+                  </p>
                   <Button
                     type="button"
                     size="sm"
@@ -864,13 +876,13 @@ export default function PdfSettingsDialog({
                       });
                       setWatchSaving(false);
                       if (ok) {
-                        toast.success('에이전트 감시 설정이 저장되었습니다.');
+                        toast.success('PC 에이전트에 감시 설정이 저장되었습니다.');
                       } else {
                         toast.error('저장 실패. 에이전트가 실행 중인지 확인해주세요.');
                       }
                     }}
                   >
-                    {watchSaving ? '저장 중...' : '에이전트에 저장'}
+                    {watchSaving ? '저장 중...' : '감시 설정을 PC에 저장'}
                   </Button>
                 </>
               )}
@@ -883,11 +895,15 @@ export default function PdfSettingsDialog({
               <CardTitle className="text-[14px] text-black font-bold">작업지시서 자동 인쇄</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <p className="text-[12px] text-gray-600 leading-relaxed">
+                위「인쇄용 PDF 자동 인쇄」와 별개입니다. <strong className="text-black">주문용 인쇄 PDF가 아니라</strong> 바코드·썸네일이
+                들어간 <strong className="text-black">작업지시서(슬립) A4</strong>를 프린터로 냅니다.
+              </p>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-[14px] text-black font-normal">자동 인쇄 사용</Label>
                   <p className="text-[12px] text-gray-500 mt-0.5">
-                    PDF 1건이 만들어질 때마다 작업지시서(슬립)를 프린터로 출력합니다
+                    인쇄용 PDF 1건이 만들어질 때마다 작업지시서(슬립)를 한 장 인쇄합니다.
                   </p>
                 </div>
                 <Switch checked={autoPrintEnabled} onCheckedChange={setAutoPrintEnabled} />

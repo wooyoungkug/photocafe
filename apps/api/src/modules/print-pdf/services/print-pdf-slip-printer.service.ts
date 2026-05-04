@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { SystemSettingsService } from '../../system-settings/system-settings.service';
 import { spawn } from 'child_process';
 import * as fs from 'fs';
@@ -29,7 +30,10 @@ const printTokenStore = new Map<string, { orderItemId: string; expires: number }
 export class PrintPdfSlipPrinterService {
   private readonly logger = new Logger(PrintPdfSlipPrinterService.name);
 
-  constructor(private readonly settings: SystemSettingsService) {}
+  constructor(
+    private readonly settings: SystemSettingsService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   generatePrintToken(orderItemId: string): string {
     const token = crypto.randomUUID();
@@ -44,6 +48,84 @@ export class PrintPdfSlipPrinterService {
     }
     printTokenStore.delete(token);
     return true;
+  }
+
+  /** 로컬 프린트 에이전트가 Railway API를 호출할 때 사용하는 공유 비밀 */
+  validateSlipAgentSecret(secret: string | undefined): boolean {
+    const expected = (process.env.PRINT_AGENT_SLIP_SECRET || '').trim();
+    if (!expected || !secret) return false;
+    return secret === expected;
+  }
+
+  /**
+   * PDF 완료 후 작업지시서 자동인쇄 대기 목록 (에이전트 폴링).
+   * slipAutoPrintedAt 이 비어 있고, 자동인쇄 설정이 켜져 있을 때만 반환.
+   */
+  async listAgentPendingSlips(limit: number): Promise<
+    Array<{ orderItemId: string; orderNumber: string; slipUrl: string; printerName: string }>
+  > {
+    const cap = Math.min(Math.max(1, limit), 20);
+    const enabledRaw = await this.settings.getValue('print_pdf_auto_print_enabled', 'false');
+    if (enabledRaw !== 'true') return [];
+
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const orderWhere = printQueueOrderWhere();
+
+    const rows = await this.prisma.orderItem.findMany({
+      where: {
+        pdfStatus: 'completed',
+        slipAutoPrintedAt: null,
+        pdfGeneratedAt: { gte: since },
+        order: orderWhere,
+      },
+      select: {
+        id: true,
+        printMethod: true,
+        order: { select: { orderNumber: true } },
+      },
+      orderBy: { pdfGeneratedAt: 'asc' },
+      take: cap,
+    });
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'https://photocafe.co.kr').replace(/\/$/, '');
+    const out: Array<{ orderItemId: string; orderNumber: string; slipUrl: string; printerName: string }> = [];
+
+    for (const row of rows) {
+      const isInkjet = (row.printMethod || '').toLowerCase().includes('inkjet');
+      const specificKey = isInkjet ? 'print_pdf_auto_print_name_inkjet' : 'print_pdf_auto_print_name_indigo';
+      const specificPrinter = (await this.settings.getValue(specificKey, '')).trim();
+      const commonPrinter = (await this.settings.getValue('print_pdf_auto_print_name', '')).trim();
+      const printerName = specificPrinter || commonPrinter;
+
+      const token = this.generatePrintToken(row.id);
+      const slipUrl = `${frontendUrl}/print-slip/${row.id}?printToken=${encodeURIComponent(token)}`;
+      out.push({
+        orderItemId: row.id,
+        orderNumber: row.order.orderNumber,
+        slipUrl,
+        printerName,
+      });
+    }
+    return out;
+  }
+
+  /**
+   * 에이전트가 로컬에서 인쇄까지 마친 뒤 호출.
+   * 이미 기록된 경우 ok:true(already) — 동일 항목 재확인 시에도 성공으로 처리.
+   */
+  async confirmAgentSlipPrinted(orderItemId: string): Promise<{ ok: boolean; reason?: string }> {
+    const row = await this.prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { slipAutoPrintedAt: true, pdfStatus: true },
+    });
+    if (!row) return { ok: false, reason: 'not_found' };
+    if (row.slipAutoPrintedAt) return { ok: true, reason: 'already' };
+    if (row.pdfStatus !== 'completed') return { ok: false, reason: 'pdf_not_completed' };
+    await this.prisma.orderItem.update({
+      where: { id: orderItemId },
+      data: { slipAutoPrintedAt: new Date() },
+    });
+    return { ok: true };
   }
 
   async printSlipIfEnabled(data: SlipData): Promise<void> {
@@ -86,8 +168,21 @@ export class PrintPdfSlipPrinterService {
       }
 
       this.logger.log(`슬립 인쇄 완료: ${data.orderNumber} → ${printerName || '기본 프린터'}`);
+      await this.recordSlipAutoPrinted(data.orderItemId);
     } catch (err: any) {
       this.logger.error(`슬립 인쇄 실패: ${err.message}`);
+    }
+  }
+
+  private async recordSlipAutoPrinted(orderItemId: string | undefined) {
+    if (!orderItemId) return;
+    try {
+      await this.prisma.orderItem.updateMany({
+        where: { id: orderItemId, slipAutoPrintedAt: null },
+        data: { slipAutoPrintedAt: new Date() },
+      });
+    } catch (e: any) {
+      this.logger.warn(`slipAutoPrintedAt 기록 실패: ${e?.message}`);
     }
   }
 
@@ -249,4 +344,24 @@ export class PrintPdfSlipPrinterService {
       });
     });
   }
+}
+
+/** 출력대기 큐에 올라간 주문과 동일한 Prisma where (자동변환·슬립 에이전트 공통) */
+function printQueueOrderWhere() {
+  return {
+    OR: [
+      { printQueueStatus: 'pending' },
+      {
+        AND: [
+          { printQueueStatus: null },
+          {
+            OR: [
+              { status: 'in_production', currentProcess: 'print_waiting' },
+              { status: 'print_waiting' },
+            ],
+          },
+        ],
+      },
+    ],
+  };
 }

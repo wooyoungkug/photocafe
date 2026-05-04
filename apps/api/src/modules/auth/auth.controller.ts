@@ -38,6 +38,11 @@ import {
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { EmploymentService } from '../employment/employment.service';
 
+/** 운영: 설계서 v1.1 브루트포스 방어(분당 5회). 로컬은 재시도·디버깅으로 429가 잦아 완화 */
+const STAFF_LOGIN_THROTTLE =
+  process.env.NODE_ENV === 'production'
+    ? { default: { ttl: 60000, limit: 5 } }
+    : { default: { ttl: 60000, limit: 120 } };
 
 @ApiTags('auth')
 @Controller('auth')
@@ -422,8 +427,7 @@ export class AuthController {
 
   @Public()
   @Post('staff/login')
-  // 설계서 v1.1: 분당 5회 (브루트포스 방어). IP 단위로 1분간 5회 초과 시 429
-  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @Throttle(STAFF_LOGIN_THROTTLE)
   @ApiOperation({ summary: '직원 ID/PW 로그인' })
   async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);

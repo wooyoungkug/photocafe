@@ -55,6 +55,8 @@ export default function PrintQueuePage() {
     bindingType?: 'compressed' | 'tack' | 'perfect' | 'flat';
     label?: string;
     productSize?: string;
+    /** 작업지시서 자동인쇄 시 잉크젯/인디고 프린터 선택용 */
+    printMethod?: string;
   };
   const [impositionSeed, setImpositionSeed] = useState<ImpositionSeed | null>(null);
   const [impositionAdditionalSeeds, setImpositionAdditionalSeeds] = useState<ImpositionSeed[]>([]);
@@ -92,6 +94,7 @@ export default function PrintQueuePage() {
       bindingType,
       label: item.orderNumber,
       productSize: item.size,
+      printMethod: item.printMethod,
     };
   };
 
@@ -310,6 +313,7 @@ export default function PrintQueuePage() {
           autoPrintEnabled={pdfSettings.autoPrintEnabled}
           autoPrintNameIndigo={pdfSettings.autoPrintNameIndigo}
           autoPrintNameInkjet={pdfSettings.autoPrintNameInkjet}
+          autoPrintName={pdfSettings.autoPrintName}
         />
       )}
 

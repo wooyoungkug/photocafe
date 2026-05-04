@@ -7,6 +7,8 @@
  * - 이 파일을 실행하면 localhost:9199 에서 프린터 목록 API가 열립니다.
  * - photocafe.co.kr 에서 로컬 PC의 프린터 목록을 조회할 수 있게 됩니다.
  * - 설정에서 "폴더 감시 자동 인쇄"를 활성화하면 지정 폴더에 새 PDF가 생길 때 자동 인쇄합니다.
+ * - 작업지시서 자동인쇄(서버 PDF 완료 후): 환경변수 PHOTOCAFE_API_BASE + PHOTOCAFE_SLIP_AGENT_SECRET
+ *   (API의 PRINT_AGENT_SLIP_SECRET 과 동일) 설정 시 주기적으로 대기 슬립을 가져와 로컬에서 인쇄합니다.
  * - 이 창을 닫으면 프린터 목록 조회 및 자동 인쇄가 중단됩니다.
  */
 
@@ -345,6 +347,190 @@ function readBody(req) {
   });
 }
 
+// ==================== Railway 슬립 폴링 / 동기 print-url ====================
+
+const slipAgentLocks = new Set();
+
+function httpRequestJson(method, fullUrl, bodyStr) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(fullUrl);
+    const lib = u.protocol === 'https:' ? require('https') : require('http');
+    const opts = {
+      hostname: u.hostname,
+      port: u.port || (u.protocol === 'https:' ? 443 : 80),
+      path: u.pathname + u.search,
+      method,
+      headers: bodyStr
+        ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(bodyStr, 'utf8') }
+        : {},
+    };
+    const r = lib.request(opts, (res) => {
+      let raw = '';
+      res.on('data', (c) => { raw += c; });
+      res.on('end', () => {
+        let json = {};
+        if (raw) {
+          try {
+            json = JSON.parse(raw);
+          } catch (e) {
+            return reject(new Error(`JSON 파싱 실패 HTTP ${res.statusCode}: ${raw.slice(0, 120)}`));
+          }
+        }
+        resolve({ status: res.statusCode || 0, json, raw });
+      });
+    });
+    r.on('error', reject);
+    r.setTimeout(120000, () => {
+      r.destroy();
+      reject(new Error('HTTP 요청 타임아웃(120초)'));
+    });
+    if (bodyStr) r.write(bodyStr, 'utf8');
+    r.end();
+  });
+}
+
+/** Headless Chrome → PDF → printFile (슬립 URL용). Windows 전용. */
+function runSlipChromePrint(printUrl, printerName) {
+  return new Promise((resolve, reject) => {
+    if (process.platform !== 'win32') {
+      return reject(new Error('Windows 전용 기능입니다.'));
+    }
+    const chromePaths = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    ];
+    const chromePath = chromePaths.find((p) => {
+      try {
+        return fs.existsSync(p);
+      } catch {
+        return false;
+      }
+    });
+    if (!chromePath) {
+      return reject(new Error('Chrome/Edge를 찾을 수 없습니다.'));
+    }
+    const tempPdf = path.join(require('os').tmpdir(), `slip-${Date.now()}.pdf`);
+    const { spawn } = require('child_process');
+    const chromeProc = spawn(
+      chromePath,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--no-sandbox',
+        '--disable-dev-shm-usage',
+        `--print-to-pdf=${tempPdf}`,
+        '--print-to-pdf-no-header',
+        '--no-pdf-header-footer',
+        '--run-all-compositor-stages-before-draw',
+        '--virtual-time-budget=5000',
+        printUrl,
+      ],
+      { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    let chromeStderr = '';
+    chromeProc.stderr.on('data', (d) => { chromeStderr += d.toString().slice(0, 500); });
+    const killTimer = setTimeout(() => {
+      try {
+        chromeProc.kill('SIGKILL');
+      } catch { /* ignore */ }
+      reject(new Error('Chrome 렌더 타임아웃 (60초)'));
+    }, 60000);
+    chromeProc.on('close', (code) => {
+      clearTimeout(killTimer);
+      if (!fs.existsSync(tempPdf)) {
+        return reject(new Error(`슬립 PDF 생성 실패(code ${code}): ${chromeStderr.slice(0, 200)}`));
+      }
+      try {
+        printFile(tempPdf, printerName || '');
+        resolve();
+      } catch (err) {
+        reject(err);
+      } finally {
+        setTimeout(() => {
+          try {
+            fs.unlinkSync(tempPdf);
+          } catch { /* ignore */ }
+        }, 30000);
+      }
+    });
+    chromeProc.on('error', (err) => {
+      clearTimeout(killTimer);
+      reject(err);
+    });
+  });
+}
+
+async function processOneAgentSlip(apiBase, secret, item) {
+  const id = item.orderItemId;
+  if (!id || slipAgentLocks.has(id)) return;
+  slipAgentLocks.add(id);
+  try {
+    const localUrl = `http://127.0.0.1:${PORT}/print-url`;
+    const body = JSON.stringify({
+      url: item.slipUrl,
+      printerName: item.printerName || '',
+      sync: true,
+    });
+    const pr = await httpRequestJson('POST', localUrl, body);
+    if (pr.status !== 200 || !pr.json.ok) {
+      throw new Error(pr.json.error || `로컬 print-url 실패 HTTP ${pr.status}`);
+    }
+    const confirmUrl = `${apiBase.replace(/\/$/, '')}/api/v1/print-pdf/agent/confirm-slip-printed`;
+    const cr = await httpRequestJson(
+      'POST',
+      confirmUrl,
+      JSON.stringify({ secret, orderItemId: id }),
+    );
+    if (cr.status !== 200 && cr.status !== 201) {
+      console.warn(`[에이전트] 슬립 완료 API 응답 HTTP ${cr.status}:`, cr.raw?.slice(0, 200));
+    } else if (cr.json && cr.json.ok === false) {
+      console.warn(`[에이전트] 슬립 완료 기록 거절:`, cr.json);
+    } else {
+      console.log(`[에이전트] 작업지시서 자동인쇄·기록 완료: ${item.orderNumber || id}`);
+    }
+  } catch (e) {
+    console.warn(`[에이전트] 슬립 처리 실패 (${id}):`, e.message || e);
+  } finally {
+    slipAgentLocks.delete(id);
+  }
+}
+
+async function pollPendingSlipsOnce() {
+  const apiBase = (process.env.PHOTOCAFE_API_BASE || '').trim().replace(/\/$/, '');
+  const secret = (process.env.PHOTOCAFE_SLIP_AGENT_SECRET || '').trim();
+  if (!apiBase || !secret) return;
+  const q = `${apiBase}/api/v1/print-pdf/agent/pending-slips?secret=${encodeURIComponent(secret)}&limit=5`;
+  const { status, json } = await httpRequestJson('GET', q, '');
+  if (status !== 200) {
+    console.warn(`[에이전트] pending-slips HTTP ${status}`);
+    return;
+  }
+  const items = json.items || [];
+  for (const it of items) {
+    await processOneAgentSlip(apiBase, secret, it);
+  }
+}
+
+function startSlipPollIfConfigured() {
+  const apiBase = (process.env.PHOTOCAFE_API_BASE || '').trim();
+  const secret = (process.env.PHOTOCAFE_SLIP_AGENT_SECRET || '').trim();
+  if (!apiBase || !secret) {
+    console.log('[에이전트] 작업지시서 서버폴링 비활성 (PHOTOCAFE_API_BASE + PHOTOCAFE_SLIP_AGENT_SECRET)');
+    return;
+  }
+  const intervalMs = Math.max(15000, parseInt(process.env.PHOTOCAFE_SLIP_POLL_MS || '30000', 10) || 30000);
+  console.log(`[에이전트] 작업지시서 서버폴링 활성 (${intervalMs}ms) → ${apiBase}`);
+  setInterval(() => {
+    pollPendingSlipsOnce().catch((e) => console.warn('[에이전트] 슬립 폴링:', e.message));
+  }, intervalMs);
+  setTimeout(() => {
+    pollPendingSlipsOnce().catch((e) => console.warn('[에이전트] 슬립 폴링:', e.message));
+  }, 4000);
+}
+
 // ==================== HTTP 서버 ====================
 
 const server = http.createServer(async (req, res) => {
@@ -362,7 +548,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({
       ok: true,
       agent: 'photocafe-print-agent',
-      version: '1.1.0',
+      version: '1.2.0',
       watchEnabled: config.watchEnabled,
       watchFolder: config.watchFolder,
       watching: !!activeWatcher,
@@ -580,12 +766,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // POST /print-url  { url, printerName? }
+  // POST /print-url  { url, printerName?, sync? }
   // 로컬 Chrome/Edge headless로 URL을 렌더링해서 프린터에 출력 (슬립 인쇄용)
+  // sync=true 이면 인쇄 완료 후 응답(에이전트 서버폴링용).
   if (req.url === '/print-url' && req.method === 'POST') {
     try {
       const body = await readBody(req);
-      const { url: printUrl, printerName } = body;
+      const { url: printUrl, printerName, sync } = body;
       if (!printUrl) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: false, error: 'url 필수' }));
@@ -596,68 +783,31 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify({ ok: false, error: 'Windows 전용 기능입니다.' }));
         return;
       }
-      const chromePaths = [
-        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-        path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\Application\\chrome.exe'),
-        'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-        'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-      ];
-      const chromePath = chromePaths.find(p => { try { return fs.existsSync(p); } catch { return false; } });
-      if (!chromePath) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: false, error: 'Chrome/Edge를 찾을 수 없습니다.' }));
+      console.log(`[에이전트] 슬립 인쇄 ${sync ? '(동기)' : '(비동기)'}: ${printUrl}`);
+
+      if (sync) {
+        try {
+          await runSlipChromePrint(printUrl, printerName);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true, sync: true }));
+          console.log(`[에이전트] 슬립 인쇄 완료(동기): → ${printerName || '기본 프린터'}`);
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, error: e.message || String(e) }));
+        }
         return;
       }
-      // 즉시 응답 — Chrome 렌더링 + 인쇄는 모두 백그라운드 (이벤트 루프 블록 방지)
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, queued: true }));
 
-      const tempPdf = path.join(require('os').tmpdir(), `slip-${Date.now()}.pdf`);
-      const { spawn } = require('child_process');
-      console.log(`[에이전트] 슬립 인쇄 큐 추가: ${printUrl}`);
-
-      const chromeProc = spawn(
-        chromePath,
-        [
-          '--headless=new',
-          '--disable-gpu',
-          '--no-sandbox',
-          '--disable-dev-shm-usage',
-          `--print-to-pdf=${tempPdf}`,
-          '--print-to-pdf-no-header',
-          '--no-pdf-header-footer',
-          '--run-all-compositor-stages-before-draw',
-          '--virtual-time-budget=5000',
-          printUrl,
-        ],
-        { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
-      );
-      let chromeStderr = '';
-      chromeProc.stderr.on('data', (d) => { chromeStderr += d.toString().slice(0, 500); });
-      const killTimer = setTimeout(() => {
-        try { chromeProc.kill('SIGKILL'); } catch { /* ignore */ }
-        console.error(`[에이전트] Chrome 렌더 타임아웃 (60초): ${printUrl}`);
-      }, 60000);
-      chromeProc.on('close', (code) => {
-        clearTimeout(killTimer);
-        if (!fs.existsSync(tempPdf)) {
-          console.error(`[에이전트] 슬립 PDF 생성 실패 (code ${code}): ${chromeStderr.slice(0, 200)}`);
-          return;
-        }
-        try {
-          printFile(tempPdf, printerName || '');
+      runSlipChromePrint(printUrl, printerName)
+        .then(() => {
           console.log(`[에이전트] 슬립 인쇄 완료: ${printUrl} → ${printerName || '기본 프린터'}`);
-        } catch (err) {
+        })
+        .catch((err) => {
           console.error(`[에이전트] 슬립 인쇄 실패: ${err.message || err}`);
-        } finally {
-          setTimeout(() => { try { fs.unlinkSync(tempPdf); } catch { /* ignore */ } }, 30000);
-        }
-      });
-      chromeProc.on('error', (err) => {
-        clearTimeout(killTimer);
-        console.error(`[에이전트] Chrome 실행 오류: ${err.message}`);
-      });
+        });
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: e.message }));
@@ -723,6 +873,8 @@ server.listen(PORT, '127.0.0.1', () => {
   } else {
     console.log('[에이전트] PDF 저장 경로 미설정 (설정에서 지정 가능)');
   }
+
+  startSlipPollIfConfigured();
 });
 
 server.on('error', (e) => {

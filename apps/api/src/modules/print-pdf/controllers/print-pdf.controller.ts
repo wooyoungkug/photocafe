@@ -8,6 +8,7 @@ import {
   Res,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
   Logger,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
@@ -69,6 +70,29 @@ export class PrintPdfController {
   @ApiOperation({ summary: '출력대기 항목 상세 (파일목록 포함)' })
   async getQueueItemDetail(@Param('orderItemId') orderItemId: string) {
     return this.printPdfService.getQueueItemDetail(orderItemId);
+  }
+
+  @Public()
+  @Get('agent/pending-slips')
+  @ApiOperation({ summary: '로컬 프린트 에이전트: 작업지시서 자동인쇄 대기 목록 (PRINT_AGENT_SLIP_SECRET)' })
+  async agentPendingSlips(@Query('secret') secret: string, @Query('limit') limit?: string) {
+    if (!this.slipPrinterService.validateSlipAgentSecret(secret)) {
+      throw new UnauthorizedException('invalid agent secret');
+    }
+    const n = Math.min(20, Math.max(1, parseInt(limit || '5', 10) || 5));
+    const items = await this.slipPrinterService.listAgentPendingSlips(n);
+    return { items };
+  }
+
+  @Public()
+  @Post('agent/confirm-slip-printed')
+  @ApiOperation({ summary: '로컬 프린트 에이전트: 작업지시서 인쇄 완료 기록' })
+  async agentConfirmSlipPrinted(@Body() body: { secret?: string; orderItemId?: string }) {
+    if (!this.slipPrinterService.validateSlipAgentSecret(body?.secret)) {
+      throw new UnauthorizedException('invalid agent secret');
+    }
+    if (!body?.orderItemId) throw new BadRequestException('orderItemId가 필요합니다.');
+    return this.slipPrinterService.confirmAgentSlipPrinted(body.orderItemId);
   }
 
   @Public()

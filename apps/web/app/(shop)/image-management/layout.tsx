@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ArrowLeft, Sparkles, BookOpen, Wrench } from 'lucide-react';
+import { Sparkles, BookOpen, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -25,18 +25,12 @@ export default function ImageManagementLayout({
         <div className="max-w-[1100px] mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link
-              href="/"
-              className="flex items-center gap-2 text-neutral-400 hover:text-neutral-900 transition-colors text-sm"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              쇼핑몰
-            </Link>
-            <div className="hidden sm:block h-5 w-px bg-neutral-200" />
-            <Link
               href="/image-management"
               className={cn(
-                "hidden sm:block text-sm font-semibold transition-colors",
-                pathname === '/image-management' ? "text-neutral-900" : "text-neutral-500 hover:text-neutral-900"
+                'text-sm font-semibold transition-colors',
+                pathname === '/image-management'
+                  ? 'text-neutral-900'
+                  : 'text-neutral-500 hover:text-neutral-900',
               )}
             >
               이미지 도구

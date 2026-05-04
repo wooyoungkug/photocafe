@@ -12,7 +12,8 @@ import type { GeneratePrintPdfDto } from '../dto/print-pdf.dto';
  * N분마다 pending/미완료 출력대기 항목들을 자동 변환한다.
  *
  * 동시 실행 방지: 이전 실행이 끝나기 전에는 중복 실행하지 않음.
- * 경로 지정: print_pdf_output_path 가 비어있으면 스킵 (브라우저 개입이 필요하므로 무인에 부적합)
+ * 출력 경로: print_pdf_output_path 가 비어 있으면 기본 uploads/orders/.../print-pdf 로 저장
+ * (원본 JPG는 읽기만 하며, PDF는 별도 경로에만 기록).
  */
 @Injectable()
 export class PrintPdfAutoConvertService {
@@ -62,12 +63,8 @@ export class PrintPdfAutoConvertService {
     const elapsedMs = Date.now() - this.lastRunAt;
     if (this.lastRunAt > 0 && elapsedMs < intervalMin * 60 * 1000) return;
 
-    // 3) 무인 저장 경로 확인
+    // 3) 선택 출력 경로 (비어 있으면 generatePdf 가 uploads 기본 경로 사용)
     const outputPath = (await this.settings.getValue('print_pdf_output_path', '')).trim();
-    if (!outputPath) {
-      this.logger.debug('auto-convert skipped: print_pdf_output_path not configured');
-      return;
-    }
 
     // 4) 이미 진행중인 Job이 있으면 스킵 (단, 30분 이상 멈춘 Job은 failed 처리)
     const STUCK_THRESHOLD_MS = 30 * 60 * 1000; // 30분
@@ -107,10 +104,12 @@ export class PrintPdfAutoConvertService {
 
     this.isRunning = true;
     this.lastRunAt = Date.now();
-    this.logger.log(`auto-convert start: ${items.length} items → ${outputPath}`);
+    this.logger.log(
+      `auto-convert start: ${items.length} items → ${outputPath || '(기본 uploads/print-pdf)'}`,
+    );
 
     try {
-      const dto = await this.buildDto(items, outputPath);
+      const dto = await this.buildDto(items, outputPath || undefined);
       const job = await this.printPdf.generatePdf(dto);
       this.logger.log(`auto-convert job created: ${job.jobId}`);
       // 생성 요청만 하고 즉시 반환 (processJob은 비동기). 다음 tick은 pdf_jobs 상태 확인으로 재진입 차단.
@@ -151,8 +150,20 @@ export class PrintPdfAutoConvertService {
               { pdfStatus: null },
               { pdfStatus: { notIn: ['completed', 'in_progress', 'failed'] } },
             ],
-            // 원본 파일이 하나라도 있는 항목만
-            files: { some: { originalPath: { not: null } } },
+            // 검수 승인·업로드 완료 파일이 하나라도 있는 항목만 (출력대기와 동일한 준비 상태)
+            files: {
+              some: {
+                deletedAt: null,
+                inspectionStatus: 'approved',
+                storageStatus: 'uploaded',
+                OR: [
+                  { originalPath: { not: null } },
+                  { fileUrl: { startsWith: 'data:' } },
+                  { fileUrl: { startsWith: '/uploads/' } },
+                  { fileUrl: { startsWith: 'uploads/' } },
+                ],
+              },
+            },
           },
           select: { id: true },
         },
@@ -162,7 +173,7 @@ export class PrintPdfAutoConvertService {
   }
 
   /** 시스템설정을 읽어 GeneratePrintPdfDto 구성 */
-  private async buildDto(items: Array<{ id: string }>, outputPath: string): Promise<GeneratePrintPdfDto> {
+  private async buildDto(items: Array<{ id: string }>, outputPath?: string): Promise<GeneratePrintPdfDto> {
     const indexOptionsRaw = await this.settings.getValue('print_pdf_index_options', '');
     const indexOrderRaw = await this.settings.getValue('print_pdf_index_order', '');
     let indexOptions: any = {
@@ -204,7 +215,7 @@ export class PrintPdfAutoConvertService {
 
     return {
       orderItemIds: items.map((i) => i.id),
-      outputPath,
+      ...(outputPath ? { outputPath } : {}),
       indexOptions,
       includeBleed,
       includeCropMarks,

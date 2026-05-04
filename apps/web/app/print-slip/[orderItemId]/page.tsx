@@ -113,8 +113,11 @@ export default function PrintSlipPage() {
   const isInkjet = (d.printMethod || '').toLowerCase().includes('inkjet');
   const printMethodLabel = isInkjet ? '잉크젯' : '인디고';
 
-  const toThumbUrl = (p: string | undefined) =>
-    p ? `/uploads/${p.replace(/\\/g, '/').replace(/^.*\/uploads\//, '')}` : null;
+  const toThumbUrl = (p: string | undefined) => {
+    if (!p) return null;
+    if (p.startsWith('http://') || p.startsWith('https://')) return p;
+    return `/uploads/${p.replace(/\\/g, '/').replace(/^.*\/uploads\//, '')}`;
+  };
 
   const thumbItems: ThumbItem[] = (d.files || []).map((f: any) => ({
     file: f,
