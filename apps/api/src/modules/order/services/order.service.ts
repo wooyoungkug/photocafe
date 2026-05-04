@@ -740,6 +740,7 @@ export class OrderService {
 
     // 파일 보관정책 정보 계산
     const retentionDays = (order.client as any).fileRetentionDays ?? 90;
+    const retentionMonths = Math.round(retentionDays / 30);
     const shippedAt = order.shipping?.shippedAt;
     let retentionDeadline: string | null = null;
     let isExpired = false;
