@@ -4,6 +4,7 @@ import {
   IsBoolean,
   IsArray,
   ArrayMinSize,
+  IsNotEmpty,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -164,6 +165,14 @@ export class PrintQueueQueryDto {
   @ApiPropertyOptional({ description: '페이지 크기', default: 50 })
   @IsOptional()
   limit?: number;
+}
+
+/** 출력대기 화면: 바코드(주문번호·생산번호) 스캔 → 앨범류만 후가공대기로 전환 */
+export class ScanPrintQueueToFinishingDto {
+  @ApiProperty({ description: '바코드로 읽은 주문번호 또는 생산번호(작업지)' })
+  @IsString()
+  @IsNotEmpty()
+  code!: string;
 }
 
 // ==================== Job 상태 ====================

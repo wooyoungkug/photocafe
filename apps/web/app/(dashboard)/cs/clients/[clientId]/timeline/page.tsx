@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useClientTimeline, useCustomerHealthScore, useCalculateHealthScore } from '@/hooks/use-cs';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
+import { isOrderCancelled } from '@/lib/order-display';
 
 export default function ClientTimelinePage() {
   const params = useParams();
@@ -374,8 +375,19 @@ export default function ClientTimelinePage() {
                                 {event.type === 'consultation' && event.data.counselorName && (
                                   <span>상담: {event.data.counselorName}</span>
                                 )}
-                                {event.type === 'order' && event.data.finalAmount && (
-                                  <span>금액: {Number(event.data.finalAmount).toLocaleString()}원</span>
+                                {event.type === 'order' && event.data.finalAmount != null && (
+                                  <span>
+                                    금액:{' '}
+                                    {Number(
+                                      isOrderCancelled({
+                                        status: String(event.data.status ?? ''),
+                                        currentProcess: String(event.data.currentProcess ?? ''),
+                                      })
+                                        ? 0
+                                        : event.data.finalAmount,
+                                    ).toLocaleString()}
+                                    원
+                                  </span>
                                 )}
                               </div>
                               <Link

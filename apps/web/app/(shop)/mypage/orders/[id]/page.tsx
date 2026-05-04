@@ -48,6 +48,8 @@ import { ShippingEditWithFeeDialog } from '@/components/order/shipping-edit-with
 import { ReturnRequestDialog } from '@/components/order/return-request-dialog';
 import { ReturnStatusBadge } from '@/components/order/return-status-badge';
 import { resolveOrderFileAccessUrl } from '@/lib/order-file-access';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
+import { isOrderCancelled } from '@/lib/order-display';
 import { OrderItemSpecBadges } from '@/components/order/order-item-spec-badges';
 import {
   useReturnRequestsByOrder,
@@ -137,6 +139,8 @@ interface OrderDetail {
   id: string;
   orderNumber: string;
   status: OrderStatus;
+  /** API Order와 동일 — 취소 판별용 */
+  currentProcess?: string;
   orderedAt: string;
   finalAmount: number;
   productPrice?: number;
@@ -385,10 +389,12 @@ export default function OrderDetailPage() {
   const taxAmount = order.tax != null ? Number(order.tax) : 0;
   const shippingFeeAmount = order.shippingFee != null ? Number(order.shippingFee) : 0;
   const adjustmentAmount = order.adjustmentAmount != null ? Number(order.adjustmentAmount) : 0;
-  // DB에 저장된 finalAmount를 최종 결제금액으로 직접 사용 (adjustmentAmount는 양수=할인)
-  const displayTotal = order.finalAmount != null
-    ? Number(order.finalAmount)
-    : productAmount + taxAmount + shippingFeeAmount - adjustmentAmount;
+  // DB에 저장된 finalAmount를 최종 결제금액으로 직접 사용 (adjustmentAmount는 양수=할인). 취소 주문은 0원.
+  const displayTotal = isOrderCancelled(order)
+    ? 0
+    : order.finalAmount != null
+      ? Number(order.finalAmount)
+      : productAmount + taxAmount + shippingFeeAmount - adjustmentAmount;
   const DELIVERY_METHOD_LABEL: Record<string, string> = {
     parcel: '택배',
     motorcycle: '오토바이퀵',
@@ -648,7 +654,7 @@ export default function OrderDetailPage() {
                                         >
                                           <img
                                             src={normalizeImageUrl(file.thumbnailUrl)}
-                                            alt={file.fileName}
+                                            alt={formatThumbFileLabel(file.fileName)}
                                             className="absolute inset-0 w-full h-full object-cover"
                                             loading="lazy"
                                             onError={(e) => {
@@ -659,7 +665,7 @@ export default function OrderDetailPage() {
                                             }}
                                           />
                                           <div className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center" style={{ display: 'none' }}>
-                                            <span className="text-[10px] text-gray-400 px-1 text-center truncate max-w-full">{file.fileName}</span>
+                                            <span className="text-[10px] text-gray-400 px-1 text-center truncate max-w-full">{formatThumbFileLabel(file.fileName)}</span>
                                           </div>
                                           {spreadBadges && (spreadBadges.left === null || spreadBadges.right === null) && (
                                             <div
@@ -705,7 +711,7 @@ export default function OrderDetailPage() {
                                           </div>
                                         </div>
                                         <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md bg-white border-gray-200">
-                                          <div className="truncate font-medium" title={file.fileName}>{file.fileName}</div>
+                                          <div className="truncate font-medium" title={file.fileName}>{formatThumbFileLabel(file.fileName)}</div>
                                           {wIn && hIn && (
                                             <div className="text-gray-500 truncate">{wIn}×{hIn}&quot;</div>
                                           )}
@@ -1429,7 +1435,7 @@ export default function OrderDetailPage() {
                     )}
                     {currentFile.dpi > 0 && <span>{currentFile.dpi} DPI</span>}
                     {currentFile.fileSize > 0 && <span>{formatFileSize(currentFile.fileSize)}</span>}
-                    {currentFile.fileName && <span className="text-gray-400 truncate">{currentFile.fileName}</span>}
+                    {currentFile.fileName && <span className="text-gray-400 truncate" title={currentFile.fileName}>{formatThumbFileLabel(currentFile.fileName)}</span>}
                   </div>
                 )}
               </>

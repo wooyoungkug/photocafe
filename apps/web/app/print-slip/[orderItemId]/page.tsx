@@ -5,6 +5,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { usePrintQueueItemDetail } from '@/hooks/use-print-pdf';
 import { Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { normalizeImageUrl } from '@/lib/utils';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 const URGENT_KEYWORDS = ['긴급', '지급', '즉시', '당일', '특급', '우선처리', '급처리', '촉급', '최급', '급건'];
 const URGENT_REGEX = new RegExp(`(${URGENT_KEYWORDS.join('|')})`, 'g');
@@ -51,6 +53,24 @@ function BarcodeCanvas({ value }: { value: string }) {
 
 interface ThumbItem { file: any; url: string | null }
 
+/** DB pageStart/pageEnd·pageRange 우선. 없을 때만 순번 추정(구버전 호환). */
+function filePageLabel(
+  file: { pageStart?: number; pageEnd?: number; pageRange?: string | null },
+  isSpread: boolean,
+  fallbackIndexZeroBased: number,
+): string {
+  const ps = file.pageStart;
+  const pe = file.pageEnd;
+  if (typeof ps === 'number' && typeof pe === 'number' && ps >= 1 && pe >= 1) {
+    if (ps === pe) return String(ps);
+    return `${ps}-${pe}`;
+  }
+  const pr = (file.pageRange || '').trim();
+  if (pr) return pr;
+  if (isSpread) return `${fallbackIndexZeroBased * 2 + 1}-${fallbackIndexZeroBased * 2 + 2}`;
+  return `${fallbackIndexZeroBased + 1}`;
+}
+
 function ThumbnailGrid({
   items,
   globalOffset,
@@ -63,10 +83,10 @@ function ThumbnailGrid({
   return (
     <div className={isSpread ? 'grid gap-1 grid-cols-4' : 'grid gap-1 grid-cols-8'}>
       {items.map(({ file, url }, localIdx) => {
-        const i = globalOffset + localIdx;
-        const pageLabel = isSpread ? `${i * 2 + 1}-${i * 2 + 2}` : `${i + 1}`;
+        const fallbackIndex = globalOffset + localIdx;
+        const pageLabel = filePageLabel(file, isSpread, fallbackIndex);
         return (
-          <div key={file.id ?? i} className="flex flex-col">
+          <div key={file.id ?? fallbackIndex} className="flex flex-col min-w-0">
             <div className="thumb-cell">
               {url ? (
                 <img src={url} alt={pageLabel} className="w-full h-auto block rounded-sm" />
@@ -75,7 +95,7 @@ function ThumbnailGrid({
               )}
               <span className="thumb-page-label">{pageLabel}</span>
             </div>
-            <span className="thumb-filename block w-full truncate">{file.fileName || ''}</span>
+            <span className="thumb-filename block w-full truncate">{formatThumbFileLabel(file.fileName || '')}</span>
           </div>
         );
       })}
@@ -115,8 +135,12 @@ export default function PrintSlipPage() {
 
   const toThumbUrl = (p: string | undefined) => {
     if (!p) return null;
-    if (p.startsWith('http://') || p.startsWith('https://')) return p;
-    return `/uploads/${p.replace(/\\/g, '/').replace(/^.*\/uploads\//, '')}`;
+    const t = p.trim();
+    if (t.startsWith('http://') || t.startsWith('https://')) return t;
+    const normalized = normalizeImageUrl(t.replace(/\\/g, '/'));
+    if (!normalized) return null;
+    if (normalized.startsWith('/')) return normalized;
+    return `/uploads/${normalized.replace(/^\/+/, '').replace(/^.*\/uploads\//, '')}`;
   };
 
   const thumbItems: ThumbItem[] = (d.files || []).map((f: any) => ({

@@ -255,6 +255,18 @@ export class FileStorageService implements OnModuleInit {
     return { deletedCount, freedBytes };
   }
 
+  /** 단일 로컬 파일 삭제 시도 (경로 없음·미존재는 무시, 실패 시 로그만) */
+  tryUnlinkLocalPath(localPath: string | null | undefined): void {
+    if (!localPath?.trim()) return;
+    try {
+      if (existsSync(localPath)) {
+        unlinkSync(localPath);
+      }
+    } catch (err) {
+      this.logger.warn(`로컬 파일 삭제 실패: ${localPath} — ${(err as Error).message}`);
+    }
+  }
+
   /** 주문 전체 디렉토리 삭제 (originals + thumbnails + pdf) - 동기 버전 */
   deleteOrderDirectory(orderDir: string): { deletedCount: number; freedBytes: number } {
     if (!existsSync(orderDir)) {

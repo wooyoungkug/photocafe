@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Focus, Sun, Frown, Mic, CheckCircle2, AlertTriangle, Grid3X3, List } from 'lucide-react';
 import type { AnalysisResult, IssueType, ImageFile } from '@/lib/image-analysis/types';
 import { ImagePreviewDialog } from './image-preview-dialog';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 const ISSUE_LABEL: Record<IssueType, string> = {
   eyes_closed: '눈감음',
@@ -199,7 +200,7 @@ export function AnalysisResultsTable({
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={result.thumbnailUrl}
-                            alt={result.fileName}
+                            alt={formatThumbFileLabel(result.fileName)}
                             className="w-full aspect-square object-cover"
                             loading="lazy"
                           />
@@ -238,7 +239,7 @@ export function AnalysisResultsTable({
                             </div>
                           )}
                           <div className="absolute bottom-0 left-0 right-0 bg-black/50 px-1 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <p className="text-[10px] text-white truncate">{result.fileName}</p>
+                            <p className="text-[10px] text-white truncate" title={result.fileName}>{formatThumbFileLabel(result.fileName)}</p>
                           </div>
                         </div>
                       ))}
@@ -281,11 +282,11 @@ export function AnalysisResultsTable({
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={result.thumbnailUrl}
-                          alt={result.fileName}
+                          alt={formatThumbFileLabel(result.fileName)}
                           className="w-10 h-10 rounded object-cover"
                           loading="lazy"
                         />
-                        <div className="truncate text-slate-700">{result.fileName}</div>
+                        <div className="truncate text-slate-700" title={result.fileName}>{formatThumbFileLabel(result.fileName)}</div>
                         <div className="flex justify-center gap-1 flex-wrap">
                           {result.issues.length === 0 ? (
                             <Badge variant="secondary" className="text-green-700 bg-green-50 text-[10px]">정상</Badge>

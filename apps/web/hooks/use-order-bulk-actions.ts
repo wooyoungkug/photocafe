@@ -9,6 +9,11 @@ interface BulkResult {
   skipped?: string[];
 }
 
+/** 일괄 상태 변경 API 응답 (출력대기 조건 불충족 시 failedDetails 포함) */
+export interface BulkUpdateStatusResult extends BulkResult {
+  failedDetails?: Array<{ orderId: string; message: string }>;
+}
+
 interface DuplicateResult extends BulkResult {
   newOrderIds: string[];
 }
@@ -17,7 +22,7 @@ export function useBulkUpdateStatus() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: { orderIds: string[]; status: string; note?: string }) =>
-      api.post<BulkResult>('/orders/bulk/update-status', data),
+      api.post<BulkUpdateStatusResult>('/orders/bulk/update-status', data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
     },

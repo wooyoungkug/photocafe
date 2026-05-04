@@ -179,6 +179,12 @@ export class OrderController {
     return this.orderService.getLastProductOptions(clientId, productId);
   }
 
+  @Patch('items/:itemId/slip-printed')
+  @ApiOperation({ summary: '작업지시서 출력 완료 확인 (관리자, PDF 완료 후)' })
+  async confirmSlipPrinted(@Param('itemId') itemId: string) {
+    return this.orderService.confirmSlipPrintedByStaff(itemId);
+  }
+
   @Post('check-duplicates')
   @ApiOperation({ summary: '중복 주문 체크 (3개월 이내)' })
   async checkDuplicates(@Body() dto: CheckDuplicateOrderDto) {
@@ -292,6 +298,17 @@ export class OrderController {
     @Request() req: any,
   ) {
     return this.orderService.cancel(id, req.user.id, reason);
+  }
+
+  @Delete(':id/items/:itemId/files/:fileId')
+  @ApiOperation({ summary: '주문 항목 개별 이미지 삭제 (접수대기·소프트 삭제)' })
+  async deleteOrderItemFile(
+    @Param('id') id: string,
+    @Param('itemId') itemId: string,
+    @Param('fileId') fileId: string,
+    @Request() req: any,
+  ) {
+    return this.orderService.softDeleteOrderItemFile(id, itemId, fileId, req.user.id);
   }
 
   @Delete(':id/items/:itemId')

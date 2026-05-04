@@ -64,6 +64,8 @@ export interface OrderItem {
   bindingDirection?: string;
   originalsDeleted?: boolean;
   pdfStatus?: string;
+  /** 작업지시서 출력(또는 출력완료 확인) 기록 시각 — 있으면 확인 열에 「지시서」 */
+  slipAutoPrintedAt?: string | null;
   quantity: number;
   unitPrice: number;
   totalPrice: number;
@@ -218,6 +220,8 @@ export function useOrders(params?: {
   search?: string;
   clientId?: string;
   status?: string;
+  /** 관리자 주문목록 세부 공정 탭 — 지정 시 status 보다 우선 (API) */
+  productionStage?: string;
   startDate?: string;
   endDate?: string;
   isUrgent?: boolean;
@@ -279,6 +283,18 @@ export function useUpdateOrderStatus() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, variables.id] });
+    },
+  });
+}
+
+/** 접수완료 후 브라우저에서 지시서를 출력한 뒤 서버에 완료 기록 (PDF 완료 후에만 가능) */
+export function useConfirmOrderItemSlipPrinted() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) =>
+      api.patch<{ ok: boolean; reason?: string }>(`/orders/items/${itemId}/slip-printed`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
     },
   });
 }
@@ -499,6 +515,29 @@ export function useInspectFile() {
         inspectionStatus,
         inspectionNote,
       }),
+    onSuccess: (_, { orderId }) => {
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
+      queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
+    },
+  });
+}
+
+/** 접수대기 주문: 항목별 개별 이미지 소프트 삭제 */
+export function useDeleteOrderItemFile() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orderId,
+      itemId,
+      fileId,
+    }: {
+      orderId: string;
+      itemId: string;
+      fileId: string;
+    }) =>
+      api.delete<{ message: string; fileId: string }>(
+        `/api/v1/orders/${orderId}/items/${itemId}/files/${fileId}`,
+      ),
     onSuccess: (_, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });

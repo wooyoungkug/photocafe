@@ -17,6 +17,14 @@ import * as fs from 'fs';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const sharp = require('sharp');
 
+/** 출력대기 목록과 동일한 기준으로 앨범(제본)류만 후가공대기로 넘길 때 사용 */
+const ALBUM_PRODUCT_TYPES = new Set([
+  'compressed_album',
+  'pictorial_album',
+  'original_compressed',
+  'photobook',
+]);
+
 @Injectable()
 export class PrintPdfService implements OnModuleInit {
   private readonly logger = new Logger(PrintPdfService.name);
@@ -72,14 +80,9 @@ export class PrintPdfService implements OnModuleInit {
     }
   }
 
-  /**
-   * 출력대기 주문 목록 조회
-   */
-  async getQueue(query: PrintQueueQueryDto) {
-    // printQueueStatus='pending' 이 주 필터. 레거시 조건은 아직 플래그가 채워지지 않은
-    // 주문을 위한 안전망(fallback). 마이그레이션 이후에도 신규 주문이 미설정 상태로
-    // 남는 경우가 있을 수 있어 유지.
-    const where: any = {
+  /** 출력대기 목록(getQueue)과 동일한 주문 단위 필터 */
+  private printQueueOrderWhere(): Record<string, unknown> {
+    return {
       OR: [
         { printQueueStatus: 'pending' },
         {
@@ -94,6 +97,30 @@ export class PrintPdfService implements OnModuleInit {
           ],
         },
       ],
+    };
+  }
+
+  private isOrderOnPrintQueue(order: {
+    printQueueStatus: string | null;
+    status: string;
+    currentProcess: string | null;
+  }): boolean {
+    if (order.printQueueStatus === 'pending') return true;
+    if (order.printQueueStatus == null) {
+      return (
+        (order.status === 'in_production' && order.currentProcess === 'print_waiting') ||
+        order.status === 'print_waiting'
+      );
+    }
+    return false;
+  }
+
+  /**
+   * 출력대기 주문 목록 조회
+   */
+  async getQueue(query: PrintQueueQueryDto) {
+    const where: any = {
+      ...this.printQueueOrderWhere(),
     };
 
     // 날짜 필터
@@ -142,7 +169,7 @@ export class PrintPdfService implements OnModuleInit {
           },
           items: {
             include: {
-              files: { orderBy: { sortOrder: 'asc' } },
+              files: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
             },
           },
         },
@@ -289,13 +316,117 @@ export class PrintPdfService implements OnModuleInit {
   }
 
   /**
+   * 바코드(주문번호·생산번호)로 주문을 찾아, 출력대기에 있는 앨범류 주문만 후가공대기(post_processing)로 보낸다.
+   * 출력대기 목록에서 제외하려면 printQueueStatus 를 printed 로 닫는다.
+   */
+  async scanPrintQueueToFinishing(rawCode: string, staffId: string) {
+    const code = rawCode.trim();
+    if (!code) {
+      throw new BadRequestException('코드가 비어 있습니다.');
+    }
+
+    let order = await this.prisma.order.findFirst({
+      where: { orderNumber: { equals: code, mode: 'insensitive' } },
+      include: { items: true, client: { select: { clientName: true } } },
+    });
+
+    if (!order) {
+      const itemHit = await this.prisma.orderItem.findFirst({
+        where: { productionNumber: { equals: code, mode: 'insensitive' } },
+        select: { orderId: true },
+      });
+      if (itemHit) {
+        order = await this.prisma.order.findUnique({
+          where: { id: itemHit.orderId },
+          include: { items: true, client: { select: { clientName: true } } },
+        });
+      }
+    }
+
+    if (!order) {
+      throw new NotFoundException('주문번호 또는 생산번호와 일치하는 주문이 없습니다.');
+    }
+
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('취소된 주문입니다.');
+    }
+
+    if (order.currentProcess === 'post_processing') {
+      return {
+        ok: true,
+        already: true,
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        studioName: order.client?.clientName || '',
+        message: '이미 후가공대기 단계입니다.',
+      };
+    }
+
+    const productIds = [...new Set(order.items.map((it) => it.productId))];
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+      select: { id: true, productType: true },
+    });
+    const typeById = new Map(products.map((p) => [p.id, p.productType]));
+    const hasAlbum = order.items.some((it) => {
+      const pt = typeById.get(it.productId);
+      return !!pt && ALBUM_PRODUCT_TYPES.has(pt);
+    });
+    if (!hasAlbum) {
+      throw new BadRequestException(
+        '앨범·포토북류 상품이 아닙니다. 단품출력 등은 출력대기에서 수동으로 공정을 변경해 주세요.',
+      );
+    }
+
+    const onQueue = this.isOrderOnPrintQueue(order as any);
+    const atPrintWaiting =
+      (order.status === 'in_production' || order.status === 'print_waiting') &&
+      order.currentProcess === 'print_waiting';
+    if (!onQueue && !atPrintWaiting) {
+      throw new BadRequestException(
+        '출력대기(공정: 출력대기)가 아닌 주문입니다. 후가공대기로 넘길 수 없습니다.',
+      );
+    }
+
+    const now = new Date();
+    await this.prisma.order.update({
+      where: { id: order.id },
+      data: {
+        currentProcess: 'post_processing',
+        status: order.status === 'print_waiting' ? 'in_production' : order.status,
+        printQueueStatus: 'printed',
+        printQueueExitedAt: now,
+        printQueueExitReason: 'barcode_to_finishing',
+        processHistory: {
+          create: {
+            fromStatus: order.currentProcess || '',
+            toStatus: 'post_processing',
+            processType: 'print_queue_barcode_finishing',
+            note: `[출력대기] 바코드 스캔 → 후가공대기 (입력=${code})`,
+            processedBy: staffId,
+          },
+        },
+      },
+    });
+
+    return {
+      ok: true,
+      already: false,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      studioName: order.client?.clientName || '',
+      message: '후가공대기로 이동했습니다.',
+    };
+  }
+
+  /**
    * 개별 항목 상세 (파일 목록 포함)
    */
   async getQueueItemDetail(orderItemId: string) {
     const item = await this.prisma.orderItem.findUnique({
       where: { id: orderItemId },
       include: {
-        files: { orderBy: { sortOrder: 'asc' } },
+        files: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
         order: {
           include: {
             client: {
@@ -691,7 +822,7 @@ export class PrintPdfService implements OnModuleInit {
       const item = await this.prisma.orderItem.findUnique({
         where: { id: orderItemId },
         include: {
-          files: { orderBy: { sortOrder: 'asc' } },
+          files: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
           order: {
             include: {
               client: {

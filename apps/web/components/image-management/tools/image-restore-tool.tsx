@@ -14,6 +14,7 @@ import { saveToFolder, fallbackDownload, pickDirectory, isImageFile } from '@/li
 import { processRestore } from '@/lib/image-tools/image-processing';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 interface ImageInfo {
   fileName: string;
@@ -327,7 +328,7 @@ export function ImageRestoreTool() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div>
                 <p className="text-xs text-slate-500">파일명</p>
-                <p className="text-sm font-medium truncate">{imageInfo.fileName}</p>
+                <p className="text-sm font-medium truncate" title={imageInfo.fileName}>{formatThumbFileLabel(imageInfo.fileName)}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">크기</p>

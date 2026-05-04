@@ -158,7 +158,12 @@
 .slip-barcode-canvas { max-width: 100%; height: auto; }
 .a4-page { width: 210mm; background: #fff; box-sizing: border-box; }
 .a4-page-cont { width: 210mm; background: #fff; box-sizing: border-box; }
-.thumb-cell { position: relative; border: 1px solid #ccc; }
+.thumb-cell {
+  position: relative;
+  border: 1px solid #ccc;
+  overflow: hidden;
+  min-width: 0;
+}
 .thumb-placeholder {
   width: 100%; aspect-ratio: 3/2;
   background: #f0f0f0;
@@ -166,9 +171,20 @@
   font-size: 9px; color: #aaa;
 }
 .thumb-page-label {
-  position: absolute; bottom: 2px; right: 3px;
-  font-size: 10px; font-weight: bold; color: #ff0000;
-  text-shadow: 0 0 3px #fff, 0 0 3px #fff; line-height: 1;
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 2px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: bold;
+  color: #ff0000;
+  text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+  line-height: 1;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .thumb-filename {
   font-size: 8px; color: rgba(0, 0, 255, 0.7); line-height: 1.3;

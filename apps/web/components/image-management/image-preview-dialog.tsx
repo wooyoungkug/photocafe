@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Eye, EyeOff, Focus, Sun, Frown, Mic } from 'lucide-react';
 import type { AnalysisResult } from '@/lib/image-analysis/types';
 import { useEffect, useState } from 'react';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 interface ImagePreviewDialogProps {
   result: AnalysisResult | null;
@@ -32,7 +33,7 @@ export function ImagePreviewDialog({ result, imageFile, open, onOpenChange }: Im
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-base">{result.fileName}</DialogTitle>
+          <DialogTitle className="text-base" title={result.fileName}>{formatThumbFileLabel(result.fileName)}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -42,7 +43,7 @@ export function ImagePreviewDialog({ result, imageFile, open, onOpenChange }: Im
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imageUrl}
-                alt={result.fileName}
+                alt={formatThumbFileLabel(result.fileName)}
                 className="max-h-[60vh] object-contain rounded"
               />
             </div>

@@ -59,6 +59,7 @@ import { format, subDays, subMonths, subYears } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
+import { displayFinalAmount, isOrderCancelled } from '@/lib/order-display';
 
 // 취소 가능 상태 (출력 전 단계)
 const CANCELLABLE_STATUSES = ['pending_receipt', 'receipt_completed'];
@@ -137,6 +138,7 @@ interface Order {
   id: string;
   orderNumber: string;
   status: string;
+  currentProcess?: string;
   orderedAt: string;
   isUrgent: boolean;
   finalAmount: number;
@@ -585,14 +587,16 @@ export default function MyOrdersPage() {
           <div className="lg:hidden space-y-3">
             {orders.map((order) => {
               const items = order.items || [];
-              const statusBadge = STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+              const statusBadge = isOrderCancelled(order)
+                ? STATUS_BADGE.cancelled
+                : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
               const isCancellable = CANCELLABLE_STATUSES.includes(order.status);
               const deliveryStatus = getDeliveryStatusFromOrder(order);
 
               return (
                 <Card key={order.id} className={cn(
                   order.isUrgent ? 'border-red-200 bg-red-50/30' : '',
-                  order.status === 'cancelled' ? 'opacity-60' : '',
+                  isOrderCancelled(order) ? 'opacity-60' : '',
                 )}>
                   <CardContent className="p-4 space-y-3">
                     {/* 상단: 체크박스 + 주문번호 + 상태 */}
@@ -637,7 +641,7 @@ export default function MyOrdersPage() {
                     {/* 금액 + 배송정보 */}
                     <div className="flex items-center justify-between pt-1 border-t">
                       <div className="text-[14px] font-medium text-black">
-                        {Number(order.finalAmount).toLocaleString()}원
+                        {displayFinalAmount(order).toLocaleString()}원
                       </div>
                       <div className="flex items-center gap-2">
                         {/* 배송상황 */}
@@ -723,7 +727,9 @@ export default function MyOrdersPage() {
                 <TableBody>
                   {orders.map((order) => {
                     const items = order.items || [];
-                    const statusBadge = STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+                    const statusBadge = isOrderCancelled(order)
+                      ? STATUS_BADGE.cancelled
+                      : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
                     const isCancellable = CANCELLABLE_STATUSES.includes(order.status);
 
                     return items.map((item, idx) => (
@@ -733,7 +739,7 @@ export default function MyOrdersPage() {
                           'hover:bg-muted/30',
                           idx > 0 ? 'border-t border-dashed' : '',
                           order.isUrgent ? 'bg-red-50/30' : '',
-                          order.status === 'cancelled' ? 'opacity-50' : '',
+                          isOrderCancelled(order) ? 'opacity-50' : '',
                         )}
                       >
                         {idx === 0 && (

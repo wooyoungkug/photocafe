@@ -721,6 +721,38 @@ export class OrderQueryDto {
   @IsString()
   status?: string;
 
+  @ApiPropertyOptional({
+    description:
+      '세부 공정 탭 (지정 시 status 쿼리보다 우선). reception_hold=접수보류, reception_pending=접수대기, reception_done=접수완료, print_queue=출력대기, data_inspection=데이타검수중, finishing_wait=후가공대기, finishing_progress=후가공진행중, outbound_qc=출고검수중, shipping_progress=배송중, shipping_done=배송완료',
+    enum: [
+      'reception_hold',
+      'reception_pending',
+      'reception_done',
+      'print_queue',
+      'data_inspection',
+      'finishing_wait',
+      'finishing_progress',
+      'outbound_qc',
+      'shipping_progress',
+      'shipping_done',
+    ],
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn([
+    'reception_hold',
+    'reception_pending',
+    'reception_done',
+    'print_queue',
+    'data_inspection',
+    'finishing_wait',
+    'finishing_progress',
+    'outbound_qc',
+    'shipping_progress',
+    'shipping_done',
+  ])
+  productionStage?: string;
+
   @ApiPropertyOptional({ description: '시작일' })
   @IsOptional()
   @Type(() => Date)

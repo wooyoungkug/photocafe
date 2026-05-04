@@ -11,6 +11,7 @@ import {
   calculateNormalizedRatio,
   formatPhotobookOrderInfo,
 } from '@/lib/album-utils';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 import {
   Upload,
   Folder,
@@ -382,7 +383,7 @@ export function StepDataUpload() {
                 >
                   <span className="col-span-1 text-gray-500">{index + 1}</span>
                   <span className="col-span-4 truncate" title={file.fileName}>
-                    {file.fileName}
+                    {formatThumbFileLabel(file.fileName)}
                   </span>
                   <span className="col-span-2 text-xs text-gray-500">
                     {file.widthPx}x{file.heightPx}

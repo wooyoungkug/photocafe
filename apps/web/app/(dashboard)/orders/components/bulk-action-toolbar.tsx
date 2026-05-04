@@ -32,6 +32,7 @@ import {
   useBulkUpdateReceiptDate,
   useDataCleanup,
   useBulkDeleteOriginals,
+  type BulkUpdateStatusResult,
 } from '@/hooks/use-order-bulk-actions';
 import { ConfirmActionDialog } from './confirm-action-dialog';
 import { ChangeReceiptDateDialog } from './change-receipt-date-dialog';
@@ -79,10 +80,18 @@ export function BulkActionToolbar({
   const orderIds = Array.from(selectedIds);
   const count = selectedIds.size;
 
-  const handleResult = (result: { success: number; failed?: string[] }, action: string) => {
+  const handleResult = (result: { success: number; failed?: string[]; failedDetails?: BulkUpdateStatusResult['failedDetails'] }, action: string) => {
     const failCount = result.failed?.length || 0;
     if (failCount > 0) {
-      alert(`${action}: ${result.success}건 성공, ${failCount}건 실패`);
+      const details = result.failedDetails;
+      const detailBlock =
+        details && details.length > 0
+          ? `\n\n${details
+            .map((d) => `[${d.orderId}]\n${d.message}`)
+            .slice(0, 6)
+            .join('\n\n')}${details.length > 6 ? '\n\n…외 생략' : ''}`
+          : '';
+      alert(`${action}: ${result.success}건 성공, ${failCount}건 실패${detailBlock}`);
     } else {
       alert(`${action}: ${result.success}건 완료`);
     }

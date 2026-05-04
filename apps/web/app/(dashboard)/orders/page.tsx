@@ -35,18 +35,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, Order, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
+import { useOrders, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
+import { useScanPrintQueueToFinishing } from '@/hooks/use-print-pdf';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
 import { ConfirmActionDialog } from './components/confirm-action-dialog';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { ShippingInputDialog } from '@/components/order/shipping-input-dialog';
 import { useDeleteOrderOriginals } from '@/hooks/use-order-bulk-actions';
+import { useCourierList } from '@/hooks/use-delivery-tracking';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { api, API_URL } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { displayFinalAmount, isOrderCancelled } from '@/lib/order-display';
 
 // 출력대기 PDF 변환 진행상황 뱃지 매핑 (PrintQueueTable 과 동일)
 const PDF_INDIGO_BADGE: Record<string, { label: string; className: string }> = {
@@ -68,6 +71,186 @@ function getPdfBadge(pdfStatus?: string, printMethod?: string) {
   const isInkjet = (printMethod || '').toLowerCase().includes('inkjet');
   const map = isInkjet ? PDF_INKJET_BADGE : PDF_INDIGO_BADGE;
   return map[status] || map.pending;
+}
+
+/** 취소 주문「확인」열: 택배·PDF 세부 공정 */
+function CancelledOrderDeliveryPdfSummary({
+  order,
+  items,
+  getCourierName,
+}: {
+  order: Order;
+  items: NonNullable<Order['items']>;
+  getCourierName: (code?: string) => string;
+}) {
+  const ship = order.shipping;
+  const hasFullInvoice = !!(ship?.courierCode && ship?.trackingNumber);
+
+  return (
+    <div className="space-y-2 text-[11px] text-left w-full max-w-[168px] mx-auto">
+      <div className="space-y-1 rounded border border-gray-200 bg-slate-50/70 px-2 py-1.5">
+        <div className="text-black font-medium text-[12px]">택배</div>
+        {hasFullInvoice ? (
+          <>
+            <div className="text-black font-normal">{getCourierName(ship!.courierCode)}</div>
+            <div className="text-gray-600 font-mono text-[10px] break-all leading-tight">{ship!.trackingNumber}</div>
+          </>
+        ) : ship?.courierCode || ship?.trackingNumber ? (
+          <div className="text-gray-600 space-y-0.5">
+            {ship?.courierCode ? <div>{getCourierName(ship.courierCode)}</div> : null}
+            {ship?.trackingNumber ? (
+              <div className="font-mono text-[10px] break-all">{ship.trackingNumber}</div>
+            ) : null}
+            <span className="text-amber-700 text-[10px]">택배사·송장 중 일부만 등록됨</span>
+          </div>
+        ) : (
+          <span className="text-gray-400">송장 미등록</span>
+        )}
+      </div>
+
+      <div className="space-y-1.5 rounded border border-gray-200 bg-slate-50/70 px-2 py-1.5">
+        <div className="text-black font-medium text-[12px]">PDF 공정</div>
+        {items.length === 0 ? (
+          <span className="text-gray-400">품목 없음</span>
+        ) : (
+          items.map((it) => {
+            const badgeInfo = getPdfBadge(it.pdfStatus, it.printMethod);
+            const canOpenPdf = (it.pdfStatus || 'pending') === 'completed';
+            const pdfUrl = `${API_URL}/print-pdf/items/${it.id}/pdf`;
+            const textColorClass = badgeInfo.className.split(' ').filter((c) => c.startsWith('text-')).join(' ');
+            return (
+              <div key={it.id} className="space-y-0.5 border-b border-gray-100 pb-1.5 last:border-0 last:pb-0">
+                <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                  {canOpenPdf ? (
+                    <a href={pdfUrl} target="_blank" rel="noopener noreferrer" title="인쇄용 PDF">
+                      <span className={cn('text-[11px] font-normal hover:underline', textColorClass)}>{badgeInfo.label}</span>
+                    </a>
+                  ) : (
+                    <span className={cn('text-[11px] font-normal', textColorClass)}>{badgeInfo.label}</span>
+                  )}
+                  <a
+                    href={`/print-slip/${it.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-blue-600 hover:underline"
+                  >
+                    지시서
+                  </a>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
+function itemNeedsPrintOutputCheck(item: OrderItem) {
+  return Number(item.totalFileSize ?? 0) > 0 || !!(item.files && item.files.length > 0);
+}
+
+/** 접수완료: 품목별 PDF·지시서 완료 여부 + 수동 지시서 확정 */
+function ReceiptCompletedOutputCell({
+  order,
+  items,
+}: {
+  order: Order;
+  items: NonNullable<Order['items']>;
+}) {
+  const confirmSlip = useConfirmOrderItemSlipPrinted();
+  const [regenBusy, setRegenBusy] = useState(false);
+
+  const candidates = items.filter(itemNeedsPrintOutputCheck);
+  if (candidates.length === 0) {
+    return <span className="text-[13px] text-black font-normal">인쇄 파일 없음</span>;
+  }
+
+  const anyPdfFailed = candidates.some((it) => it.pdfStatus === 'failed');
+
+  const onRegen = async () => {
+    setRegenBusy(true);
+    try {
+      await api.post(`/orders/${order.id}/regenerate-pdf`);
+      toast({ title: 'PDF 재생성을 시작했습니다.' });
+    } catch (e: unknown) {
+      const m = e instanceof Error ? e.message : String(e);
+      toast({ title: 'PDF 재생성 요청 실패', description: m, variant: 'destructive' });
+    } finally {
+      setRegenBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2 text-left w-full max-w-[200px] mx-auto">
+      {candidates.map((it) => {
+        const pdfOk = (it.pdfStatus || '') === 'completed';
+        const slipOk = !!it.slipAutoPrintedAt;
+        const pdfUrl = `${API_URL}/print-pdf/items/${it.id}/pdf`;
+        return (
+          <div key={it.id} className="rounded border border-gray-200 bg-slate-50/70 px-2 py-1.5 space-y-1">
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center text-[11px] text-black font-normal">
+              {pdfOk ? (
+                <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+                  PDF
+                </a>
+              ) : (
+                <span className="text-red-600" title={it.pdfStatus === 'failed' ? 'PDF 변환 실패' : undefined}>
+                  PDF {it.pdfStatus === 'failed' ? '실패' : it.pdfStatus === 'generating' ? '생성 중' : '대기'}
+                </span>
+              )}
+              {slipOk ? (
+                <span className="text-green-700 font-medium">지시서</span>
+              ) : (
+                <span className="text-red-600">지시서 대기</span>
+              )}
+            </div>
+            <div className="flex flex-col gap-1 pt-0.5">
+              <a
+                href={`/print-slip/${it.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-blue-600 hover:underline text-center"
+              >
+                지시서 열기
+              </a>
+              {pdfOk && !slipOk && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-[11px] font-normal text-black"
+                  disabled={confirmSlip.isPending}
+                  onClick={() =>
+                    confirmSlip.mutate(it.id, {
+                      onSuccess: () =>
+                        toast({ title: '지시서 출력 완료로 기록했습니다.' }),
+                      onError: (err: Error) =>
+                        toast({ variant: 'destructive', title: '기록 실패', description: err.message }),
+                    })
+                  }
+                >
+                  출력 완료 기록
+                </Button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      {anyPdfFailed && (
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full h-7 text-[11px]"
+          disabled={regenBusy}
+          onClick={onRegen}
+        >
+          {regenBusy ? '요청 중…' : 'PDF 재생성'}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 // 진행상황 뱃지 스타일
@@ -92,6 +275,21 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'shipped', label: '거래완료' },
   { value: 'cancelled', label: '취소' },
 ];
+
+/** 주문목록(/) 세부 공정 탭 — API productionStage 와 동일 id */
+const PRODUCTION_STAGE_TABS = [
+  { id: 'all', label: '전체' },
+  { id: 'reception_hold', label: '접수보류' },
+  { id: 'reception_pending', label: '접수대기' },
+  { id: 'reception_done', label: '접수완료' },
+  { id: 'print_queue', label: '출력대기' },
+  { id: 'data_inspection', label: '데이타검수중' },
+  { id: 'finishing_wait', label: '후가공대기' },
+  { id: 'finishing_progress', label: '후가공진행중' },
+  { id: 'outbound_qc', label: '출고검수중' },
+  { id: 'shipping_progress', label: '배송중' },
+  { id: 'shipping_done', label: '배송완료' },
+] as const;
 
 // 파일 사이즈 포맷
 function formatFileSize(bytes?: number): string {
@@ -127,6 +325,8 @@ export default function OrderListPage() {
   const [statusFilter, setStatusFilter] = useState<string>(
     isPendingPage ? 'pending_receipt' : 'all',
   );
+  /** 주문목록(/) 전용 — 세부 공정 탭 */
+  const [productionStage, setProductionStage] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -152,22 +352,41 @@ export default function OrderListPage() {
   const [deleteOriginalsOrderId, setDeleteOriginalsOrderId] = useState<string | null>(null);
   const [deleteOriginalsDialog, setDeleteOriginalsDialog] = useState(false);
   const deleteOrderOriginals = useDeleteOrderOriginals();
+  const scanToFinishing = useScanPrintQueueToFinishing();
 
   // 주문 목록 조회
-  const { data: ordersData, isLoading } = useOrders({
-    page,
-    limit,
-    search: search || undefined,
-    status: statusFilter !== 'all' ? statusFilter : undefined,
-  });
+  const { data: ordersData, isLoading } = useOrders(
+    isPendingPage
+      ? {
+          page,
+          limit,
+          search: search || undefined,
+          ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
+        }
+      : {
+          page,
+          limit,
+          search: search || undefined,
+          ...(productionStage !== 'all' ? { productionStage } : {}),
+        },
+  );
 
   const orders = ordersData?.data ?? [];
   const meta = ordersData?.meta;
 
+  const { data: couriers = [] } = useCourierList();
+  const getCourierName = (code?: string) => couriers.find((c) => c.code === code)?.name ?? code ?? '-';
+
+  // 라우트 전환: 접수대기 전용 ↔ 일반 목록
+  useEffect(() => {
+    setProductionStage('all');
+    setPage(1);
+  }, [isPendingPage]);
+
   // 필터/페이지 변경 시 선택 초기화
   useEffect(() => {
     setSelectedOrderIds(new Set());
-  }, [statusFilter, search, page]);
+  }, [statusFilter, productionStage, search, page]);
 
   // 선택 헬퍼
   const toggleOrder = (orderId: string) => {
@@ -259,27 +478,83 @@ export default function OrderListPage() {
           {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_FILTER_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          {isPendingPage ? (
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTER_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : null}
           <div className="relative flex-1 sm:w-64 sm:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="주문번호, 주문자 검색..."
+              placeholder={isPendingPage ? '주문번호, 주문자 검색...' : '주문번호·검색 후 Enter → 후가공대기'}
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' || isPendingPage) return;
+                e.preventDefault();
+                const q = search.trim();
+                if (!q || scanToFinishing.isPending) return;
+                scanToFinishing.mutate(q, {
+                  onSuccess: (res) => {
+                    if (res.already) {
+                      toast({ title: res.message || '이미 후가공대기입니다.' });
+                    } else {
+                      toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
+                    }
+                    setProductionStage('finishing_wait');
+                    setPage(1);
+                  },
+                  onError: (err: unknown) => {
+                    const m = err instanceof Error ? err.message : String(err);
+                    toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
+                  },
+                });
+              }}
+              disabled={!isPendingPage && scanToFinishing.isPending}
               className="pl-9 h-9"
             />
           </div>
         </div>
       </div>
+
+      {!isPendingPage ? (
+        <div
+          role="tablist"
+          aria-label="주문 공정별 필터"
+          className="flex flex-wrap justify-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-0.5 px-0.5"
+        >
+          {PRODUCTION_STAGE_TABS.map((tab) => {
+            const active = productionStage === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => {
+                  setProductionStage(tab.id);
+                  setPage(1);
+                }}
+                className={cn(
+                  'shrink-0 rounded-md border px-2.5 py-1.5 text-[14px] font-normal transition-colors whitespace-nowrap',
+                  active
+                    ? 'border-black bg-black text-white'
+                    : 'border-gray-300 bg-white text-black hover:bg-gray-50',
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {/* 조회결과 */}
       <div className="flex items-center justify-between text-sm">
@@ -304,9 +579,12 @@ export default function OrderListPage() {
           <div className="md:hidden space-y-2">
             {orders.map((order) => {
               const items = order.items || [];
-              const statusBadge = order.status === 'pending_receipt' && order.currentProcess === 'inspection'
-                ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
-                : (STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt);
+              const statusBadge =
+                order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                  ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                  : isOrderCancelled(order)
+                    ? STATUS_BADGE.cancelled
+                    : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
               const isSelected = selectedOrderIds.has(order.id);
 
               return (
@@ -369,7 +647,7 @@ export default function OrderListPage() {
                         <ExternalLink className="h-2.5 w-2.5" />
                       </span>
                       <span className="font-bold">
-                        {Math.round(Number(order.finalAmount)).toLocaleString()}원
+                        {displayFinalAmount(order).toLocaleString()}원
                       </span>
                     </div>
 
@@ -416,10 +694,16 @@ export default function OrderListPage() {
                         </Button>
                       </div>
                     )}
+                    {order.status === 'receipt_completed' && (
+                      <div className="pt-2 border-t border-dashed">
+                        <ReceiptCompletedOutputCell order={order} items={items} />
+                      </div>
+                    )}
                     {(order.status === 'print_waiting' || order.status === 'pending_receipt') && items[0] && (() => {
                       const first = items[0];
                       const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
                       const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
+                      const slipDone = !!first.slipAutoPrintedAt;
                       const pdfUrl = `${API_URL}/print-pdf/items/${first.id}/pdf`;
                       const badge = (
                         <Badge
@@ -434,22 +718,42 @@ export default function OrderListPage() {
                         </Badge>
                       );
                       return (
-                        <div className="flex items-center gap-2 pt-1">
-                          {canOpenPdf ? (
-                            <a
-                              href={pdfUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title="새 탭에서 PDF 열기"
-                            >
-                              {badge}
-                            </a>
-                          ) : (
-                            badge
-                          )}
+                        <div className="flex flex-col gap-1 pt-1">
+                          <div className="flex items-center gap-2">
+                            {canOpenPdf ? (
+                              <a
+                                href={pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="새 탭에서 PDF 열기"
+                              >
+                                {badge}
+                              </a>
+                            ) : (
+                              badge
+                            )}
+                          </div>
+                          <div className="text-[11px] text-black font-normal">
+                            {slipDone ? (
+                              <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline">
+                                지시서
+                              </a>
+                            ) : (
+                              <span className="text-red-600">지시서 대기</span>
+                            )}
+                          </div>
                         </div>
                       );
                     })()}
+                    {isOrderCancelled(order) && (
+                      <div className="pt-2 border-t border-dashed">
+                        <CancelledOrderDeliveryPdfSummary
+                          order={order}
+                          items={items}
+                          getCourierName={getCourierName}
+                        />
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
@@ -487,9 +791,12 @@ export default function OrderListPage() {
                   {orders.map((order) => {
                     const items = order.items || [];
                     // 파일검수 중 상태 처리
-                    const statusBadge = order.status === 'pending_receipt' && order.currentProcess === 'inspection'
-                      ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
-                      : (STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt);
+                    const statusBadge =
+                      order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                        ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                        : isOrderCancelled(order)
+                          ? STATUS_BADGE.cancelled
+                          : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
                     const isSelected = selectedOrderIds.has(order.id);
 
                     const hasOriginals = items.some((i: any) => i.originalFileCount > 0);
@@ -660,7 +967,7 @@ export default function OrderListPage() {
                             className="text-right align-middle font-normal text-base whitespace-nowrap"
                             rowSpan={items.length}
                           >
-                            {Math.round(Number(order.finalAmount)).toLocaleString()}원
+                            {displayFinalAmount(order).toLocaleString()}원
                           </TableCell>
                         )}
 
@@ -708,10 +1015,14 @@ export default function OrderListPage() {
                                 {order.shipping?.trackingNumber ? '송장확인' : '송장입력'}
                               </Button>
                             )}
+                            {order.status === 'receipt_completed' && (
+                              <ReceiptCompletedOutputCell order={order} items={items} />
+                            )}
                             {(order.status === 'print_waiting' || order.status === 'pending_receipt') && items[0] && (() => {
                               const first = items[0];
                               const badgeInfo = getPdfBadge(first.pdfStatus, first.printMethod);
                               const canOpenPdf = (first.pdfStatus || 'pending') === 'completed';
+                              const slipDone = !!first.slipAutoPrintedAt;
                               const pdfUrl = `${API_URL}/print-pdf/items/${first.id}/pdf`;
                               const textColorClass = badgeInfo.className.split(' ').filter(c => c.startsWith('text-')).join(' ');
                               const pdfText = (
@@ -728,14 +1039,25 @@ export default function OrderListPage() {
                                   ) : (
                                     pdfText
                                   )}
-                                  <div>
-                                    <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-[13px] text-blue-600 hover:underline">
-                                      지시서
-                                    </a>
+                                  <div className="text-[13px] font-normal">
+                                    {slipDone ? (
+                                      <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline">
+                                        지시서
+                                      </a>
+                                    ) : (
+                                      <span className="text-red-600">지시서 대기</span>
+                                    )}
                                   </div>
                                 </div>
                               );
                             })()}
+                            {isOrderCancelled(order) && (
+                              <CancelledOrderDeliveryPdfSummary
+                                order={order}
+                                items={items}
+                                getCourierName={getCourierName}
+                              />
+                            )}
                           </TableCell>
                         )}
                       </TableRow>

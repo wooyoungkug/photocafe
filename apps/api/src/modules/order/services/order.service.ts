@@ -39,6 +39,7 @@ import { SalesLedgerService } from '../../accounting/services/sales-ledger.servi
 import { NotificationService } from '@/modules/notification/notification.service';
 import { NOTIFICATION_TYPES } from '@/modules/notification/dto/notification.dto';
 import { KakaoAlimtalkService } from '@/common/kakao-alimtalk/kakao-alimtalk.service';
+import { PrintPdfSlipPrinterService } from '@/modules/print-pdf/services/print-pdf-slip-printer.service';
 
 @Injectable()
 export class OrderService {
@@ -55,6 +56,7 @@ export class OrderService {
     private auditLogService: AuditLogService,
     private notificationService: NotificationService,
     private kakaoAlimtalk: KakaoAlimtalkService,
+    private slipPrinter: PrintPdfSlipPrinterService,
   ) { }
 
   private readonly STATUS_LABELS: Record<string, string> = {
@@ -368,6 +370,79 @@ export class OrderService {
     return nameMap;
   }
 
+  /** 관리자 주문목록 — 세부 공정 탭 필터 */
+  private buildProductionStageWhere(stage: string): Prisma.OrderWhereInput {
+    switch (stage) {
+      // 검수 보류 이력이 있는 receipt_pending 만 보류 (신규 주문도 receipt_pending 이라 이력으로 구분)
+      case 'reception_hold':
+        return {
+          status: ORDER_STATUS.PENDING_RECEIPT,
+          currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
+          processHistory: {
+            some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD },
+          },
+        };
+      // 접수대기: 파일검수(inspection) 제외 + (보류 전용 receipt_pending+보류이력) 제외 — 신규 receipt_pending 포함
+      case 'reception_pending':
+        return {
+          status: ORDER_STATUS.PENDING_RECEIPT,
+          AND: [
+            { NOT: { currentProcess: PROCESS_STATUS.INSPECTION } },
+            {
+              NOT: {
+                AND: [
+                  { currentProcess: PROCESS_STATUS.RECEIPT_PENDING },
+                  {
+                    processHistory: {
+                      some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD },
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        };
+      case 'reception_done':
+        return { status: ORDER_STATUS.RECEIPT_COMPLETED };
+      case 'print_queue':
+        return {
+          OR: [
+            { status: 'print_waiting' },
+            { status: ORDER_STATUS.IN_PRODUCTION, currentProcess: 'print_waiting' },
+          ],
+        };
+      case 'data_inspection':
+        return {
+          status: ORDER_STATUS.PENDING_RECEIPT,
+          currentProcess: PROCESS_STATUS.INSPECTION,
+        };
+      case 'finishing_wait':
+        return {
+          status: ORDER_STATUS.IN_PRODUCTION,
+          currentProcess: PROCESS_STATUS.POST_PROCESSING,
+        };
+      case 'finishing_progress':
+        return {
+          status: ORDER_STATUS.IN_PRODUCTION,
+          currentProcess: PROCESS_STATUS.BINDING,
+        };
+      case 'outbound_qc':
+        return { status: ORDER_STATUS.READY_FOR_SHIPPING };
+      case 'shipping_progress':
+        return {
+          status: ORDER_STATUS.SHIPPED,
+          OR: [{ shipping: null }, { shipping: { deliveredAt: null } }],
+        };
+      case 'shipping_done':
+        return {
+          status: ORDER_STATUS.SHIPPED,
+          shipping: { deliveredAt: { not: null } },
+        };
+      default:
+        return {};
+    }
+  }
+
   // ==================== 주문 목록 조회 ====================
   async findAll(params: {
     skip?: number;
@@ -377,12 +452,27 @@ export class OrderService {
     clientId?: string;
     createdByUserId?: string;
     status?: string;
+    /** 관리자 주문목록 세부 단계 탭 — 있으면 status 필터 대신 적용 */
+    productionStage?: string;
     startDate?: Date;
     endDate?: Date;
     isUrgent?: boolean;
     clientAssignedStaffId?: string; // salesViewScope='own' 일 때 staff.id
   }) {
-    const { skip = 0, take = 20, search, searchType, clientId, createdByUserId, status, startDate, endDate, isUrgent, clientAssignedStaffId } = params;
+    const {
+      skip = 0,
+      take = 20,
+      search,
+      searchType,
+      clientId,
+      createdByUserId,
+      status,
+      productionStage,
+      startDate,
+      endDate,
+      isUrgent,
+      clientAssignedStaffId,
+    } = params;
 
     // 날짜 문자열("YYYY-MM-DD")을 KST 기준으로 해석
     // new Date("2026-02-20") = UTC 자정이므로, KST 자정(UTC-9h)으로 보정
@@ -445,11 +535,13 @@ export class OrderService {
 
     // status 는 단일값 또는 쉼표구분 다중값 허용 (예: "in_production,print_waiting")
     let statusCondition: any = undefined;
-    if (status) {
+    if (status && !productionStage) {
       const parts = status.split(',').map(s => s.trim()).filter(Boolean);
       if (parts.length === 1) statusCondition = parts[0];
       else if (parts.length > 1) statusCondition = { in: parts };
     }
+
+    const stageWhere = productionStage ? this.buildProductionStageWhere(productionStage) : undefined;
 
     const where: Prisma.OrderWhereInput = {
       ...searchCondition,
@@ -458,7 +550,7 @@ export class OrderService {
       ...(clientAssignedStaffId && {
         client: { assignedManager: clientAssignedStaffId },
       }),
-      ...(statusCondition !== undefined && { status: statusCondition }),
+      ...(stageWhere ?? (statusCondition !== undefined ? { status: statusCondition } : {})),
       ...(isUrgent !== undefined && { isUrgent }),
       ...(adjustedStartDate || adjustedEndDate
         ? {
@@ -522,7 +614,9 @@ export class OrderService {
               totalPrice: true,
               originalsDeleted: true,
               pdfStatus: true,
+              slipAutoPrintedAt: true,
               files: {
+                where: { deletedAt: null },
                 select: {
                   thumbnailUrl: true,
                   fileUrl: true,
@@ -594,6 +688,7 @@ export class OrderService {
             orderItemId: { in: allItemIds },
             originalPath: { not: null },
             storageStatus: 'uploaded',
+            deletedAt: null,
           },
           _count: true,
         })
@@ -715,7 +810,7 @@ export class OrderService {
         shipping: true,
         items: {
           include: {
-            files: { orderBy: { sortOrder: 'asc' } },
+            files: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
             shipping: true,
           },
         },
@@ -1265,6 +1360,79 @@ export class OrderService {
     return { data, historyEntry };
   }
 
+  /**
+   * 출력대기(print_waiting) 전: 승인·업로드된 파일이 있는 품목은 PDF 완료 + 작업지시서 출력 확정(slipAutoPrintedAt) 필수.
+   */
+  private async assertPrintWaitingRequirements(orderId: string): Promise<void> {
+    const items = await this.prisma.orderItem.findMany({
+      where: { orderId },
+      select: {
+        id: true,
+        productionNumber: true,
+        folderName: true,
+        productName: true,
+        pdfStatus: true,
+        slipAutoPrintedAt: true,
+        files: {
+          where: { inspectionStatus: 'approved', storageStatus: 'uploaded', deletedAt: null },
+          select: { id: true },
+        },
+      },
+    });
+
+    const lines: string[] = [];
+    for (const it of items) {
+      if (it.files.length === 0) continue;
+      const label = it.folderName || it.productionNumber || it.productName || it.id;
+      const parts: string[] = [];
+      if (it.pdfStatus !== 'completed') {
+        if (it.pdfStatus === 'failed') parts.push('PDF 변환 실패');
+        else if (it.pdfStatus === 'generating') parts.push('PDF 변환 중');
+        else parts.push('PDF 미완료');
+      }
+      if (!it.slipAutoPrintedAt) {
+        parts.push('작업지시서 미확정');
+      }
+      if (parts.length) {
+        lines.push(`「${label}」 ${parts.join(', ')}`);
+      }
+    }
+
+    if (lines.length > 0) {
+      throw new BadRequestException(
+        `출력대기로 바꾸려면 인쇄 대상 품목마다 PDF와 작업지시서가 모두 완료되어야 합니다.\n${lines.join('\n')}`,
+      );
+    }
+  }
+
+  /** 관리자: 브라우저에서 지시서 출력 후 "출력 완료" 기록 (PDF 완료 후에만 허용) */
+  async confirmSlipPrintedByStaff(orderItemId: string): Promise<{ ok: boolean; reason?: string }> {
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: {
+        orderId: true,
+        pdfStatus: true,
+        slipAutoPrintedAt: true,
+        order: { select: { status: true } },
+      },
+    });
+    if (!item) throw new NotFoundException('품목을 찾을 수 없습니다.');
+    if (item.order.status === ORDER_STATUS.CANCELLED) {
+      throw new BadRequestException('취소된 주문입니다.');
+    }
+    if (item.pdfStatus !== 'completed') {
+      throw new BadRequestException('PDF가 완료된 뒤에만 작업지시서 출력 완료를 기록할 수 있습니다.');
+    }
+    if (item.slipAutoPrintedAt) {
+      return { ok: true, reason: 'already' };
+    }
+    await this.prisma.orderItem.update({
+      where: { id: orderItemId },
+      data: { slipAutoPrintedAt: new Date() },
+    });
+    return { ok: true };
+  }
+
   // ==================== 주문 상태 변경 ====================
   async updateStatus(id: string, dto: UpdateOrderStatusDto, userId: string) {
     const order = await this.findOne(id);
@@ -1281,6 +1449,10 @@ export class OrderService {
       if (dto.status === 'cancelled' && !staff.canChangeCancelStage) {
         throw new ForbiddenException('주문취소 권한이 없습니다.');
       }
+    }
+
+    if (dto.status === 'print_waiting') {
+      await this.assertPrintWaitingRequirements(id);
     }
 
     // currentProcess 결정: DTO에 명시 > status 기반 자동매핑 > 기존값 유지
@@ -1634,10 +1806,97 @@ export class OrderService {
     return { message: '주문항목이 삭제되었습니다', deletedItemId: itemId };
   }
 
+  /**
+   * 주문 항목의 개별 이미지 소프트 삭제 (접수대기 전용).
+   * 로컬 원본/썸네일 경로가 있으면 디스크에서도 제거 시도한다.
+   */
+  async softDeleteOrderItemFile(
+    orderId: string,
+    itemId: string,
+    fileId: string,
+    userId: string,
+  ) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, status: true, orderNumber: true },
+    });
+    if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
+    if (order.status !== ORDER_STATUS.PENDING_RECEIPT) {
+      throw new BadRequestException('접수대기 주문에서만 개별 이미지를 삭제할 수 있습니다.');
+    }
+
+    const file = await this.prisma.orderFile.findFirst({
+      where: { id: fileId, orderItemId: itemId, deletedAt: null },
+      include: {
+        orderItem: {
+          select: { id: true, orderId: true, originalsDeleted: true, totalFileSize: true },
+        },
+      },
+    });
+    if (!file || file.orderItem.orderId !== orderId) {
+      throw new NotFoundException('파일을 찾을 수 없습니다');
+    }
+    if (file.orderItem.originalsDeleted) {
+      throw new BadRequestException('원본이 이미 일괄 삭제된 항목입니다.');
+    }
+
+    const activeCount = await this.prisma.orderFile.count({
+      where: { orderItemId: itemId, deletedAt: null },
+    });
+    if (activeCount <= 1) {
+      throw new BadRequestException(
+        '마지막 이미지는 삭제할 수 없습니다. 폴더(항목)를 삭제하거나 다른 이미지를 먼저 추가해 주세요.',
+      );
+    }
+
+    const dec = BigInt(Math.max(0, file.fileSize));
+    const prevTotal = file.orderItem.totalFileSize ?? BigInt(0);
+    const nextTotal = prevTotal > dec ? prevTotal - dec : BigInt(0);
+
+    await this.prisma.$transaction([
+      this.prisma.orderFile.update({
+        where: { id: fileId },
+        data: { deletedAt: new Date(), storageStatus: 'deleted' },
+      }),
+      this.prisma.orderItem.update({
+        where: { id: itemId },
+        data: { totalFileSize: nextTotal },
+      }),
+      this.prisma.processHistory.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: order.status,
+          processType: 'order_file_deleted',
+          note: `이미지 삭제: ${file.fileName}`,
+          processedBy: userId,
+        },
+      }),
+    ]);
+
+    this.fileStorage.tryUnlinkLocalPath(file.originalPath ?? undefined);
+    this.fileStorage.tryUnlinkLocalPath(file.thumbnailPath ?? undefined);
+
+    const firstRemaining = await this.prisma.orderFile.findFirst({
+      where: { orderItemId: itemId, deletedAt: null },
+      orderBy: { sortOrder: 'asc' },
+      select: { thumbnailUrl: true },
+    });
+    if (firstRemaining?.thumbnailUrl) {
+      await this.prisma.orderItem.update({
+        where: { id: itemId },
+        data: { thumbnailUrl: firstRemaining.thumbnailUrl },
+      });
+    }
+
+    return { message: '이미지가 삭제되었습니다', fileId };
+  }
+
   // ==================== 주문 디스크 디렉토리 경로 수집 ====================
   private async getOrderDirectories(orderIds: string[]): Promise<string[]> {
     const files = await this.prisma.orderFile.findMany({
       where: {
+        deletedAt: null,
         orderItem: { orderId: { in: orderIds } },
         originalPath: { not: null },
       },
@@ -1863,7 +2122,10 @@ export class OrderService {
           },
           shipping: true,
           items: {
-            include: { files: { orderBy: { sortOrder: 'asc' }, take: 1 }, shipping: true },
+            include: {
+              files: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' }, take: 1 },
+              shipping: true,
+            },
           },
         },
       });
@@ -1911,14 +2173,47 @@ export class OrderService {
   }
 
   // ==================== 벌크: 상태 일괄 변경 ====================
-  async bulkUpdateStatus(dto: BulkUpdateStatusDto, userId: string) {
-    const results = { success: 0, failed: [] as string[] };
+  async bulkUpdateStatus(
+    dto: BulkUpdateStatusDto,
+    userId: string,
+  ): Promise<{ success: number; failed: string[]; failedDetails?: Array<{ orderId: string; message: string }> }> {
+    const failedDetails: Array<{ orderId: string; message: string }> = [];
+    const eligibleIds: string[] = [];
+
+    for (const orderId of dto.orderIds) {
+      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) {
+        failedDetails.push({ orderId, message: '주문을 찾을 수 없습니다.' });
+        continue;
+      }
+      if (dto.status === 'print_waiting') {
+        try {
+          await this.assertPrintWaitingRequirements(orderId);
+        } catch (e: any) {
+          const raw = e instanceof BadRequestException ? e.getResponse() : e?.message;
+          const msg =
+            typeof raw === 'string'
+              ? raw
+              : Array.isArray((raw as any)?.message)
+                ? (raw as any).message.join(', ')
+                : (raw as any)?.message || '출력대기 조건을 만족하지 않습니다.';
+          failedDetails.push({ orderId, message: msg });
+          continue;
+        }
+      }
+      eligibleIds.push(orderId);
+    }
+
+    let success = 0;
 
     await this.prisma.$transaction(async (tx) => {
-      for (const orderId of dto.orderIds) {
+      for (const orderId of eligibleIds) {
         try {
           const order = await tx.order.findUnique({ where: { id: orderId } });
-          if (!order) { results.failed.push(orderId); continue; }
+          if (!order) {
+            failedDetails.push({ orderId, message: '주문을 찾을 수 없습니다.' });
+            continue;
+          }
 
           // 출력대기 큐 전이 동기화 (단건 updateStatus와 동일 규칙)
           const transition = this.computeQueueTransition(
@@ -1948,12 +2243,21 @@ export class OrderService {
               processHistory: { create: historyEntries },
             },
           });
-          results.success++;
-        } catch { results.failed.push(orderId); }
+          success++;
+        } catch (e: any) {
+          failedDetails.push({
+            orderId,
+            message: e?.message || '상태 변경에 실패했습니다.',
+          });
+        }
       }
     });
 
-    return results;
+    return {
+      success,
+      failed: failedDetails.map((f) => f.orderId),
+      ...(failedDetails.length > 0 ? { failedDetails } : {}),
+    };
   }
 
   // ==================== 벌크: 일괄 취소 ====================
@@ -2608,6 +2912,7 @@ export class OrderService {
     // 파일이 없는 주문은 자동으로 접수완료로 변경
     const hasFiles = await this.prisma.orderFile.count({
       where: {
+        deletedAt: null,
         orderItem: {
           orderId,
         },
@@ -2667,6 +2972,14 @@ export class OrderService {
       throw new BadRequestException('파일검수 상태가 아닙니다.');
     }
 
+    const fileOk = await this.prisma.orderFile.findFirst({
+      where: { id: fileId, deletedAt: null, orderItem: { orderId } },
+      select: { id: true },
+    });
+    if (!fileOk) {
+      throw new NotFoundException('파일을 찾을 수 없습니다');
+    }
+
     // 파일 검수 상태 업데이트
     const file = await this.prisma.orderFile.update({
       where: { id: fileId },
@@ -2693,6 +3006,7 @@ export class OrderService {
     // 모든 파일이 승인되었는지 확인
     const allFiles = await this.prisma.orderFile.findMany({
       where: {
+        deletedAt: null,
         orderItem: {
           orderId,
         },
@@ -2799,6 +3113,7 @@ export class OrderService {
     // 모든 파일이 승인되었는지 확인
     const files = await this.prisma.orderFile.findMany({
       where: {
+        deletedAt: null,
         orderItem: {
           orderId,
         },
@@ -3158,7 +3473,7 @@ export class OrderService {
       where: { orderId },
       include: {
         files: {
-          where: { inspectionStatus: 'approved', storageStatus: 'uploaded' },
+          where: { inspectionStatus: 'approved', storageStatus: 'uploaded', deletedAt: null },
           orderBy: { sortOrder: 'asc' },
         },
       },
@@ -3213,6 +3528,39 @@ export class OrderService {
         });
 
         this.logger.log(`PDF generated for item ${item.productionNumber}`);
+
+        const orderForSlip = await this.prisma.order.findUnique({
+          where: { id: orderId },
+          select: {
+            orderNumber: true,
+            client: { select: { clientName: true } },
+          },
+        });
+        if (orderForSlip) {
+          const isDoubleSided = String(item.printSide || '').toLowerCase() === 'double';
+          const sideLabel = isDoubleSided ? '양면' : '단면';
+          this.slipPrinter
+            .printSlipIfEnabled({
+              orderNumber: orderForSlip.orderNumber,
+              studioName: orderForSlip.client?.clientName || '-',
+              fileName: item.files[0]?.fileName || item.productionNumber,
+              paper: item.paper || '-',
+              spec: item.size || '-',
+              pages: item.pages,
+              colorMode: '-',
+              side: sideLabel,
+              binding: item.bindingType || '-',
+              nup: '1up',
+              outputPath: pdfPath,
+              printMethod: item.printMethod || 'indigo',
+              orderItemId: item.id,
+            })
+            .catch((err: any) => {
+              this.logger.error(
+                `레거시 PDF 후 슬립 트리거 실패 (${orderForSlip.orderNumber}): ${err?.message}`,
+              );
+            });
+        }
       } catch (err) {
         this.logger.error(`PDF generation failed for item ${item.id}:`, err);
         await this.prisma.orderItem.update({
@@ -3256,6 +3604,7 @@ export class OrderService {
     // Case 1: 원본 파일 있고 썸네일만 깨진 경우 → 썸네일 재생성
     const brokenThumbFiles = await this.prisma.orderFile.findMany({
       where: {
+        deletedAt: null,
         OR: [
           { thumbnailUrl: { contains: '/temp/' } },
           { thumbnailUrl: null },
@@ -3281,7 +3630,7 @@ export class OrderService {
 
     // Case 2: fileUrl이 /temp/ 경로인 파일 → 파일 이동 미완료
     const tempUrlFiles = await this.prisma.orderFile.findMany({
-      where: { fileUrl: { contains: '/temp/' } },
+      where: { deletedAt: null, fileUrl: { contains: '/temp/' } },
       select: { id: true, fileUrl: true, thumbnailUrl: true, fileName: true, orderItemId: true },
       orderBy: { sortOrder: 'asc' },
     });
@@ -3310,7 +3659,10 @@ export class OrderService {
             select: {
               id: true,
               order: { select: { orderNumber: true, client: { select: { clientName: true } } } },
-              files: { select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, storageStatus: true } },
+              files: {
+                where: { deletedAt: null },
+                select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, storageStatus: true },
+              },
             },
           });
           if (orderItem?.order?.client?.clientName) {
@@ -3322,7 +3674,7 @@ export class OrderService {
               );
               // 복구 성공한 파일 수 계산
               const recoveredCount = await this.prisma.orderFile.count({
-                where: { orderItemId, storageStatus: 'uploaded' },
+                where: { orderItemId, storageStatus: 'uploaded', deletedAt: null },
               });
               if (recoveredCount > 0) {
                 repaired += recoveredCount;
@@ -3334,7 +3686,7 @@ export class OrderService {
           }
           // 복구되지 못한 파일만 missing 처리
           const stillTempFiles = await this.prisma.orderFile.findMany({
-            where: { orderItemId, fileUrl: { contains: '/temp/' } },
+            where: { deletedAt: null, orderItemId, fileUrl: { contains: '/temp/' } },
             select: { id: true },
           });
           for (const f of stillTempFiles) {
@@ -3385,7 +3737,7 @@ export class OrderService {
 
     // Case 3: storageStatus가 'missing'인 파일 → orders 디렉토리에서 복구 시도
     const missingFiles = await this.prisma.orderFile.findMany({
-      where: { storageStatus: 'missing' },
+      where: { deletedAt: null, storageStatus: 'missing' },
       select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, orderItemId: true },
     });
 
@@ -3403,14 +3755,17 @@ export class OrderService {
           select: {
             id: true,
             order: { select: { orderNumber: true, client: { select: { clientName: true } } } },
-            files: { select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, storageStatus: true } },
+            files: {
+              where: { deletedAt: null },
+              select: { id: true, fileName: true, fileUrl: true, thumbnailUrl: true, storageStatus: true },
+            },
           },
         });
         if (!orderItem?.order?.client?.clientName) continue;
 
         try {
           const beforeCount = await this.prisma.orderFile.count({
-            where: { orderItemId, storageStatus: 'uploaded' },
+            where: { orderItemId, storageStatus: 'uploaded', deletedAt: null },
           });
           await this.recoverFromOrderDir(
             { orderNumber: orderItem.order.orderNumber, client: orderItem.order.client },
@@ -3418,7 +3773,7 @@ export class OrderService {
             orderItem.order.client.clientName,
           );
           const afterCount = await this.prisma.orderFile.count({
-            where: { orderItemId, storageStatus: 'uploaded' },
+            where: { orderItemId, storageStatus: 'uploaded', deletedAt: null },
           });
           const recovered = afterCount - beforeCount;
           if (recovered > 0) {
@@ -3445,6 +3800,7 @@ export class OrderService {
     // storageStatus가 pending이고 fileUrl에 /temp/가 포함된 파일들
     const pendingFiles = await this.prisma.orderFile.findMany({
       where: {
+        deletedAt: null,
         storageStatus: 'pending',
         fileUrl: { contains: '/temp/' },
       },
@@ -3729,6 +4085,7 @@ export class OrderService {
             folderName: true,
             originalsDeleted: true,
             files: {
+              where: { deletedAt: null },
               select: {
                 originalPath: true,
                 fileName: true,

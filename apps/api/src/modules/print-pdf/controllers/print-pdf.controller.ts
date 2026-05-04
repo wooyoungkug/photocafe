@@ -6,6 +6,7 @@ import {
   Body,
   Query,
   Res,
+  Request,
   NotFoundException,
   UnauthorizedException,
   BadRequestException,
@@ -18,7 +19,7 @@ import * as path from 'path';
 import { execSync } from 'child_process';
 import { PrintPdfService } from '../services/print-pdf.service';
 import { PrintPdfSlipPrinterService } from '../services/print-pdf-slip-printer.service';
-import { GeneratePrintPdfDto, PrintQueueQueryDto } from '../dto/print-pdf.dto';
+import { GeneratePrintPdfDto, PrintQueueQueryDto, ScanPrintQueueToFinishingDto } from '../dto/print-pdf.dto';
 import { Public } from '../../../common/decorators/public.decorator';
 
 @ApiTags('인쇄용 PDF 변환')
@@ -64,6 +65,20 @@ export class PrintPdfController {
   @ApiOperation({ summary: '출력대기 주문 목록 조회' })
   async getQueue(@Query() query: PrintQueueQueryDto) {
     return this.printPdfService.getQueue(query);
+  }
+
+  @Post('queue/scan-to-finishing')
+  @ApiOperation({
+    summary: '출력대기 바코드 스캔 → 앨범류 후가공대기',
+    description:
+      '주문번호 또는 생산번호(작업지)로 조회합니다. 출력대기에 있고 상품 유형이 앨범·포토북류일 때만 currentProcess 를 후가공대기(post_processing)로 옮기고 출력대기 큐를 닫습니다.',
+  })
+  async scanQueueToFinishing(@Body() dto: ScanPrintQueueToFinishingDto, @Request() req: { user?: { sub?: string } }) {
+    const staffId = req.user?.sub;
+    if (!staffId) {
+      throw new UnauthorizedException('로그인이 필요합니다.');
+    }
+    return this.printPdfService.scanPrintQueueToFinishing(dto.code, staffId);
   }
 
   @Get('queue/:orderItemId')

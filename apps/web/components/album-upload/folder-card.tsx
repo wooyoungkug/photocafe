@@ -44,6 +44,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 import { validateFolder } from '@/lib/order-validation';
 import { ColorGroupBadge } from './color-group-badge';
 import { FabricPickerDialog } from './fabric-picker-dialog';
@@ -918,7 +919,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             <div className="mt-1 text-xs text-red-700">
               <p className="font-medium">모든 데이타는 RGB로만 접수 가능합니다.</p>
               <p className="mt-1">포토샵에서 [이미지 &gt; 모드 &gt; RGB 색상]으로 변환 후 다시 업로드해 주세요.</p>
-              <p className="mt-1 text-red-600">CMYK 파일: {cmykFiles.map(f => f.fileName).join(', ')}</p>
+              <p className="mt-1 text-red-600">CMYK 파일: {cmykFiles.map(f => formatThumbFileLabel(f.fileName)).join(', ')}</p>
             </div>
           </div>
         );
@@ -934,7 +935,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           <div className="bg-white rounded border border-red-200 text-xs max-h-32 overflow-y-auto">
             {folder.mismatchFiles.slice(0, 10).map((file) => (
               <div key={file.id} className="px-2 py-1 border-b last:border-b-0 flex justify-between">
-                <span className="truncate">{file.newFileName || file.fileName}</span>
+                <span className="truncate" title={file.newFileName || file.fileName}>{formatThumbFileLabel(file.newFileName || file.fileName)}</span>
                 <span className="text-gray-500 ml-2">
                   {file.widthPx}×{file.heightPx} ({file.widthInch}×{file.heightInch}{tc('inch')}) {file.dpi}dpi
                 </span>
@@ -1094,7 +1095,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       {thumbUrl ? (
                         <img
                           src={thumbUrl}
-                          alt={file.fileName}
+                          alt={formatThumbFileLabel(file.fileName)}
                           className="absolute inset-0 w-full h-full object-cover"
                           loading="lazy"
                           onError={(e) => {
@@ -1117,7 +1118,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                         className="thumb-fallback absolute inset-0 w-full h-full bg-gray-100 items-center justify-center"
                         style={{ display: thumbUrl ? 'none' : 'flex' }}
                       >
-                        <span className="text-[14px] text-gray-400">{file.fileName}</span>
+                        <span className="text-[14px] text-gray-400">{formatThumbFileLabel(file.fileName)}</span>
                       </div>
                       {folder.pageLayout === 'spread' && (() => {
                         const pages = getSpreadPageNumbers(index, folder.files.length, folder.bindingDirection);
@@ -1192,7 +1193,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
-                      <div className="truncate font-medium" title={file.newFileName || file.fileName}>{file.newFileName || file.fileName}</div>
+                      <div className="truncate font-medium" title={file.newFileName || file.fileName}>{formatThumbFileLabel(file.newFileName || file.fileName)}</div>
                       {folder.pageLayout === 'single' ? (
                         <>
                           <div className="text-gray-500 truncate">{file.widthInch}×{file.heightInch}"</div>
@@ -2245,7 +2246,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <span className="bg-gray-100 px-2 py-0.5 rounded text-xs">
                     {previewImage.index + 1} / {folder.files.length}
                   </span>
-                  <span className="truncate">{previewImage.fileName}</span>
+                  <span className="truncate" title={previewImage.fileName}>{formatThumbFileLabel(previewImage.fileName)}</span>
                   {folder.files[previewImage.index]?.coverType !== 'INNER_PAGE' && (
                     <Badge className={cn(
                       'text-[10px]',
@@ -2303,7 +2304,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               {/* 이미지 */}
               <img
                 src={previewImage.url}
-                alt={previewImage.fileName}
+                alt={formatThumbFileLabel(previewImage.fileName)}
                 ref={imageRef}
                 className={cn(
                   'object-contain select-none',

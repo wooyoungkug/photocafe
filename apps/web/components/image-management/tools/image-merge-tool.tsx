@@ -27,6 +27,7 @@ import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-u
 import { saveToFolder } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 interface ImageInfo {
   url: string;
@@ -71,7 +72,7 @@ function ImageThumbnail({ info, wide }: { info: ImageInfo; wide?: boolean }) {
         {info.url ? (
           <img
             src={info.url}
-            alt={info.fileName}
+            alt={formatThumbFileLabel(info.fileName)}
             className="w-full h-full object-cover"
             loading="lazy"
           />
@@ -86,8 +87,8 @@ function ImageThumbnail({ info, wide }: { info: ImageInfo; wide?: boolean }) {
           <div className="text-[8px] opacity-80">{info.dpi}dpi · {formatFileSize(info.fileSize)}</div>
         </div>
       </div>
-      <p className={`text-[9px] text-slate-500 mt-0.5 truncate text-center ${wide ? 'max-w-[160px]' : 'max-w-[100px]'}`}>
-        {info.fileName}
+      <p className={`text-[9px] text-slate-500 mt-0.5 truncate text-center ${wide ? 'max-w-[160px]' : 'max-w-[100px]'}`} title={info.fileName}>
+        {formatThumbFileLabel(info.fileName)}
       </p>
     </div>
   );

@@ -199,7 +199,7 @@ export class ImpositionController {
             },
           },
         },
-        files: { orderBy: { sortOrder: 'asc' } },
+        files: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
       },
     });
     if (!item) throw new NotFoundException(`OrderItem ${itemId} not found`);

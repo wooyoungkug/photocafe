@@ -40,6 +40,7 @@ import { PROCESS_STAGES } from '@/hooks/use-system-settings';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { toast } from '@/hooks/use-toast';
+import { displayFinalAmount, isOrderCancelled } from '@/lib/order-display';
 
 // DB의 currentProcess/status 값과 PROCESS_STAGES 키 매핑
 const PROCESS_ALIASES: Record<string, keyof typeof PROCESS_STAGES> = {
@@ -351,7 +352,6 @@ function formatAmount(amount: number) {
   return Math.round(amount).toLocaleString();
 }
 
-
 export default function MonthlySummaryPage() {
   const { user } = useAuthStore();
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -469,7 +469,7 @@ export default function MonthlySummaryPage() {
     [...allMonthOrders.data]
       .sort((a, b) => new Date(a.orderedAt).getTime() - new Date(b.orderedAt).getTime())
       .forEach(order => {
-        if (order.status !== 'cancelled') {
+        if (!isOrderCancelled(order)) {
           running += Number(order.finalAmount) - Number(order.salesLedger?.receivedAmount || 0);
         }
         map.set(order.id, running);
@@ -956,7 +956,7 @@ export default function MonthlySummaryPage() {
             </tr>
 
             {ordersByDate.map(([date, orders]) => {
-              const dateSubtotal = orders.reduce((sum, o) => sum + Number(o.finalAmount), 0);
+              const dateSubtotal = orders.reduce((sum, o) => sum + displayFinalAmount(o), 0);
               return (
                 <Fragment key={date}>
                   {/* 날짜 그룹 헤더 */}
@@ -1002,7 +1002,7 @@ export default function MonthlySummaryPage() {
                               <div className="text-[8pt] text-gray-500">{item.quantity > 0 ? `${item.quantity}부` : '-'}</div>
                             </td>
                             <td className="border border-gray-400 p-1 text-right tabular-nums align-middle">
-                              {iIdx === 0 ? formatAmount(Number(order.finalAmount)) + '원' : ''}
+                              {iIdx === 0 ? `${formatAmount(displayFinalAmount(order))}원` : ''}
                             </td>
                           </tr>
                         );
@@ -1349,13 +1349,14 @@ export default function MonthlySummaryPage() {
                                           </Link>
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle text-[13px] text-black font-normal">
-                                          {order.status === 'cancelled' ? '-' : `${formatAmount(Number(order.finalAmount))}원`}
+                                          {`${formatAmount(displayFinalAmount(order))}원`}
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle">
-                                          {receivedAmt > 0
-                                            ? <span className="text-green-600">{formatAmount(receivedAmt)}원</span>
-                                            : <span className="text-[13px] text-black font-normal">-</span>
-                                          }
+                                          {!isOrderCancelled(order) && receivedAmt > 0 ? (
+                                            <span className="text-green-600">{formatAmount(receivedAmt)}원</span>
+                                          ) : (
+                                            <span className="text-[13px] text-black font-normal">-</span>
+                                          )}
                                         </td>
                                         <td className="p-2 sm:p-3 text-right tabular-nums align-middle whitespace-nowrap">
                                           {orderBalance !== undefined

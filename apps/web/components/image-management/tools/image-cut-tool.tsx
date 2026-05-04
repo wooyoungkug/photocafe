@@ -10,6 +10,7 @@ import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-u
 import { saveToFolder, fallbackDownload, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 export function ImageCutTool() {
   const [originalImage, setOriginalImage] = useState<HTMLImageElement | null>(null);
@@ -429,7 +430,7 @@ export function ImageCutTool() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div className="text-center p-2 bg-slate-50 rounded">
                 <p className="text-xs text-slate-500">파일명</p>
-                <p className="text-sm font-medium truncate">{fileName}</p>
+                <p className="text-sm font-medium truncate" title={fileName}>{formatThumbFileLabel(fileName)}</p>
               </div>
               <div className="text-center p-2 bg-slate-50 rounded">
                 <p className="text-xs text-slate-500">원본 크기</p>

@@ -23,10 +23,12 @@ import {
   useOrder,
   useAdjustOrder,
   useEditOrderWithAudit,
+  useDeleteOrderItemFile,
   ORDER_REPRINT_REQUIRED_STATUSES,
 } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
 import { resolveOrderFileAccessUrl } from '@/lib/order-file-access';
+import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 import {
   ImageIcon,
   Save,
@@ -45,6 +47,7 @@ import {
   ChevronRight,
   ExternalLink,
   X,
+  Trash2,
 } from 'lucide-react';
 import { cn, normalizeImageUrl } from '@/lib/utils';
 import { ItemSpecsEditor } from './item-specs-editor';
@@ -88,34 +91,21 @@ type BindingDirectionType =
   | 'RIGHT_START_LEFT_END'
   | 'RIGHT_START_RIGHT_END';
 
+/**
+ * 펼침면 페이지 번호(미리보기·검수용).
+ * 표지/선행 빈면은 두지 않고 업로드 파일 순서대로 1부터 연번.
+ * (우시 제본 등으로 예전에 쓰던 첫 장 왼쪽 빈면 로직은 사용하지 않음.)
+ */
 function getSpreadPageNumbers(
   fileIndex: number,
   totalFiles: number,
   direction: BindingDirectionType | null
 ): { left: number | null; right: number | null } {
   const dir = direction || 'LEFT_START_RIGHT_END';
-  switch (dir) {
-    case 'LEFT_START_RIGHT_END':
-      return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
-    case 'LEFT_START_LEFT_END':
-      if (fileIndex === totalFiles - 1) {
-        return { left: fileIndex * 2 + 1, right: null };
-      }
-      return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
-    case 'RIGHT_START_LEFT_END':
-      if (fileIndex === 0) {
-        return { left: null, right: 1 };
-      }
-      if (fileIndex === totalFiles - 1 && totalFiles > 1) {
-        return { left: fileIndex * 2, right: null };
-      }
-      return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
-    case 'RIGHT_START_RIGHT_END':
-      if (fileIndex === 0) {
-        return { left: null, right: 1 };
-      }
-      return { left: fileIndex * 2, right: fileIndex * 2 + 1 };
+  if (dir === 'LEFT_START_LEFT_END' && fileIndex === totalFiles - 1 && totalFiles > 0) {
+    return { left: fileIndex * 2 + 1, right: null };
   }
+  return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
 }
 
 // 제본방향 + 파일 수 기준 실효 페이지 계산
@@ -266,14 +256,14 @@ function ImageLightbox({
       {/* 이미지 */}
       <img
         src={url}
-        alt={file.fileName}
+        alt={formatThumbFileLabel(file.fileName)}
         className="max-w-[88vw] max-h-[90vh] object-contain rounded shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       />
 
       {/* 파일명 */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 text-white/70 text-xs bg-black/50 px-4 py-1 rounded-full select-none">
-        {file.fileName}
+        {formatThumbFileLabel(file.fileName)}
       </div>
     </div>,
     document.body,
@@ -290,6 +280,40 @@ interface ThumbnailFile {
   sortOrder: number;
   pageRange?: string;
   pageStart?: number;
+  width?: number;
+  height?: number;
+  dpi?: number;
+}
+
+/**
+ * 총 장수 기준 순번 표기: 10미만 → 1,2… / 10~99 → 01,02… / 100장 이상 → 001,002…
+ */
+function thumbOrdLabel(zeroBasedIndex: number, totalCount: number): string {
+  const n = Math.max(0, zeroBasedIndex) + 1;
+  const t = Math.max(0, totalCount);
+  if (t < 10) return String(n);
+  if (t < 100) return String(n).padStart(2, '0');
+  return String(n).padStart(3, '0');
+}
+
+/** 썸네일 하단 1행: `01_28x11"_300dpi` (파일 순서 1부터 — sortOrder/표지 오프셋 없음) */
+function formatThumbSpecLine(file: ThumbnailFile, index: number, totalCount: number): string {
+  const ord = thumbOrdLabel(index, totalCount);
+
+  const w = file.width;
+  const h = file.height;
+  const dpi = file.dpi;
+
+  const fmt = (v: number) =>
+    Number.isInteger(v) || Math.abs(v - Math.round(v)) < 0.05 ? String(Math.round(v)) : v.toFixed(1);
+
+  if (typeof w === 'number' && typeof h === 'number' && w > 0 && h > 0 && typeof dpi === 'number' && dpi > 0) {
+    const wi = w / dpi;
+    const hi = h / dpi;
+    return `${ord}_${fmt(wi)}x${fmt(hi)}"_${dpi}dpi`;
+  }
+
+  return `${ord}_—x—"—dpi`;
 }
 
 function AdaptiveThumbnail({
@@ -301,6 +325,8 @@ function AdaptiveThumbnail({
   onOpenOriginal,
   openingFileId,
   allFiles,
+  onDeleteFile,
+  deletingFileId,
 }: {
   file: ThumbnailFile;
   index: number;
@@ -310,6 +336,8 @@ function AdaptiveThumbnail({
   onOpenOriginal?: (file: ThumbnailFile, files: ThumbnailFile[], index: number) => void;
   openingFileId?: string | null;
   allFiles: ThumbnailFile[];
+  onDeleteFile?: (file: ThumbnailFile) => void;
+  deletingFileId?: string | null;
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
   const [imgSrc, setImgSrc] = useState<string | null>(
@@ -361,7 +389,7 @@ function AdaptiveThumbnail({
         {imgSrc ? (
           <img
             src={imgSrc}
-            alt={file.fileName}
+            alt={formatThumbFileLabel(file.fileName)}
             className={cn(
               'w-full object-contain',
               aspectStyle ? 'h-full' : 'h-auto'
@@ -384,7 +412,7 @@ function AdaptiveThumbnail({
           return (
             <div
               className={cn(
-                'absolute inset-y-1 w-[calc(50%-4px)] pointer-events-none flex items-center justify-center bg-blue-50/85 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
+                'absolute inset-y-1 w-[calc(50%-4px)] pointer-events-none flex items-center justify-center bg-blue-50/50 border-2 border-dashed border-blue-400 overflow-hidden rounded-md',
                 leftBlank ? 'left-1' : 'right-1'
               )}
               aria-label="빈 페이지"
@@ -395,8 +423,8 @@ function AdaptiveThumbnail({
                 preserveAspectRatio="none"
                 aria-hidden="true"
               >
-                <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
-                <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.6)" strokeWidth="1.5" />
+                <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.55)" strokeWidth="1.5" />
+                <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.55)" strokeWidth="1.5" />
               </svg>
               <span className="relative text-xs font-bold text-blue-600 select-none bg-white/95 rounded px-1.5 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
             </div>
@@ -408,16 +436,16 @@ function AdaptiveThumbnail({
           return (
             <>
               <div className={cn(
-                'absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
-                pages.left !== null ? 'bg-red-600' : 'bg-blue-500'
+                'absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium',
+                pages.left !== null ? 'bg-pink-500 text-white' : 'bg-pink-200 text-pink-900'
               )}
                 title={pages.left !== null ? undefined : '빈 페이지(空)'}
               >
                 {pages.left !== null ? pages.left : '空'}
               </div>
               <div className={cn(
-                'absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-[10px] font-medium',
-                pages.right !== null ? 'bg-red-600' : 'bg-blue-500'
+                'absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-medium',
+                pages.right !== null ? 'bg-pink-500 text-white' : 'bg-pink-200 text-pink-900'
               )}
                 title={pages.right !== null ? undefined : '빈 페이지(空)'}
               >
@@ -426,15 +454,40 @@ function AdaptiveThumbnail({
             </>
           );
         })() : (
-          <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center bg-red-600 text-white text-[10px] font-medium">
+          <div className="absolute top-1 left-1 w-5 h-5 rounded-full flex items-center justify-center bg-pink-500 text-white text-[10px] font-medium">
             {index + 1}
           </div>
         )}
+        {onDeleteFile && (
+          <button
+            type="button"
+            className="absolute bottom-1 right-1 z-20 rounded border border-gray-300 bg-white/95 p-1 text-red-600 shadow hover:bg-red-50"
+            title="이미지 삭제"
+            aria-label="이미지 삭제"
+            disabled={deletingFileId === file.id}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteFile(file);
+            }}
+          >
+            {deletingFileId === file.id ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+          </button>
+        )}
       </div>
       <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md bg-white border-gray-200">
-        <div className="truncate font-medium" title={file.fileName}>{file.fileName}</div>
-        <div className="text-gray-500">
-          {file.pageRange || `${file.pageStart}p`}
+        <div
+          className="truncate text-center font-medium text-black tabular-nums"
+          title={
+            file.pageRange
+              ? `${file.fileName} · ${formatThumbSpecLine(file, index, allFiles.length)} · ${file.pageRange}`
+              : `${file.fileName} · ${formatThumbSpecLine(file, index, allFiles.length)}`
+          }
+        >
+          {formatThumbSpecLine(file, index, allFiles.length)}
         </div>
       </div>
     </div>
@@ -447,12 +500,16 @@ function ThumbnailGrid({
   bindingDirection,
   onOpenOriginal,
   openingFileId,
+  onDeleteFile,
+  deletingFileId,
 }: {
   files: ThumbnailFile[];
   pageLayout?: string;
   bindingDirection?: BindingDirectionType;
   onOpenOriginal?: (file: ThumbnailFile, files: ThumbnailFile[], index: number) => void;
   openingFileId?: string | null;
+  onDeleteFile?: (file: ThumbnailFile) => void;
+  deletingFileId?: string | null;
 }) {
   const [isOpen, setIsOpen] = useState(true);
   const direction = bindingDirection || 'LEFT_START_RIGHT_END';
@@ -469,24 +526,16 @@ function ThumbnailGrid({
       onOpenOriginal={onOpenOriginal}
       openingFileId={openingFileId}
       allFiles={files}
+      onDeleteFile={onDeleteFile}
+      deletingFileId={deletingFileId}
     />
   );
 
-  // 낱장 모드: 2p씩 묶어서 스프레드 표시
+  // 낱장 모드: 2p씩 묶어서 스프레드 표시 (표지용 선행 빈칸 없음)
   if (pageLayout === 'single' || !pageLayout) {
-    const startsRight = direction.startsWith('RIGHT');
-
     type SpreadSlot = { type: 'page'; fileIndex: number } | { type: 'blank' };
     const spreads: Array<{ left: SpreadSlot; right: SpreadSlot }> = [];
     let i = 0;
-
-    if (startsRight && totalFiles > 0) {
-      spreads.push({
-        left: { type: 'blank' },
-        right: { type: 'page', fileIndex: 0 },
-      });
-      i = 1;
-    }
 
     while (i < totalFiles) {
       if (i + 1 < totalFiles) {
@@ -506,8 +555,7 @@ function ThumbnailGrid({
 
     const renderBlankSlot = () => (
       <div className="flex flex-col">
-        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 aspect-[3/4] flex items-center justify-center overflow-hidden">
-          {/* 대각선 X 표식 — 인쇄 표준의 "의도적 빈 페이지" 마크 */}
+        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/50 aspect-[3/4] flex items-center justify-center overflow-hidden">
           <svg
             className="absolute inset-0 w-full h-full"
             viewBox="0 0 100 100"
@@ -552,7 +600,7 @@ function ThumbnailGrid({
                   key={spreadIdx}
                   className={cn(
                     'border-2 border-dashed rounded-lg p-1',
-                    !hasBoth ? 'border-blue-400 bg-blue-50/30' : 'border-orange-300 bg-orange-50/20'
+                    !hasBoth ? 'border-blue-400 bg-blue-50/50' : 'border-orange-300 bg-orange-50/20'
                   )}
                 >
                   <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
@@ -605,6 +653,7 @@ export function OrderQuickEditDialog({
 }: OrderQuickEditDialogProps) {
   const adjustOrder = useAdjustOrder();
   const editWithAudit = useEditOrderWithAudit();
+  const deleteOrderItemFile = useDeleteOrderItemFile();
   // 권한 체크 — super_admin 만 출력대기 이후 상태에서 사양 편집 가능.
   const { user: currentUser } = useCurrentUser();
   const isSuperAdmin =
@@ -871,6 +920,32 @@ export function OrderQuickEditDialog({
     await performSave();
   };
 
+  const handleDeleteItemFile = (itemId: string, file: ThumbnailFile) => {
+    if (!displayOrder?.id || displayOrder.status !== 'pending_receipt') return;
+    if (
+      !window.confirm(
+        `이 이미지를 삭제할까요?\n${file.fileName}\n\n삭제 후에는 되돌릴 수 없습니다.`,
+      )
+    ) {
+      return;
+    }
+    deleteOrderItemFile.mutate(
+      { orderId: displayOrder.id, itemId, fileId: file.id },
+      {
+        onSuccess: () => {
+          toast({ title: '이미지가 삭제되었습니다.' });
+        },
+        onError: (err: Error) => {
+          toast({
+            title: '삭제에 실패했습니다.',
+            description: err.message,
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  };
+
   const handlePreviewImage = async (
     file: ThumbnailFile,
     files: ThumbnailFile[] = [],
@@ -1081,6 +1156,17 @@ export function OrderQuickEditDialog({
                           bindingDirection={edit.bindingDirection as BindingDirectionType | undefined}
                           onOpenOriginal={handlePreviewImage}
                           openingFileId={openingFileId}
+                          onDeleteFile={
+                            displayOrder.status === 'pending_receipt'
+                              ? (f) => handleDeleteItemFile(item.id, f)
+                              : undefined
+                          }
+                          deletingFileId={
+                            deleteOrderItemFile.isPending &&
+                            deleteOrderItemFile.variables?.fileId
+                              ? deleteOrderItemFile.variables.fileId
+                              : null
+                          }
                         />
                       ) : item.thumbnailUrl ? (
                         <div>

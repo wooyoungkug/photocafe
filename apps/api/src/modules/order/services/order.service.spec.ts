@@ -22,6 +22,8 @@ import { B2StorageService } from '@/modules/upload/services/b2-storage.service';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { SalesLedgerService } from '@/modules/accounting/services/sales-ledger.service';
 import { NotificationService } from '@/modules/notification/notification.service';
+import { KakaoAlimtalkService } from '@/common/kakao-alimtalk/kakao-alimtalk.service';
+import { PrintPdfSlipPrinterService } from '@/modules/print-pdf/services/print-pdf-slip-printer.service';
 import { ORDER_STATUS } from '../dto/order.dto';
 
 // =====================================================
@@ -155,6 +157,11 @@ describe('OrderService — 편집/재출력/알림 시나리오', () => {
         { provide: B2StorageService, useValue: { isEnabled: () => false } },
         { provide: AuditLogService, useValue: { record: jest.fn() } },
         { provide: NotificationService, useValue: notificationService },
+        { provide: KakaoAlimtalkService, useValue: {} },
+        {
+          provide: PrintPdfSlipPrinterService,
+          useValue: { printSlipIfEnabled: jest.fn().mockResolvedValue(undefined) },
+        },
       ],
     }).compile();
 

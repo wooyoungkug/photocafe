@@ -214,6 +214,27 @@ export function usePrinterList() {
   });
 }
 
+export interface ScanPrintQueueToFinishingResult {
+  ok: boolean;
+  already?: boolean;
+  orderId: string;
+  orderNumber: string;
+  studioName: string;
+  message?: string;
+}
+
+export function useScanPrintQueueToFinishing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) =>
+      api.post<ScanPrintQueueToFinishingResult>('/print-pdf/queue/scan-to-finishing', { code }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['print-queue'] });
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+    },
+  });
+}
+
 export function usePrintQueue(params?: {
   dateFrom?: string;
   dateTo?: string;

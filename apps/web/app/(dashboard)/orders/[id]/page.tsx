@@ -29,6 +29,7 @@ import { OrderQuickEditDialog } from '../components/order-quick-edit-dialog';
 import { ProcessHistoryDialog } from '@/components/order/process-history-dialog';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { displayFinalAmount } from '@/lib/order-display';
 
 const STATUS_STYLE: Record<string, { className: string; icon: React.ReactNode }> = {
   pending_receipt: { className: 'bg-orange-100 text-orange-700', icon: <Clock className="h-4 w-4" /> },
@@ -277,7 +278,7 @@ export default function OrderDetailPage() {
               <Separator className="my-1" />
               <div className="flex items-center justify-between">
                 <p className="text-[14px] font-bold text-black">최종금액</p>
-                <p className="text-[18px] font-bold text-black">{formatAmount(order.finalAmount)}</p>
+                <p className="text-[18px] font-bold text-black">{formatAmount(displayFinalAmount(order))}</p>
               </div>
               {order.salesLedger && (
                 <>
