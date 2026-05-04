@@ -6,6 +6,21 @@
         "mcp-server-fetch"
       ]
     },
+    "kakao-navigation": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@smithery/cli@3.19.0",
+        "run",
+        "@CaChiJ/kakao-navigation-mcp-server",
+        "--config",
+        "{\"kakaoRestApiKey\":\"3cf0eb4033e4fcb5a991b5cdfbfacbcd\"}"
+      ],
+      "env": {
+        "KAKAO_REST_API_KEY": "3cf0eb4033e4fcb5a991b5cdfbfacbcd"
+      }
+    },
     "playwright": {
       "command": "npx",
       "args": [
