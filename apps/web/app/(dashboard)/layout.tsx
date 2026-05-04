@@ -3,7 +3,7 @@ import { DashboardLayoutClient } from "./dashboard-layout-client";
 
 export const metadata: Metadata = {
   icons: {
-    icon: "/images/favicon_Brown.png",
+    icon: "/images/favicon-512x512_Brown.png",
     apple: "/images/apple-touch-icon_Brown.png",
   },
 };
