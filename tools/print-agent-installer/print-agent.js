@@ -626,6 +626,7 @@ const server = http.createServer(async (req, res) => {
           '--disable-dev-shm-usage',
           `--print-to-pdf=${tempPdf}`,
           '--print-to-pdf-no-header',
+          '--no-pdf-header-footer',
           '--run-all-compositor-stages-before-draw',
           '--virtual-time-budget=5000',
           printUrl,

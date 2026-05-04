@@ -89,6 +89,16 @@ export default function PrintSlipPage() {
   const printToken = searchParams.get('printToken') ?? undefined;
   const { data, isLoading, isError } = usePrintQueueItemDetail(orderItemId, printToken);
 
+  useEffect(() => {
+    if (!data || isError) return;
+    const prev = document.title;
+    const num = (data as any).order?.orderNumber;
+    document.title = num ? `작업 지시서 ${num}` : '작업 지시서';
+    return () => {
+      document.title = prev;
+    };
+  }, [data, isError]);
+
   if (isLoading) {
     return <div className="flex items-center justify-center h-screen text-[14px] text-black">로딩 중...</div>;
   }
@@ -159,15 +169,66 @@ export default function PrintSlipPage() {
     <>
       <style jsx global>{`
         @media print {
-          .no-print { display: none !important; }
-          body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
-          #slip-wrapper { padding: 0 !important; gap: 0 !important; }
-          .a4-page, .a4-page-cont { box-shadow: none !important; border: none !important; break-after: page; }
-          .a4-page-cont:last-child { break-after: avoid; }
-          @page { size: A4 portrait; margin: 10mm; }
-          img, canvas { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          /* Sonner 등 포털 — visibility:hidden 은 공간을 남겨 빈 2페이지 유발 가능 */
+          [data-sonner-toaster],
+          section[aria-live="polite"][tabindex="-1"][aria-label] {
+            display: none !important;
+          }
+          /* 본문만 인쇄 (출력대기 슬립 페이지와 동일 패턴) */
+          body * {
+            visibility: hidden !important;
+          }
+          #slip-wrapper,
+          #slip-wrapper * {
+            visibility: visible !important;
+          }
+          #slip-wrapper {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+            gap: 0 !important;
+          }
+          .no-print {
+            display: none !important;
+            visibility: hidden !important;
+          }
+          html,
+          body {
+            background: #fff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          .a4-page,
+          .a4-page-cont {
+            box-shadow: none !important;
+            border: none !important;
+          }
+          #slip-wrapper > *:not(:last-child) {
+            break-after: page;
+          }
+          .a4-page:last-child,
+          .a4-page-cont:last-child {
+            break-after: avoid !important;
+            page-break-after: avoid !important;
+          }
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+          img,
+          canvas {
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
         }
-        body { background: #f5f5f5; margin: 0; }
+        body {
+          background: #f5f5f5;
+          margin: 0;
+        }
       `}</style>
 
       {/* 툴바 */}

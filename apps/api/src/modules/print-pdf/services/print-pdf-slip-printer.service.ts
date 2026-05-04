@@ -126,7 +126,9 @@ export class PrintPdfSlipPrinterService {
       const pdfBuffer = await page.pdf({
         format: 'A4',
         printBackground: true,
-        margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
+        preferCSSPageSize: true,
+        displayHeaderFooter: false,
+        margin: { top: '8mm', bottom: '8mm', left: '8mm', right: '8mm' },
       });
 
       const pdfFile = path.join(os.tmpdir(), `slip-${Date.now()}.pdf`);

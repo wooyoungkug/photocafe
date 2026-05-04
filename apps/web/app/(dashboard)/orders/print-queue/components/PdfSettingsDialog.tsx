@@ -40,6 +40,7 @@ import {
   getAgentSavePath,
   setAgentSavePath as saveAgentSavePathToAgent,
 } from '@/hooks/use-print-pdf';
+import { PrintAgentStatusStrip } from './print-agent-status';
 
 interface PdfSettingsDialogProps {
   open: boolean;
@@ -243,6 +244,32 @@ export default function PdfSettingsDialog({
     }
   };
 
+  const handleAgentRecheck = async () => {
+    setAgentRetrying(true);
+    const ok = await checkPrintAgentRunning();
+    setAgentRunning(ok);
+    if (ok) {
+      refetchPrinters();
+      fetchAgentWatchConfig().then((cfg) => {
+        if (!cfg) return;
+        setWatchEnabled(cfg.watchEnabled);
+        setWatchFolder(cfg.watchFolder);
+        setWatchIndigoPrinter(cfg.indigoPrinter);
+        setWatchInkjetPrinter(cfg.inkjetPrinter);
+      });
+      getAgentSavePath().then((path) => {
+        if (path) {
+          setAgentSavePath(path);
+          localStorage.setItem(LS_AGENT_PATH_KEY, path);
+        }
+      });
+      toast.success('에이전트 연결 성공! 프린터 목록을 불러옵니다.');
+    } else {
+      toast.error('에이전트에 연결할 수 없습니다. 에이전트가 실행 중인지 확인해주세요.');
+    }
+    setAgentRetrying(false);
+  };
+
   // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
   useEffect(() => {
     restoreGlobalDirHandle().then((handle) => {
@@ -397,6 +424,12 @@ export default function PdfSettingsDialog({
             JDF+PDF 출력 설정
           </DialogTitle>
         </DialogHeader>
+
+        <PrintAgentStatusStrip
+          agentRunning={agentRunning}
+          rechecking={agentRetrying}
+          onRecheck={handleAgentRecheck}
+        />
 
         <div className="space-y-5 py-2">
 
@@ -629,7 +662,7 @@ export default function PdfSettingsDialog({
                   <p className="text-[12px] text-green-700">
                     {agentRunning
                       ? '로컬 프린트 에이전트가 실행 중입니다. 여기에 경로를 설정하면 브라우저 권한 팝업 없이 항상 이 폴더에 저장됩니다.'
-                      : '에이전트가 실행되지 않았습니다. tools/print-agent/프린트에이전트_실행.bat을 먼저 실행하세요.'}
+                      : '에이전트가 실행되지 않았습니다. tools/print-agent/run-print-agent.bat(또는 프린트에이전트_실행.bat)을 먼저 실행하세요.'}
                   </p>
                 </div>
 
@@ -746,7 +779,7 @@ export default function PdfSettingsDialog({
                 <div className="text-[12px] bg-amber-50 border border-amber-200 px-3 py-2.5 rounded">
                   <p className="text-amber-700 font-medium">에이전트가 실행 중이 아닙니다.</p>
                   <p className="text-amber-600 mt-0.5">
-                    <span className="font-mono bg-amber-100 px-1 rounded">tools/print-agent/프린트에이전트_실행.bat</span> 를 실행한 뒤 연결 재시도를 눌러주세요.
+                    <span className="font-mono bg-amber-100 px-1 rounded">tools/print-agent/run-print-agent.bat</span> 를 실행한 뒤 연결 재시도를 눌러주세요.
                   </p>
                 </div>
               )}
@@ -873,18 +906,7 @@ export default function PdfSettingsDialog({
                         type="button"
                         disabled={agentRetrying}
                         className="text-[11px] text-amber-700 underline disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={async () => {
-                          setAgentRetrying(true);
-                          const ok = await checkPrintAgentRunning();
-                          setAgentRunning(ok);
-                          if (ok) {
-                            refetchPrinters();
-                            toast.success('에이전트 연결 성공! 프린터 목록을 불러옵니다.');
-                          } else {
-                            toast.error('에이전트에 연결할 수 없습니다. 에이전트가 실행 중인지 확인해주세요.');
-                          }
-                          setAgentRetrying(false);
-                        }}
+                        onClick={() => handleAgentRecheck()}
                       >
                         {agentRetrying ? '확인 중...' : '에이전트 연결 재시도'}
                       </button>

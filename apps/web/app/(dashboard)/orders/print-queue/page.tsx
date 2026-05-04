@@ -23,6 +23,7 @@ import PdfSettingsDialog, {
   getGlobalDirHandle,
 } from './components/PdfSettingsDialog';
 import ImpositionSettingsDialog from './components/ImpositionSettingsDialog';
+import { PrintAgentStatusCard } from './components/print-agent-status';
 import { OrderQuickEditDialog } from '../components/order-quick-edit-dialog';
 import type { PrintQueueItem } from '@/hooks/use-print-pdf';
 import type { Order } from '@/hooks/use-orders';
@@ -237,6 +238,8 @@ export default function PrintQueuePage() {
           </Button>
         </div>
       </div>
+
+      <PrintAgentStatusCard pollMs={15000} />
 
       {/* 필터/액션 바 */}
       <Card>
