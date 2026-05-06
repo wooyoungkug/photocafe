@@ -392,6 +392,7 @@ model Client {
   totalClaims                Int                            @default(0)
   duplicateCheckMonths       Int?
   fileRetentionDays          Int                            @default(90)
+  fileRetentionMonths        Int                            @default(3)
   thumbnailRetentionMonths   Int                            @default(6)
   adminMemo                  String?
   approvalManagerName        String?
