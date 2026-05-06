@@ -114,7 +114,7 @@ export default function OrderDetailPage() {
           <span className="flex items-center gap-3">
             주문 상세
             {order.isUrgent && (
-              <Badge className="bg-red-500 text-white text-[12px]">긴급</Badge>
+              <Badge className="bg-[#EC008C] hover:bg-[#EC008C]/80 text-white text-[12px] border-[#EC008C]">긴급</Badge>
             )}
           </span>
         }

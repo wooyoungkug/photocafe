@@ -696,7 +696,7 @@ export default function OrderListPage() {
                 className={cn(
                   'shrink-0 rounded-md border px-2.5 py-1.5 text-[14px] font-normal transition-colors whitespace-nowrap',
                   active
-                    ? 'border-red-500 bg-red-500 text-white'
+                    ? 'border-[#EC008C] bg-[#EC008C] text-white'
                     : 'border-gray-300 bg-white text-black hover:bg-gray-50',
                 )}
               >
@@ -787,7 +787,7 @@ export default function OrderListPage() {
                           </button>
                           <div className="flex items-center gap-1 mt-0.5">
                             {order.isUrgent && (
-                              <Badge variant="destructive" className="text-[10px] px-1 py-0">긴급</Badge>
+                              <Badge className="text-[10px] px-1 py-0 bg-[#EC008C] hover:bg-[#EC008C]/80 text-white border-[#EC008C]">긴급</Badge>
                             )}
                             {order.isDuplicateOverride && (
                               <Badge variant="outline" className="text-[10px] px-1 py-0 border-amber-400 text-amber-600 bg-amber-50">중복주의</Badge>
@@ -833,7 +833,7 @@ export default function OrderListPage() {
                         </div>
                         <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
                           {/긴급|urgent|초지급/i.test(item.folderName || item.productName || '') && (
-                            <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
+                            <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-[#EC008C] text-white leading-4">긴급</span>
                           )}
                           {item.folderName || item.productName}
                         </div>
@@ -1016,7 +1016,7 @@ export default function OrderListPage() {
                                 {order.orderNumber}
                               </button>
                               {order.isUrgent && (
-                                <Badge variant="destructive" className="text-xs px-1 py-0">긴급</Badge>
+                                <Badge className="text-xs px-1 py-0 bg-[#EC008C] hover:bg-[#EC008C]/80 text-white border-[#EC008C]">긴급</Badge>
                               )}
                               {order.isDuplicateOverride && (
                                 <Badge variant="outline" className="text-xs px-1 py-0 border-amber-400 text-amber-600 bg-amber-50">중복주의</Badge>
@@ -1060,7 +1060,7 @@ export default function OrderListPage() {
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5 text-sm font-normal text-foreground hover:underline" title={item.folderName || item.productName}>
                               {/긴급|urgent|초지급/i.test(item.folderName || item.productName || '') && (
-                                <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
+                                <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-[#EC008C] text-white leading-4">긴급</span>
                               )}
                               <span className="truncate">{item.folderName || item.productName}</span>
                             </div>

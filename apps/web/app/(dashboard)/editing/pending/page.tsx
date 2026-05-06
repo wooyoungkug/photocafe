@@ -238,7 +238,7 @@ export default function EditingPendingPage() {
                     </TableCell>
                     <TableCell className="text-center">
                       {order.priority === "urgent" ? (
-                        <Badge variant="destructive">긴급</Badge>
+                        <Badge className="bg-[#EC008C] hover:bg-[#EC008C]/80 text-white border-[#EC008C]">긴급</Badge>
                       ) : (
                         <Badge variant="secondary">일반</Badge>
                       )}

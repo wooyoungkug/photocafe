@@ -612,7 +612,7 @@ export default function MyOrdersPage() {
                         <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-primary font-medium hover:underline">
                           {order.orderNumber}
                         </Link>
-                        {order.isUrgent && <Badge variant="destructive" className="text-[11px] px-1.5 py-0">긴급</Badge>}
+                        {order.isUrgent && <Badge className="text-[11px] px-1.5 py-0 bg-[#EC008C] hover:bg-[#EC008C]/80 text-white border-[#EC008C]">긴급</Badge>}
                       </div>
                       <Badge className={cn('text-[12px]', statusBadge.className)}>
                         {statusBadge.label}
@@ -765,7 +765,7 @@ export default function MyOrdersPage() {
                               <Link href={`/mypage/orders/${order.id}`} className="text-[14px] text-primary hover:underline">
                                 {order.orderNumber}
                               </Link>
-                              {order.isUrgent && <Badge variant="destructive" className="text-[11px] px-1 py-0">긴급</Badge>}
+                              {order.isUrgent && <Badge className="text-[11px] px-1 py-0 bg-[#EC008C] hover:bg-[#EC008C]/80 text-white border-[#EC008C]">긴급</Badge>}
                             </div>
                           </TableCell>
                         )}
