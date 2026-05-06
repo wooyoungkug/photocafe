@@ -545,7 +545,7 @@ export class OrderService {
             OR: [
               { orderNumber: { contains: search, mode: 'insensitive' } },
               { client: { clientName: { contains: search, mode: 'insensitive' } } },
-              { client: { managerName: { contains: search, mode: 'insensitive' } } },
+              { client: { assignedManager: { contains: search, mode: 'insensitive' } } },
               { client: { assignedStaff: { some: { staff: { name: { contains: search, mode: 'insensitive' } } } } } },
               { items: { some: { productName: { contains: search, mode: 'insensitive' } } } },
               { items: { some: { folderName: { contains: search, mode: 'insensitive' } } } },
