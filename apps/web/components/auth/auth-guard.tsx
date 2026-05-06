@@ -27,8 +27,6 @@ async function tryRecoverSession(): Promise<boolean> {
     if (!res.ok) return false;
     await res.json().catch(() => ({}));
 
-    // auth-verified 쿠키 갱신
-    document.cookie = `auth-verified=true; path=/; max-age=${30 * 24 * 60 * 60}; SameSite=Lax`;
     return true;
   } catch {
     return false;
@@ -59,8 +57,7 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
             checkedRef.current = true;
             authCache = null;
             // 쿠키도 정리
-            document.cookie = 'auth-verified=; path=/; max-age=0';
-            window.location.href = loginPath;
+              window.location.href = loginPath;
             return;
           }
           meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
@@ -71,7 +68,6 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
           checkedRef.current = true;
           authCache = null;
           // 쿠키도 정리
-          document.cookie = 'auth-verified=; path=/; max-age=0';
           window.location.href = loginPath;
           return;
         }

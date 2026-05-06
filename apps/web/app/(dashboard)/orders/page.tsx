@@ -245,7 +245,7 @@ function ReceiptCompletedOutputCell({
               {slipOk ? (
                 <span className="text-green-700 font-medium">지시서</span>
               ) : (
-                <a href={`/print-slip/${it.id}`} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">지시서 대기</a>
+                <span className="text-red-600">지시서 대기</span>
               )}
             </div>
             <div className="flex flex-col gap-1 pt-0.5">
@@ -905,9 +905,7 @@ export default function OrderListPage() {
                                 지시서
                               </a>
                             ) : (
-                              <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
-                                지시서 대기
-                              </a>
+                              <span className="text-red-600">지시서 대기</span>
                             )}
                           </div>
                         </div>
@@ -1218,9 +1216,7 @@ export default function OrderListPage() {
                                         지시서
                                       </a>
                                     ) : (
-                                      <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:underline">
-                                        지시서 대기
-                                      </a>
+                                      <span className="text-red-600">지시서 대기</span>
                                     )}
                                   </div>
                                 </div>

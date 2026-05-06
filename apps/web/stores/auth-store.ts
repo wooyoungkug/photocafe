@@ -134,11 +134,9 @@ export const useAuthStore = create<AuthState>()(
             // localStorage에 admin 세션이 있으면 sessionStorage에만 저장해 원본 세션 보호
           }
 
-          // 관리자/직원 로그인 시 미들웨어 인증 쿠키 설정
-          if (isNewLoginAdmin) {
-            const cookieMaxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
-            document.cookie = `auth-verified=true; path=/; max-age=${cookieMaxAge}; SameSite=Lax`;
-          }
+          // 미들웨어 인증은 HttpOnly access_token 쿠키(백엔드 발급)로 검증하므로
+          // JS로 auth-verified 쿠키를 별도 설정하지 않음
+          void isNewLoginAdmin;
         }
         set({
           user,
@@ -165,7 +163,6 @@ export const useAuthStore = create<AuthState>()(
           sessionStorage.removeItem('impersonate-tokens');
           localStorage.removeItem('impersonate-tokens');
           sessionStorage.removeItem('owner-session');
-          document.cookie = 'auth-verified=; path=/; max-age=0';
         }
         set({
           user: null,

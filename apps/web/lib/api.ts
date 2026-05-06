@@ -11,29 +11,11 @@ interface RequestOptions extends RequestInit {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-function renewAuthCookie() {
-  if (typeof window === 'undefined') return;
-  // auth-storage에서 role 확인
-  try {
-    const raw = localStorage.getItem('auth-storage') || sessionStorage.getItem('auth-storage');
-    if (!raw) return;
-    const parsed = JSON.parse(raw);
-    const role = parsed?.state?.user?.role;
-    const rememberMe = parsed?.state?.rememberMe ?? false;
-    if (role === 'admin' || role === 'staff') {
-      const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
-      document.cookie = `auth-verified=true; path=/; max-age=${maxAge}; SameSite=Lax`;
-    }
-  } catch {
-    // 무시
-  }
-}
 
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
   localStorage.removeItem('auth-storage');
   sessionStorage.removeItem('auth-storage');
-  document.cookie = 'auth-verified=; path=/; max-age=0';
   fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 
@@ -81,7 +63,6 @@ async function refreshAccessToken(): Promise<string | null> {
         }
 
         const data = await response.json();
-        renewAuthCookie();
         return data?.accessToken ?? 'ok';
       } catch (err) {
         // 네트워크 에러 (서버 재시작 중 등) - 첫 번째 시도면 재시도
