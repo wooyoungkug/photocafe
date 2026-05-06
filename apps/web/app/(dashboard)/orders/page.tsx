@@ -47,6 +47,14 @@ import { ko } from 'date-fns/locale';
 
 type DateRangePreset = '1w' | '1m' | '3m' | '6m' | '1y' | 'custom';
 
+const PAGE_SIZE_OPTIONS = [
+  { value: 20, label: '20개' },
+  { value: 30, label: '30개' },
+  { value: 50, label: '50개' },
+  { value: 100, label: '100개' },
+  { value: 9999, label: '전체' },
+];
+
 const DATE_RANGE_LABELS: Record<DateRangePreset, string> = {
   '1w': '1주일',
   '1m': '1개월',
@@ -365,7 +373,17 @@ export default function OrderListPage() {
   const [productionStage, setProductionStage] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const limit = 20;
+  const [limit, setLimit] = useState<number>(() => {
+    if (typeof window === 'undefined') return 20;
+    const saved = localStorage.getItem('orders-page-size');
+    return saved ? Number(saved) : 20;
+  });
+
+  const handleLimitChange = (val: string) => {
+    const num = Number(val);
+    setLimit(num);
+    localStorage.setItem('orders-page-size', String(num));
+  };
 
   // 검색어 300ms 디바운스
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -654,10 +672,11 @@ export default function OrderListPage() {
 
 
       {!isPendingPage ? (
+        <div className="relative pb-2">
         <div
           role="tablist"
           aria-label="주문 공정별 필터"
-          className="flex flex-wrap justify-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 -mx-0.5 px-0.5"
+          className="flex flex-wrap justify-center gap-1.5 sm:gap-2 pr-20"
         >
           {PRODUCTION_STAGE_TABS.map((tab) => {
             const active = productionStage === tab.id;
@@ -667,7 +686,7 @@ export default function OrderListPage() {
                 key={tab.id}
                 type="button"
                 role="tab"
-                aria-selected={active ? 'true' : 'false'}
+                aria-selected={active}
                 onClick={() => {
                   setProductionStage(tab.id);
                 }}
@@ -687,6 +706,19 @@ export default function OrderListPage() {
               </button>
             );
           })}
+        </div>
+          <div className="absolute right-0 top-0">
+            <Select value={String(limit)} onValueChange={handleLimitChange}>
+              <SelectTrigger className="h-8 w-[76px] text-[13px] font-normal">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAGE_SIZE_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={String(opt.value)}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       ) : null}
 
