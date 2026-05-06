@@ -610,7 +610,7 @@ export default function MonthlySummaryPage() {
     '  table { page-break-inside: auto; }',
     '  tr { page-break-inside: avoid; page-break-after: auto; }',
     '  thead { display: table-header-group; }',
-    '  .ledger-table { font-size: 20px; }',
+    '  .ledger-table { font-size: 18px; }',
     '}',
   ].join('\n');
 
@@ -635,17 +635,17 @@ export default function MonthlySummaryPage() {
   const PrintHeader = ({ title }: { title: string }) => (
     <>
       {/* 타이틀 */}
-      <h1 className="text-center text-[17pt] font-bold tracking-widest mb-1">{title}</h1>
+      <h1 className="text-center text-[15pt] font-bold tracking-widest mb-1">{title}</h1>
       <div className="border-t-2 border-b border-black mb-3 pt-0.5" />
 
       {/* 공급받는자 + 공급자 */}
-      <div className="flex gap-4 mb-2 text-[10pt]">
+      <div className="flex gap-4 mb-2 text-[8pt]">
         {/* 공급받는자 */}
         <div className="flex-1 border border-gray-500">
-          <div className="bg-gray-100 text-center font-bold py-0.5 text-[10pt] border-b border-gray-500">
+          <div className="bg-gray-100 text-center font-bold py-0.5 text-[8pt] border-b border-gray-500">
             공 급 받 는 자
           </div>
-          <table className="border-collapse w-full text-[10pt]">
+          <table className="border-collapse w-full text-[8pt]">
             <tbody>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[70px]">거&nbsp;&nbsp;래&nbsp;&nbsp;처</td>
@@ -682,7 +682,7 @@ export default function MonthlySummaryPage() {
         </div>
         {/* 공급자 */}
         <div className="flex-1 border border-gray-500 relative">
-          <div className="bg-gray-100 text-center font-bold py-0.5 text-[10pt] border-b border-gray-500">
+          <div className="bg-gray-100 text-center font-bold py-0.5 text-[8pt] border-b border-gray-500">
             공 급 자
           </div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -693,7 +693,7 @@ export default function MonthlySummaryPage() {
             height={55}
             className="absolute top-[25px] right-[100px] z-10"
           />
-          <table className="border-collapse w-full text-[10pt]">
+          <table className="border-collapse w-full text-[8pt]">
             <tbody>
               <tr>
                 <td className="pl-2 pr-1 py-0.5 font-semibold whitespace-nowrap w-[70px]">상&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;호</td>
@@ -721,13 +721,13 @@ export default function MonthlySummaryPage() {
       </div>
 
       {/* 기간 + 출력일자 */}
-      <div className="flex justify-end text-[9pt] text-gray-600 space-x-6 mb-3">
+      <div className="flex justify-end text-[7pt] text-gray-600 space-x-6 mb-3">
         <div>기&nbsp;&nbsp;&nbsp;&nbsp;간: {printPeriodStart} ~ {printPeriodEnd}</div>
         <div>출력일자: {printToday}</div>
       </div>
 
       {/* 요약 박스 */}
-      <table className="w-full border-collapse mb-4 text-[10pt]">
+      <table className="w-full border-collapse mb-4 text-[8pt]">
         <thead>
           <tr style={{ backgroundColor: '#e5e7eb' }}>
             <th className="border border-gray-500 p-2 text-center font-semibold w-1/4">
@@ -764,8 +764,8 @@ export default function MonthlySummaryPage() {
                   : ''
               }`}
             >
-              {closingBalance > 0 && <span className="text-[8pt] mr-1">(미납)</span>}
-              {closingBalance < 0 && <span className="text-[8pt] mr-1">(선납)</span>}
+              {closingBalance > 0 && <span className="text-[6pt] mr-1">(미납)</span>}
+              {closingBalance < 0 && <span className="text-[6pt] mr-1">(선납)</span>}
               {closingBalance < 0 && '-'}
               {formatAmount(Math.abs(closingBalance))}원
             </td>
@@ -778,7 +778,7 @@ export default function MonthlySummaryPage() {
   // ===== 공통 서명/푸터 컴포넌트 =====
   const PrintFooter = () => (
     <>
-      <div className="mt-4 pt-3 border-t border-gray-300 text-[8pt] text-gray-500 text-center">
+      <div className="mt-4 pt-3 border-t border-gray-300 text-[6pt] text-gray-500 text-center">
         {printToday}기준 거래내역 입니다.&nbsp;&nbsp;|&nbsp;&nbsp;문의: (주)프린팅솔루션즈 고객지원부(1800-7682)
       </div>
     </>
@@ -798,7 +798,7 @@ export default function MonthlySummaryPage() {
           {/* 약식 인쇄 영역 */}
           <div
             id="monthly-print-area"
-            className="hidden print:block font-sans text-[11pt] text-black bg-white"
+            className="hidden print:block font-sans text-[9pt] text-black bg-white"
           >
         <PrintHeader title="월 별 거 래 내 역" />
 
@@ -815,12 +815,12 @@ export default function MonthlySummaryPage() {
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">
                 차&nbsp;변
                 <br />
-                <span className="text-[8pt] font-normal">(주문금액)</span>
+                <span className="text-[6pt] font-normal">(주문금액)</span>
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[110px]">
                 대&nbsp;변
                 <br />
-                <span className="text-[8pt] font-normal">(납부금액)</span>
+                <span className="text-[6pt] font-normal">(납부금액)</span>
               </th>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[140px]">
                 잔&nbsp;&nbsp;액
@@ -897,8 +897,8 @@ export default function MonthlySummaryPage() {
                     : ''
                 }`}
               >
-                {closingBalance > 0 && <span className="text-[8pt] mr-1">(미납)</span>}
-                {closingBalance < 0 && <span className="text-[8pt] mr-1">(선납)</span>}
+                {closingBalance > 0 && <span className="text-[6pt] mr-1">(미납)</span>}
+                {closingBalance < 0 && <span className="text-[6pt] mr-1">(선납)</span>}
                 {closingBalance < 0 && '-'}
                 {formatAmount(Math.abs(closingBalance))}원
               </td>
@@ -912,12 +912,12 @@ export default function MonthlySummaryPage() {
       {/* ===== 상세 인쇄 영역 ===== */}
       <div
         id="monthly-print-detail-area"
-        className="hidden print:block font-sans text-[10pt] text-black bg-white"
+        className="hidden print:block font-sans text-[8pt] text-black bg-white"
       >
         <PrintHeader title="월 별 상 세 거 래 내 역 서" />
 
         {/* 상세 거래 테이블 */}
-        <table className="w-full border-collapse text-[9pt]">
+        <table className="w-full border-collapse text-[7pt]">
           <thead>
             <tr style={{ backgroundColor: '#e5e7eb' }}>
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[90px]">
@@ -964,7 +964,7 @@ export default function MonthlySummaryPage() {
                   <tr style={{ backgroundColor: '#f3f4f6' }}>
                     <td
                       colSpan={5}
-                      className="border border-gray-500 p-1.5 font-bold text-[9pt]"
+                      className="border border-gray-500 p-1.5 font-bold text-[7pt]"
                     >
                       {format(new Date(date + 'T00:00:00'), 'yyyy년 MM월 dd일 (EEE)', {
                         locale: ko,
@@ -984,23 +984,23 @@ export default function MonthlySummaryPage() {
                           .join(' ');
                         return (
                           <tr key={item.id}>
-                            <td className="border border-gray-400 p-1 text-[8pt] text-gray-600 align-middle text-center">
+                            <td className="border border-gray-400 p-1 text-[6pt] text-gray-600 align-middle text-center">
                               {iIdx === 0 ? order.orderNumber : ''}
                             </td>
                             <td className="border border-gray-400 p-1">
                               <div>{item.folderName || order.orderNumber}</div>
-                              <div className="text-[8pt] text-gray-500">{subName || '-'}</div>
+                              <div className="text-[6pt] text-gray-500">{subName || '-'}</div>
                             </td>
                             <td className="border border-gray-400 p-1 text-center">
                               <div>{item.productName?.split(' - ')[0] || item.productName}</div>
-                              <div className="text-[8pt] text-gray-500">
+                              <div className="text-[6pt] text-gray-500">
                                 {item.size || '-'}{' '}
                                 {/앨범|잉크젯/i.test(item.printMethod) ? '양면' : '단면'}
                               </div>
                             </td>
                             <td className="border border-gray-400 p-1 text-center tabular-nums">
                               <div>{item.pages > 0 ? `${item.pages}p` : '-'}</div>
-                              <div className="text-[8pt] text-gray-500">{item.quantity > 0 ? `${item.quantity}부` : '-'}</div>
+                              <div className="text-[6pt] text-gray-500">{item.quantity > 0 ? `${item.quantity}부` : '-'}</div>
                             </td>
                             <td className="border border-gray-400 p-1 text-right tabular-nums align-middle">
                               {iIdx === 0 ? `${formatAmount(displayFinalAmount(order))}원` : ''}
