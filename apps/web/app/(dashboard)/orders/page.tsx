@@ -635,7 +635,7 @@ export default function OrderListPage() {
                   });
                 }}
                 disabled={scanToFinishing.isPending}
-                className="pl-9 pr-9 h-9"
+                className="pl-9 pr-9 h-9 border-blue-500 border-2 focus-visible:ring-blue-400"
               />
               {(isLoading || debouncedSearch !== search) && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -653,7 +653,7 @@ export default function OrderListPage() {
                 placeholder="주문번호·거래처 검색"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 pr-9 h-9"
+                className="pl-9 pr-9 h-9 border-blue-500 border-2 focus-visible:ring-blue-400"
               />
               {(isLoading || debouncedSearch !== search) && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
