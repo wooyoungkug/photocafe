@@ -530,14 +530,11 @@ export default function OrderListPage() {
         </div>
       ) : null}
 
-      {/* 조회결과 + 검색 */}
+      {/* 검색 */}
       <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground shrink-0">
-          조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
-          {selectedOrderIds.size > 0 && (
-            <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
-          )}
-        </span>
+        {selectedOrderIds.size > 0 && (
+          <span className="text-sm text-blue-600 font-medium">{selectedOrderIds.size}건 선택됨</span>
+        )}
         <div className="relative w-64 ml-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -943,6 +940,7 @@ export default function OrderListPage() {
                             <div className="space-y-1 whitespace-nowrap">
                               <div>{formatFileSize(Number(item.totalFileSize))}</div>
                               <button
+                                type="button"
                                 className="flex items-center justify-center gap-0.5 text-[13px] text-foreground hover:underline mx-auto disabled:opacity-50 whitespace-nowrap"
                                 onClick={() => handleDownloadOriginals(order.id, order.orderNumber)}
                                 disabled={isDownloading === order.id}
@@ -952,6 +950,7 @@ export default function OrderListPage() {
                               </button>
                               {order.status === 'shipped' && (
                                 <button
+                                  type="button"
                                   className="flex items-center justify-center gap-0.5 text-[13px] text-red-500 hover:underline mx-auto"
                                   onClick={() => {
                                     setDeleteOriginalsOrderId(order.id);
