@@ -104,6 +104,19 @@ export class UploadController {
             throw new BadRequestException('파일이 업로드되지 않았습니다.');
         }
 
+        // Magic number 검증 — MIME 헤더는 조작 가능하므로 파일 실제 바이트로 재확인
+        // JPEG: FF D8 FF | PNG: 89 50 4E 47 | TIFF(LE): 49 49 2A 00 | TIFF(BE): 4D 4D 00 2A | WEBP: 52 49 46 46...57 45 42 50
+        const sig = file.buffer.slice(0, 12);
+        const isJpeg = sig[0] === 0xFF && sig[1] === 0xD8 && sig[2] === 0xFF;
+        const isPng  = sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4E && sig[3] === 0x47;
+        const isTiff = (sig[0] === 0x49 && sig[1] === 0x49 && sig[2] === 0x2A) ||
+                       (sig[0] === 0x4D && sig[1] === 0x4D && sig[3] === 0x2A);
+        const isWebp = sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46 &&
+                       sig[8] === 0x57 && sig[9] === 0x45 && sig[10] === 0x42 && sig[11] === 0x50;
+        if (!isJpeg && !isPng && !isTiff && !isWebp) {
+            throw new BadRequestException('지원하지 않는 파일 형식입니다. (jpg, png, tif, webp만 허용)');
+        }
+
         // 경로 탐색 공격 방지
         const safeTempFolderId = (body.tempFolderId || '')
             .replace(/\.\./g, '')

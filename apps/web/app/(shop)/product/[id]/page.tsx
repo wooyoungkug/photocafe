@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useCartStore, type CartItemOption } from '@/stores/cart-store';
 import { useToast } from '@/hooks/use-toast';
 import { cn, normalizeImageUrl } from '@/lib/utils';
+import DOMPurify from 'isomorphic-dompurify';
 import { api } from '@/lib/api';
 import type { ProductSpecification, ProductBinding, ProductPaper, ProductCover, ProductFoil, ProductFinishing } from '@/lib/types';
 import { useAuthStore } from '@/stores/auth-store';
@@ -1379,7 +1380,7 @@ export default function ProductPage() {
                 );
               })()}
               {product.description ? (
-                <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: product.description }} />
+                <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description) }} />
               ) : (
                 <p className="text-gray-500 text-center py-8">{t('noDetailInfo')}</p>
               )}

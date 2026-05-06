@@ -614,7 +614,7 @@ export default function OrderListPage() {
                   });
                 }}
                 disabled={scanToFinishing.isPending}
-                className="pl-9 pr-9 h-9 text-[13px]"
+                className="pl-9 pr-9 h-9"
               />
               {(isLoading || debouncedSearch !== search) && (
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
@@ -797,7 +797,7 @@ export default function OrderListPage() {
                           </span>
                         </div>
                         <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                          {/긴급|초지급|급작업|급처리|급배송|급인쇄|급주문|급출력|급납|급행|특급|당일급|urgent/i.test(item.folderName || item.productName || '') && (
+                          {/긴급|urgent/i.test(item.folderName || item.productName || '') && (
                             <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
                           )}
                           {item.folderName || item.productName}
@@ -1022,7 +1022,7 @@ export default function OrderListPage() {
                         >
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5 text-sm font-normal text-foreground hover:underline" title={item.folderName || item.productName}>
-                              {/긴급|초지급|급작업|급처리|급배송|급인쇄|급주문|급출력|급납|급행|특급|당일급|urgent/i.test(item.folderName || item.productName || '') && (
+                              {/긴급|urgent/i.test(item.folderName || item.productName || '') && (
                                 <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
                               )}
                               <span className="truncate">{item.folderName || item.productName}</span>

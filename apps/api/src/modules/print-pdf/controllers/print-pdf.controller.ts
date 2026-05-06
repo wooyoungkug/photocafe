@@ -11,6 +11,7 @@ import {
   UnauthorizedException,
   BadRequestException,
   Logger,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Response } from 'express';
@@ -21,10 +22,12 @@ import { PrintPdfService } from '../services/print-pdf.service';
 import { PrintPdfSlipPrinterService } from '../services/print-pdf-slip-printer.service';
 import { GeneratePrintPdfDto, PrintQueueQueryDto, ScanPrintQueueToFinishingDto } from '../dto/print-pdf.dto';
 import { Public } from '../../../common/decorators/public.decorator';
+import { StaffOnlyGuard } from '../../../common/guards/staff-only.guard';
 
 @ApiTags('인쇄용 PDF 변환')
 @ApiBearerAuth()
 @Controller('print-pdf')
+@UseGuards(StaffOnlyGuard)
 export class PrintPdfController {
   private readonly logger = new Logger(PrintPdfController.name);
 

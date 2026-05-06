@@ -8,6 +8,7 @@ import { PrintPdfSlipPrinterService } from './services/print-pdf-slip-printer.se
 import { SystemSettingsModule } from '../system-settings/system-settings.module';
 import { ImpositionModule } from '../imposition/imposition.module';
 import { UploadModule } from '../upload/upload.module';
+import { StaffOnlyGuard } from '../../common/guards/staff-only.guard';
 
 @Module({
   imports: [SystemSettingsModule, forwardRef(() => ImpositionModule), UploadModule],
@@ -18,6 +19,7 @@ import { UploadModule } from '../upload/upload.module';
     PrintPdfLayoutService,
     PrintPdfAutoConvertService,
     PrintPdfSlipPrinterService,
+    StaffOnlyGuard,
   ],
   exports: [PrintPdfService, PrintPdfSlipPrinterService],
 })
