@@ -608,7 +608,7 @@ export default function OrderListPage() {
               )}
             </div>
             {/* 검색창 */}
-            <div className="relative w-72">
+            <div className="relative w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="주문번호, 제목, 상품명, 규격, 영업담당자..."
