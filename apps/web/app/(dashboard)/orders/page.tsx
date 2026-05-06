@@ -14,6 +14,7 @@ import {
   Download,
   Trash2,
   Truck,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -539,6 +540,8 @@ export default function OrderListPage() {
           {isPendingPage ? <Clock className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
           {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
+
+        {/* 주문목록: 정중앙 절대 배치 검색창 */}
         {!isPendingPage && (
           <div className="absolute left-1/2 -translate-x-1/2 w-72">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -568,22 +571,41 @@ export default function OrderListPage() {
                 });
               }}
               disabled={scanToFinishing.isPending}
-              className="pl-9 h-9"
+              className="pl-9 pr-9 h-9"
             />
+            {(isLoading || debouncedSearch !== search) && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
           </div>
         )}
-        {isPendingPage ? (
-          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-            <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUS_FILTER_OPTIONS.map(opt => (
-                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
+
+        {/* 접수대기: 오른쪽 정렬 검색창 + 상태필터 */}
+        {isPendingPage && (
+          <div className="ml-auto flex items-center gap-2">
+            <div className="relative w-52">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="주문번호·거래처 검색"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 pr-9 h-9"
+              />
+              {(isLoading || debouncedSearch !== search) && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+              <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTER_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
       {/* 기간별 검색 필터 (주문목록 전용) */}
@@ -652,7 +674,7 @@ export default function OrderListPage() {
                 key={tab.id}
                 type="button"
                 role="tab"
-                aria-selected={active}
+                aria-selected={active ? 'true' : 'false'}
                 onClick={() => {
                   setProductionStage(tab.id);
                   setPage(1);
