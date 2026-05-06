@@ -31,16 +31,18 @@ const RUN_HELP_TEXT = `[포토카페 프린트 에이전트 실행]
 
 ※ 포터블 설치본: 설치 폴더의「2_에이전트_시작.bat」를 사용한다.`;
 
-function PrintAgentIllustration({ connected }: { connected: boolean | null }) {
+function PrintAgentIllustration({ connected, size = 'md' }: { connected: boolean | null; size?: 'sm' | 'md' }) {
   const on = connected === true;
   const off = connected === false;
   const lamp = on ? '#22c55e' : off ? '#ef4444' : '#94a3b8';
   const cable = on ? '#16a34a' : '#cbd5e1';
+  const w = size === 'sm' ? 70 : 140;
+  const h = size === 'sm' ? 44 : 88;
 
   return (
     <svg
-      width="140"
-      height="88"
+      width={w}
+      height={h}
       viewBox="0 0 140 88"
       className="shrink-0"
       aria-hidden
@@ -149,28 +151,26 @@ export function PrintAgentStatusCard({ pollMs = 15000 }: { pollMs?: number }) {
   return (
     <>
       <Card className="border-slate-200 bg-slate-50/80">
-        <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4 min-w-0">
-            <PrintAgentIllustration connected={running} />
-            <div className="min-w-0">
-              <p className="text-[18px] text-black font-bold">{label}</p>
-              <p className="text-[14px] text-black font-normal text-gray-700 mt-0.5">{sub}</p>
-            </div>
+        <CardContent className="flex items-center gap-3 py-2 px-4">
+          <PrintAgentIllustration connected={running} size="sm" />
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] text-black font-bold leading-tight">{label}</p>
+            <p className="text-[12px] text-gray-500 font-normal leading-tight mt-0.5 truncate">{sub}</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={busy}
               onClick={() => refresh()}
-              className="gap-1.5 text-[14px]"
+              className="h-7 gap-1 text-[13px] px-2"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
               연결 재확인
             </Button>
             {running !== true && (
-              <Button type="button" size="sm" onClick={() => setHelpOpen(true)} className="text-[14px]">
+              <Button type="button" size="sm" onClick={() => setHelpOpen(true)} className="h-7 text-[13px] px-2">
                 실행 방법
               </Button>
             )}
@@ -200,25 +200,23 @@ export function PrintAgentStatusStrip({
   return (
     <>
       <Card className="border-slate-200 bg-slate-50/80">
-        <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <PrintAgentIllustration connected={agentRunning} />
-            <p className="text-[14px] text-black font-bold">{label}</p>
-          </div>
-          <div className="flex flex-wrap gap-2 shrink-0">
+        <CardContent className="flex items-center gap-3 py-2 px-4">
+          <PrintAgentIllustration connected={agentRunning} size="sm" />
+          <p className="flex-1 text-[13px] text-black font-bold">{label}</p>
+          <div className="flex gap-2 shrink-0">
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={rechecking}
               onClick={() => onRecheck()}
-              className="gap-1.5 text-[14px]"
+              className="h-7 gap-1 text-[13px] px-2"
             >
-              {rechecking ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              {rechecking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
               연결 재확인
             </Button>
             {agentRunning !== true && (
-              <Button type="button" size="sm" onClick={() => setHelpOpen(true)} className="text-[14px]">
+              <Button type="button" size="sm" onClick={() => setHelpOpen(true)} className="h-7 text-[13px] px-2">
                 실행 방법
               </Button>
             )}
