@@ -584,6 +584,7 @@ export class OrderService {
     }
 
     // cursor 모드: 다음 페이지 존재 여부 판단을 위해 take+1 조회
+    // cursor 모드에서는 count 생략 (프론트가 pages[0].meta.total 을 사용하므로 2페이지 이후 불필요)
     const fetchTake = cursor ? take + 1 : take;
 
     const [data, total] = await Promise.all([
@@ -677,7 +678,7 @@ export class OrderService {
         },
         orderBy: { orderedAt: 'desc' },
       }),
-      this.prisma.order.count({ where }),
+      cursor ? Promise.resolve(0) : this.prisma.order.count({ where }),
     ]);
 
     // cursor 모드: take+1로 조회했으므로 다음 페이지 존재 여부 판단 후 슬라이싱
@@ -692,13 +693,10 @@ export class OrderService {
       nextCursor = this.encodeCursor(last.orderedAt, last.id);
     }
 
-    // processedBy ID → 이름 변환
+    // 후처리 쿼리 4개를 병렬 실행
     const processedByIds = data.flatMap(
       order => order.processHistory?.map(h => h.processedBy) || [],
     );
-    const nameMap = await this.resolveProcessedByNames(processedByIds);
-
-    // assignedManager(거래처 영업담당자) ID → 이름 변환
     const managerIds = Array.from(
       new Set(
         data
@@ -706,45 +704,33 @@ export class OrderService {
           .filter((id): id is string => !!id),
       ),
     );
-    const managerNameMap: Record<string, string> = {};
-    if (managerIds.length > 0) {
-      const managerRecords = await this.prisma.staff.findMany({
-        where: { id: { in: managerIds } },
-        select: { id: true, name: true },
-      });
-      managerRecords.forEach(s => { managerNameMap[s.id] = s.name; });
-    }
-
-    // 각 주문 아이템별 원본 파일(uploaded) 수 조회
     const allItemIds = data.flatMap(order => order.items.map(item => item.id));
-    const originalFileCounts = allItemIds.length > 0
-      ? await this.prisma.orderFile.groupBy({
-          by: ['orderItemId'],
-          where: {
-            orderItemId: { in: allItemIds },
-            originalPath: { not: null },
-            storageStatus: 'uploaded',
-            deletedAt: null,
-          },
-          _count: true,
-        })
-      : [];
-    const originalCountMap = new Map(
-      originalFileCounts.map(r => [r.orderItemId, r._count]),
-    );
-
-    // 규격명 → nup 조회 (specificationId FK가 없는 아이템을 위한 size 이름 기반 fallback)
     const normalizeSize = (s: string) => s.replace(/[×✕]/g, 'x').replace(/인치$/, '').trim();
     const sizeSet = new Set<string>();
     data.forEach(order => order.items.forEach((item: any) => {
       if (item.size) { sizeSet.add(item.size); sizeSet.add(normalizeSize(item.size)); }
     }));
-    const specNupRows = sizeSet.size > 0
-      ? await this.prisma.specification.findMany({
-          where: { name: { in: Array.from(sizeSet) } },
-          select: { name: true, nup: true },
-        })
-      : [];
+
+    const [nameMap, managerRecords, originalFileCounts, specNupRows] = await Promise.all([
+      this.resolveProcessedByNames(processedByIds),
+      managerIds.length > 0
+        ? this.prisma.staff.findMany({ where: { id: { in: managerIds } }, select: { id: true, name: true } })
+        : Promise.resolve([] as { id: string; name: string }[]),
+      allItemIds.length > 0
+        ? this.prisma.orderFile.groupBy({
+            by: ['orderItemId'],
+            where: { orderItemId: { in: allItemIds }, originalPath: { not: null }, storageStatus: 'uploaded', deletedAt: null },
+            _count: true,
+          })
+        : Promise.resolve([] as { orderItemId: string; _count: number }[]),
+      sizeSet.size > 0
+        ? this.prisma.specification.findMany({ where: { name: { in: Array.from(sizeSet) } }, select: { name: true, nup: true } })
+        : Promise.resolve([] as { name: string; nup: number | null }[]),
+    ]);
+
+    const managerNameMap: Record<string, string> = {};
+    managerRecords.forEach(s => { managerNameMap[s.id] = s.name; });
+    const originalCountMap = new Map(originalFileCounts.map(r => [r.orderItemId, r._count]));
     const sizeNupMap = new Map(specNupRows.map(s => [s.name, s.nup]));
 
     const enrichedData = data.map(order => {
@@ -774,10 +760,10 @@ export class OrderService {
     return {
       data: enrichedData,
       meta: {
-        total,
+        total: cursor ? null : total,
         page: cursor ? null : Math.floor(skip / take) + 1,
         limit: take,
-        totalPages: Math.ceil(total / take),
+        totalPages: cursor ? null : Math.ceil(total / take),
         hasMore: cursor ? hasMore : undefined,
         nextCursor: cursor ? nextCursor : undefined,
       },
@@ -2215,11 +2201,24 @@ export class OrderService {
     dto: BulkUpdateStatusDto,
     userId: string,
   ): Promise<{ success: number; failed: string[]; failedDetails?: Array<{ orderId: string; message: string }> }> {
-    const failedDetails: Array<{ orderId: string; message: string }> = [];
-    const eligibleIds: string[] = [];
+    const BULK_MAX = 200;
+    if (dto.orderIds.length > BULK_MAX) {
+      throw new BadRequestException(`한 번에 최대 ${BULK_MAX}건까지 처리 가능합니다.`);
+    }
 
+    const failedDetails: Array<{ orderId: string; message: string }> = [];
+
+    // N개 findUnique 대신 1회 findMany로 배치 조회
+    const foundOrders = await this.prisma.order.findMany({
+      where: { id: { in: dto.orderIds } },
+      select: { id: true, status: true, printQueueStatus: true },
+    });
+    const orderMap = new Map(foundOrders.map(o => [o.id, o]));
+
+    // 유효성 검사 (findMany로 없는 ID 판별)
+    const eligibleOrders: typeof foundOrders = [];
     for (const orderId of dto.orderIds) {
-      const order = await this.prisma.order.findUnique({ where: { id: orderId } });
+      const order = orderMap.get(orderId);
       if (!order) {
         failedDetails.push({ orderId, message: '주문을 찾을 수 없습니다.' });
         continue;
@@ -2239,21 +2238,15 @@ export class OrderService {
           continue;
         }
       }
-      eligibleIds.push(orderId);
+      eligibleOrders.push(order);
     }
 
     let success = 0;
 
+    // 트랜잭션 내부: 이미 조회한 order 데이터 재사용 (findUnique 중복 제거)
     await this.prisma.$transaction(async (tx) => {
-      for (const orderId of eligibleIds) {
+      for (const order of eligibleOrders) {
         try {
-          const order = await tx.order.findUnique({ where: { id: orderId } });
-          if (!order) {
-            failedDetails.push({ orderId, message: '주문을 찾을 수 없습니다.' });
-            continue;
-          }
-
-          // 출력대기 큐 전이 동기화 (단건 updateStatus와 동일 규칙)
           const transition = this.computeQueueTransition(
             (order as any).printQueueStatus ?? null,
             order.status,
@@ -2274,7 +2267,7 @@ export class OrderService {
           }
 
           await tx.order.update({
-            where: { id: orderId },
+            where: { id: order.id },
             data: {
               status: dto.status,
               ...queuePatch.data,
@@ -2284,7 +2277,7 @@ export class OrderService {
           success++;
         } catch (e: any) {
           failedDetails.push({
-            orderId,
+            orderId: order.id,
             message: e?.message || '상태 변경에 실패했습니다.',
           });
         }

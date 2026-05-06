@@ -203,10 +203,10 @@ export interface CreateOrderDto {
 export interface PaginatedResponse<T> {
   data: T[];
   meta: {
-    total: number;
+    total: number | null;
     page: number | null;
     limit: number;
-    totalPages: number;
+    totalPages: number | null;
     hasMore?: boolean;
     nextCursor?: string | null;
   };

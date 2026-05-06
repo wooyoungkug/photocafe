@@ -20,7 +20,7 @@ export default function ProductionDashboardPage() {
   });
 
   const tableData = ordersData
-    ? { data: ordersData.data, total: ordersData.meta.total }
+    ? { data: ordersData.data, total: ordersData.meta.total ?? 0 }
     : undefined;
 
   return (

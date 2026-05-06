@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsArray,
   ArrayMinSize,
+  ArrayMaxSize,
   IsIn,
   IsDate,
   IsNotEmpty,
@@ -779,8 +780,9 @@ export class OrderQueryDto {
 
 // ==================== 벌크 작업 DTO ====================
 export class BulkOrderIdsDto {
-  @ApiProperty({ description: '주문 ID 배열' })
+  @ApiProperty({ description: '주문 ID 배열 (최대 200건)' })
   @IsArray()
+  @ArrayMaxSize(200)
   @IsString({ each: true })
   orderIds: string[];
 }
