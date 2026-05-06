@@ -548,7 +548,6 @@ export class OrderService {
               { items: { some: { productName: { contains: search, mode: 'insensitive' } } } },
               { items: { some: { folderName: { contains: search, mode: 'insensitive' } } } },
               { items: { some: { size: { contains: search, mode: 'insensitive' } } } },
-              { createdByUser: { name: { contains: search, mode: 'insensitive' } } },
             ],
           };
           break;
@@ -2823,7 +2822,6 @@ export class OrderService {
         { items: { some: { productName: { contains: search, mode: 'insensitive' } } } },
         { items: { some: { folderName: { contains: search, mode: 'insensitive' } } } },
         { items: { some: { size: { contains: search, mode: 'insensitive' } } } },
-        { createdByUser: { name: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
