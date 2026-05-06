@@ -524,7 +524,7 @@ export default function OrderListPage() {
       ) : null}
 
       {/* 조회결과 + 검색 */}
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-3">
         <span className="text-sm text-muted-foreground shrink-0">
           조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
           {selectedOrderIds.size > 0 && (
