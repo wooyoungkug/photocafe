@@ -93,8 +93,8 @@ type BindingDirectionType =
 
 /**
  * 펼침면 페이지 번호(미리보기·검수용).
- * 표지/선행 빈면은 두지 않고 업로드 파일 순서대로 1부터 연번.
- * (우시 제본 등으로 예전에 쓰던 첫 장 왼쪽 빈면 로직은 사용하지 않음.)
+ * 좌시작: 왼쪽=홀수(낮은 번호), 오른쪽=짝수(높은 번호)
+ * 우시작: 오른쪽=홀수(낮은 번호), 왼쪽=짝수(높은 번호) — 우→좌 읽기 순서
  */
 function getSpreadPageNumbers(
   fileIndex: number,
@@ -102,9 +102,21 @@ function getSpreadPageNumbers(
   direction: BindingDirectionType | null
 ): { left: number | null; right: number | null } {
   const dir = direction || 'LEFT_START_RIGHT_END';
+  const isRightStart = dir === 'RIGHT_START_LEFT_END' || dir === 'RIGHT_START_RIGHT_END';
+
   if (dir === 'LEFT_START_LEFT_END' && fileIndex === totalFiles - 1 && totalFiles > 0) {
     return { left: fileIndex * 2 + 1, right: null };
   }
+
+  if (isRightStart) {
+    // 우시작 끝 오른쪽: 마지막 스프레드의 오른쪽만 사용, 왼쪽은 빈면
+    if (dir === 'RIGHT_START_RIGHT_END' && fileIndex === totalFiles - 1 && totalFiles > 0) {
+      return { left: null, right: fileIndex * 2 + 1 };
+    }
+    // 우시작: 오른쪽이 홀수(앞 페이지), 왼쪽이 짝수(뒤 페이지)
+    return { left: fileIndex * 2 + 2, right: fileIndex * 2 + 1 };
+  }
+
   return { left: fileIndex * 2 + 1, right: fileIndex * 2 + 2 };
 }
 
