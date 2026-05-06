@@ -69,17 +69,21 @@ export class StatisticsService {
       }),
       // 전체 거래처
       this.prisma.client.count({ where: clientScope }),
-      // 활성 거래처 (최근 30일 주문)
-      this.prisma.client.count({
-        where: {
-          ...clientScope,
-          orders: {
-            some: {
-              orderedAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-            },
-          },
-        },
-      }),
+      // 활성 거래처 (최근 30일 주문): orders.some EXISTS 대신 COUNT(DISTINCT) Raw SQL
+      // → 1M+ orders 에서 EXISTS 서브쿼리 전체 스캔 방지
+      staffScopeId
+        ? this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT o."clientId")::int AS count
+            FROM orders o
+            INNER JOIN clients c ON c.id = o."clientId"
+            WHERE o."orderedAt" >= NOW() - INTERVAL '30 days'
+              AND c."assignedManager" = ${staffScopeId}`
+            .then(rows => Number(rows[0]?.count ?? 0))
+        : this.prisma.$queryRaw<[{ count: bigint }]>`
+            SELECT COUNT(DISTINCT "clientId")::int AS count
+            FROM orders
+            WHERE "orderedAt" >= NOW() - INTERVAL '30 days'`
+            .then(rows => Number(rows[0]?.count ?? 0)),
     ]);
 
     const monthGrowth =
