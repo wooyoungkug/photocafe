@@ -802,7 +802,7 @@ export default function MonthlySummaryPage() {
         <PrintHeader title="월 별 거 래 내 역" />
 
         {/* 거래원장 테이블 */}
-        <table className="w-full border-collapse text-[9pt]">
+        <table className="w-full border-collapse text-[8pt]">
           <thead>
             <tr className="bg-gray-200">
               <th className="border border-gray-500 p-1.5 text-center font-semibold w-[70px]">
