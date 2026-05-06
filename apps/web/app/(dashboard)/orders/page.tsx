@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
+import { useOrders, useOrderStatusCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
 import { useScanPrintQueueToFinishing } from '@/hooks/use-print-pdf';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
@@ -330,6 +330,7 @@ export default function OrderListPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
+  const { data: statusCounts } = useOrderStatusCounts();
 
   // 체크박스 선택 상태
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
@@ -523,15 +524,32 @@ export default function OrderListPage() {
         </div>
       ) : null}
 
-      {/* 조회결과 + 검색 */}
-      <div className="flex items-center gap-3">
-        <span className="text-sm text-muted-foreground shrink-0">
-          조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
-          {selectedOrderIds.size > 0 && (
-            <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
-          )}
-        </span>
-        <div className="relative w-64">
+      {/* 항목별 건수 + 검색 */}
+      <div className="flex items-center gap-3 flex-wrap">
+        {PRODUCTION_STAGE_TABS.filter(tab => tab.id !== 'all').map((tab) => {
+          const count = statusCounts?.[tab.id] ?? 0;
+          const isActive = productionStage === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => { setProductionStage(tab.id); setPage(1); }}
+              className={cn(
+                'flex items-center gap-1 px-2 py-1 rounded border text-[13px] whitespace-nowrap transition-colors',
+                isActive
+                  ? 'border-black bg-black text-white'
+                  : 'border-gray-300 bg-white text-black hover:bg-gray-50'
+              )}
+            >
+              <span>{tab.label}</span>
+              <b className={isActive ? 'text-white' : 'text-blue-600'}>{count}</b>
+            </button>
+          );
+        })}
+        {selectedOrderIds.size > 0 && (
+          <span className="text-sm text-blue-600 font-medium">{selectedOrderIds.size}건 선택됨</span>
+        )}
+        <div className="relative w-64 ml-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={isPendingPage ? '주문번호, 주문자 검색...' : '주문번호·검색 후 Enter → 후가공대기'}
