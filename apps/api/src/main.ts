@@ -232,12 +232,14 @@ async function bootstrap() {
   process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
   process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-  // Uncaught Exception 처리 (프로세스 종료 방지)
+  // Uncaught Exception 처리 — Node.js 공식 권고: 로그 후 프로세스 종료
+  // uncaughtException 이후 프로세스 상태(메모리)가 보장되지 않으므로
+  // Docker/Railway 자동 재시작에 맡기는 것이 안전합니다.
   process.on('uncaughtException', (error) => {
     logger.error('❌ Uncaught Exception:', error);
     logger.error('Stack:', error.stack);
-    // ⚡ 프로세스 종료하지 않음 - Docker가 재시작할 수 있도록 로그만 남김
-    // 심각한 메모리 오염이 아니면 계속 실행
+    // 로그 flush를 위해 1초 대기 후 종료 → Docker/Railway가 자동 재시작
+    setTimeout(() => process.exit(1), 1000);
   });
 
   // Unhandled Promise Rejection 처리
