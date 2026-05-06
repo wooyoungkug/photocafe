@@ -472,6 +472,14 @@ export function useOrderStatusCounts() {
   });
 }
 
+// 공정단계별 주문 건수 (탭 카운트)
+export function useProductionStageCounts() {
+  return useQuery({
+    queryKey: [ORDERS_KEY, 'production-stage-counts'],
+    queryFn: () => api.get<Record<string, number>>('/orders/production-stage-counts'),
+  });
+}
+
 // 주문 공정 이력 조회 (이름 포함)
 export function useOrderHistory(orderId: string | null) {
   return useQuery({

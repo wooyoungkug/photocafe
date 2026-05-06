@@ -94,6 +94,22 @@ export class OrderController {
     return this.orderService.getStatusCounts(clientId, createdByUserId);
   }
 
+  @Get('production-stage-counts')
+  @ApiOperation({ summary: '공정단계별 주문 건수' })
+  async getProductionStageCounts(@Request() req: any, @Query('clientId') clientId?: string) {
+    let createdByUserId: string | undefined;
+
+    // Employee 주문 스코핑: 거래처 강제 + 본인 주문만 필터
+    if (req.user?.type === 'employee') {
+      clientId = req.user.clientId;
+      if (!req.user.canViewAllOrders) {
+        createdByUserId = req.user.sub;
+      }
+    }
+
+    return this.orderService.getProductionStageCounts(clientId, createdByUserId);
+  }
+
   @Get('monthly-summary')
   @ApiOperation({ summary: '월거래집계 조회' })
   async getMonthlySummary(@Query() query: MonthlySummaryQueryDto) {

@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, useOrderStatusCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
+import { useOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
 import { useScanPrintQueueToFinishing } from '@/hooks/use-print-pdf';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
@@ -330,7 +330,7 @@ export default function OrderListPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
-  const { data: statusCounts } = useOrderStatusCounts();
+  const { data: stageCounts } = useProductionStageCounts();
 
   // 체크박스 선택 상태
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
@@ -500,7 +500,7 @@ export default function OrderListPage() {
         >
           {PRODUCTION_STAGE_TABS.map((tab) => {
             const active = productionStage === tab.id;
-            const count = tab.id !== 'all' ? (statusCounts?.[tab.id] ?? 0) : undefined;
+            const count = tab.id !== 'all' ? (stageCounts?.[tab.id] ?? 0) : undefined;
             return (
               <button
                 key={tab.id}

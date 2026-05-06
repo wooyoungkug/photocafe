@@ -2750,6 +2750,41 @@ export class OrderService {
     );
   }
 
+  // ==================== 공정단계별 주문 건수 ====================
+  async getProductionStageCounts(clientId?: string, createdByUserId?: string) {
+    const baseWhere: Prisma.OrderWhereInput = {};
+    if (clientId) baseWhere.clientId = clientId;
+    if (createdByUserId) baseWhere.createdByUserId = createdByUserId;
+
+    const stages = [
+      'reception_hold',
+      'reception_pending',
+      'reception_done',
+      'print_queue',
+      'data_inspection',
+      'finishing_wait',
+      'finishing_progress',
+      'outbound_qc',
+      'shipping_progress',
+      'shipping_done',
+    ];
+
+    const hasBaseWhere = Object.keys(baseWhere).length > 0;
+
+    const results = await Promise.all(
+      stages.map(async (stage) => {
+        const stageWhere = this.buildProductionStageWhere(stage);
+        const where: Prisma.OrderWhereInput = hasBaseWhere
+          ? { AND: [baseWhere, stageWhere] }
+          : stageWhere;
+        const count = await this.prisma.order.count({ where });
+        return [stage, count] as const;
+      }),
+    );
+
+    return Object.fromEntries(results) as Record<string, number>;
+  }
+
   // ==================== 월거래집계 조회 ====================
   async getMonthlySummary(clientId: string, startDate: string, endDate: string) {
     const start = new Date(startDate);
