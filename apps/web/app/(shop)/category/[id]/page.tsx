@@ -2,6 +2,7 @@
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import DOMPurify from 'isomorphic-dompurify';
 import { ChevronRight, Grid3X3, List, ShoppingCart } from 'lucide-react';
 import { useState, Suspense } from 'react';
 import { useCategory } from '@/hooks/use-categories';
@@ -124,7 +125,7 @@ function CategoryPageContent() {
               ) : category?.htmlContent && (
                 <div
                   className="text-neutral-400 text-sm md:text-base max-w-xl mx-auto"
-                  dangerouslySetInnerHTML={{ __html: category.htmlContent }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(category.htmlContent) }}
                 />
               )}
             </>
