@@ -541,83 +541,83 @@ export default function OrderListPage() {
           {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
 
-        {/* 주문목록: 기간별 필터 — 우측 정렬 */}
+        {/* 주문목록: 기간필터 + 검색창 — 우측 정렬 */}
         {!isPendingPage && (
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            {(['1w', '1m', '3m', '6m', '1y', 'custom'] as const).map((v) => (
-              <label
-                key={v}
-                className="flex items-center gap-1 cursor-pointer text-[13px] text-black"
-              >
-                <input
-                  type="radio"
-                  name="dateRange"
-                  value={v}
-                  checked={dateRange === v}
-                  onChange={() => setDateRange(v)}
-                  className="accent-black"
-                />
-                {DATE_RANGE_LABELS[v]}
-              </label>
-            ))}
-            {dateRange === 'custom' && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
-                  aria-label="조회 시작일"
-                  title="조회 시작일"
-                  className="border border-gray-300 rounded h-8 px-2 text-[13px]"
-                />
-                <span className="text-[13px]">~</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
-                  aria-label="조회 종료일"
-                  title="조회 종료일"
-                  className="border border-gray-300 rounded h-8 px-2 text-[13px]"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 주문목록: 정중앙 절대 배치 검색창 */}
-        {!isPendingPage && (
-          <div className="absolute left-1/2 -translate-x-1/2 w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="주문번호·검색 후 Enter → 후가공대기"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key !== 'Enter') return;
-                e.preventDefault();
-                const q = search.trim();
-                if (!q || scanToFinishing.isPending) return;
-                scanToFinishing.mutate(q, {
-                  onSuccess: (res) => {
-                    if (res.already) {
-                      toast({ title: res.message || '이미 후가공대기입니다.' });
-                    } else {
-                      toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
-                    }
-                    setProductionStage('finishing_wait');
-                  },
-                  onError: (err: unknown) => {
-                    const m = err instanceof Error ? err.message : String(err);
-                    toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
-                  },
-                });
-              }}
-              disabled={scanToFinishing.isPending}
-              className="pl-9 pr-9 h-9"
-            />
-            {(isLoading || debouncedSearch !== search) && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-            )}
+          <div className="ml-auto flex items-center gap-3">
+            {/* 기간별 필터 */}
+            <div className="flex items-center gap-2">
+              {(['1w', '1m', '3m', '6m', '1y', 'custom'] as const).map((v) => (
+                <label
+                  key={v}
+                  className="flex items-center gap-1 cursor-pointer text-[13px] text-black"
+                >
+                  <input
+                    type="radio"
+                    name="dateRange"
+                    value={v}
+                    checked={dateRange === v}
+                    onChange={() => setDateRange(v)}
+                    className="accent-black"
+                  />
+                  {DATE_RANGE_LABELS[v]}
+                </label>
+              ))}
+              {dateRange === 'custom' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={customStart}
+                    onChange={(e) => setCustomStart(e.target.value)}
+                    aria-label="조회 시작일"
+                    title="조회 시작일"
+                    className="border border-gray-300 rounded h-8 px-2 text-[13px]"
+                  />
+                  <span className="text-[13px]">~</span>
+                  <input
+                    type="date"
+                    value={customEnd}
+                    onChange={(e) => setCustomEnd(e.target.value)}
+                    aria-label="조회 종료일"
+                    title="조회 종료일"
+                    className="border border-gray-300 rounded h-8 px-2 text-[13px]"
+                  />
+                </div>
+              )}
+            </div>
+            {/* 검색창 */}
+            <div className="relative w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="주문번호·검색 후 Enter → 후가공대기"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  const q = search.trim();
+                  if (!q || scanToFinishing.isPending) return;
+                  scanToFinishing.mutate(q, {
+                    onSuccess: (res) => {
+                      if (res.already) {
+                        toast({ title: res.message || '이미 후가공대기입니다.' });
+                      } else {
+                        toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
+                      }
+                      setProductionStage('finishing_wait');
+                    },
+                    onError: (err: unknown) => {
+                      const m = err instanceof Error ? err.message : String(err);
+                      toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
+                    },
+                  });
+                }}
+                disabled={scanToFinishing.isPending}
+                className="pl-9 pr-9 h-9"
+              />
+              {(isLoading || debouncedSearch !== search) && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              )}
+            </div>
           </div>
         )}
 
