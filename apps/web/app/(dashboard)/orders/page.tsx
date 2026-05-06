@@ -500,6 +500,7 @@ export default function OrderListPage() {
         >
           {PRODUCTION_STAGE_TABS.map((tab) => {
             const active = productionStage === tab.id;
+            const count = tab.id !== 'all' ? (statusCounts?.[tab.id] ?? 0) : undefined;
             return (
               <button
                 key={tab.id}
@@ -518,37 +519,25 @@ export default function OrderListPage() {
                 )}
               >
                 {tab.label}
+                {count !== undefined && (
+                  <span className={cn('ml-1 text-[12px] font-bold', active ? 'text-white' : 'text-blue-600')}>
+                    {count}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
       ) : null}
 
-      {/* 항목별 건수 + 검색 */}
-      <div className="flex items-center gap-3 flex-wrap">
-        {PRODUCTION_STAGE_TABS.filter(tab => tab.id !== 'all').map((tab) => {
-          const count = statusCounts?.[tab.id] ?? 0;
-          const isActive = productionStage === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => { setProductionStage(tab.id); setPage(1); }}
-              className={cn(
-                'flex items-center gap-1 px-2 py-1 rounded border text-[13px] whitespace-nowrap transition-colors',
-                isActive
-                  ? 'border-black bg-black text-white'
-                  : 'border-gray-300 bg-white text-black hover:bg-gray-50'
-              )}
-            >
-              <span>{tab.label}</span>
-              <b className={isActive ? 'text-white' : 'text-blue-600'}>{count}</b>
-            </button>
-          );
-        })}
-        {selectedOrderIds.size > 0 && (
-          <span className="text-sm text-blue-600 font-medium">{selectedOrderIds.size}건 선택됨</span>
-        )}
+      {/* 조회결과 + 검색 */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground shrink-0">
+          조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
+          {selectedOrderIds.size > 0 && (
+            <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
+          )}
+        </span>
         <div className="relative w-64 ml-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
