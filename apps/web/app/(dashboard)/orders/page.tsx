@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   Package,
@@ -44,8 +44,46 @@ import { ProcessHistoryDialog } from '@/components/order/process-history-dialog'
 import { ShippingInputDialog } from '@/components/order/shipping-input-dialog';
 import { useDeleteOrderOriginals } from '@/hooks/use-order-bulk-actions';
 import { useCourierList } from '@/hooks/use-delivery-tracking';
-import { format } from 'date-fns';
+import { format, subDays, subMonths, subYears } from 'date-fns';
 import { ko } from 'date-fns/locale';
+
+type DateRangePreset = '1w' | '1m' | '3m' | '6m' | '1y' | 'custom';
+
+const DATE_RANGE_LABELS: Record<DateRangePreset, string> = {
+  '1w': '1주일',
+  '1m': '1개월',
+  '3m': '3개월',
+  '6m': '6개월',
+  '1y': '1년',
+  'custom': '기간별',
+};
+
+function computeDateRange(
+  range: DateRangePreset,
+  customStart: string,
+  customEnd: string,
+): { startDate?: string; endDate?: string } {
+  const now = new Date();
+  const today = format(now, 'yyyy-MM-dd');
+  switch (range) {
+    case '1w':
+      return { startDate: format(subDays(now, 7), 'yyyy-MM-dd'), endDate: today };
+    case '1m':
+      return { startDate: format(subMonths(now, 1), 'yyyy-MM-dd'), endDate: today };
+    case '3m':
+      return { startDate: format(subMonths(now, 3), 'yyyy-MM-dd'), endDate: today };
+    case '6m':
+      return { startDate: format(subMonths(now, 6), 'yyyy-MM-dd'), endDate: today };
+    case '1y':
+      return { startDate: format(subYears(now, 1), 'yyyy-MM-dd'), endDate: today };
+    case 'custom':
+      // custom 인데 한쪽이라도 비어있으면 미적용
+      if (!customStart || !customEnd) return {};
+      return { startDate: customStart, endDate: customEnd };
+    default:
+      return {};
+  }
+}
 import { cn } from '@/lib/utils';
 import { api, API_URL } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
@@ -332,6 +370,15 @@ export default function OrderListPage() {
   const limit = 10;
   const { data: stageCounts } = useProductionStageCounts();
 
+  // 기간별 검색 필터 (접수대기 페이지에서는 사용 안 함)
+  const [dateRange, setDateRange] = useState<DateRangePreset>('1m');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const dateParams = useMemo(
+    () => (isPendingPage ? {} : computeDateRange(dateRange, customStart, customEnd)),
+    [isPendingPage, dateRange, customStart, customEnd],
+  );
+
   // 체크박스 선택 상태
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
 
@@ -369,6 +416,7 @@ export default function OrderListPage() {
           limit,
           search: search || undefined,
           ...(productionStage !== 'all' ? { productionStage } : {}),
+          ...dateParams,
         },
   );
 
@@ -524,6 +572,58 @@ export default function OrderListPage() {
           </Select>
         ) : null}
       </div>
+
+      {/* 기간별 검색 필터 (주문목록 전용) */}
+      {!isPendingPage && (
+        <div className="flex items-center gap-3 flex-wrap">
+          {(['1w', '1m', '3m', '6m', '1y', 'custom'] as const).map((v) => (
+            <label
+              key={v}
+              className="flex items-center gap-1 cursor-pointer text-[13px] text-black"
+            >
+              <input
+                type="radio"
+                name="dateRange"
+                value={v}
+                checked={dateRange === v}
+                onChange={() => {
+                  setDateRange(v);
+                  setPage(1);
+                }}
+                className="accent-black"
+              />
+              {DATE_RANGE_LABELS[v]}
+            </label>
+          ))}
+          {dateRange === 'custom' && (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={customStart}
+                onChange={(e) => {
+                  setCustomStart(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="조회 시작일"
+                title="조회 시작일"
+                className="border border-gray-300 rounded h-8 px-2 text-[13px]"
+              />
+              <span className="text-[13px]">~</span>
+              <input
+                type="date"
+                value={customEnd}
+                onChange={(e) => {
+                  setCustomEnd(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="조회 종료일"
+                title="조회 종료일"
+                className="border border-gray-300 rounded h-8 px-2 text-[13px]"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {!isPendingPage ? (
         <div
