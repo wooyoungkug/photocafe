@@ -444,9 +444,20 @@ export class OrderService {
   }
 
   // ==================== 주문 목록 조회 ====================
+  // cursor 인코딩: { orderedAt, id } → base64
+  private encodeCursor(orderedAt: Date, id: string): string {
+    return Buffer.from(JSON.stringify({ orderedAt: orderedAt.toISOString(), id })).toString('base64');
+  }
+
+  // cursor 디코딩: base64 → { orderedAt, id }
+  private decodeCursor(cursor: string): { orderedAt: string; id: string } {
+    return JSON.parse(Buffer.from(cursor, 'base64').toString('utf8'));
+  }
+
   async findAll(params: {
     skip?: number;
     take?: number;
+    cursor?: string;
     search?: string;
     searchType?: string;
     clientId?: string;
@@ -462,6 +473,7 @@ export class OrderService {
     const {
       skip = 0,
       take = 20,
+      cursor,
       search,
       searchType,
       clientId,
@@ -562,11 +574,31 @@ export class OrderService {
         : {}),
     };
 
+    // cursor 기반 페이지네이션: 커서가 있으면 복합 조건으로 다음 페이지 위치 지정
+    // (orderedAt < cursor.orderedAt) OR (orderedAt = cursor.orderedAt AND id < cursor.id)
+    if (cursor) {
+      const { orderedAt: cursorOrderedAt, id: cursorId } = this.decodeCursor(cursor);
+      const cursorDate = new Date(cursorOrderedAt);
+      const existingAnd = Array.isArray(where.AND) ? where.AND : where.AND ? [where.AND] : [];
+      where.AND = [
+        ...existingAnd,
+        {
+          OR: [
+            { orderedAt: { lt: cursorDate } },
+            { AND: [{ orderedAt: cursorDate }, { id: { lt: cursorId } }] },
+          ],
+        },
+      ];
+    }
+
+    // cursor 모드: 다음 페이지 존재 여부 판단을 위해 take+1 조회
+    const fetchTake = cursor ? take + 1 : take;
+
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
-        skip,
-        take,
+        skip: cursor ? 0 : skip,
+        take: fetchTake,
         include: {
           client: {
             select: {
@@ -656,6 +688,18 @@ export class OrderService {
       this.prisma.order.count({ where }),
     ]);
 
+    // cursor 모드: take+1로 조회했으므로 다음 페이지 존재 여부 판단 후 슬라이싱
+    let hasMore = false;
+    let nextCursor: string | null = null;
+    if (cursor && data.length > take) {
+      hasMore = true;
+      data.splice(take); // 마지막 extra 항목 제거 (data는 mutable array)
+    }
+    if (cursor && data.length > 0) {
+      const last = data[data.length - 1];
+      nextCursor = this.encodeCursor(last.orderedAt, last.id);
+    }
+
     // processedBy ID → 이름 변환
     const processedByIds = data.flatMap(
       order => order.processHistory?.map(h => h.processedBy) || [],
@@ -739,9 +783,11 @@ export class OrderService {
       data: enrichedData,
       meta: {
         total,
-        page: Math.floor(skip / take) + 1,
+        page: cursor ? null : Math.floor(skip / take) + 1,
         limit: take,
         totalPages: Math.ceil(total / take),
+        hasMore: cursor ? hasMore : undefined,
+        nextCursor: cursor ? nextCursor : undefined,
       },
     };
   }
@@ -2800,82 +2846,61 @@ export class OrderService {
   async getMonthlySummary(clientId: string, startDate: string, endDate: string) {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // 종료일 끝까지 포함
+    end.setHours(23, 59, 59, 999);
 
-    // 해당 기간의 주문 조회
-    const orders = await this.prisma.order.findMany({
-      where: {
-        clientId,
-        orderedAt: {
-          gte: start,
-          lte: end,
-        },
-        status: { not: ORDER_STATUS.CANCELLED },
-      },
-      include: {
-        items: {
-          select: {
-            productName: true,
-            quantity: true,
-            unitPrice: true,
-          },
-        },
-      },
-    });
+    // 주문 집계 + 매출원장 집계를 단일 쿼리로 처리 (전체 orders 메모리 로드 제거)
+    const summaryRows = await this.prisma.$queryRaw<{
+      orderCount: bigint;
+      totalAmount: string;
+      paidAmount: string;
+      unpaidAmount: string;
+    }[]>`
+      SELECT
+        COUNT(DISTINCT o.id)::int                          AS "orderCount",
+        COALESCE(SUM(o."totalAmount"), 0)::decimal         AS "totalAmount",
+        COALESCE(SUM(sl."receivedAmount"), 0)::decimal     AS "paidAmount",
+        COALESCE(SUM(sl."outstandingAmount"), 0)::decimal  AS "unpaidAmount"
+      FROM orders o
+      LEFT JOIN sales_ledgers sl ON sl."orderId" = o.id
+      WHERE o."clientId"  = ${clientId}
+        AND o."orderedAt" >= ${start}
+        AND o."orderedAt" <= ${end}
+        AND o.status != 'cancelled'
+    `;
 
-    // 총 주문 건수 및 금액
-    const orderCount = orders.length;
-    const totalAmount = orders.reduce((sum, order) => sum + (Number(order.totalAmount) || 0), 0);
+    // 카테고리별 집계를 DB GROUP BY로 처리 (전체 OrderItem 메모리 로드 제거)
+    const categoryRows = await this.prisma.$queryRaw<{
+      category: string | null;
+      count: bigint;
+      amount: string;
+    }[]>`
+      SELECT
+        oi."productName"                                            AS category,
+        SUM(oi.quantity)::int                                       AS count,
+        COALESCE(SUM(oi."unitPrice" * oi.quantity), 0)::decimal    AS amount
+      FROM order_items oi
+      INNER JOIN orders o ON o.id = oi."orderId"
+      WHERE o."clientId"  = ${clientId}
+        AND o."orderedAt" >= ${start}
+        AND o."orderedAt" <= ${end}
+        AND o.status != 'cancelled'
+      GROUP BY oi."productName"
+      ORDER BY amount DESC
+    `;
 
-    // 매출원장에서 입금완료 금액 조회 (해당 기간 주문에 대한 입금액)
-    const orderIds = orders.map(o => o.id);
-    let paidAmount = 0;
-    let unpaidAmount = 0;
-
-    if (orderIds.length > 0) {
-      // 매출원장 조회
-      const ledgers = await this.prisma.salesLedger.findMany({
-        where: {
-          orderId: { in: orderIds },
-        },
-        select: {
-          receivedAmount: true,
-          outstandingAmount: true,
-        },
-      });
-
-      paidAmount = ledgers.reduce((sum, ledger) => sum + (Number(ledger.receivedAmount) || 0), 0);
-      unpaidAmount = ledgers.reduce((sum, ledger) => sum + (Number(ledger.outstandingAmount) || 0), 0);
-    }
-
-    // 카테고리별 집계 (상품명 기준)
-    const categoryMap = new Map<string, { count: number; amount: number }>();
-
-    orders.forEach(order => {
-      order.items.forEach(item => {
-        const category = item.productName || '기타';
-        const existing = categoryMap.get(category) || { count: 0, amount: 0 };
-        categoryMap.set(category, {
-          count: existing.count + (item.quantity || 0),
-          amount: existing.amount + (Number(item.unitPrice) || 0) * (item.quantity || 0),
-        });
-      });
-    });
-
-    const categoryBreakdown = Array.from(categoryMap.entries()).map(([category, data]) => ({
-      category,
-      count: data.count,
-      amount: data.amount,
-    }));
-
+    const row = summaryRows[0];
     return {
       year: start.getFullYear(),
       month: start.getMonth() + 1,
-      orderCount,
-      totalAmount,
-      paidAmount,
-      unpaidAmount,
-      categoryBreakdown,
+      orderCount: Number(row?.orderCount ?? 0),
+      totalAmount: parseFloat(row?.totalAmount ?? '0'),
+      paidAmount: parseFloat(row?.paidAmount ?? '0'),
+      unpaidAmount: parseFloat(row?.unpaidAmount ?? '0'),
+      categoryBreakdown: categoryRows.map(r => ({
+        category: r.category || '기타',
+        count: Number(r.count),
+        amount: parseFloat(r.amount),
+      })),
     };
   }
 

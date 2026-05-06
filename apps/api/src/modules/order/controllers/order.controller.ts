@@ -51,8 +51,9 @@ export class OrderController {
   @Get()
   @ApiOperation({ summary: '주문 목록 조회' })
   async findAll(@Query() query: OrderQueryDto, @Request() req: any) {
-    const { page = 1, limit = 20, ...filters } = query;
-    const skip = (page - 1) * limit;
+    const { page = 1, limit = 20, cursor, ...filters } = query;
+    // cursor 사용 시 skip 불필요 (service에서 cursor 조건으로 처리)
+    const skip = cursor ? 0 : (page - 1) * limit;
 
     // Employee 주문 스코핑: 거래처 강제 + 본인 주문만 필터
     if (req.user?.type === 'employee') {
@@ -73,6 +74,7 @@ export class OrderController {
     return this.orderService.findAll({
       skip,
       take: limit,
+      cursor,
       ...filters,
       ...(clientAssignedStaffId && { clientAssignedStaffId }),
     });

@@ -688,7 +688,7 @@ export interface UpdateShippingWithFeeResult {
 
 // ==================== 주문 조회 DTO ====================
 export class OrderQueryDto {
-  @ApiPropertyOptional({ description: '페이지 번호', default: 1 })
+  @ApiPropertyOptional({ description: '페이지 번호 (cursor 미사용 시)', default: 1 })
   @IsOptional()
   @IsNumber()
   @Min(1)
@@ -700,6 +700,11 @@ export class OrderQueryDto {
   @Min(1)
   @Max(500)
   limit?: number;
+
+  @ApiPropertyOptional({ description: '커서 기반 페이지네이션 커서 (이전 응답의 meta.nextCursor 값)' })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
 
   @ApiPropertyOptional({ description: '검색어 (주문번호, 거래처명)' })
   @IsOptional()

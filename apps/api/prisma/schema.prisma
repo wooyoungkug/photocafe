@@ -1030,6 +1030,8 @@ model Order {
   @@index([createdByUserId])
   @@index([printQueueStatus])
   @@index([printOperatorId])
+  @@index([status, currentProcess])
+  @@index([isUrgent, requestedDeliveryDate])
   @@map("orders")
 }
 
@@ -1126,6 +1128,8 @@ model OrderItem {
   @@index([bindingIntentId])
   @@index([productId])
   @@index([orderId, productId])
+  @@index([productName])
+  @@index([folderName])
   @@map("order_items")
 }
 
@@ -1202,6 +1206,7 @@ model OrderFile {
   orderItem        OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
 
   @@index([orderItemId])
+  @@index([sortOrder])
   @@map("order_files")
 }
 
@@ -1218,6 +1223,7 @@ model ProcessHistory {
 
   @@index([orderId])
   @@index([orderId, processedAt])
+  @@index([processedAt])
   @@map("process_histories")
 }
 
