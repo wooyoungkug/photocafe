@@ -541,9 +541,9 @@ export default function OrderListPage() {
           {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
 
-        {/* 주문목록: 기간별 필터 — 제목 오른쪽 */}
+        {/* 주문목록: 기간별 필터 — 우측 정렬 */}
         {!isPendingPage && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
             {(['1w', '1m', '3m', '6m', '1y', 'custom'] as const).map((v) => (
               <label
                 key={v}
