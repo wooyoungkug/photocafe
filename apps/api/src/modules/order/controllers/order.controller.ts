@@ -96,7 +96,12 @@ export class OrderController {
 
   @Get('production-stage-counts')
   @ApiOperation({ summary: '공정단계별 주문 건수' })
-  async getProductionStageCounts(@Request() req: any, @Query('clientId') clientId?: string) {
+  async getProductionStageCounts(
+    @Request() req: any,
+    @Query('clientId') clientId?: string,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
     let createdByUserId: string | undefined;
 
     // Employee 주문 스코핑: 거래처 강제 + 본인 주문만 필터
@@ -107,7 +112,7 @@ export class OrderController {
       }
     }
 
-    return this.orderService.getProductionStageCounts(clientId, createdByUserId);
+    return this.orderService.getProductionStageCounts(clientId, createdByUserId, startDate, endDate);
   }
 
   @Get('monthly-summary')

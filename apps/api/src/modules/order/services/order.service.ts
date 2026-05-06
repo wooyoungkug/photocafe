@@ -2751,10 +2751,21 @@ export class OrderService {
   }
 
   // ==================== 공정단계별 주문 건수 ====================
-  async getProductionStageCounts(clientId?: string, createdByUserId?: string) {
+  async getProductionStageCounts(
+    clientId?: string,
+    createdByUserId?: string,
+    startDate?: string,
+    endDate?: string,
+  ) {
     const baseWhere: Prisma.OrderWhereInput = {};
     if (clientId) baseWhere.clientId = clientId;
     if (createdByUserId) baseWhere.createdByUserId = createdByUserId;
+    if (startDate || endDate) {
+      baseWhere.orderedAt = {
+        ...(startDate ? { gte: new Date(startDate) } : {}),
+        ...(endDate ? { lte: new Date(`${endDate}T23:59:59.999Z`) } : {}),
+      };
+    }
 
     const stages = [
       'reception_hold',

@@ -368,7 +368,7 @@ export default function OrderListPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
-  const { data: stageCounts } = useProductionStageCounts();
+  const { data: stageCounts } = useProductionStageCounts(isPendingPage ? undefined : dateParams);
 
   // 기간별 검색 필터 (접수대기 페이지에서는 사용 안 함)
   const [dateRange, setDateRange] = useState<DateRangePreset>('1m');

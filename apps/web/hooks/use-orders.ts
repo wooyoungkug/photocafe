@@ -473,10 +473,16 @@ export function useOrderStatusCounts() {
 }
 
 // 공정단계별 주문 건수 (탭 카운트)
-export function useProductionStageCounts() {
+export function useProductionStageCounts(params?: { startDate?: string; endDate?: string }) {
   return useQuery({
-    queryKey: [ORDERS_KEY, 'production-stage-counts'],
-    queryFn: () => api.get<Record<string, number>>('/orders/production-stage-counts'),
+    queryKey: [ORDERS_KEY, 'production-stage-counts', params],
+    queryFn: () => {
+      const qs = new URLSearchParams();
+      if (params?.startDate) qs.set('startDate', params.startDate);
+      if (params?.endDate) qs.set('endDate', params.endDate);
+      const query = qs.toString();
+      return api.get<Record<string, number>>(`/orders/production-stage-counts${query ? `?${query}` : ''}`);
+    },
   });
 }
 
