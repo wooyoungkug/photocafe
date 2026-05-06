@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useInfiniteOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
+import { useOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
 import { useScanPrintQueueToFinishing } from '@/hooks/use-print-pdf';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
@@ -432,21 +432,22 @@ export default function OrderListPage() {
   const deleteOrderOriginals = useDeleteOrderOriginals();
   const scanToFinishing = useScanPrintQueueToFinishing();
 
-  // 주문 목록 조회 (cursor 무한스크롤 — 필터 변경 시 queryKey 교체로 자동 리셋)
+  const [page, setPage] = useState(1);
+
+  // 주문 목록 조회 (offset 페이지네이션)
   const {
-    data: ordersInfinite,
+    data: ordersData,
     isLoading,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-  } = useInfiniteOrders(
+  } = useOrders(
     isPendingPage
       ? {
+          page,
           limit,
           search: debouncedSearch || undefined,
           ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
         }
       : {
+          page,
           limit,
           search: debouncedSearch || undefined,
           ...(productionStage !== 'all' ? { productionStage } : {}),
@@ -454,8 +455,8 @@ export default function OrderListPage() {
         },
   );
 
-  const orders = ordersInfinite?.pages.flatMap((p) => p.data) ?? [];
-  const meta = ordersInfinite?.pages[0]?.meta;
+  const orders = ordersData?.data ?? [];
+  const meta = ordersData?.meta;
 
   const { data: couriers = [] } = useCourierList();
   const getCourierName = (code?: string) => couriers.find((c) => c.code === code)?.name ?? code ?? '-';
@@ -463,12 +464,14 @@ export default function OrderListPage() {
   // 라우트 전환: 접수대기 전용 ↔ 일반 목록
   useEffect(() => {
     setProductionStage('all');
+    setPage(1);
   }, [isPendingPage]);
 
-  // 필터 변경 시 선택 초기화
+  // 필터 변경 시 페이지·선택 초기화
   useEffect(() => {
+    setPage(1);
     setSelectedOrderIds(new Set());
-  }, [statusFilter, productionStage, search]);
+  }, [statusFilter, productionStage, debouncedSearch, dateRange, customStart, customEnd, limit]);
 
   // 선택 헬퍼
   const toggleOrder = (orderId: string) => {
@@ -830,7 +833,7 @@ export default function OrderListPage() {
                           </span>
                         </div>
                         <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
-                          {/긴급|urgent/i.test(item.folderName || item.productName || '') && (
+                          {/긴급|urgent|초지급/i.test(item.folderName || item.productName || '') && (
                             <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
                           )}
                           {item.folderName || item.productName}
@@ -1055,7 +1058,7 @@ export default function OrderListPage() {
                         >
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5 text-sm font-normal text-foreground hover:underline" title={item.folderName || item.productName}>
-                              {/긴급|urgent/i.test(item.folderName || item.productName || '') && (
+                              {/긴급|urgent|초지급/i.test(item.folderName || item.productName || '') && (
                                 <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
                               )}
                               <span className="truncate">{item.folderName || item.productName}</span>
@@ -1246,19 +1249,31 @@ export default function OrderListPage() {
             />
           )}
 
-          {/* 더 보기 (cursor 무한스크롤) */}
-          {hasNextPage && (
-            <div className="flex flex-col items-center gap-1 mt-4">
+          {/* 페이지 네비게이션 */}
+          {(meta?.totalPages ?? 1) > 1 && (
+            <div className="flex items-center justify-center gap-3 mt-4">
               <Button
                 variant="outline"
                 size="sm"
-                className="px-6 h-9 text-[14px] font-normal text-black"
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
+                className="h-9 px-4 text-[14px] font-normal text-black"
+                onClick={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
               >
-                {isFetchingNextPage ? '불러오는 중…' : `더 보기 (총 ${meta?.total?.toLocaleString() ?? '?'}건)`}
+                ◀ 이전
               </Button>
-              <span className="text-[12px] text-gray-400">현재 {orders.length}건 표시 중</span>
+              <span className="text-[14px] text-black font-normal">
+                {page} / {meta?.totalPages ?? '?'} 페이지
+                <span className="ml-2 text-gray-400 text-[13px]">(총 {meta?.total?.toLocaleString() ?? '?'}건)</span>
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-4 text-[14px] font-normal text-black"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page >= (meta?.totalPages ?? 1)}
+              >
+                다음 ▶
+              </Button>
             </div>
           )}
         </>
