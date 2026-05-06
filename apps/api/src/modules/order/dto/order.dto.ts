@@ -43,7 +43,8 @@ export const ORDER_REPRINT_REQUIRED_STATUSES = [
 ] as const;
 
 export const PROCESS_STATUS = {
-  RECEIPT_PENDING: 'receipt_pending',       // 접수대기
+  RECEIPT_PENDING: 'receipt_pending',       // 접수대기 (신규 주문)
+  INSPECTION_HOLD: 'inspection_hold',       // 검수 보류 (파일 재업로드 대기)
   POST_PROCESSING: 'post_processing',       // 후가공대기
   BINDING: 'binding',                       // 제본대기
   INSPECTION: 'inspection',                 // 검수대기

@@ -204,16 +204,18 @@ export interface PaginatedResponse<T> {
   data: T[];
   meta: {
     total: number;
-    page: number;
+    page: number | null;
     limit: number;
     totalPages: number;
+    hasMore?: boolean;
+    nextCursor?: string | null;
   };
 }
 
 // Query Keys
 const ORDERS_KEY = 'orders';
 
-// 주문 목록 조회
+// 주문 목록 조회 (offset 페이지네이션, 기존 호환)
 export function useOrders(params?: {
   page?: number;
   limit?: number;
@@ -229,6 +231,30 @@ export function useOrders(params?: {
   return useQuery({
     queryKey: [ORDERS_KEY, params],
     queryFn: () => api.get<PaginatedResponse<Order>>('/orders', params),
+  });
+}
+
+// 주문 목록 무한스크롤 (cursor 기반)
+export function useInfiniteOrders(params?: {
+  limit?: number;
+  search?: string;
+  clientId?: string;
+  status?: string;
+  productionStage?: string;
+  startDate?: string;
+  endDate?: string;
+  isUrgent?: boolean;
+}) {
+  return useInfiniteQuery({
+    queryKey: [ORDERS_KEY, 'infinite', params],
+    queryFn: ({ pageParam }) =>
+      api.get<PaginatedResponse<Order>>('/orders', {
+        ...params,
+        cursor: pageParam || undefined,
+        limit: params?.limit ?? 20,
+      }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.meta.nextCursor ?? undefined,
   });
 }
 

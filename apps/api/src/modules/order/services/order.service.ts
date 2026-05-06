@@ -373,34 +373,26 @@ export class OrderService {
   /** 관리자 주문목록 — 세부 공정 탭 필터 */
   private buildProductionStageWhere(stage: string): Prisma.OrderWhereInput {
     switch (stage) {
-      // 검수 보류 이력이 있는 receipt_pending 만 보류 (신규 주문도 receipt_pending 이라 이력으로 구분)
+      // 검수 보류: 신규(currentProcess='inspection_hold') + 레거시(receipt_pending + hold 이력) 모두 포함
       case 'reception_hold':
         return {
           status: ORDER_STATUS.PENDING_RECEIPT,
-          currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
-          processHistory: {
-            some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD },
-          },
+          OR: [
+            { currentProcess: PROCESS_STATUS.INSPECTION_HOLD },
+            {
+              currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
+              processHistory: { some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD } },
+            },
+          ],
         };
-      // 접수대기: 파일검수(inspection) 제외 + (보류 전용 receipt_pending+보류이력) 제외 — 신규 receipt_pending 포함
+      // 접수대기: receipt_pending 중 검수보류 이력이 없는 것 (신규 주문만)
       case 'reception_pending':
         return {
           status: ORDER_STATUS.PENDING_RECEIPT,
-          AND: [
-            { NOT: { currentProcess: PROCESS_STATUS.INSPECTION } },
-            {
-              NOT: {
-                AND: [
-                  { currentProcess: PROCESS_STATUS.RECEIPT_PENDING },
-                  {
-                    processHistory: {
-                      some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD },
-                    },
-                  },
-                ],
-              },
-            },
-          ],
+          currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
+          NOT: {
+            processHistory: { some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD } },
+          },
         };
       case 'reception_done':
         return { status: ORDER_STATUS.RECEIPT_COMPLETED };
@@ -3120,12 +3112,12 @@ export class OrderService {
       throw new BadRequestException('파일검수 상태가 아닙니다.');
     }
 
-    // 상태를 접수대기로 롤백
+    // 상태를 검수보류로 설정 — currentProcess='inspection_hold' 로 신규주문(receipt_pending)과 구분
     const updatedOrder = await this.prisma.order.update({
       where: { id: orderId },
       data: {
         status: ORDER_STATUS.PENDING_RECEIPT,
-        currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
+        currentProcess: PROCESS_STATUS.INSPECTION_HOLD,
         processHistory: {
           create: {
             fromStatus: order.status,

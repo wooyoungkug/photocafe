@@ -7,9 +7,6 @@ import {
   Search,
   FileText,
   Clock,
-  Eye,
-  ChevronLeft,
-  ChevronRight,
   ExternalLink,
   Download,
   Trash2,
@@ -36,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
+import { useInfiniteOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
 import { useScanPrintQueueToFinishing } from '@/hooks/use-print-pdf';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
@@ -368,8 +365,7 @@ export default function OrderListPage() {
   const [productionStage, setProductionStage] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const limit = 10;
+  const limit = 20;
 
   // 검색어 300ms 디바운스
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -377,7 +373,6 @@ export default function OrderListPage() {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
       setDebouncedSearch(search);
-      setPage(1);
     }, 300);
     return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
   }, [search]);
@@ -416,17 +411,21 @@ export default function OrderListPage() {
   const deleteOrderOriginals = useDeleteOrderOriginals();
   const scanToFinishing = useScanPrintQueueToFinishing();
 
-  // 주문 목록 조회 (검색어 있으면 날짜 필터 제거 — 기간 밖 주문도 검색 가능)
-  const { data: ordersData, isLoading } = useOrders(
+  // 주문 목록 조회 (cursor 무한스크롤 — 필터 변경 시 queryKey 교체로 자동 리셋)
+  const {
+    data: ordersInfinite,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteOrders(
     isPendingPage
       ? {
-          page,
           limit,
           search: debouncedSearch || undefined,
           ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
         }
       : {
-          page,
           limit,
           search: debouncedSearch || undefined,
           ...(productionStage !== 'all' ? { productionStage } : {}),
@@ -434,8 +433,8 @@ export default function OrderListPage() {
         },
   );
 
-  const orders = ordersData?.data ?? [];
-  const meta = ordersData?.meta;
+  const orders = ordersInfinite?.pages.flatMap((p) => p.data) ?? [];
+  const meta = ordersInfinite?.pages[0]?.meta;
 
   const { data: couriers = [] } = useCourierList();
   const getCourierName = (code?: string) => couriers.find((c) => c.code === code)?.name ?? code ?? '-';
@@ -443,13 +442,12 @@ export default function OrderListPage() {
   // 라우트 전환: 접수대기 전용 ↔ 일반 목록
   useEffect(() => {
     setProductionStage('all');
-    setPage(1);
   }, [isPendingPage]);
 
-  // 필터/페이지 변경 시 선택 초기화
+  // 필터 변경 시 선택 초기화
   useEffect(() => {
     setSelectedOrderIds(new Set());
-  }, [statusFilter, productionStage, search, page]);
+  }, [statusFilter, productionStage, search]);
 
   // 선택 헬퍼
   const toggleOrder = (orderId: string) => {
@@ -562,7 +560,6 @@ export default function OrderListPage() {
                       toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
                     }
                     setProductionStage('finishing_wait');
-                    setPage(1);
                   },
                   onError: (err: unknown) => {
                     const m = err instanceof Error ? err.message : String(err);
@@ -594,7 +591,7 @@ export default function OrderListPage() {
                 <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
               )}
             </div>
-            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); }}>
               <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
                 <SelectValue />
               </SelectTrigger>
@@ -623,7 +620,6 @@ export default function OrderListPage() {
                 checked={dateRange === v}
                 onChange={() => {
                   setDateRange(v);
-                  setPage(1);
                 }}
                 className="accent-black"
               />
@@ -637,7 +633,6 @@ export default function OrderListPage() {
                 value={customStart}
                 onChange={(e) => {
                   setCustomStart(e.target.value);
-                  setPage(1);
                 }}
                 aria-label="조회 시작일"
                 title="조회 시작일"
@@ -649,7 +644,6 @@ export default function OrderListPage() {
                 value={customEnd}
                 onChange={(e) => {
                   setCustomEnd(e.target.value);
-                  setPage(1);
                 }}
                 aria-label="조회 종료일"
                 title="조회 종료일"
@@ -677,7 +671,6 @@ export default function OrderListPage() {
                 aria-selected={active ? 'true' : 'false'}
                 onClick={() => {
                   setProductionStage(tab.id);
-                  setPage(1);
                 }}
                 className={cn(
                   'shrink-0 rounded-md border px-2.5 py-1.5 text-[14px] font-normal transition-colors whitespace-nowrap',
@@ -1215,38 +1208,19 @@ export default function OrderListPage() {
             />
           )}
 
-          {/* 페이지네이션 */}
-          {meta && meta.totalPages > 1 && (
-            <div className="flex justify-center items-center gap-1 mt-4">
+          {/* 더 보기 (cursor 무한스크롤) */}
+          {hasNextPage && (
+            <div className="flex flex-col items-center gap-1 mt-4">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
+                className="px-6 h-9 text-[14px] font-normal text-black"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
               >
-                <ChevronLeft className="h-4 w-4" />
+                {isFetchingNextPage ? '불러오는 중…' : `더 보기 (총 ${meta?.total?.toLocaleString() ?? '?'}건)`}
               </Button>
-              {Array.from({ length: meta.totalPages }, (_, i) => i + 1).map((p) => (
-                <Button
-                  key={p}
-                  variant={page === p ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-8 w-8 p-0 text-xs"
-                  onClick={() => setPage(p)}
-                >
-                  {p}
-                </Button>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 w-8 p-0"
-                onClick={() => setPage(Math.min(meta.totalPages, page + 1))}
-                disabled={page === meta.totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
+              <span className="text-[12px] text-gray-400">현재 {orders.length}건 표시 중</span>
             </div>
           )}
         </>
