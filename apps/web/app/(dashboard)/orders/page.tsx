@@ -368,7 +368,6 @@ export default function OrderListPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
-  const { data: stageCounts } = useProductionStageCounts(isPendingPage ? undefined : dateParams);
 
   // 기간별 검색 필터 (접수대기 페이지에서는 사용 안 함)
   const [dateRange, setDateRange] = useState<DateRangePreset>('1m');
@@ -378,6 +377,8 @@ export default function OrderListPage() {
     () => (isPendingPage ? {} : computeDateRange(dateRange, customStart, customEnd)),
     [isPendingPage, dateRange, customStart, customEnd],
   );
+
+  const { data: stageCounts } = useProductionStageCounts(isPendingPage ? undefined : dateParams);
 
   // 체크박스 선택 상태
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
