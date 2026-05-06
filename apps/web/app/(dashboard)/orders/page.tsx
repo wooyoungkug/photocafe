@@ -472,12 +472,45 @@ export default function OrderListPage() {
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 제목 + 상태필터 + 검색 */}
-      <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+      {/* 헤더: 제목 + 검색(중앙) + 상태필터 */}
+      <div className="relative flex items-center gap-2 sm:gap-3">
         <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
           {isPendingPage ? <Clock className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
           {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
+        {!isPendingPage && (
+          <div className="absolute left-1/2 -translate-x-1/2 w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="주문번호·검색 후 Enter → 후가공대기"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter') return;
+                e.preventDefault();
+                const q = search.trim();
+                if (!q || scanToFinishing.isPending) return;
+                scanToFinishing.mutate(q, {
+                  onSuccess: (res) => {
+                    if (res.already) {
+                      toast({ title: res.message || '이미 후가공대기입니다.' });
+                    } else {
+                      toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
+                    }
+                    setProductionStage('finishing_wait');
+                    setPage(1);
+                  },
+                  onError: (err: unknown) => {
+                    const m = err instanceof Error ? err.message : String(err);
+                    toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
+                  },
+                });
+              }}
+              disabled={scanToFinishing.isPending}
+              className="pl-9 h-9"
+            />
+          </div>
+        )}
         {isPendingPage ? (
           <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
             <SelectTrigger className="w-[100px] sm:w-[130px] h-9 text-xs">
@@ -530,43 +563,9 @@ export default function OrderListPage() {
         </div>
       ) : null}
 
-      {/* 검색 */}
-      <div className="flex items-center gap-3">
-        {selectedOrderIds.size > 0 && (
-          <span className="text-sm text-blue-600 font-medium">{selectedOrderIds.size}건 선택됨</span>
-        )}
-        <div className="relative w-64 ml-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={isPendingPage ? '주문번호, 주문자 검색...' : '주문번호·검색 후 Enter → 후가공대기'}
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            onKeyDown={(e) => {
-              if (e.key !== 'Enter' || isPendingPage) return;
-              e.preventDefault();
-              const q = search.trim();
-              if (!q || scanToFinishing.isPending) return;
-              scanToFinishing.mutate(q, {
-                onSuccess: (res) => {
-                  if (res.already) {
-                    toast({ title: res.message || '이미 후가공대기입니다.' });
-                  } else {
-                    toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
-                  }
-                  setProductionStage('finishing_wait');
-                  setPage(1);
-                },
-                onError: (err: unknown) => {
-                  const m = err instanceof Error ? err.message : String(err);
-                  toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
-                },
-              });
-            }}
-            disabled={!isPendingPage && scanToFinishing.isPending}
-            className="pl-9 h-9"
-          />
-        </div>
-      </div>
+      {selectedOrderIds.size > 0 && (
+        <span className="text-sm text-blue-600 font-medium">{selectedOrderIds.size}건 선택됨</span>
+      )}
 
       {/* 주문 테이블 */}
       {isLoading ? (
