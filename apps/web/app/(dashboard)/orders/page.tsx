@@ -1250,32 +1250,38 @@ export default function OrderListPage() {
           )}
 
           {/* 페이지 네비게이션 */}
-          {(meta?.totalPages ?? 1) > 1 && (
-            <div className="flex items-center justify-center gap-3 mt-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 px-4 text-[14px] font-normal text-black"
-                onClick={() => setPage((p) => p - 1)}
-                disabled={page <= 1}
-              >
-                ◀ 이전
-              </Button>
-              <span className="text-[14px] text-black font-normal">
-                {page} / {meta?.totalPages ?? '?'} 페이지
-                <span className="ml-2 text-gray-400 text-[13px]">(총 {meta?.total?.toLocaleString() ?? '?'}건)</span>
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 px-4 text-[14px] font-normal text-black"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= (meta?.totalPages ?? 1)}
-              >
-                다음 ▶
-              </Button>
-            </div>
-          )}
+          {(meta?.totalPages ?? 1) > 1 && (() => {
+            const total = meta?.totalPages ?? 1;
+            const blockSize = 10;
+            const blockStart = Math.floor((page - 1) / blockSize) * blockSize + 1;
+            const blockEnd = Math.min(blockStart + blockSize - 1, total);
+            const pageNums = Array.from({ length: blockEnd - blockStart + 1 }, (_, i) => blockStart + i);
+            const btnBase = 'inline-flex items-center justify-center h-8 min-w-[32px] px-1.5 rounded border text-[13px] font-normal transition-colors';
+            const btnNormal = `${btnBase} border-gray-300 bg-white text-black hover:bg-gray-50`;
+            const btnActive = `${btnBase} border-black bg-black text-white`;
+            const btnDisabled = `${btnBase} border-gray-200 bg-white text-gray-300 cursor-not-allowed`;
+            return (
+              <div className="flex flex-col items-center gap-1 mt-4">
+                <div className="flex items-center gap-1 flex-wrap justify-center">
+                  {/* 처음 */}
+                  <button type="button" className={page <= 1 ? btnDisabled : btnNormal} onClick={() => setPage(1)} disabled={page <= 1}>«</button>
+                  {/* 이전 블록 */}
+                  <button type="button" className={blockStart <= 1 ? btnDisabled : btnNormal} onClick={() => setPage(blockStart - 1)} disabled={blockStart <= 1}>‹</button>
+                  {/* 페이지 번호 */}
+                  {pageNums.map((n) => (
+                    <button key={n} type="button" className={n === page ? btnActive : btnNormal} onClick={() => setPage(n)}>{n}</button>
+                  ))}
+                  {/* 다음 블록 */}
+                  <button type="button" className={blockEnd >= total ? btnDisabled : btnNormal} onClick={() => setPage(blockEnd + 1)} disabled={blockEnd >= total}>›</button>
+                  {/* 끝 */}
+                  <button type="button" className={page >= total ? btnDisabled : btnNormal} onClick={() => setPage(total)} disabled={page >= total}>»</button>
+                </div>
+                <span className="text-[12px] text-gray-400">
+                  총 {meta?.total?.toLocaleString() ?? '?'}건 · {page}/{total} 페이지
+                </span>
+              </div>
+            );
+          })()}
         </>
       ) : (
         <Card>
