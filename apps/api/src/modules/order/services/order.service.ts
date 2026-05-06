@@ -2794,6 +2794,7 @@ export class OrderService {
     createdByUserId?: string,
     startDate?: string,
     endDate?: string,
+    search?: string,
   ) {
     const baseWhere: Prisma.OrderWhereInput = {};
     if (clientId) baseWhere.clientId = clientId;
@@ -2803,6 +2804,14 @@ export class OrderService {
         ...(startDate ? { gte: new Date(startDate) } : {}),
         ...(endDate ? { lte: new Date(`${endDate}T23:59:59.999Z`) } : {}),
       };
+    }
+    if (search) {
+      baseWhere.OR = [
+        { orderNumber: { contains: search, mode: 'insensitive' } },
+        { client: { clientName: { contains: search, mode: 'insensitive' } } },
+        { items: { some: { productName: { contains: search, mode: 'insensitive' } } } },
+        { items: { some: { folderName: { contains: search, mode: 'insensitive' } } } },
+      ];
     }
 
     const stages = [

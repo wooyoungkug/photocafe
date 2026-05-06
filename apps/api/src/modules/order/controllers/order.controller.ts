@@ -103,6 +103,7 @@ export class OrderController {
     @Query('clientId') clientId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
+    @Query('search') search?: string,
   ) {
     let createdByUserId: string | undefined;
 
@@ -114,7 +115,7 @@ export class OrderController {
       }
     }
 
-    return this.orderService.getProductionStageCounts(clientId, createdByUserId, startDate, endDate);
+    return this.orderService.getProductionStageCounts(clientId, createdByUserId, startDate, endDate, search);
   }
 
   @Get('monthly-summary')

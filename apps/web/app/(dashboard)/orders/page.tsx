@@ -386,7 +386,9 @@ export default function OrderListPage() {
     [isPendingPage, dateRange, customStart, customEnd],
   );
 
-  const { data: stageCounts } = useProductionStageCounts(isPendingPage ? undefined : dateParams);
+  const { data: stageCounts } = useProductionStageCounts(
+    isPendingPage ? undefined : debouncedSearch ? { search: debouncedSearch } : dateParams,
+  );
 
   // 체크박스 선택 상태
   const [selectedOrderIds, setSelectedOrderIds] = useState<Set<string>>(new Set());
