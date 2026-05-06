@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import {
   Package,
   Search,
-  FileText,
   Clock,
   ExternalLink,
   Download,
@@ -326,8 +325,8 @@ const PRODUCTION_STAGE_TABS = [
   { id: 'reception_hold', label: '접수보류' },
   { id: 'reception_pending', label: '접수대기' },
   { id: 'reception_done', label: '접수완료' },
-  { id: 'print_queue', label: '출력대기' },
   { id: 'data_inspection', label: '데이타검수중' },
+  { id: 'print_queue', label: '출력대기' },
   { id: 'finishing_wait', label: '후가공대기' },
   { id: 'finishing_progress', label: '후가공진행중' },
   { id: 'outbound_qc', label: '출고검수중' },
