@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import {
   Package,
@@ -366,8 +366,20 @@ export default function OrderListPage() {
   /** 주문목록(/) 전용 — 세부 공정 탭 */
   const [productionStage, setProductionStage] = useState<string>('all');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [page, setPage] = useState(1);
   const limit = 10;
+
+  // 검색어 300ms 디바운스
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [search]);
 
   // 기간별 검색 필터 (접수대기 페이지에서는 사용 안 함)
   const [dateRange, setDateRange] = useState<DateRangePreset>('1m');
@@ -403,21 +415,21 @@ export default function OrderListPage() {
   const deleteOrderOriginals = useDeleteOrderOriginals();
   const scanToFinishing = useScanPrintQueueToFinishing();
 
-  // 주문 목록 조회
+  // 주문 목록 조회 (검색어 있으면 날짜 필터 제거 — 기간 밖 주문도 검색 가능)
   const { data: ordersData, isLoading } = useOrders(
     isPendingPage
       ? {
           page,
           limit,
-          search: search || undefined,
+          search: debouncedSearch || undefined,
           ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
         }
       : {
           page,
           limit,
-          search: search || undefined,
+          search: debouncedSearch || undefined,
           ...(productionStage !== 'all' ? { productionStage } : {}),
-          ...dateParams,
+          ...(debouncedSearch ? {} : dateParams),
         },
   );
 
@@ -533,7 +545,7 @@ export default function OrderListPage() {
             <Input
               placeholder="주문번호·검색 후 Enter → 후가공대기"
               value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
                 e.preventDefault();
