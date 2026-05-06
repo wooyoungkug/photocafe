@@ -285,8 +285,7 @@ export class OrderController {
   ) {
     // 최고관리자(super_admin) 만 모든 상태에서 사양 변경 허용.
     // 일반 관리자는 pending_receipt / confirmed 단계만.
-    const isSuperAdmin =
-      req.user?.isSuperAdmin === true || req.user?.role === 'admin';
+    const isSuperAdmin = req.user?.isSuperAdmin === true;
     return this.orderService.adjustOrder(id, dto, req.user.id, { isSuperAdmin });
   }
 
@@ -433,7 +432,7 @@ export class OrderController {
     @Body() dto: EditOrderWithAuditDto,
     @Request() req: any,
   ) {
-    const isSuperAdmin = req.user?.isSuperAdmin === true || req.user?.role === 'admin';
+    const isSuperAdmin = req.user?.isSuperAdmin === true;
     const canChangeOrderAmount = req.user?.canChangeOrderAmount === true || isSuperAdmin;
     return this.orderService.adjustOrderWithAudit(
       id,

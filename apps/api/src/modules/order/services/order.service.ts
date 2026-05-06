@@ -198,6 +198,9 @@ export class OrderService {
     name?: string;
     username?: string;
     employeeId?: string;
+    role?: string;
+    type?: string;
+    clientId?: string;
     ipAddress?: string;
     userAgent?: string;
   }): Promise<{
@@ -215,7 +218,7 @@ export class OrderService {
         orderItem: {
           select: {
             order: {
-              select: { orderNumber: true },
+              select: { orderNumber: true, clientId: true },
             },
           },
         },
@@ -223,6 +226,19 @@ export class OrderService {
     });
     if (!file) {
       throw new NotFoundException('파일을 찾을 수 없습니다.');
+    }
+
+    // IDOR 방지: client 역할이면 자신의 주문 파일만 접근 허용
+    const actorId = actor?.id || actor?.sub;
+    const actorType = actor?.type || actor?.role;
+    if (actorType === 'client') {
+      const ownerClientId = file.orderItem?.order?.clientId;
+      if (!ownerClientId || ownerClientId !== actor?.clientId) {
+        throw new ForbiddenException('접근 권한이 없습니다.');
+      }
+    } else if (!actorId) {
+      // 인증 정보가 전혀 없으면 거부
+      throw new ForbiddenException('인증이 필요합니다.');
     }
 
     const localUrl = file.fileUrl;

@@ -649,6 +649,10 @@ export class UploadController {
         if (decoded.includes('..') || decoded.includes('\0')) {
             return res.status(400).json({ message: '잘못된 경로입니다.' });
         }
+        // 원본 파일(orders/.../originals/)은 presigned URL 전용 — 직접 서빙 금지
+        if (/orders[\\/][^\\/]+[\\/]originals[\\/]/i.test(decoded)) {
+            return res.status(403).json({ message: '원본 파일은 직접 접근이 허용되지 않습니다. API를 통해 접근하세요.' });
+        }
         const uploadBase = getUploadBasePath();
         const filePath = join(uploadBase, decoded);
         if (existsSync(filePath)) {

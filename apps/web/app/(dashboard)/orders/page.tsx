@@ -796,7 +796,10 @@ export default function OrderListPage() {
                             {item.pages}p / {item.quantity}부
                           </span>
                         </div>
-                        <div className="text-[11px] text-muted-foreground truncate">
+                        <div className="text-[11px] text-muted-foreground truncate flex items-center gap-1">
+                          {/긴급|urgent/i.test(item.folderName || item.productName || '') && (
+                            <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
+                          )}
                           {item.folderName || item.productName}
                         </div>
                         <div className="text-[11px] text-muted-foreground truncate">
@@ -1018,8 +1021,11 @@ export default function OrderListPage() {
                           }}
                         >
                           <div className="space-y-0.5">
-                            <div className="text-sm font-normal truncate text-foreground hover:underline" title={item.folderName || item.productName}>
-                              {item.folderName || item.productName}
+                            <div className="flex items-center gap-1.5 text-sm font-normal text-foreground hover:underline" title={item.folderName || item.productName}>
+                              {/긴급|urgent/i.test(item.folderName || item.productName || '') && (
+                                <span className="shrink-0 inline-flex items-center rounded px-1 py-0 text-[10px] font-bold bg-red-500 text-white leading-4">긴급</span>
+                              )}
+                              <span className="truncate">{item.folderName || item.productName}</span>
                             </div>
                             <div className="text-[13px] text-muted-foreground truncate" title={[item.size, item.printMethod, item.paper, item.bindingType, item.coverMaterial, item.fabricName ? `원단:${item.fabricName}` : '', item.foilName ? `동판:${item.foilName}` : '', item.foilColor ? `박:${item.foilColor}` : '', item.foilPosition ? `위치:${item.foilPosition}` : ''].filter(Boolean).join(' / ')}>
                               {item.size} / {item.printMethod} / {item.paper}
