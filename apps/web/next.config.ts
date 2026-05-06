@@ -15,7 +15,9 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline' https:",
   // unsafe-eval: Next.js 번들링 요구사항; unsafe-inline: 인라인 이벤트 핸들러
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
-  "connect-src 'self' https: wss:",
+  isDev
+    ? "connect-src 'self' http://localhost:* ws://localhost:* https: wss:"
+    : "connect-src 'self' https: wss:",
   "worker-src 'self' blob:",
   "media-src 'self' blob: https:",
   "form-action 'self'",
