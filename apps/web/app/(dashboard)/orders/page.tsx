@@ -525,12 +525,6 @@ export default function OrderListPage() {
 
       {/* 조회결과 + 검색 */}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground shrink-0">
-          조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
-          {selectedOrderIds.size > 0 && (
-            <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
-          )}
-        </span>
         <div className="relative w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -562,6 +556,12 @@ export default function OrderListPage() {
             className="pl-9 h-9"
           />
         </div>
+        <span className="text-sm text-muted-foreground shrink-0">
+          조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
+          {selectedOrderIds.size > 0 && (
+            <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
+          )}
+        </span>
       </div>
 
       {/* 주문 테이블 */}
