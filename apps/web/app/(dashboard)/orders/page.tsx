@@ -534,12 +534,55 @@ export default function OrderListPage() {
 
   return (
     <div className="space-y-4">
-      {/* 헤더: 제목 + 검색(중앙) + 상태필터 */}
+      {/* 헤더: 제목 + 기간필터 + 검색(중앙) */}
       <div className="relative flex items-center gap-2 sm:gap-3">
         <h1 className="text-xl font-bold flex items-center gap-2 shrink-0">
           {isPendingPage ? <Clock className="h-5 w-5" /> : <FileText className="h-5 w-5" />}
           {isPendingPage ? '접수대기' : '주문목록'}
         </h1>
+
+        {/* 주문목록: 기간별 필터 — 제목 오른쪽 */}
+        {!isPendingPage && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {(['1w', '1m', '3m', '6m', '1y', 'custom'] as const).map((v) => (
+              <label
+                key={v}
+                className="flex items-center gap-1 cursor-pointer text-[13px] text-black"
+              >
+                <input
+                  type="radio"
+                  name="dateRange"
+                  value={v}
+                  checked={dateRange === v}
+                  onChange={() => setDateRange(v)}
+                  className="accent-black"
+                />
+                {DATE_RANGE_LABELS[v]}
+              </label>
+            ))}
+            {dateRange === 'custom' && (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  aria-label="조회 시작일"
+                  title="조회 시작일"
+                  className="border border-gray-300 rounded h-8 px-2 text-[13px]"
+                />
+                <span className="text-[13px]">~</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  aria-label="조회 종료일"
+                  title="조회 종료일"
+                  className="border border-gray-300 rounded h-8 px-2 text-[13px]"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 주문목록: 정중앙 절대 배치 검색창 */}
         {!isPendingPage && (
@@ -607,54 +650,6 @@ export default function OrderListPage() {
         )}
       </div>
 
-      {/* 기간별 검색 필터 (주문목록 전용) */}
-      {!isPendingPage && (
-        <div className="flex items-center gap-3 flex-wrap">
-          {(['1w', '1m', '3m', '6m', '1y', 'custom'] as const).map((v) => (
-            <label
-              key={v}
-              className="flex items-center gap-1 cursor-pointer text-[13px] text-black"
-            >
-              <input
-                type="radio"
-                name="dateRange"
-                value={v}
-                checked={dateRange === v}
-                onChange={() => {
-                  setDateRange(v);
-                }}
-                className="accent-black"
-              />
-              {DATE_RANGE_LABELS[v]}
-            </label>
-          ))}
-          {dateRange === 'custom' && (
-            <div className="flex items-center gap-2">
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => {
-                  setCustomStart(e.target.value);
-                }}
-                aria-label="조회 시작일"
-                title="조회 시작일"
-                className="border border-gray-300 rounded h-8 px-2 text-[13px]"
-              />
-              <span className="text-[13px]">~</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => {
-                  setCustomEnd(e.target.value);
-                }}
-                aria-label="조회 종료일"
-                title="조회 종료일"
-                className="border border-gray-300 rounded h-8 px-2 text-[13px]"
-              />
-            </div>
-          )}
-        </div>
-      )}
 
       {!isPendingPage ? (
         <div
