@@ -523,47 +523,45 @@ export default function OrderListPage() {
         </div>
       ) : null}
 
-      {/* 검색 */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder={isPendingPage ? '주문번호, 주문자 검색...' : '주문번호·검색 후 Enter → 후가공대기'}
-          value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || isPendingPage) return;
-            e.preventDefault();
-            const q = search.trim();
-            if (!q || scanToFinishing.isPending) return;
-            scanToFinishing.mutate(q, {
-              onSuccess: (res) => {
-                if (res.already) {
-                  toast({ title: res.message || '이미 후가공대기입니다.' });
-                } else {
-                  toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
-                }
-                setProductionStage('finishing_wait');
-                setPage(1);
-              },
-              onError: (err: unknown) => {
-                const m = err instanceof Error ? err.message : String(err);
-                toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
-              },
-            });
-          }}
-          disabled={!isPendingPage && scanToFinishing.isPending}
-          className="pl-9 h-9"
-        />
-      </div>
-
-      {/* 조회결과 */}
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">
+      {/* 조회결과 + 검색 */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-muted-foreground shrink-0">
           조회결과 : <b className="text-foreground">{meta?.total || 0}</b> 건
           {selectedOrderIds.size > 0 && (
             <span className="ml-2 text-blue-600 font-medium">({selectedOrderIds.size}건 선택됨)</span>
           )}
         </span>
+        <div className="relative w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder={isPendingPage ? '주문번호, 주문자 검색...' : '주문번호·검색 후 Enter → 후가공대기'}
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || isPendingPage) return;
+              e.preventDefault();
+              const q = search.trim();
+              if (!q || scanToFinishing.isPending) return;
+              scanToFinishing.mutate(q, {
+                onSuccess: (res) => {
+                  if (res.already) {
+                    toast({ title: res.message || '이미 후가공대기입니다.' });
+                  } else {
+                    toast({ title: '후가공대기로 이동했습니다.', description: `${res.orderNumber} · ${res.studioName || ''}` });
+                  }
+                  setProductionStage('finishing_wait');
+                  setPage(1);
+                },
+                onError: (err: unknown) => {
+                  const m = err instanceof Error ? err.message : String(err);
+                  toast({ title: '후가공대기 이동 실패', description: m, variant: 'destructive' });
+                },
+              });
+            }}
+            disabled={!isPendingPage && scanToFinishing.isPending}
+            className="pl-9 h-9"
+          />
+        </div>
       </div>
 
       {/* 주문 테이블 */}
