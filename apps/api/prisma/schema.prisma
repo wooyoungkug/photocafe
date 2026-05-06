@@ -1028,6 +1028,7 @@ model Order {
   @@index([status, orderedAt])
   @@index([paymentStatus, orderedAt])
   @@index([createdByUserId])
+  @@index([createdByUserId, orderedAt])
   @@index([printQueueStatus])
   @@index([printOperatorId])
   @@index([status, currentProcess])
@@ -2614,6 +2615,7 @@ model SalesLedger {
   @@index([staffId, ledgerDate])
   @@index([salesStatus, ledgerDate])
   @@index([paymentStatus, ledgerDate])
+  @@index([paymentStatus, dueDate])
   @@map("sales_ledgers")
 }
 
