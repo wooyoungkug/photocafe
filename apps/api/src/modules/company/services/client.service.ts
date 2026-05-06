@@ -271,7 +271,7 @@ export class ClientService {
     await this.findOne(id);
 
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+      data.password = await bcrypt.hash(data.password, 12);
     } else {
       delete data.password;
     }

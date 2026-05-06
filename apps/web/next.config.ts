@@ -5,7 +5,7 @@ import createNextIntlPlugin from "next-intl/plugin";
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const isDev = process.env.NODE_ENV === "development";
-const cspReportOnly = [
+const cspDirectives = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
@@ -13,12 +13,12 @@ const cspReportOnly = [
   "img-src 'self' data: blob: https:",
   "font-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline' https:",
+  // unsafe-eval: Next.js 번들링 요구사항; unsafe-inline: 인라인 이벤트 핸들러
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
   "connect-src 'self' https: wss:",
   "worker-src 'self' blob:",
   "media-src 'self' blob: https:",
   "form-action 'self'",
-  "report-uri /csp-report",
 ].join("; ");
 
 const nextConfig: NextConfig = {
@@ -216,8 +216,8 @@ const nextConfig: NextConfig = {
         value: "same-site",
       },
       {
-        key: "Content-Security-Policy-Report-Only",
-        value: cspReportOnly,
+        key: "Content-Security-Policy",
+        value: cspDirectives,
       },
     ];
 

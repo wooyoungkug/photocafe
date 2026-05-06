@@ -193,7 +193,7 @@ export class StaffService {
     }
 
     // 비밀번호 해시
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
 
     // Prisma 데이터 생성
     const data: Prisma.StaffCreateInput = {
@@ -278,7 +278,7 @@ export class StaffService {
     // 비밀번호가 있으면 해시
     let hashedPassword: string | undefined;
     if (dto.password) {
-      hashedPassword = await bcrypt.hash(dto.password, 10);
+      hashedPassword = await bcrypt.hash(dto.password, 12);
     }
 
     const data: Prisma.StaffUpdateInput = {};
@@ -362,7 +362,7 @@ export class StaffService {
   async changePassword(id: string, dto: StaffChangePasswordDto) {
     await this.findOne(id);
 
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
 
     await this.prisma.staff.update({
       where: { id },
@@ -569,7 +569,7 @@ export class StaffService {
 
     // 랜덤 8자 비밀번호 생성
     const tempPassword = crypto.randomBytes(4).toString('hex'); // 8자 hex
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
     await this.prisma.staff.update({
       where: { id },
@@ -631,7 +631,7 @@ export class StaffService {
           continue;
         }
 
-        const hashedPassword = await bcrypt.hash(row.password, 10);
+        const hashedPassword = await bcrypt.hash(row.password, 12);
 
         await this.prisma.staff.create({
           data: {

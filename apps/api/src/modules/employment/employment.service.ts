@@ -288,7 +288,7 @@ export class EmploymentService {
       }
     }
 
-    const hashedPassword = await bcrypt.hash(dto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
 
     // 트랜잭션: Client 생성 또는 기존 Client 사용 + Employment 생성 + Invitation 상태 변경
     const result = await this.prisma.$transaction(async (tx) => {

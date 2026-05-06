@@ -676,7 +676,7 @@ export class AuthService {
       throw new ConflictException('이미 사용 중인 아이디입니다');
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
     const clientCode = `P${Date.now().toString().slice(-8)}`;
 
     await this.prisma.client.create({
@@ -792,7 +792,7 @@ export class AuthService {
       const ok = await bcrypt.compare(currentPassword, staff.password);
       if (!ok) throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다');
 
-      const hashed = await bcrypt.hash(newPassword, 10);
+      const hashed = await bcrypt.hash(newPassword, 12);
       await this.prisma.staff.update({ where: { id: userId }, data: { password: hashed } });
       return { success: true, message: '비밀번호가 변경되었습니다' };
     }
@@ -806,7 +806,7 @@ export class AuthService {
       const ok = await bcrypt.compare(currentPassword, client.password);
       if (!ok) throw new UnauthorizedException('현재 비밀번호가 올바르지 않습니다');
 
-      const hashed = await bcrypt.hash(newPassword, 10);
+      const hashed = await bcrypt.hash(newPassword, 12);
       await this.prisma.client.update({ where: { id: userId }, data: { password: hashed } });
       return { success: true, message: '비밀번호가 변경되었습니다' };
     }
@@ -1193,7 +1193,7 @@ export class AuthService {
     const client = await this.prisma.client.findUnique({ where: { id: clientId } });
     if (!client) throw new NotFoundException('회원을 찾을 수 없습니다');
 
-    const hashedPassword = await bcrypt.hash('1111', 10);
+    const hashedPassword = await bcrypt.hash('1111', 12);
     await this.prisma.client.update({
       where: { id: clientId },
       data: { password: hashedPassword },

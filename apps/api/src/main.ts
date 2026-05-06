@@ -19,9 +19,9 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Body parser 크기 제한 (50MB → 10MB, 파일 업로드는 Multer에서 별도 제어)
-  app.useBodyParser('json', { limit: '10mb' });
-  app.useBodyParser('urlencoded', { limit: '10mb' });
+  // Body parser 크기 제한 — JSON/Form 은 1MB, 파일 업로드는 Multer에서 별도 제어
+  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('urlencoded', { limit: '1mb' });
 
   // Nginx 리버스 프록시 신뢰 설정 (req.ip가 올바른 클라이언트 IP를 반환하도록)
   // 운영 환경에서 Nginx가 X-Forwarded-For를 설정하므로 1단계 프록시 신뢰

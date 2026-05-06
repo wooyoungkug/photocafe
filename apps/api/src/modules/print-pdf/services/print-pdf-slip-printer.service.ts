@@ -54,7 +54,14 @@ export class PrintPdfSlipPrinterService {
   validateSlipAgentSecret(secret: string | undefined): boolean {
     const expected = (process.env.PRINT_AGENT_SLIP_SECRET || '').trim();
     if (!expected || !secret) return false;
-    return secret === expected;
+    const sBuf = Buffer.from(secret.trim());
+    const eBuf = Buffer.from(expected);
+    if (sBuf.length !== eBuf.length) return false;
+    try {
+      return crypto.timingSafeEqual(sBuf, eBuf);
+    } catch {
+      return false;
+    }
   }
 
   /**

@@ -52,7 +52,7 @@ const PAGE_SIZE_OPTIONS = [
   { value: 30, label: '30개' },
   { value: 50, label: '50개' },
   { value: 100, label: '100개' },
-  { value: 9999, label: '전체' },
+  { value: 2000, label: '전체' },
 ];
 
 const DATE_RANGE_LABELS: Record<DateRangePreset, string> = {
@@ -373,10 +373,11 @@ export default function OrderListPage() {
   const [productionStage, setProductionStage] = useState<string>('all');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const VALID_PAGE_SIZES = PAGE_SIZE_OPTIONS.map((o) => o.value);
   const [limit, setLimit] = useState<number>(() => {
     if (typeof window === 'undefined') return 20;
-    const saved = localStorage.getItem('orders-page-size');
-    return saved ? Number(saved) : 20;
+    const saved = Number(localStorage.getItem('orders-page-size'));
+    return VALID_PAGE_SIZES.includes(saved) ? saved : 20;
   });
 
   const handleLimitChange = (val: string) => {

@@ -700,7 +700,7 @@ export class OrderQueryDto {
   @IsOptional()
   @IsNumber()
   @Min(1)
-  @Max(500)
+  @Max(2000)
   limit?: number;
 
   @ApiPropertyOptional({ description: '커서 기반 페이지네이션 커서 (이전 응답의 meta.nextCursor 값)' })
