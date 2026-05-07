@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Image from 'next/image';
 import {
@@ -358,11 +358,14 @@ function AdaptiveThumbnail({
   deletingFileId?: string | null;
 }) {
   const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
-  const [imgSrc, setImgSrc] = useState<string | null>(
-    normalizeImageUrl(file.thumbnailUrl) || normalizeImageUrl(file.fileUrl) || null
-  );
+  const baseThumbUrl = normalizeImageUrl(file.thumbnailUrl);
+  const baseFileUrl = normalizeImageUrl(file.fileUrl);
+  const [imgSrc, setImgSrc] = useState<string | null>(baseThumbUrl || baseFileUrl || null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRY_PER_URL = 2;
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    retryCountRef.current = 0;
     const img = e.currentTarget;
     const { naturalWidth, naturalHeight } = img;
     if (naturalWidth && naturalHeight) {
@@ -378,14 +381,28 @@ function AdaptiveThumbnail({
   };
 
   const handleImageError = () => {
-    // thumbnailUrl 실패 시 fileUrl로 폴백, fileUrl도 실패 시 포기
-    const normalizedThumb = normalizeImageUrl(file.thumbnailUrl);
-    const normalizedFile = normalizeImageUrl(file.fileUrl);
-    if (imgSrc === normalizedThumb && normalizedFile) {
-      setImgSrc(normalizedFile);
-    } else {
-      setImgSrc(null);
+    const stripRetryParam = (u: string) => u.replace(/[?&]_retry=\d+/, '').replace(/\?$/, '');
+    const currentBase = imgSrc ? stripRetryParam(imgSrc) : '';
+
+    // 1) 같은 URL 로 최대 2회 재시도 (dev 서버 콜드스타트/동시연결 한도 대응)
+    if (retryCountRef.current < MAX_RETRY_PER_URL && currentBase) {
+      retryCountRef.current += 1;
+      const sep = currentBase.includes('?') ? '&' : '?';
+      const next = `${currentBase}${sep}_retry=${retryCountRef.current}`;
+      // 짧은 backoff: 200ms, 600ms
+      setTimeout(() => setImgSrc(next), retryCountRef.current === 1 ? 200 : 600);
+      return;
     }
+
+    // 2) thumbnailUrl 재시도 모두 실패 → fileUrl 로 폴백 (재시도 카운터 리셋)
+    if (currentBase === baseThumbUrl && baseFileUrl && baseFileUrl !== baseThumbUrl) {
+      retryCountRef.current = 0;
+      setImgSrc(baseFileUrl);
+      return;
+    }
+
+    // 3) 모두 실패 → 포기 (placeholder 표시)
+    setImgSrc(null);
   };
 
   return (
