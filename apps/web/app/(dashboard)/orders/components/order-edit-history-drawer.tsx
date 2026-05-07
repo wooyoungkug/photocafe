@@ -57,7 +57,7 @@ export function OrderEditHistoryDrawer({
             공정진행이력
           </SheetTitle>
           <SheetDescription className="text-[14px] text-black font-normal">
-            주문에 대한 편집·재출력·담당자 변경 이력을 시간 순으로 표시합니다.
+            주문의 공정 진행 이력을 시간 순으로 표시합니다.
           </SheetDescription>
         </SheetHeader>
 
