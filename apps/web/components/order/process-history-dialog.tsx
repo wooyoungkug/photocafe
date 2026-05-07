@@ -15,8 +15,10 @@ import { Clock, User, ArrowRight, Loader2 } from 'lucide-react';
 
 const STATUS_COLORS: Record<string, string> = {
   pending_receipt: 'bg-orange-100 text-orange-700',
+  reception_hold: 'bg-pink-100 text-pink-700',
   receipt_completed: 'bg-blue-100 text-blue-700',
   in_production: 'bg-purple-100 text-purple-700',
+  print_waiting: 'bg-cyan-100 text-cyan-700',
   ready_for_shipping: 'bg-indigo-100 text-indigo-700',
   shipped: 'bg-green-100 text-green-700',
   cancelled: 'bg-gray-100 text-gray-500',

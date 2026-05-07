@@ -389,26 +389,17 @@ export class OrderService {
   /** 관리자 주문목록 — 세부 공정 탭 필터 */
   private buildProductionStageWhere(stage: string): Prisma.OrderWhereInput {
     switch (stage) {
-      // 검수 보류: 신규(currentProcess='inspection_hold') + 레거시(receipt_pending + hold 이력) 모두 포함
+      // 검수 보류: currentProcess 만 기준으로 판정 (이력 기준은 해제 후에도 영구 잔존하는 버그)
       case 'reception_hold':
         return {
           status: ORDER_STATUS.PENDING_RECEIPT,
-          OR: [
-            { currentProcess: PROCESS_STATUS.INSPECTION_HOLD },
-            {
-              currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
-              processHistory: { some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD } },
-            },
-          ],
+          currentProcess: PROCESS_STATUS.INSPECTION_HOLD,
         };
-      // 접수대기: receipt_pending 중 검수보류 이력이 없는 것 (신규 주문만)
+      // 접수대기: currentProcess=receipt_pending (보류 이력 유무와 무관)
       case 'reception_pending':
         return {
           status: ORDER_STATUS.PENDING_RECEIPT,
           currentProcess: PROCESS_STATUS.RECEIPT_PENDING,
-          NOT: {
-            processHistory: { some: { processType: INSPECTION_PROCESS_TYPES.INSPECTION_HOLD } },
-          },
         };
       case 'reception_done':
         return { status: ORDER_STATUS.RECEIPT_COMPLETED };
