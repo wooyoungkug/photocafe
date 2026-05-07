@@ -99,14 +99,14 @@ const PDF_INDIGO_BADGE: Record<string, { label: string; className: string }> = {
   pending: { label: 'PDF준비중', className: 'bg-gray-100 text-black' },
   in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
   generating: { label: '변환중', className: 'bg-blue-100 text-black' },
-  completed: { label: '성공', className: 'bg-green-100 text-black' },
+  completed: { label: 'PDF OK', className: 'bg-green-100 text-black' },
   failed: { label: '변환에러', className: 'bg-red-100 text-red-600' },
 };
 const PDF_INKJET_BADGE: Record<string, { label: string; className: string }> = {
   pending: { label: '데이타대기', className: 'bg-gray-100 text-black' },
   in_progress: { label: '생성중', className: 'bg-blue-100 text-black' },
   generating: { label: '생성중', className: 'bg-blue-100 text-black' },
-  completed: { label: '출력데이타생성', className: 'bg-green-100 text-black' },
+  completed: { label: 'PDF OK', className: 'bg-green-100 text-black' },
   failed: { label: '데이터에러', className: 'bg-red-100 text-red-600' },
 };
 function getPdfBadge(pdfStatus?: string, printMethod?: string) {
@@ -235,7 +235,7 @@ function ReceiptCompletedOutputCell({
             <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center text-[11px] text-black font-normal">
               {pdfOk ? (
                 <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
-                  PDF
+                  PDF OK
                 </a>
               ) : (
                 <span className="text-red-600" title={it.pdfStatus === 'failed' ? 'PDF 변환 실패' : undefined}>
@@ -243,7 +243,7 @@ function ReceiptCompletedOutputCell({
                 </span>
               )}
               {slipOk ? (
-                <span className="text-green-700 font-medium">지시서</span>
+                <span className="text-green-700 font-medium">지시서 OK</span>
               ) : (
                 <span className="text-red-600">지시서준비중</span>
               )}
@@ -904,7 +904,7 @@ export default function OrderListPage() {
                           <div className="text-[11px] text-black font-normal">
                             {slipDone ? (
                               <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline">
-                                지시서
+                                지시서 OK
                               </a>
                             ) : (
                               <span className="text-red-600">지시서준비중</span>
@@ -1217,7 +1217,7 @@ export default function OrderListPage() {
                                   <div className="text-[13px] font-normal">
                                     {slipDone ? (
                                       <a href={`/print-slip/${first.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline">
-                                        지시서
+                                        지시서 OK
                                       </a>
                                     ) : (
                                       <span className="text-red-600">지시서준비중</span>
