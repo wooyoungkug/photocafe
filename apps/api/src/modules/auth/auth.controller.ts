@@ -60,6 +60,7 @@ export class AuthController {
     rememberMe = false,
   ) {
     const isProd = process.env.NODE_ENV === 'production';
+    const cookieDomain = isProd ? process.env.COOKIE_DOMAIN || '.photocafe.co.kr' : undefined;
     const accessMaxAge = 8 * 60 * 60 * 1000; // 8h
     const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
 
@@ -69,6 +70,7 @@ export class AuthController {
       sameSite: 'lax',
       path: '/',
       maxAge: accessMaxAge,
+      ...(cookieDomain && { domain: cookieDomain }),
     });
     res.cookie('refresh_token', refreshToken, {
       httpOnly: true,
@@ -76,16 +78,19 @@ export class AuthController {
       sameSite: 'lax',
       path: '/',
       maxAge: refreshMaxAge,
+      ...(cookieDomain && { domain: cookieDomain }),
     });
   }
 
   private clearAuthCookies(res: Response) {
     const isProd = process.env.NODE_ENV === 'production';
+    const cookieDomain = isProd ? process.env.COOKIE_DOMAIN || '.photocafe.co.kr' : undefined;
     const baseOptions = {
       httpOnly: true as const,
       secure: isProd,
       sameSite: 'lax' as const,
       path: '/',
+      ...(cookieDomain && { domain: cookieDomain }),
     };
     res.clearCookie('access_token', baseOptions);
     res.clearCookie('refresh_token', baseOptions);
