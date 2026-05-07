@@ -2269,6 +2269,8 @@ export class OrderService {
     // 접수보류는 단순 status 변경이 아니라 status=pending_receipt + currentProcess=inspection_hold 의 복합 상태
     const isReceptionHold = dto.status === 'reception_hold';
     const targetStatus = isReceptionHold ? ORDER_STATUS.PENDING_RECEIPT : dto.status;
+    // 접수대기로 되돌릴 때 currentProcess도 함께 리셋 — 데이타검수중(inspection) 등에서 접수대기 탭으로 이동시키기 위함
+    const isResetToReceiptPending = !isReceptionHold && targetStatus === ORDER_STATUS.PENDING_RECEIPT;
 
     // 트랜잭션 내부: 이미 조회한 order 데이터 재사용 (findUnique 중복 제거)
     await this.prisma.$transaction(async (tx) => {
@@ -2298,6 +2300,7 @@ export class OrderService {
             data: {
               status: targetStatus,
               ...(isReceptionHold ? { currentProcess: PROCESS_STATUS.INSPECTION_HOLD } : {}),
+              ...(isResetToReceiptPending ? { currentProcess: PROCESS_STATUS.RECEIPT_PENDING } : {}),
               ...queuePatch.data,
               processHistory: { create: historyEntries },
             },
