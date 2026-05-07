@@ -743,11 +743,13 @@ export default function OrderListPage() {
             {orders.map((order) => {
               const items = order.items || [];
               const statusBadge =
-                order.status === 'pending_receipt' && order.currentProcess === 'inspection'
-                  ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
-                  : isOrderCancelled(order)
-                    ? STATUS_BADGE.cancelled
-                    : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+                order.status === 'pending_receipt' && order.currentProcess === 'inspection_hold'
+                  ? { label: '접수보류', className: 'bg-amber-100 text-amber-700' }
+                  : order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                    ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                    : isOrderCancelled(order)
+                      ? STATUS_BADGE.cancelled
+                      : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
               const isSelected = selectedOrderIds.has(order.id);
 
               return (
@@ -956,13 +958,15 @@ export default function OrderListPage() {
                 <TableBody>
                   {orders.map((order) => {
                     const items = order.items || [];
-                    // 파일검수 중 상태 처리
+                    // 파일검수 중 / 접수보류 상태 처리
                     const statusBadge =
-                      order.status === 'pending_receipt' && order.currentProcess === 'inspection'
-                        ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
-                        : isOrderCancelled(order)
-                          ? STATUS_BADGE.cancelled
-                          : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
+                      order.status === 'pending_receipt' && order.currentProcess === 'inspection_hold'
+                        ? { label: '접수보류', className: 'bg-amber-100 text-amber-700' }
+                        : order.status === 'pending_receipt' && order.currentProcess === 'inspection'
+                          ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
+                          : isOrderCancelled(order)
+                            ? STATUS_BADGE.cancelled
+                            : STATUS_BADGE[order.status] || STATUS_BADGE.pending_receipt;
                     const isSelected = selectedOrderIds.has(order.id);
 
                     const hasOriginals = items.some((i: any) => i.originalFileCount > 0);
