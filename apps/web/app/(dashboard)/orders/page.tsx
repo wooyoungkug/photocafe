@@ -96,7 +96,7 @@ import { displayFinalAmount, isOrderCancelled } from '@/lib/order-display';
 
 // 출력대기 PDF 변환 진행상황 뱃지 매핑 (PrintQueueTable 과 동일)
 const PDF_INDIGO_BADGE: Record<string, { label: string; className: string }> = {
-  pending: { label: '대기', className: 'bg-gray-100 text-black' },
+  pending: { label: 'PDF준비중', className: 'bg-gray-100 text-black' },
   in_progress: { label: '변환중', className: 'bg-blue-100 text-black' },
   generating: { label: '변환중', className: 'bg-blue-100 text-black' },
   completed: { label: '성공', className: 'bg-green-100 text-black' },
@@ -245,7 +245,7 @@ function ReceiptCompletedOutputCell({
               {slipOk ? (
                 <span className="text-green-700 font-medium">지시서</span>
               ) : (
-                <span className="text-red-600">지시서 대기</span>
+                <span className="text-red-600">지시서준비중</span>
               )}
             </div>
             <div className="flex flex-col gap-1 pt-0.5">
@@ -907,7 +907,7 @@ export default function OrderListPage() {
                                 지시서
                               </a>
                             ) : (
-                              <span className="text-red-600">지시서 대기</span>
+                              <span className="text-red-600">지시서준비중</span>
                             )}
                           </div>
                         </div>
@@ -1220,7 +1220,7 @@ export default function OrderListPage() {
                                         지시서
                                       </a>
                                     ) : (
-                                      <span className="text-red-600">지시서 대기</span>
+                                      <span className="text-red-600">지시서준비중</span>
                                     )}
                                   </div>
                                 </div>
