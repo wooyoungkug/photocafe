@@ -16,6 +16,7 @@ export const ORDER_STATUS = {
 export const ORDER_STATUS_LABELS: Record<string, string> = {
   pending_receipt: '접수대기',
   reception_hold: '접수보류',
+  data_inspection: '데이타검수중',
   receipt_completed: '접수완료',
   in_production: '생산진행',
   print_waiting: '출력대기',

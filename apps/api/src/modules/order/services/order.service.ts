@@ -2225,7 +2225,7 @@ export class OrderService {
     // N개 findUnique 대신 1회 findMany로 배치 조회
     const foundOrders = await this.prisma.order.findMany({
       where: { id: { in: dto.orderIds } },
-      select: { id: true, status: true, printQueueStatus: true },
+      select: { id: true, status: true, printQueueStatus: true, currentProcess: true },
     });
     const orderMap = new Map(foundOrders.map(o => [o.id, o]));
 
@@ -2273,9 +2273,17 @@ export class OrderService {
             targetStatus,
           );
           const queuePatch = this.buildQueueTransitionPatch(transition);
+          // 의미적 fromStatus: status 컬럼만 보면 "접수대기→접수대기"로 보일 때 currentProcess의 의미를 살려서 표시
+          // - currentProcess=inspection_hold (접수보류) → fromStatus='reception_hold'
+          // - currentProcess=inspection (데이타검수중) → fromStatus='data_inspection'
+          const semanticFromStatus = (() => {
+            if (order.currentProcess === PROCESS_STATUS.INSPECTION_HOLD) return 'reception_hold';
+            if (order.currentProcess === PROCESS_STATUS.INSPECTION) return 'data_inspection';
+            return order.status;
+          })();
           const historyEntries: any[] = [
             {
-              fromStatus: order.status,
+              fromStatus: semanticFromStatus,
               toStatus: isReceptionHold ? 'reception_hold' : targetStatus,
               processType: isReceptionHold ? INSPECTION_PROCESS_TYPES.INSPECTION_HOLD : 'bulk_status_change',
               note: dto.note,
