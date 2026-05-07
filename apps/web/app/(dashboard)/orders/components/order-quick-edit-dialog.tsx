@@ -24,6 +24,7 @@ import {
   useAdjustOrder,
   useEditOrderWithAudit,
   useDeleteOrderItemFile,
+  useStartInspection,
   ORDER_REPRINT_REQUIRED_STATUSES,
 } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
@@ -689,6 +690,8 @@ export function OrderQuickEditDialog({
   const adjustOrder = useAdjustOrder();
   const editWithAudit = useEditOrderWithAudit();
   const deleteOrderItemFile = useDeleteOrderItemFile();
+  const startInspection = useStartInspection();
+  const startInspectionTriggeredRef = useRef<string | null>(null);
   // 권한 체크 — super_admin 만 출력대기 이후 상태에서 사양 편집 가능.
   const { user: currentUser } = useCurrentUser();
   const isSuperAdmin =
@@ -755,6 +758,26 @@ export function OrderQuickEditDialog({
       setNotifyOperator(true);
     }
   }, [fullOrder]);
+
+  // 다이얼로그 진입 시 자동으로 데이타 검수중(currentProcess='inspection')으로 전환.
+  // Why: 관리자가 "주문 검증 및 수정"을 시작했음을 공정 탭/배지에 즉시 반영하기 위함.
+  // 다음 공정은 사용자가 명시적으로 접수보류/접수완료를 선택할 때 진행됨.
+  // 서버 측에서 status !== pending_receipt 또는 이미 inspection 인 경우는 자동 스킵됨.
+  useEffect(() => {
+    if (!open) {
+      startInspectionTriggeredRef.current = null;
+      return;
+    }
+    if (!fullOrder) return;
+    if (startInspectionTriggeredRef.current === fullOrder.id) return;
+    if (
+      fullOrder.status === 'pending_receipt' &&
+      fullOrder.currentProcess !== 'inspection'
+    ) {
+      startInspectionTriggeredRef.current = fullOrder.id;
+      startInspection.mutate(fullOrder.id);
+    }
+  }, [open, fullOrder, startInspection]);
 
   if (!order) return null;
 

@@ -529,7 +529,7 @@ export function useStartInspection() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (orderId: string) =>
-      api.post(`/api/v1/orders/${orderId}/start-inspection`, {}),
+      api.post(`/orders/${orderId}/start-inspection`, {}),
     onSuccess: (_, orderId) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
@@ -552,7 +552,7 @@ export function useInspectFile() {
       inspectionStatus: 'approved' | 'rejected';
       inspectionNote?: string;
     }) =>
-      api.patch(`/api/v1/orders/${orderId}/files/${fileId}/inspect`, {
+      api.patch(`/orders/${orderId}/files/${fileId}/inspect`, {
         inspectionStatus,
         inspectionNote,
       }),
@@ -577,7 +577,7 @@ export function useDeleteOrderItemFile() {
       fileId: string;
     }) =>
       api.delete<{ message: string; fileId: string }>(
-        `/api/v1/orders/${orderId}/items/${itemId}/files/${fileId}`,
+        `/orders/${orderId}/items/${itemId}/files/${fileId}`,
       ),
     onSuccess: (_, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
@@ -598,7 +598,7 @@ export function useHoldInspection() {
       orderId: string;
       reason: string;
       sendSms?: boolean;
-    }) => api.post(`/api/v1/orders/${orderId}/hold-inspection`, { reason, sendSms }),
+    }) => api.post(`/orders/${orderId}/hold-inspection`, { reason, sendSms }),
     onSuccess: (_, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
@@ -611,7 +611,7 @@ export function useCompleteInspection() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ orderId, note }: { orderId: string; note?: string }) =>
-      api.post(`/api/v1/orders/${orderId}/complete-inspection`, { note }),
+      api.post(`/orders/${orderId}/complete-inspection`, { note }),
     onSuccess: (_, { orderId }) => {
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY, orderId] });
       queryClient.invalidateQueries({ queryKey: [ORDERS_KEY] });
