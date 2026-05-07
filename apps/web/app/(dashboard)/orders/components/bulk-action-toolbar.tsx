@@ -39,6 +39,7 @@ import { ChangeReceiptDateDialog } from './change-receipt-date-dialog';
 import { DataCleanupDialog } from './data-cleanup-dialog';
 
 const STATUS_OPTIONS = [
+  { value: 'reception_hold', label: '접수보류' },
   { value: 'pending_receipt', label: '접수대기' },
   { value: 'receipt_completed', label: '접수완료' },
   { value: 'in_production', label: '생산진행' },

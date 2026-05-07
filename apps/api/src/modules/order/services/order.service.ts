@@ -2266,6 +2266,10 @@ export class OrderService {
 
     let success = 0;
 
+    // 접수보류는 단순 status 변경이 아니라 status=pending_receipt + currentProcess=inspection_hold 의 복합 상태
+    const isReceptionHold = dto.status === 'reception_hold';
+    const targetStatus = isReceptionHold ? ORDER_STATUS.PENDING_RECEIPT : dto.status;
+
     // 트랜잭션 내부: 이미 조회한 order 데이터 재사용 (findUnique 중복 제거)
     await this.prisma.$transaction(async (tx) => {
       for (const order of eligibleOrders) {
@@ -2273,14 +2277,14 @@ export class OrderService {
           const transition = this.computeQueueTransition(
             (order as any).printQueueStatus ?? null,
             order.status,
-            dto.status,
+            targetStatus,
           );
           const queuePatch = this.buildQueueTransitionPatch(transition);
           const historyEntries: any[] = [
             {
               fromStatus: order.status,
-              toStatus: dto.status,
-              processType: 'bulk_status_change',
+              toStatus: isReceptionHold ? 'reception_hold' : targetStatus,
+              processType: isReceptionHold ? INSPECTION_PROCESS_TYPES.INSPECTION_HOLD : 'bulk_status_change',
               note: dto.note,
               processedBy: userId,
             },
@@ -2292,7 +2296,8 @@ export class OrderService {
           await tx.order.update({
             where: { id: order.id },
             data: {
-              status: dto.status,
+              status: targetStatus,
+              ...(isReceptionHold ? { currentProcess: PROCESS_STATUS.INSPECTION_HOLD } : {}),
               ...queuePatch.data,
               processHistory: { create: historyEntries },
             },
