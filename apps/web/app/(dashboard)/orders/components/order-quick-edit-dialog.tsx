@@ -1049,7 +1049,7 @@ export function OrderQuickEditDialog({
               className="shrink-0"
             >
               <History className="h-4 w-4 mr-1" />
-              이력 보기
+              공정이력
             </Button>
           </div>
         </DialogHeader>
