@@ -744,7 +744,7 @@ export default function OrderListPage() {
               const items = order.items || [];
               const statusBadge =
                 order.status === 'pending_receipt' && order.currentProcess === 'inspection_hold'
-                  ? { label: '접수보류', className: 'bg-amber-100 text-amber-700' }
+                  ? { label: '접수보류', className: 'bg-rose-100 text-rose-700' }
                   : order.status === 'pending_receipt' && order.currentProcess === 'inspection'
                     ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
                     : isOrderCancelled(order)
@@ -961,7 +961,7 @@ export default function OrderListPage() {
                     // 파일검수 중 / 접수보류 상태 처리
                     const statusBadge =
                       order.status === 'pending_receipt' && order.currentProcess === 'inspection_hold'
-                        ? { label: '접수보류', className: 'bg-amber-100 text-amber-700' }
+                        ? { label: '접수보류', className: 'bg-rose-100 text-rose-700' }
                         : order.status === 'pending_receipt' && order.currentProcess === 'inspection'
                           ? { label: '파일검수 중', className: 'bg-yellow-100 text-yellow-700' }
                           : isOrderCancelled(order)
