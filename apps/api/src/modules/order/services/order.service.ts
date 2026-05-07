@@ -5091,7 +5091,12 @@ export class OrderService {
   ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { id: true },
+      select: {
+        id: true,
+        orderedAt: true,
+        createdAt: true,
+        createdByUserId: true,
+      },
     });
     if (!order) throw new NotFoundException('주문을 찾을 수 없습니다');
 
@@ -5119,11 +5124,35 @@ export class OrderService {
     });
 
     const hasMore = items.length > limit;
-    const data = hasMore ? items.slice(0, limit) : items;
+    const data: any[] = hasMore ? items.slice(0, limit) : items;
     const last = data[data.length - 1];
     const nextCursor = hasMore && last
       ? Buffer.from(JSON.stringify({ id: last.id, createdAt: last.createdAt })).toString('base64')
       : null;
+
+    // 마지막 페이지면 주문 접수(생성) 합성 엔트리를 가장 오래된 항목으로 덧붙인다.
+    if (!hasMore) {
+      const creator = order.createdByUserId
+        ? await this.prisma.staff.findUnique({
+            where: { id: order.createdByUserId },
+            select: { id: true, name: true },
+          })
+        : null;
+      data.push({
+        id: `__creation__:${order.id}`,
+        orderId: order.id,
+        editorId: creator?.id ?? null,
+        editorName: creator?.name ?? '시스템',
+        editor: creator ? { id: creator.id, name: creator.name } : null,
+        changedFields: null,
+        changedPages: null,
+        message: '주문 접수',
+        notifyOperator: false,
+        reprintJobId: null,
+        reprintJob: null,
+        createdAt: order.orderedAt ?? order.createdAt,
+      });
+    }
 
     return { items: data, nextCursor, hasMore };
   }
