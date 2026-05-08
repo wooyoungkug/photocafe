@@ -951,9 +951,8 @@ export default function OrderListPage() {
                     <TableHead className="text-xs w-[150px]">상품명</TableHead>
                     <TableHead className="text-xs w-[400px]">주문제목 / 재질 및 규격</TableHead>
                     <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">편집스타일/제본순서</TableHead>
-                    <TableHead className="text-center w-[80px] text-xs whitespace-nowrap">페이지/부수</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">페이지/부수</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">용량</TableHead>
-                    <TableHead className="text-right w-[120px] text-xs">주문금액</TableHead>
                     <TableHead className="text-center w-[120px] text-xs">진행상황</TableHead>
                     <TableHead className="text-center w-[100px] text-xs">확인</TableHead>
                   </TableRow>
@@ -1093,11 +1092,16 @@ export default function OrderListPage() {
                           </div>
                         </TableCell>
 
-                        {/* 페이지 / 부수 */}
+                        {/* 페이지 / 부수 + 주문금액(첫행) */}
                         <TableCell className="text-center text-sm">
                           <span className={`whitespace-nowrap ${(item.quantity ?? 1) > 1 ? 'text-red-600 font-bold' : ''}`}>
                             {item.pages}p/{item.quantity}부
                           </span>
+                          {idx === 0 && (
+                            <div className="text-[13px] text-black font-normal whitespace-nowrap mt-0.5">
+                              {displayFinalAmount(order).toLocaleString()}원
+                            </div>
+                          )}
                         </TableCell>
 
                         {/* 용량 + 원본받기/삭제 */}
@@ -1140,15 +1144,6 @@ export default function OrderListPage() {
                           )}
                         </TableCell>
 
-                        {/* 주문금액 - 첫 번째 항목에만 합계 표시 */}
-                        {idx === 0 && (
-                          <TableCell
-                            className="text-right align-middle font-normal text-base whitespace-nowrap"
-                            rowSpan={items.length}
-                          >
-                            {displayFinalAmount(order).toLocaleString()}원
-                          </TableCell>
-                        )}
 
                         {/* 진행상황 - 첫 번째 항목에만 표시 */}
                         {idx === 0 && (
