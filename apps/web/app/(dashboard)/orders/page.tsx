@@ -349,17 +349,6 @@ function getPageLayoutLabel(layout?: string): string {
   return layout === 'spread' ? '펼침면' : '낱장';
 }
 
-// 제본순서 라벨
-function getBindingDirectionLabel(direction?: string): string {
-  if (!direction) return '-';
-  const labels: Record<string, string> = {
-    LEFT_START_RIGHT_END: '좌시우끝',
-    LEFT_START_LEFT_END: '좌시좌끝',
-    RIGHT_START_LEFT_END: '우시좌끝',
-    RIGHT_START_RIGHT_END: '우시우끝',
-  };
-  return labels[direction] || direction;
-}
 
 export default function OrderListPage() {
   const pathname = usePathname();
@@ -950,7 +939,7 @@ export default function OrderListPage() {
                     <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">회원정보/영업담당자</TableHead>
                     <TableHead className="text-xs w-[150px]">상품명</TableHead>
                     <TableHead className="text-xs w-[400px]">주문제목 / 재질 및 규격</TableHead>
-                    <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">편집스타일/제본순서</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">편집스타일</TableHead>
                     <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">페이지/부수</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">용량</TableHead>
                     <TableHead className="text-center w-[120px] text-xs">진행상황</TableHead>
@@ -1080,16 +1069,9 @@ export default function OrderListPage() {
                           </div>
                         </TableCell>
 
-                        {/* 편집스타일 / 제본순서 */}
-                        <TableCell className="text-center">
-                          <div className="space-y-0.5">
-                            <div className="text-sm">
-                              {getPageLayoutLabel(item.pageLayout)}
-                            </div>
-                            <div className="text-[13px] text-muted-foreground">
-                              {getBindingDirectionLabel(item.bindingDirection)}
-                            </div>
-                          </div>
+                        {/* 편집스타일 */}
+                        <TableCell className="text-center text-sm">
+                          {getPageLayoutLabel(item.pageLayout)}
                         </TableCell>
 
                         {/* 페이지 / 부수 + 주문금액(첫행) */}
