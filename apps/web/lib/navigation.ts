@@ -11,7 +11,6 @@
 
 import {
   Building2,
-  Camera,
   CalendarDays,
   CreditCard,
   Headphones,
@@ -157,16 +156,11 @@ export const NAVIGATION: NavItem[] = [
     ],
   },
   {
-    id: "schedule",
-    name: "일정관리",
-    href: "/schedule",
-    icon: CalendarDays,
-  },
-  {
     id: "shooting",
-    name: "촬영관리",
-    icon: Camera,
+    name: "일정관리",
+    icon: CalendarDays,
     children: [
+      { name: "일정관리", href: "/schedule" },
       { name: "촬영일정", href: "/shooting" },
       { name: "작가관리", href: "/shooting/photographers" },
     ],
