@@ -17,10 +17,6 @@ import PdfConvertDialog from './components/PdfConvertDialog';
 import PdfProgressTracker from './components/PdfProgressTracker';
 import PdfSettingsDialog, {
   usePdfSettings,
-  restoreGlobalDirHandle,
-  requestHandlePermission,
-  setGlobalDirHandle,
-  getGlobalDirHandle,
 } from './components/PdfSettingsDialog';
 import ImpositionSettingsDialog from './components/ImpositionSettingsDialog';
 import { PrintAgentStatusCard } from './components/print-agent-status';
@@ -156,48 +152,7 @@ export default function PrintQueuePage() {
     if (e.key === 'Enter') handleSearch();
   };
 
-  /**
-   * PDF 변환 시작 전 폴더 권한을 사용자 제스처 컨텍스트에서 미리 확보.
-   * 이렇게 하면 변환 완료 후 자동 저장 시 권한 팝업/다운로드 대화상자 없이 바로 저장됨.
-   */
-  // Railway 서버(Linux)가 접근할 수 없는 Windows 로컬 경로 감지
-  const isWindowsLocalPath = (p: string) => /^[A-Za-z]:[/\\]/.test(p);
-
-  const ensureFolderReadyForAutoSave = async (): Promise<void> => {
-    // 서버가 실제로 접근 가능한 경로(Linux 마운트 등)일 때만 브라우저 개입 불필요
-    // Windows 경로(C:\, Z:\ 등)는 Railway 서버가 접근 불가 → 에이전트로 처리
-    if (pdfSettings.outputPath && !isWindowsLocalPath(pdfSettings.outputPath)) return;
-    if (!pdfSettings.saveToLocal) return;
-    let handle = getGlobalDirHandle() || (await restoreGlobalDirHandle());
-
-    // 폴더가 한 번도 선택되지 않았으면 지금 선택받기
-    if (!handle) {
-      if (!('showDirectoryPicker' in window)) return;
-      try {
-        handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-        if (handle) setGlobalDirHandle(handle);
-      } catch (err: any) {
-        if (err?.name === 'AbortError') {
-          toast.info('폴더 선택이 취소되어 브라우저 기본 다운로드 폴더에 저장됩니다.');
-        }
-        return;
-      }
-    }
-
-    if (!handle) return;
-
-    // 권한 확보 (필요 시 팝업). 실패 시 핸들 폐기.
-    const granted = await requestHandlePermission(handle);
-    if (!granted) {
-      toast.warning('폴더 권한이 거부되어 브라우저 기본 다운로드로 저장됩니다.');
-      setGlobalDirHandle(null);
-    }
-  };
-
   const handleGenerate = async (request: GeneratePrintPdfRequest) => {
-    // 변환 요청 전에 폴더 권한 확보 (user gesture 컨텍스트)
-    await ensureFolderReadyForAutoSave();
-
     generateMutation.mutate(request, {
       onSuccess: (job) => {
         setActiveJobId(job.jobId);
@@ -306,13 +261,6 @@ export default function PrintQueuePage() {
           onDownload={handleDownload}
           onClose={() => setActiveJobId(null)}
           isDownloading={downloadMutation.isPending}
-          saveToLocal={pdfSettings.saveToLocal}
-          serverAutoSavedPath={
-            // Windows 경로(C:\, Z:\ 등)는 Railway 서버가 접근 불가 → 에이전트 저장 로직을 건너뛰지 않음
-            (pdfSettings.outputPath && !isWindowsLocalPath(pdfSettings.outputPath))
-              ? pdfSettings.outputPath
-              : undefined
-          }
           autoPrintEnabled={pdfSettings.autoPrintEnabled}
           autoPrintNameIndigo={pdfSettings.autoPrintNameIndigo}
           autoPrintNameInkjet={pdfSettings.autoPrintNameInkjet}

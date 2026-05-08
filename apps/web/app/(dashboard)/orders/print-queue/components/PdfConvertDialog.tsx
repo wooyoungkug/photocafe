@@ -122,7 +122,6 @@ export default function PdfConvertDialog({
       includeCropMarks,
       includeColorBar: pdfSettings.includeColorBar,
       nupOverride: pdfSettings.defaultNup !== '1up' ? pdfSettings.defaultNup : undefined,
-      outputPath: pdfSettings.outputPath || undefined,
       indexOrderKeys,
       indexPosition: pdfSettings.indexPosition || 'bottom',
       ...(pdfSettings.canvasEnabled && {
