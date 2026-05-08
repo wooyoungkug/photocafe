@@ -226,12 +226,23 @@ function ReceiptCompletedOutputCell({
     }
   };
 
-  // 생성 중: 스피너만 표시
+  // 생성 중: 스피너 + 멈췄을 때를 대비한 수동 재시도 링크
   if (anyGenerating && !anyPdfFailed) {
     return (
-      <div className="flex items-center gap-1 text-[11px] text-blue-600">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        자동생성 중…
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-1 text-[11px] text-blue-600">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          자동생성 중…
+        </div>
+        <button
+          type="button"
+          onClick={onRegen}
+          disabled={regenBusy}
+          className="text-[10px] text-gray-500 hover:text-blue-600 hover:underline disabled:opacity-50"
+          title="멈춘 것 같으면 클릭 — 좀비 상태를 정리하고 다시 시작합니다"
+        >
+          {regenBusy ? '요청 중…' : '↻ 수동 재시도'}
+        </button>
       </div>
     );
   }

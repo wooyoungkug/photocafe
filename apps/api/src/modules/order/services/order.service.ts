@@ -3745,21 +3745,43 @@ export class OrderService {
 
   /**
    * PDF 수동 재생성
+   * - 'failed' 항목은 무조건 재시도
+   * - 'generating'/'pending' 으로 멈춘 좀비 항목도 함께 회수해 재시도
+   *   (서버 재시작/크래시로 자동전환이 끊긴 경우 사용자가 UI에서 복구 가능)
+   *   사용자가 버튼을 눌렀다는 것은 "지금 멈춰있다"는 의도이므로 시간 검사 없이 회수.
    */
   async regeneratePdf(orderId: string) {
-    const failedItems = await this.prisma.orderItem.findMany({
-      where: { orderId, pdfStatus: 'failed' },
+    const targets = await this.prisma.orderItem.findMany({
+      where: {
+        orderId,
+        pdfStatus: { in: ['failed', 'generating', 'pending'] },
+      },
+      select: { id: true, pdfStatus: true },
     });
 
-    if (failedItems.length === 0) {
+    if (targets.length === 0) {
       throw new BadRequestException('재생성할 PDF가 없습니다.');
+    }
+
+    // 좀비 항목을 'failed'로 회수해서 triggerPdfAndAutoAdvance 가 정상 진입하도록 함
+    const stuckIds = targets
+      .filter((t) => t.pdfStatus === 'generating' || t.pdfStatus === 'pending')
+      .map((t) => t.id);
+    if (stuckIds.length > 0) {
+      await this.prisma.orderItem.updateMany({
+        where: { id: { in: stuckIds } },
+        data: { pdfStatus: 'failed' },
+      });
+      this.logger.warn(
+        `[자동PDF] 좀비 회수: ${stuckIds.length}건 → failed 처리 후 재생성`,
+      );
     }
 
     this.triggerPdfAndAutoAdvance(orderId).catch(err => {
       this.logger.error(`[자동PDF] 수동 재생성 실패: ${orderId}`, err);
     });
 
-    return { message: `${failedItems.length}건의 PDF 재생성을 시작합니다.` };
+    return { message: `${targets.length}건의 PDF 재생성을 시작합니다.` };
   }
 
   /**

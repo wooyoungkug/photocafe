@@ -54,7 +54,8 @@ export class PrintPdfService implements OnModuleInit {
   /**
    * 서버 부팅 시 좀비 상태 회수.
    * - 이전 실행에서 in_progress/pending 상태로 남은 PdfJob → failed로 전환
-   * - OrderItem.pdfStatus도 in_progress 상태면 failed로 회수
+   * - OrderItem.pdfStatus가 in_progress/generating/pending 이면 failed로 회수
+   *   (접수완료 자동생성 경로는 'generating'을 사용하므로 함께 처리해야 함)
    */
   async onModuleInit() {
     try {
@@ -67,7 +68,7 @@ export class PrintPdfService implements OnModuleInit {
         data: { status: 'failed', error: 'Server restarted' },
       });
       const zombieOrderItems = await this.prisma.orderItem.updateMany({
-        where: { pdfStatus: 'in_progress' },
+        where: { pdfStatus: { in: ['in_progress', 'generating', 'pending'] } },
         data: { pdfStatus: 'failed' },
       });
       if (zombieJobs.count || zombieOrderItems.count) {
