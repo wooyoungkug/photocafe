@@ -407,8 +407,9 @@ function useServerStatus() {
     setApiStatus((prev) => ({ ...prev, status: "checking" }));
     const start = Date.now();
     try {
-      const apiUrl =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1";
+      const apiUrl = (
+        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api/v1"
+      ).replace(/\/api\/v\d+\/?$/, "");
       const res = await fetch(`${apiUrl}/health`, {
         method: "GET",
         cache: "no-store",

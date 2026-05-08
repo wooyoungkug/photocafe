@@ -34,13 +34,14 @@ export function DashboardLayoutClient({
   useMenuStyleApply();
   const { user, isAuthenticated } = useCurrentUser();
   const { requestPermission } = usePushSubscription(isAuthenticated);
+  const NOTIF_DISMISSED_KEY = 'notif-banner-dismissed';
   const [showNotifBanner, setShowNotifBanner] = useState(false);
   const [notifDenied, setNotifDenied] = useState(false);
 
   useEffect(() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     const perm = Notification.permission;
-    if (perm === 'default') setShowNotifBanner(true);
+    if (perm === 'default' && localStorage.getItem(NOTIF_DISMISSED_KEY) !== '1') setShowNotifBanner(true);
     if (perm === 'denied') setNotifDenied(true);
   }, []);
   const { data: prefs } = useUserPreferences();
@@ -200,7 +201,11 @@ export function DashboardLayoutClient({
               )}
               <button
                 type="button"
-                onClick={() => { setShowNotifBanner(false); setNotifDenied(false); }}
+                onClick={() => {
+                  localStorage.setItem(NOTIF_DISMISSED_KEY, '1');
+                  setShowNotifBanner(false);
+                  setNotifDenied(false);
+                }}
                 className={`p-1 rounded ${notifDenied ? 'hover:bg-amber-100' : 'hover:bg-blue-100'}`}
                 aria-label="닫기"
               >
