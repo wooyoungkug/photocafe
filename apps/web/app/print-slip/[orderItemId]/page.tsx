@@ -75,11 +75,17 @@ function ThumbnailGrid({
   items,
   globalOffset,
   isSpread,
+  bindingDirection,
+  totalItemCount,
 }: {
   items: ThumbItem[];
   globalOffset: number;
   isSpread: boolean;
+  bindingDirection?: string;
+  totalItemCount: number;
 }) {
+  const isLeftStart = !(bindingDirection || 'LEFT_START_RIGHT_END').startsWith('RIGHT_START');
+
   return (
     <div className={isSpread ? 'grid gap-2 grid-cols-4' : 'grid gap-1 grid-cols-8'}>
       {items.map(({ file, url }, localIdx) => {
@@ -93,6 +99,22 @@ function ThumbnailGrid({
           ? (typeof pe === 'number' && pe >= 1 ? pe : fallbackIndex * 2 + 2)
           : null;
         const fileName = formatThumbFileLabel(file.fileName || '');
+
+        // 하프 스프레드 감지: pageStart === pageEnd (한쪽만 실제 페이지)
+        const isHalfSpread = isSpread &&
+          typeof ps === 'number' && typeof pe === 'number' && ps >= 1 && ps === pe;
+        const isFirstItem = fallbackIndex === 0;
+        const isLastItem = fallbackIndex === totalItemCount - 1;
+
+        // 빈페이지 위치 결정
+        // LEFT_START_*: 첫 스프레드 → 왼쪽 빈, 마지막 스프레드 → 오른쪽 빈
+        // RIGHT_START_*: 첫 스프레드 → 오른쪽 빈, 마지막 스프레드 → 왼쪽 빈
+        let blankLeft = false;
+        let blankRight = false;
+        if (isHalfSpread) {
+          if (isFirstItem) { blankLeft = isLeftStart; blankRight = !isLeftStart; }
+          else if (isLastItem) { blankRight = isLeftStart; blankLeft = !isLeftStart; }
+        }
 
         return (
           <div key={file.id ?? fallbackIndex} className="flex flex-col min-w-0">
@@ -109,13 +131,35 @@ function ThumbnailGrid({
                   <span className="relative text-[9px] font-bold text-blue-600 bg-white/95 rounded px-1 py-0.5">미생성</span>
                 </div>
               )}
-              {/* 페이지 번호 뱃지 */}
-              <div className="absolute top-1 left-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center bg-pink-500 text-white text-[9px] font-bold leading-none">
-                {leftPage}
+
+              {/* 빈페이지 오버레이 */}
+              {blankLeft && (
+                <div className="absolute inset-y-0 left-0 w-1/2 border-2 border-dashed border-blue-400 bg-blue-50/60 flex items-center justify-center overflow-hidden">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.55)" strokeWidth="2.5" />
+                    <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.55)" strokeWidth="2.5" />
+                  </svg>
+                  <span className="relative text-[8px] font-bold text-blue-600 bg-white/95 rounded px-1 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
+                </div>
+              )}
+              {blankRight && (
+                <div className="absolute inset-y-0 right-0 w-1/2 border-2 border-dashed border-blue-400 bg-blue-50/60 flex items-center justify-center overflow-hidden">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.55)" strokeWidth="2.5" />
+                    <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.55)" strokeWidth="2.5" />
+                  </svg>
+                  <span className="relative text-[8px] font-bold text-blue-600 bg-white/95 rounded px-1 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
+                </div>
+              )}
+
+              {/* 왼쪽 페이지 번호 뱃지 */}
+              <div className={`absolute top-1 left-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold leading-none ${blankLeft ? 'bg-pink-200 text-pink-900' : 'bg-pink-500 text-white'}`}>
+                {blankLeft ? '空' : leftPage}
               </div>
+              {/* 오른쪽 페이지 번호 뱃지 (스프레드만) */}
               {rightPage !== null && (
-                <div className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center bg-pink-500 text-white text-[9px] font-bold leading-none">
-                  {rightPage}
+                <div className={`absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center text-[9px] font-bold leading-none ${blankRight ? 'bg-pink-200 text-pink-900' : 'bg-pink-500 text-white'}`}>
+                  {blankRight ? '空' : rightPage}
                 </div>
               )}
             </div>
@@ -159,6 +203,7 @@ export default function PrintSlipPage() {
   const isUrgent = order.isUrgent;
   const isInkjet = (d.printMethod || '').toLowerCase().includes('inkjet');
   const printMethodLabel = isInkjet ? '잉크젯' : '인디고';
+  const bindingDirection: string = d.bindingDirection || 'LEFT_START_RIGHT_END';
 
   const toThumbUrl = (p: string | undefined) => {
     if (!p) return null;
@@ -413,7 +458,7 @@ export default function PrintSlipPage() {
                   <span className="text-[10px] text-blue-400 ml-auto">1 / {totalPages}</span>
                 )}
               </div>
-              <ThumbnailGrid items={page1Items} globalOffset={0} isSpread={isSpread} />
+              <ThumbnailGrid items={page1Items} globalOffset={0} isSpread={isSpread} bindingDirection={bindingDirection} totalItemCount={thumbItems.length} />
             </div>
           )}
         </div>
@@ -434,7 +479,7 @@ export default function PrintSlipPage() {
                 <span className="text-[9pt] text-gray-400 shrink-0">{pageNum} / {totalPages}</span>
               </div>
               <div className="p-3">
-                <ThumbnailGrid items={pageItems} globalOffset={globalOffset} isSpread={isSpread} />
+                <ThumbnailGrid items={pageItems} globalOffset={globalOffset} isSpread={isSpread} bindingDirection={bindingDirection} totalItemCount={thumbItems.length} />
               </div>
             </div>
           );
