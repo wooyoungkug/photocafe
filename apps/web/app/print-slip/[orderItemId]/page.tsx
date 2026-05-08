@@ -98,6 +98,9 @@ function ThumbnailGrid({
           ? (typeof pe === 'number' && pe >= 1 ? pe : fallbackIndex * 2 + 2)
           : null;
         const fileName = (file.fileName || '').replace(/\.[^.]+$/, '');
+        const seqNum = String(fallbackIndex + 1).padStart(2, '0');
+        const cleanName = (fileName || pageLabel).replace(/^\d+\s*/, '');
+        const displayLabel = `${seqNum} ${cleanName}`;
 
         // 하프 스프레드 감지: pageStart === pageEnd (한쪽만 실제 페이지)
         const isHalfSpread = isSpread &&
@@ -171,7 +174,7 @@ function ThumbnailGrid({
             </div>
             {/* 파일명 하단 패널 */}
             <div className="text-[8px] text-center truncate font-medium text-black border border-t-0 border-gray-300 rounded-b-md bg-white px-1 py-0.5 leading-tight">
-              {fileName || pageLabel}
+              {displayLabel}
             </div>
           </div>
         );
