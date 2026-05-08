@@ -114,7 +114,22 @@ export function PrintAgentRunHelpDialog({
   );
 }
 
-export function PrintAgentStatusCard({ pollMs = 15000 }: { pollMs?: number }) {
+/**
+ * 일시적 네트워크 지연/CORS preflight 등으로 인한 1회 실패는 무시한다.
+ * 연속 N회 실패해야만 "꺼짐" 으로 확정한다.
+ * - 첫 시도 성공 → 즉시 true
+ * - 실패 시 500ms 간격으로 최대 3회까지 재시도
+ * - 모두 실패한 경우에만 false
+ */
+async function checkAgentResilient(): Promise<boolean> {
+  for (let i = 0; i < 3; i++) {
+    if (await checkPrintAgentRunning()) return true;
+    if (i < 2) await new Promise((r) => setTimeout(r, 500));
+  }
+  return false;
+}
+
+export function PrintAgentStatusCard({ pollMs = 10000 }: { pollMs?: number }) {
   const [running, setRunning] = useState<boolean | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -122,7 +137,7 @@ export function PrintAgentStatusCard({ pollMs = 15000 }: { pollMs?: number }) {
   const refresh = useCallback(async () => {
     setBusy(true);
     try {
-      const ok = await checkPrintAgentRunning();
+      const ok = await checkAgentResilient();
       setRunning(ok);
     } finally {
       setBusy(false);

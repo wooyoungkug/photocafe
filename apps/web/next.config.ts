@@ -15,9 +15,10 @@ const cspDirectives = [
   "style-src 'self' 'unsafe-inline' https:",
   // unsafe-eval: Next.js 번들링 요구사항; unsafe-inline: 인라인 이벤트 핸들러
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
+  // localhost:9199 = 로컬 프린트 에이전트 (PC별 설치). 운영에서도 브라우저가 자기 PC의 에이전트로 직접 호출해야 하므로 허용.
   isDev
-    ? "connect-src 'self' http://localhost:* ws://localhost:* https: wss:"
-    : "connect-src 'self' https: wss:",
+    ? "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* https: wss:"
+    : "connect-src 'self' https: wss: http://localhost:9199 http://127.0.0.1:9199",
   "worker-src 'self' blob:",
   "media-src 'self' blob: https:",
   "form-action 'self'",
