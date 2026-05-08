@@ -226,61 +226,51 @@ function ReceiptCompletedOutputCell({
     }
   };
 
+  // 생성 중: 스피너만 표시
+  if (anyGenerating && !anyPdfFailed) {
+    return (
+      <div className="flex items-center gap-1 text-[11px] text-blue-600">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        자동생성 중…
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2 text-left w-full max-w-[200px] mx-auto">
+      {/* 완료 항목: PDF OK + 지시서 OK 링크 */}
       {candidates.map((it) => {
         const pdfOk = (it.pdfStatus || '') === 'completed';
-        // PDF 생성 완료 = 지시서 데이터도 준비 완료
-        const slipOk = pdfOk;
         const pdfUrl = `${API_URL}/print-pdf/items/${it.id}/pdf`;
-
-        let pdfLabel = '대기';
-        let pdfColor = 'text-gray-500';
-        if (it.pdfStatus === 'generating') { pdfLabel = '생성 중…'; pdfColor = 'text-blue-600'; }
-        else if (it.pdfStatus === 'failed') { pdfLabel = '실패 ⚠'; pdfColor = 'text-red-600'; }
-
+        if (!pdfOk) return null;
         return (
-          <div key={it.id} className="rounded border border-gray-200 bg-slate-50/70 px-2 py-1.5 space-y-1">
-            <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center text-[11px] text-black font-normal">
-              {pdfOk ? (
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
-                  PDF OK
-                </a>
-              ) : (
-                <span className={pdfColor} title={it.pdfStatus === 'failed' ? 'PDF 변환 실패 — 재생성 버튼을 누르세요' : undefined}>
-                  PDF {pdfLabel}
-                </span>
-              )}
-              {slipOk ? (
-                <a href={`/print-slip/${it.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
-                  지시서 OK
-                </a>
-              ) : (
-                <span className={anyPdfFailed ? 'text-red-600' : 'text-gray-500'}>
-                  {anyPdfFailed ? '지시서 중단' : '지시서 대기'}
-                </span>
-              )}
-            </div>
+          <div key={it.id} className="flex flex-wrap gap-x-2 gap-y-0.5 items-center text-[11px]">
+            <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+              PDF OK
+            </a>
+            <a href={`/print-slip/${it.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+              지시서 OK
+            </a>
           </div>
         );
       })}
-      {anyGenerating && !anyPdfFailed && (
-        <div className="flex items-center gap-1 text-[10px] text-blue-600">
-          <Loader2 className="h-3 w-3 animate-spin" />
-          자동생성 중… 완료 후 출력대기 전환
-        </div>
-      )}
+      {/* 실패 항목 + 재생성 버튼 */}
       {anyPdfFailed && (
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full h-7 text-[11px]"
-          disabled={regenBusy}
-          onClick={onRegen}
-        >
-          {regenBusy ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />요청 중…</> : '⚠ PDF·지시서 재생성'}
-        </Button>
+        <>
+          {candidates.filter((it) => it.pdfStatus === 'failed').map((it) => (
+            <div key={it.id} className="text-[11px] text-red-600">PDF 생성 실패 ⚠</div>
+          ))}
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full h-7 text-[11px]"
+            disabled={regenBusy}
+            onClick={onRegen}
+          >
+            {regenBusy ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />요청 중…</> : '⚠ PDF·지시서 재생성'}
+          </Button>
+        </>
       )}
     </div>
   );
