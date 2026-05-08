@@ -106,22 +106,19 @@ function ThumbnailGrid({
         const isLastItem = fallbackIndex === totalItemCount - 1;
 
         // 빈페이지 위치 결정
-        // LEFT_START_*: 첫 스프레드 → 왼쪽 빈, 마지막 스프레드 → 오른쪽 빈
-        // RIGHT_START_*: 첫 스프레드 → 오른쪽 빈, 마지막 스프레드 → 왼쪽 빈
+        // 우시작(RIGHT_START): 첫 스프레드 왼쪽이 빈면
+        // 좌끝(LEFT_END): 마지막 스프레드 오른쪽이 빈면
+        // 좌시우끝(LEFT_START_RIGHT_END): 빈페이지 없음
         let blankLeft = false;
         let blankRight = false;
         if (isHalfSpread) {
-          // 시작면: 우시작 → 1페이지가 오른쪽 → 왼쪽이 빈면
-          //          좌시작 → 1페이지가 왼쪽 → 오른쪽이 빈면 (LEFT_START는 첫 스프레드가 하프인 경우 거의 없음)
           if (isFirstItem) {
             blankLeft = !isLeftStart;   // 우시작(RIGHT_START) → 왼쪽 빈면
-            blankRight = isLeftStart;   // 좌시작(LEFT_START) → 오른쪽 빈면
-          // 끝나는면: 좌끝(LEFT_END) → 마지막 페이지가 왼쪽 → 오른쪽이 빈면
-          //           우끝(RIGHT_END) → 마지막 페이지가 오른쪽 → 왼쪽이 빈면
+            // 좌시작(LEFT_START): 1페이지가 왼쪽에서 시작 → 빈면 없음
           } else if (isLastItem) {
             const isLeftEnd = (bindingDirection || '').includes('LEFT_END');
-            blankRight = isLeftEnd;     // 좌끝 → 오른쪽 빈면
-            blankLeft = !isLeftEnd;     // 우끝 → 왼쪽 빈면
+            blankRight = isLeftEnd;     // 좌끝(LEFT_END) → 오른쪽 빈면
+            // 우끝(RIGHT_END): 마지막 페이지가 오른쪽에서 끝 → 빈면 없음
           }
         }
 
