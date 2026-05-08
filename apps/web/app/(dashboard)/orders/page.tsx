@@ -683,7 +683,10 @@ export default function OrderListPage() {
         >
           {PRODUCTION_STAGE_TABS.map((tab) => {
             const active = productionStage === tab.id;
-            const count = tab.id !== 'all' ? (stageCounts?.[tab.id] ?? 0) : undefined;
+            const totalCount = stageCounts
+              ? Object.values(stageCounts).reduce((sum, n) => sum + (n ?? 0), 0)
+              : undefined;
+            const count = tab.id !== 'all' ? (stageCounts?.[tab.id] ?? 0) : totalCount;
             return (
               <button
                 key={tab.id}
