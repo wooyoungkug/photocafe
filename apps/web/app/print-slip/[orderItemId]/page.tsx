@@ -6,7 +6,6 @@ import { usePrintQueueItemDetail } from '@/hooks/use-print-pdf';
 import { Printer, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { normalizeImageUrl } from '@/lib/utils';
-import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
 
 const URGENT_KEYWORDS = ['긴급', '지급', '즉시', '당일', '특급', '우선처리', '급처리', '촉급', '최급', '급건'];
 const URGENT_REGEX = new RegExp(`(${URGENT_KEYWORDS.join('|')})`, 'g');
@@ -98,7 +97,7 @@ function ThumbnailGrid({
         const rightPage = isSpread
           ? (typeof pe === 'number' && pe >= 1 ? pe : fallbackIndex * 2 + 2)
           : null;
-        const fileName = formatThumbFileLabel(file.fileName || '');
+        const fileName = (file.fileName || '').replace(/\.[^.]+$/, '');
 
         // 하프 스프레드 감지: pageStart === pageEnd (한쪽만 실제 페이지)
         const isHalfSpread = isSpread &&
