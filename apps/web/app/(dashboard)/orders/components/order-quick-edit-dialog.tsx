@@ -760,9 +760,7 @@ export function OrderQuickEditDialog({
   }, [fullOrder]);
 
   // 다이얼로그 진입 시 자동으로 데이타 검수중(currentProcess='inspection')으로 전환.
-  // Why: 관리자가 "주문 검증 및 수정"을 시작했음을 공정 탭/배지에 즉시 반영하기 위함.
-  // 다음 공정은 사용자가 명시적으로 접수보류/접수완료를 선택할 때 진행됨.
-  // 서버 측에서 status !== pending_receipt 또는 이미 inspection 인 경우는 자동 스킵됨.
+  // 단, 접수보류(inspection_hold) 상태는 자동 전환 제외 — 수동으로 공정 변경해야 함.
   useEffect(() => {
     if (!open) {
       startInspectionTriggeredRef.current = null;
@@ -772,7 +770,8 @@ export function OrderQuickEditDialog({
     if (startInspectionTriggeredRef.current === fullOrder.id) return;
     if (
       fullOrder.status === 'pending_receipt' &&
-      fullOrder.currentProcess !== 'inspection'
+      fullOrder.currentProcess !== 'inspection' &&
+      fullOrder.currentProcess !== 'inspection_hold'
     ) {
       startInspectionTriggeredRef.current = fullOrder.id;
       startInspection.mutate(fullOrder.id);
@@ -1667,6 +1666,21 @@ export function OrderQuickEditDialog({
         )}
 
         <DialogFooter className="mt-4 gap-2">
+          {/* 접수보류 상태에서 수동으로 데이터검수 시작 */}
+          {displayOrder.currentProcess === 'inspection_hold' && (
+            <Button
+              type="button"
+              variant="outline"
+              className="mr-auto text-blue-600 border-blue-300 hover:bg-blue-50"
+              disabled={startInspection.isPending}
+              onClick={() => startInspection.mutate(displayOrder.id)}
+            >
+              {startInspection.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : null}
+              데이터검수 시작
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             취소
           </Button>
