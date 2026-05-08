@@ -947,10 +947,10 @@ export default function OrderListPage() {
                     <TableHead className="text-center w-[160px] text-xs whitespace-nowrap">
                       주문일(주문번호)
                     </TableHead>
-                    <TableHead className="text-center w-[100px] text-xs">회원정보<br />영업담당자</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">회원정보/영업담당자</TableHead>
                     <TableHead className="text-xs w-[150px]">상품명</TableHead>
                     <TableHead className="text-xs w-[400px]">주문제목 / 재질 및 규격</TableHead>
-                    <TableHead className="text-center w-[100px] text-xs">편집스타일<br />/ 제본순서</TableHead>
+                    <TableHead className="text-center w-[100px] text-xs whitespace-nowrap">편집스타일/제본순서</TableHead>
                     <TableHead className="text-center w-[80px] text-xs whitespace-nowrap">페이지/부수</TableHead>
                     <TableHead className="text-center w-[80px] text-xs">용량</TableHead>
                     <TableHead className="text-right w-[120px] text-xs">주문금액</TableHead>

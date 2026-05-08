@@ -152,7 +152,8 @@ export const NAVIGATION: NavItem[] = [
       { name: "상담등록", href: "/cs/consultations/new", group: "상담" },
       { name: "상담분류", href: "/cs/categories", group: "설정" },
       { name: "상담가이드", href: "/cs/guides", group: "설정" },
-      { name: "견적관리", href: "/cs/quotations", group: "견적" },
+      { name: "매입처 견적관리", href: "/cs/purchase-quotations", group: "견적" },
+      { name: "매출처 견적관리", href: "/cs/quotations", group: "견적" },
     ],
   },
   {
