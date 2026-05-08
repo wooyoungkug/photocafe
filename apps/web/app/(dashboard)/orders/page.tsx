@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS, useConfirmOrderItemSlipPrinted } from '@/hooks/use-orders';
+import { useOrders, useProductionStageCounts, Order, OrderItem, ORDER_STATUS_LABELS } from '@/hooks/use-orders';
 import { useScanPrintQueueToFinishing } from '@/hooks/use-print-pdf';
 import { BulkActionToolbar } from './components/bulk-action-toolbar';
 import { OrderQuickEditDialog } from './components/order-quick-edit-dialog';
@@ -201,7 +201,6 @@ function ReceiptCompletedOutputCell({
   order: Order;
   items: NonNullable<Order['items']>;
 }) {
-  const confirmSlip = useConfirmOrderItemSlipPrinted();
   const [regenBusy, setRegenBusy] = useState(false);
 
   const candidates = items.filter(itemNeedsPrintOutputCheck);
@@ -243,38 +242,11 @@ function ReceiptCompletedOutputCell({
                 </span>
               )}
               {slipOk ? (
-                <span className="text-green-700 font-medium">지시서 OK</span>
+                <a href={`/print-slip/${it.id}`} target="_blank" rel="noopener noreferrer" className="text-green-700 font-medium hover:underline">
+                  지시서 OK
+                </a>
               ) : (
                 <span className="text-red-600">지시서준비중</span>
-              )}
-            </div>
-            <div className="flex flex-col gap-1 pt-0.5">
-              <a
-                href={`/print-slip/${it.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-blue-600 hover:underline text-center"
-              >
-                지시서 열기
-              </a>
-              {pdfOk && !slipOk && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-[11px] font-normal text-black"
-                  disabled={confirmSlip.isPending}
-                  onClick={() =>
-                    confirmSlip.mutate(it.id, {
-                      onSuccess: () =>
-                        toast({ title: '지시서 출력 완료로 기록했습니다.' }),
-                      onError: (err: Error) =>
-                        toast({ variant: 'destructive', title: '기록 실패', description: err.message }),
-                    })
-                  }
-                >
-                  출력 완료 기록
-                </Button>
               )}
             </div>
           </div>
