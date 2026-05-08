@@ -112,8 +112,18 @@ function ThumbnailGrid({
         let blankLeft = false;
         let blankRight = false;
         if (isHalfSpread) {
-          if (isFirstItem) { blankLeft = isLeftStart; blankRight = !isLeftStart; }
-          else if (isLastItem) { blankRight = isLeftStart; blankLeft = !isLeftStart; }
+          // 시작면: 우시작 → 1페이지가 오른쪽 → 왼쪽이 빈면
+          //          좌시작 → 1페이지가 왼쪽 → 오른쪽이 빈면 (LEFT_START는 첫 스프레드가 하프인 경우 거의 없음)
+          if (isFirstItem) {
+            blankLeft = !isLeftStart;   // 우시작(RIGHT_START) → 왼쪽 빈면
+            blankRight = isLeftStart;   // 좌시작(LEFT_START) → 오른쪽 빈면
+          // 끝나는면: 좌끝(LEFT_END) → 마지막 페이지가 왼쪽 → 오른쪽이 빈면
+          //           우끝(RIGHT_END) → 마지막 페이지가 오른쪽 → 왼쪽이 빈면
+          } else if (isLastItem) {
+            const isLeftEnd = (bindingDirection || '').includes('LEFT_END');
+            blankRight = isLeftEnd;     // 좌끝 → 오른쪽 빈면
+            blankLeft = !isLeftEnd;     // 우끝 → 왼쪽 빈면
+          }
         }
 
         return (
