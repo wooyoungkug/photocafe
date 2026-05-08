@@ -1539,6 +1539,16 @@ export class OrderService {
     });
 
     this.sendOrderStatusSms(id, dto.status).catch(() => {});
+
+    // 접수완료 전환 시 PDF + 지시서 자동생성 및 출력대기 자동전환
+    if (dto.status === ORDER_STATUS.RECEIPT_COMPLETED) {
+      setImmediate(() => {
+        this.triggerPdfAndAutoAdvance(id).catch((err) =>
+          this.logger.error(`[자동PDF] 주문 ${id} 처리 실패: ${err?.message}`, err),
+        );
+      });
+    }
+
     return updated;
   }
 
@@ -3230,9 +3240,9 @@ export class OrderService {
       throw new BadRequestException('모든 파일이 승인되어야 검수를 완료할 수 있습니다.');
     }
 
-    // 비동기 PDF 생성 트리거 (접수확정 응답을 차단하지 않음)
-    this.triggerPdfGeneration(orderId).catch(err => {
-      this.logger.error(`PDF 생성 실패 (주문 ${orderId}):`, err);
+    // 비동기 PDF + 지시서 자동생성 및 출력대기 자동전환
+    this.triggerPdfAndAutoAdvance(orderId).catch(err => {
+      this.logger.error(`[자동PDF] PDF 생성 실패 (주문 ${orderId}):`, err);
     });
 
     // 접수완료로 상태 변경
@@ -3562,12 +3572,12 @@ export class OrderService {
   }
 
   /**
-   * 접수확정 시 PDF 생성 트리거 (비동기)
+   * 접수완료 시 PDF + 지시서 자동생성 후 모두 OK면 출력대기로 자동전환
    */
-  private async triggerPdfGeneration(orderId: string) {
+  private async triggerPdfAndAutoAdvance(orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { orderNumber: true },
+      select: { orderNumber: true, status: true },
     });
     if (!order) return;
 
@@ -3581,6 +3591,14 @@ export class OrderService {
       },
     });
 
+    // 파일이 없는 주문은 PDF 생성 없이 바로 출력대기 전환
+    const itemsWithFiles = items.filter(item => item.files.length > 0);
+    if (itemsWithFiles.length === 0) {
+      this.logger.log(`[자동PDF] 주문 ${order.orderNumber}: 파일 없음, 바로 출력대기 전환`);
+      await this.autoAdvanceToQueue(orderId, order.orderNumber);
+      return;
+    }
+
     for (const item of items) {
       if (item.files.length === 0) continue;
 
@@ -3590,10 +3608,9 @@ export class OrderService {
           data: { pdfStatus: 'generating' },
         });
 
-        // 원본 파일 경로에서 디렉토리 추출
         const firstFilePath = item.files[0].originalPath;
         if (!firstFilePath) {
-          this.logger.warn(`No original path for item ${item.id}, skipping PDF`);
+          this.logger.warn(`[자동PDF] originalPath 없음 (item: ${item.id}), PDF 스킵`);
           await this.prisma.orderItem.update({
             where: { id: item.id },
             data: { pdfStatus: 'failed' },
@@ -3601,8 +3618,8 @@ export class OrderService {
           continue;
         }
 
-        const { join, dirname } = require('path');
-        const orderDir = dirname(dirname(firstFilePath)); // originals/ 상위
+        const { dirname } = require('path');
+        const orderDir = dirname(dirname(firstFilePath));
 
         const pdfFiles = item.files
           .filter(f => f.originalPath)
@@ -3629,18 +3646,15 @@ export class OrderService {
           },
         });
 
-        this.logger.log(`PDF generated for item ${item.productionNumber}`);
+        this.logger.log(`[자동PDF] PDF 생성 완료: ${item.productionNumber}`);
 
+        // 로컬 프린트 에이전트용 슬립 트리거 (Linux/Railway 환경에서는 no-op)
         const orderForSlip = await this.prisma.order.findUnique({
           where: { id: orderId },
-          select: {
-            orderNumber: true,
-            client: { select: { clientName: true } },
-          },
+          select: { orderNumber: true, client: { select: { clientName: true } } },
         });
         if (orderForSlip) {
-          const isDoubleSided = String(item.printSide || '').toLowerCase() === 'double';
-          const sideLabel = isDoubleSided ? '양면' : '단면';
+          const sideLabel = String(item.printSide || '').toLowerCase() === 'double' ? '양면' : '단면';
           this.slipPrinter
             .printSlipIfEnabled({
               orderNumber: orderForSlip.orderNumber,
@@ -3658,19 +3672,75 @@ export class OrderService {
               orderItemId: item.id,
             })
             .catch((err: any) => {
-              this.logger.error(
-                `레거시 PDF 후 슬립 트리거 실패 (${orderForSlip.orderNumber}): ${err?.message}`,
-              );
+              this.logger.warn(`[자동PDF] 슬립 트리거 실패 (${orderForSlip.orderNumber}): ${err?.message}`);
             });
         }
       } catch (err) {
-        this.logger.error(`PDF generation failed for item ${item.id}:`, err);
+        this.logger.error(`[자동PDF] PDF 생성 실패 (item: ${item.id}):`, err);
         await this.prisma.orderItem.update({
           where: { id: item.id },
           data: { pdfStatus: 'failed' },
         });
       }
     }
+
+    // 모든 파일 있는 항목이 completed이면 출력대기 자동전환
+    const finalItems = await this.prisma.orderItem.findMany({
+      where: { orderId },
+      select: { pdfStatus: true, files: { where: { deletedAt: null }, select: { id: true } } },
+    });
+
+    const hasAnyFiles = finalItems.some(it => it.files.length > 0);
+    const allOk = finalItems
+      .filter(it => it.files.length > 0)
+      .every(it => it.pdfStatus === 'completed');
+
+    if (hasAnyFiles && allOk) {
+      await this.autoAdvanceToQueue(orderId, order.orderNumber);
+    } else {
+      const failedCount = finalItems.filter(it => it.pdfStatus === 'failed').length;
+      this.logger.warn(
+        `[자동PDF] 주문 ${order.orderNumber}: PDF 실패 ${failedCount}건 — 출력대기 자동전환 중단`,
+      );
+    }
+  }
+
+  /**
+   * 주문을 출력대기(in_production + printQueueStatus:pending)로 자동전환
+   */
+  private async autoAdvanceToQueue(orderId: string, orderNumber: string) {
+    const current = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { status: true, printQueueStatus: true },
+    });
+    if (!current) return;
+
+    // 이미 in_production 이상이면 중복 전환 방지
+    if (!['pending_receipt', 'receipt_completed'].includes(current.status)) {
+      this.logger.log(`[자동PDF] 주문 ${orderNumber}: 이미 ${current.status}, 자동전환 스킵`);
+      return;
+    }
+
+    await this.prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: ORDER_STATUS.IN_PRODUCTION,
+        currentProcess: 'print_waiting',
+        printQueueStatus: 'pending',
+        printQueueEnteredAt: new Date(),
+        processHistory: {
+          create: {
+            fromStatus: current.status,
+            toStatus: ORDER_STATUS.IN_PRODUCTION,
+            processType: 'status_change',
+            note: 'PDF·지시서 자동생성 완료 → 출력대기 자동전환',
+            processedBy: 'system',
+          },
+        },
+      },
+    });
+
+    this.logger.log(`[자동PDF] 주문 ${orderNumber}: 출력대기(in_production) 자동전환 완료`);
   }
 
   /**
@@ -3685,9 +3755,8 @@ export class OrderService {
       throw new BadRequestException('재생성할 PDF가 없습니다.');
     }
 
-    // 비동기 실행
-    this.triggerPdfGeneration(orderId).catch(err => {
-      this.logger.error(`PDF 재생성 실패: ${orderId}`, err);
+    this.triggerPdfAndAutoAdvance(orderId).catch(err => {
+      this.logger.error(`[자동PDF] 수동 재생성 실패: ${orderId}`, err);
     });
 
     return { message: `${failedItems.length}건의 PDF 재생성을 시작합니다.` };

@@ -193,7 +193,7 @@ function itemNeedsPrintOutputCheck(item: OrderItem) {
   return Number(item.totalFileSize ?? 0) > 0 || !!(item.files && item.files.length > 0);
 }
 
-/** 접수완료: 품목별 PDF·지시서 완료 여부 + 수동 지시서 확정 */
+/** 접수완료: 품목별 PDF·지시서 자동생성 진행현황 */
 function ReceiptCompletedOutputCell({
   order,
   items,
@@ -209,12 +209,15 @@ function ReceiptCompletedOutputCell({
   }
 
   const anyPdfFailed = candidates.some((it) => it.pdfStatus === 'failed');
+  const anyGenerating = candidates.some(
+    (it) => !it.pdfStatus || it.pdfStatus === 'generating' || it.pdfStatus === 'pending',
+  );
 
   const onRegen = async () => {
     setRegenBusy(true);
     try {
       await api.post(`/orders/${order.id}/regenerate-pdf`);
-      toast({ title: 'PDF 재생성을 시작했습니다.' });
+      toast({ title: 'PDF·지시서 재생성을 시작했습니다.' });
     } catch (e: unknown) {
       const m = e instanceof Error ? e.message : String(e);
       toast({ title: 'PDF 재생성 요청 실패', description: m, variant: 'destructive' });
@@ -227,8 +230,15 @@ function ReceiptCompletedOutputCell({
     <div className="space-y-2 text-left w-full max-w-[200px] mx-auto">
       {candidates.map((it) => {
         const pdfOk = (it.pdfStatus || '') === 'completed';
-        const slipOk = !!it.slipAutoPrintedAt;
+        // PDF 생성 완료 = 지시서 데이터도 준비 완료
+        const slipOk = pdfOk;
         const pdfUrl = `${API_URL}/print-pdf/items/${it.id}/pdf`;
+
+        let pdfLabel = '대기';
+        let pdfColor = 'text-gray-500';
+        if (it.pdfStatus === 'generating') { pdfLabel = '생성 중…'; pdfColor = 'text-blue-600'; }
+        else if (it.pdfStatus === 'failed') { pdfLabel = '실패 ⚠'; pdfColor = 'text-red-600'; }
+
         return (
           <div key={it.id} className="rounded border border-gray-200 bg-slate-50/70 px-2 py-1.5 space-y-1">
             <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center text-[11px] text-black font-normal">
@@ -237,8 +247,8 @@ function ReceiptCompletedOutputCell({
                   PDF OK
                 </a>
               ) : (
-                <span className="text-red-600" title={it.pdfStatus === 'failed' ? 'PDF 변환 실패' : undefined}>
-                  PDF {it.pdfStatus === 'failed' ? '실패' : it.pdfStatus === 'generating' ? '생성 중' : '대기'}
+                <span className={pdfColor} title={it.pdfStatus === 'failed' ? 'PDF 변환 실패 — 재생성 버튼을 누르세요' : undefined}>
+                  PDF {pdfLabel}
                 </span>
               )}
               {slipOk ? (
@@ -246,12 +256,20 @@ function ReceiptCompletedOutputCell({
                   지시서 OK
                 </a>
               ) : (
-                <span className="text-red-600">지시서준비중</span>
+                <span className={anyPdfFailed ? 'text-red-600' : 'text-gray-500'}>
+                  {anyPdfFailed ? '지시서 중단' : '지시서 대기'}
+                </span>
               )}
             </div>
           </div>
         );
       })}
+      {anyGenerating && !anyPdfFailed && (
+        <div className="flex items-center gap-1 text-[10px] text-blue-600">
+          <Loader2 className="h-3 w-3 animate-spin" />
+          자동생성 중… 완료 후 출력대기 전환
+        </div>
+      )}
       {anyPdfFailed && (
         <Button
           type="button"
@@ -261,7 +279,7 @@ function ReceiptCompletedOutputCell({
           disabled={regenBusy}
           onClick={onRegen}
         >
-          {regenBusy ? '요청 중…' : 'PDF 재생성'}
+          {regenBusy ? <><Loader2 className="h-3 w-3 animate-spin mr-1" />요청 중…</> : '⚠ PDF·지시서 재생성'}
         </Button>
       )}
     </div>
@@ -398,6 +416,7 @@ export default function OrderListPage() {
   const {
     data: ordersData,
     isLoading,
+    refetch: refetchOrders,
   } = useOrders(
     isPendingPage
       ? {
@@ -417,6 +436,20 @@ export default function OrderListPage() {
 
   const orders = ordersData?.data ?? [];
   const meta = ordersData?.meta;
+
+  // 접수완료 주문 중 PDF 생성 진행 중인 항목이 있으면 5초마다 자동 새로고침
+  useEffect(() => {
+    const hasPendingPdf = orders.some(
+      (o) =>
+        o.status === 'receipt_completed' &&
+        o.items?.some(
+          (it) => !it.pdfStatus || it.pdfStatus === 'generating' || it.pdfStatus === 'pending',
+        ),
+    );
+    if (!hasPendingPdf) return;
+    const timer = setInterval(() => { refetchOrders(); }, 5000);
+    return () => clearInterval(timer);
+  }, [orders, refetchOrders]);
 
   const { data: couriers = [] } = useCourierList();
   const getCourierName = (code?: string) => couriers.find((c) => c.code === code)?.name ?? code ?? '-';
