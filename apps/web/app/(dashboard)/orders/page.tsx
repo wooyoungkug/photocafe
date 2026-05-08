@@ -1094,7 +1094,7 @@ export default function OrderListPage() {
                         </TableCell>
 
                         {/* 페이지 / 부수 */}
-                        <TableCell className="text-center text-sm">
+                        <TableCell className="text-center text-sm whitespace-nowrap">
                           <span>{item.pages}p</span>
                           <span className="text-muted-foreground">/</span>
                           <span className={(item.quantity ?? 1) > 1 ? 'text-red-600 font-bold' : ''}>{item.quantity}부</span>
