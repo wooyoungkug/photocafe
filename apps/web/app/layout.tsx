@@ -33,7 +33,7 @@ export const viewport: Viewport = {
 const isLocal = process.env.NODE_ENV === "development";
 
 export const metadata: Metadata = {
-  title: isLocal ? "[로컬] Photocafe" : "Photocafe",
+  title: isLocal ? "[L] Photocafe" : "[R] Photocafe",
   description: "포토북/앨범 인쇄업체를 위한 통합 ERP 시스템",
   icons: {
     icon: isLocal
