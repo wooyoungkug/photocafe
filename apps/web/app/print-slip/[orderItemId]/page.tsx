@@ -81,21 +81,48 @@ function ThumbnailGrid({
   isSpread: boolean;
 }) {
   return (
-    <div className={isSpread ? 'grid gap-1 grid-cols-4' : 'grid gap-1 grid-cols-8'}>
+    <div className={isSpread ? 'grid gap-2 grid-cols-4' : 'grid gap-1 grid-cols-8'}>
       {items.map(({ file, url }, localIdx) => {
         const fallbackIndex = globalOffset + localIdx;
         const pageLabel = filePageLabel(file, isSpread, fallbackIndex);
+        const ps = file.pageStart;
+        const pe = file.pageEnd;
+        const leftPage = typeof ps === 'number' && ps >= 1 ? ps
+          : isSpread ? fallbackIndex * 2 + 1 : fallbackIndex + 1;
+        const rightPage = isSpread
+          ? (typeof pe === 'number' && pe >= 1 ? pe : fallbackIndex * 2 + 2)
+          : null;
+        const fileName = formatThumbFileLabel(file.fileName || '');
+
         return (
           <div key={file.id ?? fallbackIndex} className="flex flex-col min-w-0">
-            <div className="thumb-cell">
+            {/* 이미지 셀 */}
+            <div className="relative border border-gray-300 rounded-t-md overflow-hidden bg-gray-50">
               {url ? (
-                <img src={url} alt={pageLabel} className="w-full h-auto block rounded-sm" />
+                <img src={url} alt={pageLabel} className="w-full h-auto block" />
               ) : (
-                <div className="thumb-placeholder"><span>미생성</span></div>
+                <div className="relative aspect-[3/2] border-2 border-dashed border-blue-400 bg-blue-50/50 flex items-center justify-center overflow-hidden">
+                  <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                    <line x1="0" y1="0" x2="100" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
+                    <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
+                  </svg>
+                  <span className="relative text-[9px] font-bold text-blue-600 bg-white/95 rounded px-1 py-0.5">미생성</span>
+                </div>
               )}
-              <span className="thumb-page-label">{pageLabel}</span>
+              {/* 페이지 번호 뱃지 */}
+              <div className="absolute top-1 left-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center bg-pink-500 text-white text-[9px] font-bold leading-none">
+                {leftPage}
+              </div>
+              {rightPage !== null && (
+                <div className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center bg-pink-500 text-white text-[9px] font-bold leading-none">
+                  {rightPage}
+                </div>
+              )}
             </div>
-            <span className="thumb-filename block w-full truncate">{formatThumbFileLabel(file.fileName || '')}</span>
+            {/* 파일명 하단 패널 */}
+            <div className="text-[8px] text-center truncate font-medium text-black border border-t-0 border-gray-300 rounded-b-md bg-white px-1 py-0.5 leading-tight">
+              {fileName || pageLabel}
+            </div>
           </div>
         );
       })}
