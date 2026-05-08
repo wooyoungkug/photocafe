@@ -634,133 +634,97 @@ export default function PdfSettingsDialog({
             <CardHeader className="pb-3">
               <CardTitle className="text-[14px] text-black font-bold">저장 위치</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-3">
-                {/* 에이전트 저장 경로 (가장 권장 — 브라우저 권한 무관) */}
-                <div className="space-y-1.5 p-3 bg-green-50 border border-green-200 rounded">
-                  <Label className="text-[14px] text-black font-bold">
-                    에이전트 저장 경로 ✅ 권장
-                  </Label>
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder={String.raw`예: C:\PDF저장  또는  Z:\출력팀\접수대기`}
-                      value={agentSavePath}
-                      onChange={(e) => setAgentSavePath(e.target.value)}
-                      className="h-9 text-[14px] bg-white flex-1"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-9 whitespace-nowrap"
-                      onClick={handleSaveAgentPath}
-                      disabled={!agentRunning}
-                    >
-                      적용
-                    </Button>
-                  </div>
-                  <p className="text-[12px] text-green-700">
-                    {agentRunning
-                      ? '로컬 프린트 에이전트가 실행 중입니다. 여기에 경로를 설정하면 브라우저 권한 팝업 없이 항상 이 폴더에 저장됩니다.'
-                      : '에이전트가 실행되지 않았습니다. tools/print-agent/run-print-agent.bat(또는 프린트에이전트_실행.bat)을 먼저 실행하세요.'}
-                  </p>
+            <CardContent className="space-y-4">
+
+              {/* 에이전트 저장 경로 (권장) */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <Label className="text-[14px] text-black font-bold">에이전트 저장 경로</Label>
+                  <span className="text-[11px] text-green-600 font-medium">✅ 권장</span>
                 </div>
-
-                <Separator />
-
-                {/* 서버 자동 저장 경로 (무인 모드) */}
-                <div className={`space-y-1.5 p-3 rounded border ${/^[A-Za-z]:[/\\]/.test(outputPath) ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-200'}`}>
-                  <Label className="text-[14px] text-black font-bold">
-                    무인 자동 저장 경로 (야간 자동 변환 권장)
-                  </Label>
+                <div className="flex gap-2">
                   <Input
-                    placeholder={String.raw`예: Z:\출력팀\Wooceo_출력백업\!2025년\접수대기`}
-                    value={outputPath}
-                    onChange={(e) => setOutputPath(e.target.value)}
-                    className="h-9 text-[14px] bg-white"
+                    placeholder={String.raw`예: C:\PDF저장  또는  Z:\출력팀\접수대기`}
+                    value={agentSavePath}
+                    onChange={(e) => setAgentSavePath(e.target.value)}
+                    className="h-9 text-[14px] flex-1"
                   />
-                  {/^[A-Za-z]:[/\\]/.test(outputPath) ? (
-                    <p className="text-[12px] text-red-700 font-medium">
-                      ⚠️ <strong>C:\, Z:\ 같은 Windows 경로는 서버(Railway)가 접근할 수 없습니다.</strong><br/>
-                      이 경로는 PDF 저장에 사용되지 않습니다. <strong>위의 에이전트 저장 경로(초록색)를 사용하세요.</strong><br/>
-                      이 칸을 비워두면 에이전트가 자동으로 저장합니다.
-                    </p>
-                  ) : (
-                    <p className="text-[12px] text-gray-600">
-                      서버가 이 경로에 <code className="bg-white px-1 rounded">YYMMDD/인디고도수/양면|단면/</code> 구조로 PDF를 직접 저장합니다.<br/>
-                      브라우저 팝업/다운로드 대화상자 없이 완전 무인으로 동작합니다.<br/>
-                      <strong className="text-blue-700">경로가 설정되면 아래 "로컬 PC 저장"은 무시됩니다.</strong>
-                    </p>
-                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-9 whitespace-nowrap"
+                    onClick={handleSaveAgentPath}
+                    disabled={!agentRunning}
+                  >
+                    적용
+                  </Button>
                 </div>
-
-                <Separator />
-
-                {/* 에이전트 실행 중이면 폴더선택 불필요 안내 */}
-                {agentRunning === true && agentSavePath ? (
-                  <div className="px-3 py-2 bg-green-50 border border-green-200 rounded text-[12px] text-green-700">
-                    ✅ 에이전트가 <strong>{agentSavePath}</strong>에 자동 저장합니다.<br/>
-                    아래 "로컬 PC에 저장" 설정은 에이전트를 사용하지 않을 때의 폴백입니다.
-                  </div>
-                ) : null}
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-[14px] text-black font-normal">로컬 PC에 저장 (폴백)</Label>
-                    <p className="text-[12px] text-gray-500 mt-0.5">
-                      에이전트가 없을 때만 사용. 브라우저 폴더 선택이 필요하며 새로고침 시 재선택이 필요합니다.
-                    </p>
-                  </div>
-                  <Switch
-                    checked={saveToLocal}
-                    onCheckedChange={setSaveToLocal}
-                  />
-                </div>
-
-                {saveToLocal && (
-                  <div className="pl-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="text-[14px]"
-                        onClick={async () => {
-                          try {
-                            if ('showDirectoryPicker' in window) {
-                              const handle = await (window as any).showDirectoryPicker({
-                                mode: 'readwrite',
-                              });
-                              setGlobalDirHandle(handle);  // 전역 핸들 저장
-                              setLocalDirHandle(handle);  // 컴포넌트 로컬
-                              setLocalDirName(handle.name);
-                              toast.success(`폴더 선택: ${handle.name}`);
-                            } else {
-                              toast.error('이 브라우저는 폴더 선택을 지원하지 않습니다. Chrome 또는 Edge를 사용해주세요.');
-                            }
-                          } catch (err: any) {
-                            if (err.name !== 'AbortError') {
-                              toast.error('폴더 선택 실패');
-                            }
-                          }
-                        }}
-                      >
-                        폴더 선택
-                      </Button>
-                      {localDirName && (
-                        <span className="text-[14px] text-black font-normal">
-                          {localDirName}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[12px] text-gray-500">
-                      Chrome/Edge에서 폴더를 선택하면 PDF가 해당 폴더에 자동 저장됩니다.
-                      폴더를 선택하지 않으면 브라우저 기본 다운로드 폴더에 저장됩니다.
-                    </p>
-                  </div>
-                )}
-
+                <p className="text-[12px] text-gray-500">
+                  {agentRunning
+                    ? '에이전트 실행 중 — 브라우저 팝업 없이 이 폴더에 저장됩니다.'
+                    : '에이전트 미실행 — run-print-agent.bat을 먼저 실행하세요.'}
+                </p>
               </div>
+
+              <Separator />
+
+              {/* 무인 자동 저장 경로 */}
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">무인 자동 저장 경로</Label>
+                <Input
+                  placeholder={String.raw`예: Z:\출력팀\Wooceo_출력백업\!2025년\접수대기`}
+                  value={outputPath}
+                  onChange={(e) => setOutputPath(e.target.value)}
+                  className="h-9 text-[14px]"
+                />
+                {/^[A-Za-z]:[/\\]/.test(outputPath) && (
+                  <p className="text-[12px] text-red-600">
+                    ⚠️ C:\, Z:\ 경로는 서버(Railway)에서 접근 불가 — 위 에이전트 경로를 사용하세요.
+                  </p>
+                )}
+              </div>
+
+              <Separator />
+
+              {/* 로컬 PC 저장 (폴백) */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-[14px] text-black font-normal">로컬 PC에 저장 (폴백)</Label>
+                  <p className="text-[12px] text-gray-500 mt-0.5">에이전트 미사용 시 브라우저 폴더 선택</p>
+                </div>
+                <Switch checked={saveToLocal} onCheckedChange={setSaveToLocal} />
+              </div>
+
+              {saveToLocal && (
+                <div className="pl-4 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-[14px]"
+                    onClick={async () => {
+                      try {
+                        if ('showDirectoryPicker' in window) {
+                          const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+                          setGlobalDirHandle(handle);
+                          setLocalDirHandle(handle);
+                          setLocalDirName(handle.name);
+                          toast.success(`폴더 선택: ${handle.name}`);
+                        } else {
+                          toast.error('Chrome 또는 Edge를 사용해주세요.');
+                        }
+                      } catch (err: any) {
+                        if (err.name !== 'AbortError') toast.error('폴더 선택 실패');
+                      }
+                    }}
+                  >
+                    폴더 선택
+                  </Button>
+                  {localDirName && <span className="text-[14px] text-black font-normal">{localDirName}</span>}
+                </div>
+              )}
+
             </CardContent>
           </Card>
 
