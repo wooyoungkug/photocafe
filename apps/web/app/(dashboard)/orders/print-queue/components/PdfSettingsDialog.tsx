@@ -56,11 +56,9 @@ const SETTING_KEYS = {
   INCLUDE_BLEED: 'print_pdf_include_bleed',
   INCLUDE_CROP_MARKS: 'print_pdf_include_crop_marks',
   DEFAULT_NUP: 'print_pdf_default_nup',
-  OUTPUT_PATH: 'print_pdf_output_path',
   BLEED_SIZE: 'print_pdf_bleed_size',
   INDEX_FONT_SIZE: 'print_pdf_index_font_size',
   INDEX_POSITION: 'print_pdf_index_position',
-  SAVE_TO_LOCAL: 'print_pdf_save_to_local',
   CANVAS_WIDTH: 'print_pdf_canvas_width',
   CANVAS_HEIGHT: 'print_pdf_canvas_height',
   CANVAS_ENABLED: 'print_pdf_canvas_enabled',
@@ -79,6 +77,8 @@ const SETTING_KEYS = {
   MARK_COLOR_BAR: 'imposition_mark_color_bar',
   MARK_FOLD: 'imposition_mark_fold',
   MARK_JOB_META: 'imposition_mark_job_meta',
+  OUTPUT_PATH: 'print_pdf_output_path',
+  SAVE_TO_LOCAL: 'print_pdf_save_to_local',
 } as const;
 
 const CATEGORY = 'print_pdf';
@@ -170,13 +170,9 @@ export default function PdfSettingsDialog({
   const [includeBleed, setIncludeBleed] = useState(true);
   const [includeCropMarks, setIncludeCropMarks] = useState(true);
   const [defaultNup, setDefaultNup] = useState('1up');
-  const [outputPath, setOutputPath] = useState('');
   const [bleedSize, setBleedSize] = useState('3');
   const [indexFontSize, setIndexFontSize] = useState('6');
   const [indexPosition, setIndexPosition] = useState('bottom');
-  const [saveToLocal, setSaveToLocal] = useState(true);
-  const [localDirName, setLocalDirName] = useState('');
-  const [localDirHandle, setLocalDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [canvasEnabled, setCanvasEnabled] = useState(false);
   const [canvasWidth, setCanvasWidth] = useState('310');
   const [canvasHeight, setCanvasHeight] = useState('450');
@@ -270,16 +266,6 @@ export default function PdfSettingsDialog({
     setAgentRetrying(false);
   };
 
-  // IDB에 저장된 폴더 핸들 복원 (새로고침 내성)
-  useEffect(() => {
-    restoreGlobalDirHandle().then((handle) => {
-      if (handle) {
-        setLocalDirHandle(handle);
-        setLocalDirName(handle.name);
-      }
-    });
-  }, []);
-
   // 설정 로드 시 로컬 상태 반영
   useEffect(() => {
     if (!settingsData) return;
@@ -290,11 +276,9 @@ export default function PdfSettingsDialog({
     setIncludeBleed(map[SETTING_KEYS.INCLUDE_BLEED] !== 'false');
     setIncludeCropMarks(map[SETTING_KEYS.INCLUDE_CROP_MARKS] !== 'false');
     setDefaultNup(map[SETTING_KEYS.DEFAULT_NUP] || '1up');
-    setOutputPath(map[SETTING_KEYS.OUTPUT_PATH] || '');
     setBleedSize(map[SETTING_KEYS.BLEED_SIZE] || '3');
     setIndexFontSize(map[SETTING_KEYS.INDEX_FONT_SIZE] || '6');
     setIndexPosition(map[SETTING_KEYS.INDEX_POSITION] || 'top');
-    setSaveToLocal(map[SETTING_KEYS.SAVE_TO_LOCAL] !== 'false');
     setCanvasEnabled(map[SETTING_KEYS.CANVAS_ENABLED] === 'true');
     setCanvasWidth(map[SETTING_KEYS.CANVAS_WIDTH] || '310');
     setCanvasHeight(map[SETTING_KEYS.CANVAS_HEIGHT] || '450');
@@ -383,11 +367,9 @@ export default function PdfSettingsDialog({
       { key: SETTING_KEYS.INCLUDE_BLEED, value: String(includeBleed), category: CATEGORY, label: '재단여백 포함' },
       { key: SETTING_KEYS.INCLUDE_CROP_MARKS, value: String(includeCropMarks), category: CATEGORY, label: '재단선 표시' },
       { key: SETTING_KEYS.DEFAULT_NUP, value: defaultNup, category: CATEGORY, label: '기본 Nup' },
-      { key: SETTING_KEYS.OUTPUT_PATH, value: outputPath, category: CATEGORY, label: 'PDF 저장경로' },
       { key: SETTING_KEYS.BLEED_SIZE, value: bleedSize, category: CATEGORY, label: '재단여백 크기(mm)' },
       { key: SETTING_KEYS.INDEX_FONT_SIZE, value: indexFontSize, category: CATEGORY, label: '인덱스 폰트크기(pt)' },
       { key: SETTING_KEYS.INDEX_POSITION, value: indexPosition, category: CATEGORY, label: '인덱스 위치' },
-      { key: SETTING_KEYS.SAVE_TO_LOCAL, value: String(saveToLocal), category: CATEGORY, label: '로컬 PC 저장' },
       { key: SETTING_KEYS.CANVAS_ENABLED, value: String(canvasEnabled), category: CATEGORY, label: '캔버스 크기 사용' },
       { key: SETTING_KEYS.CANVAS_WIDTH, value: canvasWidth, category: CATEGORY, label: '캔버스 너비(mm)' },
       { key: SETTING_KEYS.CANVAS_HEIGHT, value: canvasHeight, category: CATEGORY, label: '캔버스 높이(mm)' },
@@ -667,64 +649,6 @@ export default function PdfSettingsDialog({
                 </p>
               </div>
 
-              <Separator />
-
-              {/* 무인 자동 저장 경로 */}
-              <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal">무인 자동 저장 경로</Label>
-                <Input
-                  placeholder={String.raw`예: Z:\출력팀\Wooceo_출력백업\!2025년\접수대기`}
-                  value={outputPath}
-                  onChange={(e) => setOutputPath(e.target.value)}
-                  className="h-9 text-[14px]"
-                />
-                {/^[A-Za-z]:[/\\]/.test(outputPath) && (
-                  <p className="text-[12px] text-red-600">
-                    ⚠️ C:\, Z:\ 경로는 서버(Railway)에서 접근 불가 — 위 에이전트 경로를 사용하세요.
-                  </p>
-                )}
-              </div>
-
-              <Separator />
-
-              {/* 로컬 PC 저장 (폴백) */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-[14px] text-black font-normal">로컬 PC에 저장 (폴백)</Label>
-                  <p className="text-[12px] text-gray-500 mt-0.5">에이전트 미사용 시 브라우저 폴더 선택</p>
-                </div>
-                <Switch checked={saveToLocal} onCheckedChange={setSaveToLocal} />
-              </div>
-
-              {saveToLocal && (
-                <div className="pl-4 flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-[14px]"
-                    onClick={async () => {
-                      try {
-                        if ('showDirectoryPicker' in window) {
-                          const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
-                          setGlobalDirHandle(handle);
-                          setLocalDirHandle(handle);
-                          setLocalDirName(handle.name);
-                          toast.success(`폴더 선택: ${handle.name}`);
-                        } else {
-                          toast.error('Chrome 또는 Edge를 사용해주세요.');
-                        }
-                      } catch (err: any) {
-                        if (err.name !== 'AbortError') toast.error('폴더 선택 실패');
-                      }
-                    }}
-                  >
-                    폴더 선택
-                  </Button>
-                  {localDirName && <span className="text-[14px] text-black font-normal">{localDirName}</span>}
-                </div>
-              )}
-
             </CardContent>
           </Card>
 
@@ -742,7 +666,7 @@ export default function PdfSettingsDialog({
               <p className="text-[12px] text-gray-500 leading-relaxed">
                 여기서 말하는 PDF는 <strong className="text-black">출력대기에서 JDF+PDF 변환으로 만들어진 인쇄용 PDF 파일</strong>입니다.
                 PC에 둔 프린트 에이전트가 감시 폴더를 보다가 <strong className="text-black">그 PDF가 새로 생기면</strong> 곧바로 지정한
-                인디고/잉크젯 프린터로 인쇄합니다. 위「무인 자동 저장 경로」와 <strong className="text-black">같은 경로</strong>를 넣으면
+                인디고/잉크젯 프린터로 인쇄합니다. 위「에이전트 저장 경로」와 <strong className="text-black">같은 경로</strong>를 넣으면
                 변환 직후 곧바로 출력됩니다.
               </p>
 
@@ -979,178 +903,6 @@ export default function PdfSettingsDialog({
   );
 }
 
-/**
- * 시스템 설정에서 PDF 설정을 읽어 기본값으로 사용하는 유틸
- */
-// 로컬 폴더 핸들을 전역 + IndexedDB로 영속화 (새로고침 내성)
-const IDB_DB_NAME = 'photocafe';
-const IDB_STORE = 'pdf-folder-handle';
-const IDB_KEY = 'selected';
-let _localDirHandle: FileSystemDirectoryHandle | null = null;
-
-function openIdb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(IDB_DB_NAME, 1);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(IDB_STORE)) {
-        db.createObjectStore(IDB_STORE);
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function idbPutHandle(handle: FileSystemDirectoryHandle): Promise<void> {
-  const db = await openIdb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE, 'readwrite');
-    tx.objectStore(IDB_STORE).put(handle, IDB_KEY);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
-}
-
-async function idbGetHandle(): Promise<FileSystemDirectoryHandle | null> {
-  try {
-    const db = await openIdb();
-    const handle = await new Promise<FileSystemDirectoryHandle | null>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
-      req.onsuccess = () => resolve((req.result as FileSystemDirectoryHandle) ?? null);
-      req.onerror = () => reject(req.error);
-    });
-    db.close();
-    return handle;
-  } catch {
-    return null;
-  }
-}
-
-async function idbClearHandle(): Promise<void> {
-  try {
-    const db = await openIdb();
-    await new Promise<void>((resolve) => {
-      const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).delete(IDB_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => resolve();
-    });
-    db.close();
-  } catch { /* ignore */ }
-}
-
-/** 권한 상태만 확인 (passive). 'granted' | 'prompt' | 'denied' */
-export async function queryHandlePermission(
-  handle: FileSystemDirectoryHandle,
-): Promise<'granted' | 'prompt' | 'denied'> {
-  try {
-    const opts = { mode: 'readwrite' as const };
-    const anyHandle = handle as any;
-    const current = await anyHandle.queryPermission?.(opts);
-    return (current as any) || 'prompt';
-  } catch {
-    return 'denied';
-  }
-}
-
-/** readwrite 권한 요청 (user gesture 필요). false면 거부. */
-export async function requestHandlePermission(
-  handle: FileSystemDirectoryHandle,
-): Promise<boolean> {
-  try {
-    const opts = { mode: 'readwrite' as const };
-    const anyHandle = handle as any;
-    const current = await anyHandle.queryPermission?.(opts);
-    if (current === 'granted') return true;
-    const requested = await anyHandle.requestPermission?.(opts);
-    return requested === 'granted';
-  } catch {
-    return false;
-  }
-}
-
-export function setGlobalDirHandle(handle: FileSystemDirectoryHandle | null) {
-  _localDirHandle = handle;
-  if (typeof window === 'undefined') return;
-  if (handle) {
-    idbPutHandle(handle).catch((err) => console.warn('IDB put handle failed:', err));
-  } else {
-    idbClearHandle();
-  }
-}
-
-export function getGlobalDirHandle(): FileSystemDirectoryHandle | null {
-  return _localDirHandle;
-}
-
-/** 페이지 로드 시 IndexedDB에서 핸들 복원 (권한은 이 시점에 재요청 불가 → 실제 쓰기 직전에 재요청) */
-export async function restoreGlobalDirHandle(): Promise<FileSystemDirectoryHandle | null> {
-  if (typeof window === 'undefined') return null;
-  if (_localDirHandle) return _localDirHandle;
-  const handle = await idbGetHandle();
-  if (handle) _localDirHandle = handle;
-  return _localDirHandle;
-}
-
-/**
- * 로컬 PC에 PDF blob을 저장하는 유틸
- * - subfolder 지정 시 선택 폴더 아래 자동으로 하위 폴더를 생성하여 분리 저장
- */
-export async function saveToLocalFolder(
-  blob: Blob,
-  fileName: string,
-  dirHandle?: FileSystemDirectoryHandle | null,
-  subfolder?: string,
-): Promise<boolean> {
-  let handle = dirHandle || _localDirHandle;
-  if (!handle) {
-    handle = await restoreGlobalDirHandle();
-  }
-
-  if (handle) {
-    // passive 체크만 수행 (폴링 컨텍스트에선 requestPermission 불가)
-    const perm = await queryHandlePermission(handle);
-    if (perm === 'granted') {
-      try {
-        // subfolder: "260418/양면" 같은 계층 경로 지원 → 각 단계별로 생성
-        let targetDir: FileSystemDirectoryHandle = handle;
-        if (subfolder) {
-          const segments = subfolder
-            .split(/[\\/]/)
-            .map((s) => s.replace(/[<>:"|?*\x00-\x1f]/g, '_').trim())
-            .filter(Boolean);
-          for (const seg of segments) {
-            targetDir = await (targetDir as any).getDirectoryHandle(seg, { create: true });
-          }
-        }
-        const fileHandle = await targetDir.getFileHandle(fileName, { create: true });
-        const writable = await fileHandle.createWritable();
-        await writable.write(blob);
-        await writable.close();
-        return true;
-      } catch (err) {
-        console.error('로컬 폴더 저장 실패, 다운로드로 전환:', err);
-      }
-    } else {
-      console.warn(`폴더 권한 상태: ${perm} → 수동 저장 버튼을 사용해주세요.`);
-    }
-  }
-
-  // fallback: 브라우저 다운로드
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = fileName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  return true;
-}
-
 export function usePdfSettings() {
   const { data: settingsData } = useSystemSettings(CATEGORY);
 
@@ -1164,11 +916,9 @@ export function usePdfSettings() {
       includeCropMarks: true,
       includeColorBar: false,
       defaultNup: '1up',
-      outputPath: '',
       bleedSize: 3,
       indexFontSize: 6,
       indexPosition: 'bottom' as const,
-      saveToLocal: true,
       canvasEnabled: false,
       canvasWidth: 310,
       canvasHeight: 450,
