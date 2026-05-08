@@ -42,7 +42,7 @@ export function DashboardLayoutClient({
     if (!('Notification' in window) || !('serviceWorker' in navigator)) return;
     const perm = Notification.permission;
     if (perm === 'default' && localStorage.getItem(NOTIF_DISMISSED_KEY) !== '1') setShowNotifBanner(true);
-    if (perm === 'denied') setNotifDenied(true);
+    if (perm === 'denied' && localStorage.getItem(NOTIF_DISMISSED_KEY) !== '1') setNotifDenied(true);
   }, []);
   const { data: prefs } = useUserPreferences();
   const layoutMode = prefs?.layoutMode ?? "top";
