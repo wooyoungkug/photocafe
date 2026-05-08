@@ -35,6 +35,7 @@ import { HolidayModule } from './modules/holiday/holiday.module';
 import { HrCommitteeModule } from './modules/hr-committee/hr-committee.module';
 import { LeaveModule } from './modules/leave/leave.module';
 import { QuotationModule } from './modules/quotation/quotation.module';
+import { PurchaseQuotationModule } from './modules/purchase-quotation/purchase-quotation.module';
 import { PrintPdfModule } from './modules/print-pdf/print-pdf.module';
 import { ImpositionModule } from './modules/imposition/imposition.module';
 import { NotificationModule } from './modules/notification/notification.module';
@@ -110,6 +111,7 @@ import { AppController } from './app.controller';
     HrCommitteeModule,
     LeaveModule,
     QuotationModule,
+    PurchaseQuotationModule,
     PrintPdfModule,
     ImpositionModule,
     NotificationModule,

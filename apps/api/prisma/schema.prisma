@@ -245,6 +245,7 @@ model Staff {
   disciplineRecords       StaffDisciplineRecord[]
   pushSubscriptions       StaffPushSubscription[]
   ledTeams                Team[]                  @relation("TeamLeader")
+  purchaseQuotations      PurchaseQuotation[]
 
   @@unique([oauthProvider, oauthId])
   @@index([branchId])
@@ -3860,4 +3861,28 @@ enum LeaveApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// ====================================================================
+// 매입처 견적관리 (거래처에서 받은 견적서 등록/보관)
+// /cs/purchase-quotations
+// ====================================================================
+model PurchaseQuotation {
+  id         String   @id @default(cuid())
+  vendorName String                              // 매입처명 (필수)
+  receivedAt DateTime                            // 받은날짜 (필수)
+  manager    String?                             // 담당자
+  department String?                             // 관련부서
+  title      String?                             // 제목/내용
+  note       String?                             // 메모
+  files      Json     @default("[]")             // [{name, url, type, size}] 배열
+  staffId    String?                             // 등록한 직원
+  staff      Staff?   @relation(fields: [staffId], references: [id])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([vendorName])
+  @@index([receivedAt])
+  @@index([staffId])
+  @@map("purchase_quotations")
 }
