@@ -153,17 +153,6 @@ export default function MyPageLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 text-[14px] font-normal">
-      {/* [DEBUG] 임시: user 객체의 enable* 상태 표시 */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-100 border-b border-yellow-300 px-4 py-2 text-[12px] font-mono">
-          [DEBUG] enableSchedule={String(user?.enableSchedule)} {' / '}
-          enableShooting={String((user as any)?.enableShooting)} {' / '}
-          enableRecruitment={String(user?.enableRecruitment)} {' / '}
-          enableNote={String((user as any)?.enableNote)} {' / '}
-          type={String(user?.type)} {' / '}
-          role={String(user?.role)}
-        </div>
-      )}
       {/* Header */}
       <div className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">

@@ -558,12 +558,29 @@ function MembersPageContent() {
       const result = await api.post<{
         accessToken: string;
         refreshToken: string;
-        user: { id: string; name: string; email: string; clientId?: string };
+        user: {
+          id: string; name: string; email: string; clientId?: string;
+          enableSchedule?: boolean; enableRecruitment?: boolean;
+          enableShooting?: boolean; enableNote?: boolean;
+        };
       }>(`/auth/impersonate/${member.id}`);
 
       // localStorage를 통해 토큰 전달 (URL 노출 방지)
+      // ⚠️ user 객체에 enable* 와 type 을 모두 포함시켜야 마이페이지 사이드바
+      //    메뉴 노출 제어가 정상 동작한다 (이 필드 누락 시 모두 undefined → 폴백 true)
       localStorage.setItem('impersonate-data', JSON.stringify({
-        user: { id: result.user.id, email: result.user.email, name: result.user.name, role: 'client', clientId: result.user.clientId || result.user.id },
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          name: result.user.name,
+          role: 'client',
+          type: 'client',
+          clientId: result.user.clientId || result.user.id,
+          enableSchedule: result.user.enableSchedule,
+          enableRecruitment: result.user.enableRecruitment,
+          enableShooting: result.user.enableShooting,
+          enableNote: result.user.enableNote,
+        },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       }));
