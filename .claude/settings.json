@@ -17,7 +17,11 @@
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -c \"SELECT id, \"\"productName\"\", \"\"thumbnailUrl\"\" FROM \"\"Product\"\" LIMIT 5;\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \":*)",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"\\\\d products\")",
-      "Bash(node apps/api/scripts/test-enable-shooting.js)"
+      "Bash(node apps/api/scripts/test-enable-shooting.js)",
+      "Bash(cp 'z:/출력팀/Wooceo_출력백업/!2025년/접수대기/Photocafe 관련자료/New_photocafe.png' apps/web/public/images/photocafe_logo_v2.png 2>&1 *)"
+    ],
+    "additionalDirectories": [
+      "z:\\출력팀\\Wooceo_출력백업\\!2025년\\접수대기\\Photocafe 관련자료"
     ]
   },
   "enableAllProjectMcpServers": true,
