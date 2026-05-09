@@ -82,6 +82,7 @@ export default function ProfilePage() {
     representative: '',
     contactPerson: '',
     fileRetentionDays: 90 as number,
+    thumbnailRetentionMonths: 6 as number,
     acquisitionChannel: '',
     acquisitionChannelNote: '',
     practicalManagerName: '',
@@ -135,6 +136,7 @@ export default function ProfilePage() {
         representative: profile.representative || '',
         contactPerson: profile.contactPerson || '',
         fileRetentionDays: profile.fileRetentionDays ?? 90,
+        thumbnailRetentionMonths: profile.thumbnailRetentionMonths ?? 6,
         acquisitionChannel: profile.acquisitionChannel || '',
         acquisitionChannelNote: profile.acquisitionChannelNote || '',
         practicalManagerName: profile.practicalManagerName || '',
@@ -268,6 +270,7 @@ export default function ProfilePage() {
         representative: profile.representative || '',
         contactPerson: profile.contactPerson || '',
         fileRetentionDays: profile.fileRetentionDays ?? 90,
+        thumbnailRetentionMonths: profile.thumbnailRetentionMonths ?? 6,
         acquisitionChannel: profile.acquisitionChannel || '',
         acquisitionChannelNote: profile.acquisitionChannelNote || '',
         practicalManagerName: profile.practicalManagerName || '',
@@ -442,7 +445,7 @@ export default function ProfilePage() {
                 </div>
               </div>
               {!isEmployee && (
-                <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
+                <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
                   <div className="space-y-1">
                     <Label className="text-[14px] font-normal text-gray-600">가입경로</Label>
                     {isEditMode ? (
@@ -457,7 +460,7 @@ export default function ProfilePage() {
                           <SelectContent>
                             <SelectItem value="none">선택 안함</SelectItem>
                             <SelectItem value="direct">직접가입</SelectItem>
-                            <SelectItem value="referral">소개</SelectItem>
+                            <SelectItem value="referral">지인소개</SelectItem>
                             <SelectItem value="naver_search">네이버 검색</SelectItem>
                             <SelectItem value="google_search">구글 검색</SelectItem>
                             <SelectItem value="exhibition">전시회</SelectItem>
@@ -478,7 +481,7 @@ export default function ProfilePage() {
                       <FieldValue value={
                         profile?.acquisitionChannel === 'etc'
                           ? `기타${profile?.acquisitionChannelNote ? `: ${profile.acquisitionChannelNote}` : ''}`
-                          : ({ direct: '직접가입', referral: '소개', naver_search: '네이버 검색', google_search: '구글 검색', exhibition: '전시회', sns: 'SNS' } as Record<string, string>)[profile?.acquisitionChannel || ''] || '-'
+                          : ({ direct: '직접가입', referral: '지인소개', naver_search: '네이버 검색', google_search: '구글 검색', exhibition: '전시회', sns: 'SNS' } as Record<string, string>)[profile?.acquisitionChannel || ''] || '-'
                       } />
                     )}
                   </div>
@@ -508,6 +511,31 @@ export default function ProfilePage() {
                       } />
                     )}
                     <p className="text-[12px] text-gray-400">제품 출고일로부터 원본 파일 보관 기간</p>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">
+                      썸네일 보관기간 <span className="text-red-500">*</span>
+                    </Label>
+                    {isEditMode ? (
+                      <Select
+                        value={String(profileData.thumbnailRetentionMonths ?? 6)}
+                        onValueChange={(v) => setProfileData({ ...profileData, thumbnailRetentionMonths: parseInt(v) })}
+                      >
+                        <SelectTrigger className={inputCls}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="6">6개월 (180일)</SelectItem>
+                          <SelectItem value="12">1년 (12개월)</SelectItem>
+                          <SelectItem value="24">2년 (24개월)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <FieldValue value={
+                        ({ 6: '6개월 (180일)', 12: '1년 (12개월)', 24: '2년 (24개월)' } as Record<number, string>)[profile?.thumbnailRetentionMonths ?? 6] || '6개월 (180일)'
+                      } />
+                    )}
+                    <p className="text-[12px] text-gray-400">제품 출고일로부터 썸네일 파일 보관 기간</p>
                   </div>
                 </div>
               )}

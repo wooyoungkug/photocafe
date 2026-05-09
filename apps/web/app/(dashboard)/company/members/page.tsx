@@ -160,7 +160,7 @@ const MemberTableRow = memo(({
           if (oauth === 'kakao') return <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-300 text-xs">카카오</Badge>;
           if (oauth === 'naver') return <Badge variant="outline" className="bg-green-50 text-green-800 border-green-300 text-xs">네이버</Badge>;
           if (oauth === 'google') return <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-300 text-xs">구글</Badge>;
-          if (channel === 'referral') return <Badge variant="outline" className="text-xs">소개</Badge>;
+          if (channel === 'referral') return <Badge variant="outline" className="text-xs">지인소개</Badge>;
           if (channel === 'search') return <Badge variant="outline" className="text-xs">검색</Badge>;
           if (channel === 'exhibition') return <Badge variant="outline" className="text-xs">전시회</Badge>;
           if (channel === 'sns') return <Badge variant="outline" className="text-xs">SNS</Badge>;
@@ -1132,7 +1132,7 @@ function MembersPageContent() {
                           <span className="text-muted-foreground">선택 안함</span>
                         </SelectItem>
                         <SelectItem value="direct">직접가입</SelectItem>
-                        <SelectItem value="referral">소개</SelectItem>
+                        <SelectItem value="referral">지인소개</SelectItem>
                         <SelectItem value="search">검색</SelectItem>
                         <SelectItem value="exhibition">전시회</SelectItem>
                         <SelectItem value="sns">SNS</SelectItem>
