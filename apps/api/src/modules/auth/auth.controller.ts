@@ -627,43 +627,115 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '최고관리자가 특정 직원으로 대리 로그인' })
-  async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any) {
+  async impersonateStaff(@Param('staffId') staffId: string, @Request() req: any, @Ip() ip: string) {
+    const userAgent = req.headers['user-agent'] as string | undefined;
     if (req.user.type !== 'staff') {
+      await this.authService.logSecurityEvent({
+        eventType: 'impersonate_blocked',
+        severity: 'warn',
+        userId: req.user.sub, userType: req.user.type ?? 'unknown',
+        ipAddress: ip, userAgent,
+        metadata: { target: 'staff', targetStaffId: staffId, reason: 'non-staff-caller' },
+        message: '비-직원 계정의 대리 로그인 시도 차단',
+      });
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
     if (req.user.impersonatedBy) {
+      await this.authService.logSecurityEvent({
+        eventType: 'impersonate_blocked',
+        severity: 'warn',
+        userId: req.user.sub, userType: 'staff',
+        ipAddress: ip, userAgent,
+        metadata: { target: 'staff', targetStaffId: staffId, reason: 'nested-impersonation', impersonatedBy: req.user.impersonatedBy },
+        message: '중첩 대리 로그인 시도 차단',
+      });
       throw new ForbiddenException('이미 대리 로그인 세션입니다. 원래 계정으로 돌아간 뒤 시도해주세요');
     }
-    return this.authService.impersonateStaff(staffId, req.user.sub);
+    return this.authService.impersonateStaff(staffId, req.user.sub, ip, userAgent);
   }
 
   @Post('impersonate-employee/:employmentId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '스튜디오 최고관리자가 소속 직원으로 대리 로그인' })
-  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any) {
+  async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any, @Ip() ip: string) {
+    const userAgent = req.headers['user-agent'] as string | undefined;
     if (req.user.type !== 'employee' && req.user.type !== 'client') {
+      await this.authService.logSecurityEvent({
+        eventType: 'impersonate_blocked',
+        severity: 'warn',
+        userId: req.user.sub, userType: req.user.type ?? 'unknown',
+        ipAddress: ip, userAgent,
+        metadata: { target: 'employee', targetEmploymentId: employmentId, reason: 'non-client-caller' },
+        message: '비-회원 계정의 직원 대리 로그인 시도 차단',
+      });
       throw new ForbiddenException('회원/직원 계정만 대리 로그인할 수 있습니다');
     }
     if (req.user.impersonatedBy) {
+      await this.authService.logSecurityEvent({
+        eventType: 'impersonate_blocked',
+        severity: 'warn',
+        userId: req.user.sub, userType: req.user.type,
+        ipAddress: ip, userAgent,
+        metadata: { target: 'employee', targetEmploymentId: employmentId, reason: 'nested-impersonation', impersonatedBy: req.user.impersonatedBy },
+        message: '중첩 대리 로그인 시도 차단',
+      });
       throw new ForbiddenException('이미 대리 로그인 세션입니다. 원래 계정으로 돌아간 뒤 시도해주세요');
     }
     const clientId = req.user.clientId || req.user.sub;
-    return this.authService.impersonateEmployee(employmentId, req.user.sub, clientId);
+    return this.authService.impersonateEmployee(employmentId, req.user.sub, clientId, ip, userAgent);
   }
 
   @Post('impersonate/:clientId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
-  async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
+  async impersonateClient(@Param('clientId') clientId: string, @Request() req: any, @Ip() ip: string) {
+    const userAgent = req.headers['user-agent'] as string | undefined;
     if (req.user.type !== 'staff') {
+      await this.authService.logSecurityEvent({
+        eventType: 'impersonate_blocked',
+        severity: 'warn',
+        userId: req.user.sub, userType: req.user.type ?? 'unknown',
+        ipAddress: ip, userAgent,
+        metadata: { target: 'client', targetClientId: clientId, reason: 'non-staff-caller' },
+        message: '비-직원 계정의 회원 대리 로그인 시도 차단',
+      });
       throw new ForbiddenException('직원 계정만 회원 대리 로그인할 수 있습니다');
     }
     if (req.user.impersonatedBy) {
+      await this.authService.logSecurityEvent({
+        eventType: 'impersonate_blocked',
+        severity: 'warn',
+        userId: req.user.sub, userType: 'staff',
+        ipAddress: ip, userAgent,
+        metadata: { target: 'client', targetClientId: clientId, reason: 'nested-impersonation', impersonatedBy: req.user.impersonatedBy },
+        message: '중첩 대리 로그인 시도 차단',
+      });
       throw new ForbiddenException('이미 대리 로그인 세션입니다. 원래 계정으로 돌아간 뒤 시도해주세요');
     }
-    return this.authService.impersonateClient(clientId, req.user.sub);
+    return this.authService.impersonateClient(clientId, req.user.sub, ip, userAgent);
+  }
+
+  @Post('end-impersonation')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '대리 로그인 세션 종료 (감사 로그 기록 전용 — 클라이언트가 sessionStorage 정리 후 호출)' })
+  async endImpersonation(@Request() req: any, @Ip() ip: string) {
+    const userAgent = req.headers['user-agent'] as string | undefined;
+    if (!req.user.impersonatedBy) {
+      throw new ForbiddenException('현재 대리 로그인 세션이 아닙니다');
+    }
+    await this.authService.logSecurityEvent({
+      eventType: 'impersonate_end',
+      severity: 'info',
+      userId: req.user.impersonatedBy, // 원래 사용자 기준
+      userType: req.user.type ?? 'unknown',
+      ipAddress: ip, userAgent,
+      metadata: { targetUserId: req.user.sub, targetType: req.user.type },
+      message: '대리 로그인 세션 종료',
+    });
+    return { success: true };
   }
 
   @Patch('reset-client-password/:id')

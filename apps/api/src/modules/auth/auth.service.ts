@@ -567,9 +567,51 @@ export class AuthService {
     };
   }
 
+  // ========== 보안 감사 로그 (SecurityLog) ==========
+
+  /**
+   * SecurityLog 에 보안 이벤트를 기록한다. 실패해도 본 흐름을 막지 않는다(catch + log).
+   * 사용처: 대리로그인 시작/종료/거부, 향후 로그인 실패·2FA 등.
+   */
+  async logSecurityEvent(input: {
+    eventType: string;
+    severity?: 'info' | 'warn' | 'critical';
+    userId?: string | null;
+    userType?: 'staff' | 'client' | 'employee' | 'unknown';
+    loginId?: string;
+    ipAddress?: string;
+    userAgent?: string;
+    metadata?: Record<string, any>;
+    message?: string;
+  }): Promise<void> {
+    try {
+      await this.prisma.securityLog.create({
+        data: {
+          eventType: input.eventType,
+          severity: input.severity ?? 'info',
+          userId: input.userId ?? undefined,
+          userType: input.userType ?? undefined,
+          loginId: input.loginId ?? undefined,
+          ipAddress: input.ipAddress ?? undefined,
+          userAgent: input.userAgent ?? undefined,
+          metadata: (input.metadata ?? undefined) as any,
+          message: input.message ?? undefined,
+        },
+      });
+    } catch (err) {
+      // 보안 로그 기록 실패가 비즈니스 흐름을 막지 않도록 swallow
+      // 운영 환경에서는 Sentry 등 외부 모니터링으로 감지
+    }
+  }
+
   // ========== 관리자 대리 로그인 ==========
 
-  async impersonateStaff(targetStaffId: string, adminStaffId: string) {
+  async impersonateStaff(
+    targetStaffId: string,
+    adminStaffId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminStaffId } });
     if (!adminStaff || !adminStaff.isActive) {
       throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
@@ -592,6 +634,17 @@ export class AuthService {
       departmentId: targetStaff.departmentId, impersonatedBy: adminStaffId,
       aud: 'staff',
     };
+
+    await this.logSecurityEvent({
+      eventType: 'impersonate_start_staff',
+      severity: 'info',
+      userId: adminStaffId,
+      userType: 'staff',
+      ipAddress,
+      userAgent,
+      metadata: { targetStaffId: targetStaff.id, targetLoginId: targetStaff.staffId },
+      message: '관리자가 직원으로 대리 로그인',
+    });
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
@@ -1110,7 +1163,13 @@ export class AuthService {
     };
   }
 
-  async impersonateEmployee(targetEmploymentId: string, requestorSub: string, requestorClientId: string) {
+  async impersonateEmployee(
+    targetEmploymentId: string,
+    requestorSub: string,
+    requestorClientId: string,
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
     // 요청자의 employment 확인 (최고관리자인지)
     const requestorEmployment = await this.prisma.employment.findFirst({
       where: { companyClientId: requestorClientId, memberClientId: requestorSub, status: 'ACTIVE' },
@@ -1148,6 +1207,22 @@ export class AuthService {
       aud: 'client',
     };
 
+    await this.logSecurityEvent({
+      eventType: 'impersonate_start_employee',
+      severity: 'info',
+      userId: requestorSub,
+      userType: 'client',
+      ipAddress,
+      userAgent,
+      metadata: {
+        companyClientId: requestorClientId,
+        targetEmploymentId: targetEmployment.id,
+        targetMemberClientId: targetEmployment.memberClientId,
+        targetRole: targetEmployment.role,
+      },
+      message: '거래처 owner 가 소속 직원으로 대리 로그인',
+    });
+
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
       refreshToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
@@ -1165,7 +1240,7 @@ export class AuthService {
     };
   }
 
-  async impersonateClient(clientId: string, adminId: string) {
+  async impersonateClient(clientId: string, adminId: string, ipAddress?: string, userAgent?: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
     if (!adminStaff || !adminStaff.isActive) {
       throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
@@ -1183,6 +1258,17 @@ export class AuthService {
     if (client.status !== 'active') throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
 
     const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id, impersonatedBy: adminId, aud: 'client' };
+
+    await this.logSecurityEvent({
+      eventType: 'impersonate_start_client',
+      severity: 'info',
+      userId: adminId,
+      userType: 'staff',
+      ipAddress,
+      userAgent,
+      metadata: { targetClientId: client.id, targetClientCode: client.clientCode },
+      message: '관리자가 회원으로 대리 로그인',
+    });
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
