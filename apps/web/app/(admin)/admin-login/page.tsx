@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
 function getApiUrl() {
@@ -73,8 +74,15 @@ export default function AdminLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
       <Card className="w-full max-w-md shadow-2xl border-slate-700 bg-slate-900/50 backdrop-blur">
         <CardHeader className="space-y-1 text-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-600/30">
-            <Shield className="w-8 h-8 text-white" />
+          <div className="mx-auto mb-4 flex justify-center">
+            <Image
+              src="/images/photocafe_logo_transparent.png"
+              alt="PhotoCafe"
+              width={220}
+              height={66}
+              priority
+              className="h-[66px] w-auto"
+            />
           </div>
           <CardTitle className="text-2xl text-white">관리자 로그인</CardTitle>
           <CardDescription className="text-slate-400">
