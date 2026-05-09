@@ -8,7 +8,6 @@ import {
   Building2,
   Camera,
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   CreditCard,
   Headphones,
@@ -662,7 +661,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const router = useRouter();
   const { user } = useAuthStore();
 
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [isPwDialogOpen, setIsPwDialogOpen] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -801,10 +799,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
         })
         .filter(Boolean) as NavItem[];
 
-  const toggleMenu = useCallback((name: string) => {
-    setOpenMenu((prev) => (prev === name ? null : name));
-  }, []);
-
   const handleNavigation = useCallback(() => {
     if (isMobile && onClose) onClose();
   }, [isMobile, onClose]);
@@ -889,9 +883,8 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           <ul className="space-y-0.5" role="list">
             {filteredNavigation.map((item, index) => {
               const isActive = item.href ? pathname === item.href : false;
-              const isOpen = openMenu === item.name;
               const hasActiveChild = item.children?.some(
-                (child) => pathname === child.href
+                (child) => pathname === child.href || pathname.startsWith(child.href + '/')
               );
               const Icon = item.icon;
 
@@ -928,94 +921,32 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                       />
                     </div>
                   ) : (
-                    /* ── Expandable menu item ── */
-                    <div className="group/nav">
-                      <div className="flex items-center">
-                        <button
-                          type="button"
-                          onClick={() => toggleMenu(item.name)}
-                          className={cn(
-                            "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 border-l-[3px] pl-[9px]",
-                            isOpen || hasActiveChild
-                              ? "text-slate-200 bg-white/[0.03] border-indigo-500/40"
-                              : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 border-transparent"
-                          )}
-                        >
-                          <Icon
-                            className={cn(
-                              "h-[18px] w-[18px] shrink-0 transition-colors duration-200",
-                              isOpen || hasActiveChild
-                                ? "text-indigo-400"
-                                : "text-slate-500"
-                            )}
-                          />
-                          <span className="flex-1 text-left">{item.name}</span>
-                          <ChevronRight
-                            className={cn(
-                              "h-3.5 w-3.5 text-slate-600 transition-transform duration-200",
-                              isOpen && "rotate-90 text-slate-400"
-                            )}
-                          />
-                        </button>
-                        <ReorderButtons
-                          index={index}
-                          total={navigation.length}
-                          onMoveUp={moveMenuUp}
-                          onMoveDown={moveMenuDown}
-                        />
-                      </div>
-
-                      {/* ── Children ── */}
-                      <div
+                    /* ── Parent item → SubNavBar shows children at top of content ── */
+                    <div className="flex items-center group/nav">
+                      <Link
+                        href={item.children?.[0]?.href ?? '#'}
+                        onClick={handleNavigation}
                         className={cn(
-                          "grid transition-[grid-template-rows] duration-200 ease-in-out",
-                          isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                          "flex-1 flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 border-l-[3px] pl-[9px]",
+                          hasActiveChild
+                            ? "text-slate-200 bg-white/[0.03] border-indigo-500/40"
+                            : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 border-transparent"
                         )}
                       >
-                        <div className="overflow-hidden">
-                          <ul className="mt-1 ml-5 space-y-px border-l border-slate-700/50 pl-3 py-1">
-                            {item.children?.map((child, childIndex) => {
-                              const isChildActive = pathname === child.href;
-
-                              return (
-                                <li
-                                  key={child.href}
-                                  className="flex items-center group/child"
-                                >
-                                  <Link
-                                    href={child.href}
-                                    onClick={handleNavigation}
-                                    className={cn(
-                                      "flex-1 flex items-center gap-2.5 px-3 py-[7px] rounded-md text-[12.5px] transition-all duration-200",
-                                      isChildActive
-                                        ? "text-indigo-300 bg-indigo-600/10 font-medium"
-                                        : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.03]"
-                                    )}
-                                  >
-                                    {/* Dot indicator */}
-                                    <span
-                                      className={cn(
-                                        "h-1 w-1 rounded-full shrink-0 transition-all duration-200",
-                                        isChildActive
-                                          ? "bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.5)]"
-                                          : "bg-slate-700 group-hover/child:bg-slate-500"
-                                      )}
-                                    />
-                                    <span>{child.name}</span>
-                                  </Link>
-                                  <ChildReorderButtons
-                                    menuId={item.id}
-                                    childIndex={childIndex}
-                                    childrenLength={item.children!.length}
-                                    onMoveUp={moveChildUp}
-                                    onMoveDown={moveChildDown}
-                                  />
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      </div>
+                        <Icon
+                          className={cn(
+                            "h-[18px] w-[18px] shrink-0 transition-colors duration-200",
+                            hasActiveChild ? "text-indigo-400" : "text-slate-500"
+                          )}
+                        />
+                        <span className="flex-1 text-left">{item.name}</span>
+                      </Link>
+                      <ReorderButtons
+                        index={index}
+                        total={navigation.length}
+                        onMoveUp={moveMenuUp}
+                        onMoveDown={moveMenuDown}
+                      />
                     </div>
                   )}
                 </li>
