@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   Layers,
   CalendarDays,
+  BookOpen,
   PenTool,
   PieChart,
   Receipt,
@@ -742,21 +743,37 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
       {/* ── Navigation ── */}
       <nav className="flex-1 overflow-y-auto overscroll-contain py-3 px-3 custom-scrollbar">
         {!isAdmin ? (
-          /* Access denied state */
-          <div className="flex flex-col items-center justify-center h-full px-4 text-center">
-            <div className="bg-red-950/30 border border-red-500/20 rounded-xl p-6 space-y-3 backdrop-blur-sm">
-              <p className="text-red-400 text-sm font-medium">
-                접근 권한 없음
-              </p>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                관리자 페이지는 관리자만 접근할 수 있습니다.
-              </p>
+          /* Client / employee 가 dashboard 영역에 들어온 경우 — 일정관리/노트장만 노출하고
+             마이페이지로 빠르게 돌아갈 수 있는 navigation 제공 */
+          <div className="space-y-2">
+            <div className="px-3 py-2 text-xs text-slate-400 uppercase tracking-wider">
+              일정관리
+            </div>
+            <Link
+              href="/schedule"
+              onClick={() => isMobile && onClose?.()}
+              className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-200 hover:bg-white/[0.06] transition-colors"
+            >
+              <CalendarDays className="h-4 w-4" />
+              <span className="text-sm">캘린더/할일/메모</span>
+            </Link>
+            {(user?.enableNote ?? false) && (
               <Link
-                href="/"
+                href="/schedule/notebook"
                 onClick={() => isMobile && onClose?.()}
-                className="inline-block px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-500 transition-colors"
+                className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-slate-200 hover:bg-white/[0.06] transition-colors"
               >
-                쇼핑몰로 이동
+                <BookOpen className="h-4 w-4" />
+                <span className="text-sm">노트장</span>
+              </Link>
+            )}
+            <div className="pt-3 mt-3 border-t border-white/10">
+              <Link
+                href="/mypage/profile"
+                onClick={() => isMobile && onClose?.()}
+                className="block px-3 py-2 text-sm text-indigo-400 hover:text-indigo-300"
+              >
+                ← 마이페이지로 돌아가기
               </Link>
             </div>
           </div>
