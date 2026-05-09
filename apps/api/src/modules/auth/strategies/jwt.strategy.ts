@@ -22,9 +22,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       if (!staffToken && !clientToken) return null;
       if (staffToken && !clientToken) return staffToken;
       if (!staffToken && clientToken) return clientToken;
-      // 둘 다 있을 때 — Referer 기반으로 결정
+      // 둘 다 있을 때 — Referer 기반으로 결정.
+      // middleware.ts 의 ADMIN_PATHS 와 동기화 유지.
       const referer: string = req?.headers?.referer || '';
-      const isAdminCtx = /\/(dashboard|admin-login|admin)/.test(referer);
+      const isAdminCtx =
+        /\/(dashboard|admin-login|admin|settings|orders|company|production|accounting|statistics|cs|schedule|shooting|hr-committee|leave|master|analytics|pricing|impositions|delivery)/.test(
+          referer,
+        );
       return isAdminCtx ? staffToken : clientToken;
     };
 
