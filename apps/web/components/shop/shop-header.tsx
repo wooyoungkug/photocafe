@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Search, ShoppingCart, User, Menu, Star, ClipboardList, BarChart3, MapPin, CreditCard, CalendarDays, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,8 @@ import {
 
 export function ShopHeader() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isLoginPage = pathname === '/login';
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { items } = useCartStore();
@@ -63,16 +65,18 @@ export function ShopHeader() {
             </button>
 
             {/* Logo */}
-            <Link href="/" className="flex items-center">
-              <Image
-                src="/images/photocafe_logo_v3.png"
-                alt="Photocafe"
-                width={362}
-                height={97}
-                className="h-9 md:h-11 w-auto object-contain"
-                priority
-              />
-            </Link>
+            {!isLoginPage && (
+              <Link href="/" className="flex items-center">
+                <Image
+                  src="/images/photocafe_logo_v3.png"
+                  alt="Photocafe"
+                  width={362}
+                  height={97}
+                  className="h-9 md:h-11 w-auto object-contain"
+                  priority
+                />
+              </Link>
+            )}
 
             {/* Search Bar - Desktop */}
             <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-10">
