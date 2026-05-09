@@ -5,18 +5,26 @@ import {
   ScheduleController,
   MemoController,
   NotebookController,
+  NoteTagController,
 } from './controllers';
 import {
   TodoService,
   ScheduleService,
   MemoService,
   NotebookService,
+  NoteTagService,
 } from './services';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [TodoController, ScheduleController, MemoController, NotebookController],
-  providers: [TodoService, ScheduleService, MemoService, NotebookService],
-  exports: [TodoService, ScheduleService, MemoService, NotebookService],
+  controllers: [
+    TodoController,
+    ScheduleController,
+    MemoController,
+    NotebookController,
+    NoteTagController,
+  ],
+  providers: [TodoService, ScheduleService, MemoService, NotebookService, NoteTagService],
+  exports: [TodoService, ScheduleService, MemoService, NotebookService, NoteTagService],
 })
 export class ScheduleModule {}

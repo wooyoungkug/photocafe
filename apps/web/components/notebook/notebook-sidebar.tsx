@@ -12,7 +12,9 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Tag as TagIcon,
   Trash2,
+  X,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,12 +30,15 @@ import {
   type NotebookTreeNode,
   type NotebookWithCounts,
 } from '@/hooks/use-notebooks';
+import { useDeleteNoteTag, useNoteTags } from '@/hooks/use-note-tags';
 import { cn } from '@/lib/utils';
 import { NotebookEditDialog } from './notebook-edit-dialog';
 
 interface NotebookSidebarProps {
   selectedKey: string;
   onSelect: (key: string) => void;
+  selectedTagId: string | null;
+  onSelectTag: (id: string | null) => void;
   totalCount?: number;
   uncategorizedCount?: number;
 }
@@ -41,16 +46,32 @@ interface NotebookSidebarProps {
 export function NotebookSidebar({
   selectedKey,
   onSelect,
+  selectedTagId,
+  onSelectTag,
   totalCount,
   uncategorizedCount,
 }: NotebookSidebarProps) {
   const { data: tree, isLoading } = useNotebookTree();
+  const { data: tags = [] } = useNoteTags();
   const { toast } = useToast();
   const deleteNb = useDeleteNotebook();
+  const deleteTag = useDeleteNoteTag();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [editOpen, setEditOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<NotebookWithCounts | null>(null);
   const [parentForCreate, setParentForCreate] = useState<string | null>(null);
+
+  const handleDeleteTag = (id: string, name: string) => {
+    if (!window.confirm(`'${name}' 태그를 삭제할까요? (이 태그가 붙은 노트들의 태그도 함께 풀립니다)`)) return;
+    deleteTag.mutate(id, {
+      onSuccess: () => {
+        toast({ title: '태그가 삭제되었습니다.' });
+        if (selectedTagId === id) onSelectTag(null);
+      },
+      onError: (e: Error) =>
+        toast({ title: e.message || '삭제 실패', variant: 'destructive' }),
+    });
+  };
 
   const toggle = (id: string) => {
     setExpanded((prev) => {
@@ -248,6 +269,71 @@ export function NotebookSidebar({
             </div>
           ) : (
             tree.map((n) => renderNode(n, 0))
+          )}
+        </div>
+
+        <div className="pt-2 mt-2 border-t">
+          <div className="flex items-center justify-between px-2 py-1">
+            <p className="text-[11px] text-black/40 font-bold uppercase tracking-wide flex items-center gap-1">
+              <TagIcon className="h-3 w-3" />
+              태그
+            </p>
+            {selectedTagId && (
+              <button
+                type="button"
+                onClick={() => onSelectTag(null)}
+                className="text-[11px] text-red-600 hover:underline"
+              >
+                필터 해제
+              </button>
+            )}
+          </div>
+          {tags.length === 0 ? (
+            <p className="text-center text-[12px] text-black/30 px-2 py-2">
+              태그가 없습니다.
+              <br />
+              노트 편집에서 추가하세요.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-1 p-1.5">
+              {tags.map((tag) => {
+                const active = selectedTagId === tag.id;
+                return (
+                  <div
+                    key={tag.id}
+                    className={cn(
+                      'group inline-flex items-center gap-1 pl-1.5 pr-1 py-0.5 rounded-full border text-[11px] transition-colors',
+                      active
+                        ? 'bg-red-50 border-red-300 text-red-700'
+                        : 'bg-white border-gray-200 text-black hover:bg-gray-50',
+                    )}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelectTag(active ? null : tag.id)}
+                      className="flex items-center gap-1 min-w-0"
+                    >
+                      <span
+                        className="w-1.5 h-1.5 rounded-full shrink-0"
+                        style={{ backgroundColor: tag.color }}
+                      />
+                      <span className="truncate max-w-[100px]">{tag.name}</span>
+                      <span className="text-[10px] text-black/40 tabular-nums">
+                        {tag._count?.memos ?? 0}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTag(tag.id, tag.name)}
+                      className="ml-0.5 opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
+                      aria-label={`${tag.name} 태그 삭제`}
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
       </div>

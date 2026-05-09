@@ -34,8 +34,9 @@ import {
   useUpdateMemo,
 } from '@/hooks/use-schedule';
 import { useNotebooks } from '@/hooks/use-notebooks';
-import type { Memo } from '@/lib/types/schedule';
+import type { Memo, NoteTagDto } from '@/lib/types/schedule';
 import { cn } from '@/lib/utils';
+import { NoteTagPicker } from './note-tag-picker';
 
 type Scope = 'personal' | 'department' | 'company';
 const scopeIcons: Record<Scope, typeof User> = {
@@ -91,6 +92,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
   const [scope, setScope] = useState<Scope>('personal');
   const [notebookId, setNotebookId] = useState<string>('none');
   const [isPinned, setIsPinned] = useState(false);
+  const [tags, setTags] = useState<NoteTagDto[]>([]);
 
   useEffect(() => {
     if (!memo) return;
@@ -102,6 +104,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
     setScope(memoToScope(memo));
     setNotebookId(memo.notebookId || 'none');
     setIsPinned(memo.isPinned);
+    setTags((memo.tags || []).map((t) => t.tag));
   }, [memo?.id]);
 
   const handleSave = useCallback(() => {
@@ -119,6 +122,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
           isDepartment: scope === 'department',
           isCompany: scope === 'company',
           isPinned,
+          tagIds: tags.map((t) => t.id),
         } as any,
       },
       {
@@ -127,7 +131,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
           toast({ title: e.message || '저장 실패', variant: 'destructive' }),
       },
     );
-  }, [noteId, title, content, color, notebookId, scope, isPinned, update, toast]);
+  }, [noteId, title, content, color, notebookId, scope, isPinned, tags, update, toast]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -297,6 +301,13 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
                 onClick={() => setColor(c)}
               />
             ))}
+          </div>
+        </div>
+
+        <div className="flex items-start gap-2">
+          <Label className="text-[12px] text-black/60 shrink-0 mt-1">태그</Label>
+          <div className="flex-1 min-w-0">
+            <NoteTagPicker selected={tags} onChange={setTags} />
           </div>
         </div>
 

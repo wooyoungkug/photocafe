@@ -16,6 +16,7 @@ export default function NotebookPage() {
   const createMemo = useCreateMemo();
 
   const [selectedKey, setSelectedKey] = useState<string>('all');
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const noteParam = searchParams.get('note');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(noteParam);
@@ -89,11 +90,14 @@ export default function NotebookPage() {
           setSelectedKey(k);
           // 노트북 변경 시 검색·선택 초기화는 의도적으로 유지(편의)
         }}
+        selectedTagId={selectedTagId}
+        onSelectTag={setSelectedTagId}
         totalCount={totalCount}
         uncategorizedCount={uncategorizedCount}
       />
       <NoteList
         notebookFilter={notebookFilter}
+        tagFilter={selectedTagId}
         selectedNoteId={selectedNoteId}
         onSelectNote={handleSelectNote}
         onCreateNote={handleCreateNote}

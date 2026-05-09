@@ -35,6 +35,7 @@ function htmlToPlain(html: string, format: string | undefined): string {
 
 interface NoteListProps {
   notebookFilter: string; // 'all' | 'uncategorized' | notebook id
+  tagFilter?: string | null; // tag id
   selectedNoteId: string | null;
   onSelectNote: (id: string) => void;
   onCreateNote: () => void;
@@ -44,6 +45,7 @@ interface NoteListProps {
 
 export function NoteList({
   notebookFilter,
+  tagFilter,
   selectedNoteId,
   onSelectNote,
   onCreateNote,
@@ -51,11 +53,12 @@ export function NoteList({
   onSearchChange,
 }: NoteListProps) {
   const query = useMemo(() => {
-    const q: { search?: string; notebookId?: string } = {};
+    const q: { search?: string; notebookId?: string; tagId?: string } = {};
     if (search.trim()) q.search = search.trim();
     if (notebookFilter !== 'all') q.notebookId = notebookFilter;
+    if (tagFilter) q.tagId = tagFilter;
     return q;
-  }, [notebookFilter, search]);
+  }, [notebookFilter, tagFilter, search]);
 
   const { data: memos = [], isLoading } = useMemos(query);
 
@@ -143,6 +146,24 @@ export function NoteList({
                     <p className="text-[12px] text-black/60 line-clamp-2 leading-snug">
                       {preview || '(내용 없음)'}
                     </p>
+                    {memo.tags && memo.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {memo.tags.slice(0, 3).map(({ tag }) => (
+                          <span
+                            key={tag.id}
+                            className="text-[10px] px-1.5 py-0.5 rounded-full border bg-white"
+                            style={{ borderColor: tag.color, color: tag.color }}
+                          >
+                            #{tag.name}
+                          </span>
+                        ))}
+                        {memo.tags.length > 3 && (
+                          <span className="text-[10px] text-black/40 self-center">
+                            +{memo.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2 text-[11px] text-black/40">
                       <Badge
                         variant="outline"
