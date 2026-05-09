@@ -95,8 +95,20 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
   const [isPinned, setIsPinned] = useState(false);
   const [tags, setTags] = useState<NoteTagDto[]>([]);
 
+  // noteId 가 바뀌면 즉시 모든 state 초기화 (이전 노트 잔상 제거)
   useEffect(() => {
-    if (!memo) return;
+    setTitle('');
+    setContent('');
+    setColor('#FFFFFF');
+    setScope('personal');
+    setNotebookId('none');
+    setIsPinned(false);
+    setTags([]);
+  }, [noteId]);
+
+  // 데이터 도착 시 채움. memo.id 와 현재 noteId 가 일치할 때만.
+  useEffect(() => {
+    if (!memo || memo.id !== noteId) return;
     setTitle(memo.title);
     setContent(
       memo.contentFormat === 'html' ? memo.content : plainTextToHtml(memo.content),
@@ -106,7 +118,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
     setNotebookId(memo.notebookId || 'none');
     setIsPinned(memo.isPinned);
     setTags((memo.tags || []).map((t) => t.tag));
-  }, [memo?.id]);
+  }, [memo, noteId]);
 
   const handleSave = useCallback(() => {
     if (!noteId) return;

@@ -376,10 +376,11 @@ export function RichTextEditor({
     },
   });
 
-  // 외부 value 변경 시 에디터 내용 동기화
+  // 외부 value 변경 시 에디터 내용 동기화 (빈 문자열로 초기화도 반영)
   useEffect(() => {
-    if (editor && value && value !== editor.getHTML()) {
-      editor.commands.setContent(value, { emitUpdate: false });
+    if (!editor) return;
+    if (value !== editor.getHTML()) {
+      editor.commands.setContent(value || '', { emitUpdate: false });
     }
   }, [value, editor]);
 
