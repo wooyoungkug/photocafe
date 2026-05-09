@@ -171,6 +171,11 @@ describe('Auth e2e — login + impersonation + concurrent sessions', () => {
   afterAll(async () => {
     if (!prisma) return;
     try {
+      await prisma.securityLog.deleteMany({
+        where: {
+          userId: { in: [f.superStaffId, f.normalStaffId, f.ownerClientId, f.employeeClientId, f.soloClientId] },
+        },
+      });
       await prisma.employment.deleteMany({
         where: {
           OR: [
@@ -469,6 +474,123 @@ describe('Auth e2e — login + impersonation + concurrent sessions', () => {
       .set('X-Auth-Context', 'client')
       .expect(200);
     expect(meClient.body.id).toBe(f.soloClientId);
+  });
+
+  // 14. SecurityLog: 대리 시작 시 impersonate_start_* 이벤트 기록
+  it('14. SecurityLog 에 대리 시작 이벤트 기록 (impersonate_start_client)', async () => {
+    const before = Date.now();
+    const loginRes = await baseUrl()
+      .post('/api/v1/auth/staff/login')
+      .send({ staffId: f.superStaffStaffId, password: TEST_PASSWORD })
+      .expect(201);
+    const staffToken = (loginRes.body as any).accessToken;
+
+    await baseUrl()
+      .post(`/api/v1/auth/impersonate/${f.soloClientId}`)
+      .set('Authorization', `Bearer ${staffToken}`)
+      .expect(201);
+
+    const logs = await prisma.securityLog.findMany({
+      where: {
+        eventType: 'impersonate_start_client',
+        userId: f.superStaffId,
+        createdAt: { gte: new Date(before) },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    expect(logs.length).toBeGreaterThanOrEqual(1);
+    const log = logs[0];
+    expect(log.severity).toBe('info');
+    expect(log.userType).toBe('staff');
+    expect((log.metadata as any)?.targetClientId).toBe(f.soloClientId);
+  });
+
+  // 15. SecurityLog: 차단된 시도는 impersonate_blocked 로 기록 (severity=warn)
+  it('15. SecurityLog 에 차단 시도 기록 (severity=warn, reason=non-staff-caller)', async () => {
+    const before = Date.now();
+    const loginRes = await baseUrl()
+      .post('/api/v1/auth/staff/login')
+      .send({ staffId: f.normalStaffStaffId, password: TEST_PASSWORD })
+      .expect(201);
+    const staffToken = (loginRes.body as any).accessToken;
+
+    // normal staff 는 isSuperAdmin=false 이지만 type=staff — 다른 차단 분기 트리거 위해
+    // 회원이 회원 대리 로그인 시도하는 시나리오로 검증
+    const ownerLogin = await baseUrl()
+      .post('/api/v1/auth/client/login')
+      .send({ loginId: f.ownerClientEmail, password: TEST_PASSWORD })
+      .expect(201);
+    const ownerTempToken = ownerLogin.body.tempToken as string;
+    const ownerCtx = await baseUrl()
+      .post('/api/v1/auth/select-context')
+      .send({ tempToken: ownerTempToken, contextType: 'employee', employmentId: f.ownerSelfEmploymentId })
+      .expect(201);
+    const ownerToken = ownerCtx.body.accessToken as string;
+
+    // client 가 staff 대리 시도 → non-staff-caller 차단
+    await baseUrl()
+      .post(`/api/v1/auth/impersonate/${f.soloClientId}`)
+      .set('Authorization', `Bearer ${ownerToken}`)
+      .expect(403);
+
+    const logs = await prisma.securityLog.findMany({
+      where: {
+        eventType: 'impersonate_blocked',
+        userId: f.ownerClientId,
+        createdAt: { gte: new Date(before) },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    expect(logs.length).toBeGreaterThanOrEqual(1);
+    const log = logs[0];
+    expect(log.severity).toBe('warn');
+    expect((log.metadata as any)?.reason).toBe('non-staff-caller');
+
+    // staffToken 변수는 더이상 필요 없음 (사용)
+    expect(staffToken).toBeDefined();
+  });
+
+  // 16. /auth/end-impersonation: 종료 호출 시 impersonate_end 이벤트 기록
+  it('16. /auth/end-impersonation 호출 시 impersonate_end 기록', async () => {
+    const before = Date.now();
+    const loginRes = await baseUrl()
+      .post('/api/v1/auth/staff/login')
+      .send({ staffId: f.superStaffStaffId, password: TEST_PASSWORD })
+      .expect(201);
+    const staffToken = (loginRes.body as any).accessToken;
+
+    const imp = await baseUrl()
+      .post(`/api/v1/auth/impersonate/${f.soloClientId}`)
+      .set('Authorization', `Bearer ${staffToken}`)
+      .expect(201);
+    const impToken = imp.body.accessToken as string;
+
+    await baseUrl()
+      .post('/api/v1/auth/end-impersonation')
+      .set('Authorization', `Bearer ${impToken}`)
+      .expect(201);
+
+    const logs = await prisma.securityLog.findMany({
+      where: {
+        eventType: 'impersonate_end',
+        userId: f.superStaffId, // 원래 사용자 기준
+        createdAt: { gte: new Date(before) },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    expect(logs.length).toBeGreaterThanOrEqual(1);
+    const log = logs[0];
+    expect(log.severity).toBe('info');
+    expect((log.metadata as any)?.targetUserId).toBe(f.soloClientId);
+
+    // 일반 staff 토큰(impersonatedBy 없음)으로 end-impersonation 호출 → 403
+    await baseUrl()
+      .post('/api/v1/auth/end-impersonation')
+      .set('Authorization', `Bearer ${staffToken}`)
+      .expect(403);
   });
 
   // 13. end-impersonation: 원래 staff 쿠키만으로 staff 컨텍스트 정상
