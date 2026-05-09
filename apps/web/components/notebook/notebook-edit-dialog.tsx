@@ -30,6 +30,8 @@ const NOTEBOOK_COLORS = [
   '#F3F4F6',
 ];
 
+const NOTEBOOK_ICONS = ['📁', '📓', '📝', '📌', '⭐', '💡', '🎯', '📅'];
+
 const SCOPES = [
   { value: 'personal', label: '개인', icon: User },
   { value: 'department', label: '부서', icon: Building },
@@ -144,6 +146,24 @@ export function NotebookEditDialog({
               maxLength={4}
               onChange={(e) => setIcon(e.target.value)}
             />
+            <div className="flex flex-wrap gap-2 pt-1">
+              {NOTEBOOK_ICONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  aria-label={`아이콘 ${emoji} 선택`}
+                  className={cn(
+                    'w-9 h-9 rounded-lg border text-[18px] flex items-center justify-center transition-colors',
+                    icon === emoji
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-gray-200 bg-white hover:bg-gray-50',
+                  )}
+                  onClick={() => setIcon(emoji)}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="space-y-2">
             <Label className="text-[14px] text-black font-bold">색상</Label>
