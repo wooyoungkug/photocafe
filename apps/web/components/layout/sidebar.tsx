@@ -771,7 +771,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
       </div>
 
       {/* ── Navigation ── */}
-      <nav className="flex-1 overflow-y-auto overscroll-contain py-3 px-3 custom-scrollbar">
+      <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain py-3 px-3 custom-scrollbar">
         {!isAdmin ? (
           /* Client / employee 가 dashboard 영역에 들어온 경우 — 일정관리/노트장만 노출하고
              마이페이지로 빠르게 돌아갈 수 있는 navigation 제공 */
