@@ -90,19 +90,25 @@ export default function AdminLoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3">
+          {/* admin-login 전용 form. 브라우저의 일반 사용자 이메일/비밀번호 자동완성을
+              방지하기 위해 name 을 staff 전용으로 두고 autoComplete=off. */}
+          <form onSubmit={handleSubmit} className="space-y-3" autoComplete="off">
             <Input
+              name="staffLoginId"
               placeholder="직원 ID"
               value={staffId}
               onChange={(e) => setStaffId(e.target.value)}
+              autoComplete="off"
               className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
               disabled={isLoading}
             />
             <Input
               type="password"
+              name="staffLoginPw"
               placeholder="비밀번호"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
               className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
               disabled={isLoading}
             />
