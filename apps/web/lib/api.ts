@@ -11,16 +11,42 @@ interface RequestOptions extends RequestInit {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
+// 현재 URL이 관리자(staff) 컨텍스트인지 판별
+function isAdminContext(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = window.location.pathname;
+  return (
+    p.startsWith('/dashboard') ||
+    p.startsWith('/admin') ||
+    p.startsWith('/company') ||
+    p.startsWith('/product') ||
+    p.startsWith('/order') ||
+    p.startsWith('/production') ||
+    p.startsWith('/pricing') ||
+    p.startsWith('/schedule') ||
+    p.startsWith('/master') ||
+    p.startsWith('/accounting') ||
+    p.startsWith('/cs') ||
+    p.startsWith('/settings') ||
+    p.startsWith('/statistics')
+  );
+}
 
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('auth-storage-staff');
-  localStorage.removeItem('auth-storage-client');
+  // 현재 컨텍스트(staff/client)에 해당하는 스토리지만 삭제
+  // → 반대편 세션(다른 탭/컨텍스트)은 그대로 유지
+  const authContext = isAdminContext() ? 'staff' : 'client';
+  const storageKey = authContext === 'staff' ? 'auth-storage-staff' : 'auth-storage-client';
+  localStorage.removeItem(storageKey);
+  sessionStorage.removeItem(storageKey);
   localStorage.removeItem('auth-storage'); // legacy
-  sessionStorage.removeItem('auth-storage-staff');
-  sessionStorage.removeItem('auth-storage-client');
   sessionStorage.removeItem('auth-storage'); // legacy
-  fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
+  fetch(`${API_URL}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', 'X-Auth-Context': authContext },
+  }).catch(() => {});
 }
 
 function redirectToLogin() {

@@ -478,9 +478,14 @@ export class AuthController {
 
   @Public()
   @Post('logout')
-  @ApiOperation({ summary: '로그아웃 (인증 쿠키 제거)' })
-  async logout(@Res({ passthrough: true }) res: Response) {
-    this.clearAuthCookies(res);
+  @ApiOperation({ summary: '로그아웃 (인증 쿠키 제거, X-Auth-Context 기반 컨텍스트 분리)' })
+  async logout(@Request() req: any, @Res({ passthrough: true }) res: Response) {
+    // X-Auth-Context 헤더로 어떤 쿠키만 지울지 결정
+    // staff → staff_access_token/refresh_token 만 clear (client 쿠키 유지)
+    // client → access_token/refresh_token 만 clear (staff 쿠키 유지)
+    const authContext = req.headers['x-auth-context'] as string | undefined;
+    const userType: 'staff' | 'client' = authContext === 'staff' ? 'staff' : 'client';
+    this.clearAuthCookies(res, userType);
     return { success: true };
   }
 

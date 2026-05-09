@@ -74,6 +74,27 @@ const clearImpersonateKeys = () => {
 const STAFF_KEY = 'auth-storage-staff';
 const CLIENT_KEY = 'auth-storage-client';
 
+// 현재 URL이 관리자(staff) 컨텍스트인지 판별 (api.ts의 isAdminContext()와 동일 기준)
+function isAdminContext(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = window.location.pathname;
+  return (
+    p.startsWith('/dashboard') ||
+    p.startsWith('/admin') ||
+    p.startsWith('/company') ||
+    p.startsWith('/product') ||
+    p.startsWith('/order') ||
+    p.startsWith('/production') ||
+    p.startsWith('/pricing') ||
+    p.startsWith('/schedule') ||
+    p.startsWith('/master') ||
+    p.startsWith('/accounting') ||
+    p.startsWith('/cs') ||
+    p.startsWith('/settings') ||
+    p.startsWith('/statistics')
+  );
+}
+
 const createCustomStorage = (): StateStorage => {
   if (typeof window === 'undefined') {
     return {
@@ -94,21 +115,18 @@ const createCustomStorage = (): StateStorage => {
             || null;
       }
 
-      // 일반 세션: sessionStorage 우선 → localStorage 순
-      const sessionStaff = sessionStorage.getItem(STAFF_KEY);
-      if (sessionStaff) return sessionStaff;
-
-      const sessionClient = sessionStorage.getItem(CLIENT_KEY);
-      if (sessionClient) return sessionClient;
-
-      const lsStaff = localStorage.getItem(STAFF_KEY);
-      if (lsStaff) return lsStaff;
-
-      const lsClient = localStorage.getItem(CLIENT_KEY);
-      if (lsClient) return lsClient;
-
-      // 레거시 폴백 (이전 auth-storage 키)
-      return localStorage.getItem('auth-storage') || null;
+      // URL 컨텍스트에 따라 읽을 키 결정
+      // → 관리자 경로: staff 세션, 쇼핑몰 경로: client 세션
+      // 두 세션이 동시에 존재해도 현재 컨텍스트에 맞는 것만 읽음
+      if (isAdminContext()) {
+        return sessionStorage.getItem(STAFF_KEY)
+            || localStorage.getItem(STAFF_KEY)
+            || null;
+      } else {
+        return sessionStorage.getItem(CLIENT_KEY)
+            || localStorage.getItem(CLIENT_KEY)
+            || null;
+      }
     },
     setItem: (_name: string, value: string) => {
       try {
@@ -134,10 +152,11 @@ const createCustomStorage = (): StateStorage => {
       }
     },
     removeItem: (_name: string) => {
-      localStorage.removeItem(STAFF_KEY);
-      localStorage.removeItem(CLIENT_KEY);
-      sessionStorage.removeItem(STAFF_KEY);
-      sessionStorage.removeItem(CLIENT_KEY);
+      // 현재 컨텍스트에 해당하는 키만 삭제
+      // → 반대편 세션(관리자 ↔ 클라이언트)은 보존
+      const key = isAdminContext() ? STAFF_KEY : CLIENT_KEY;
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
       // 레거시 정리
       localStorage.removeItem('auth-storage');
       sessionStorage.removeItem('auth-storage');
