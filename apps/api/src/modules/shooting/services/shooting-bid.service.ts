@@ -100,6 +100,15 @@ export class ShootingBidService {
       throw new BadRequestException('모집 중인 촬영에만 응찰할 수 있습니다.');
     }
 
+    // 촬영일이 지난 일정에는 응찰 불가 (날짜 단위 비교, 당일은 허용)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const shootingDay = new Date(shooting.shootingDate);
+    shootingDay.setHours(0, 0, 0, 0);
+    if (shootingDay.getTime() < today.getTime()) {
+      throw new BadRequestException('촬영일이 지난 일정에는 응찰할 수 없습니다.');
+    }
+
     // advisory lock 키: shootingId hash
     const lockKey = this.hashStringToInt(shootingId);
 

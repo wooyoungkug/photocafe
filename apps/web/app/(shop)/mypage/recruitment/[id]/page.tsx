@@ -144,6 +144,16 @@ export default function RecruitmentDetailPage() {
   // 확정된 응찰자
   const selectedBid = bids?.find((b) => b.status === 'selected');
 
+  // 촬영일(예식일)이 지났는지 — 날짜 단위 비교, 당일은 허용
+  const isPastShootingDate = (() => {
+    if (!recruitment?.shootingDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const shootingDay = new Date(recruitment.shootingDate);
+    shootingDay.setHours(0, 0, 0, 0);
+    return shootingDay.getTime() < today.getTime();
+  })();
+
   // 전속 모집 시작
   const handlePublishPrivate = async () => {
     try {
@@ -692,11 +702,22 @@ export default function RecruitmentDetailPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-[14px] font-bold flex items-center gap-1.5">
               <Send className="h-4 w-4" />
-              {myBid ? '내 응찰 정보' : '응찰하기'}
+              {myBid ? '내 응찰 정보' : isPastShootingDate ? '응찰 마감' : '응찰하기'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {myBid ? (
+            {!myBid && isPastShootingDate ? (
+              // 촬영일 경과: 응찰 불가 안내
+              <div className="p-4 bg-gray-50 rounded-lg border text-center">
+                <AlertCircle className="h-10 w-10 mx-auto text-gray-300 mb-2" />
+                <p className="text-[14px] text-black font-medium mb-1">
+                  촬영일이 지나 응찰할 수 없습니다
+                </p>
+                <p className="text-[12px] text-gray-500">
+                  촬영일: {format(new Date(recruitment.shootingDate), 'yyyy.MM.dd (EEE)', { locale: ko })}
+                </p>
+              </div>
+            ) : myBid ? (
               // 이미 응찰한 경우: 상태 표시
               <div className="p-4 bg-gray-50 rounded-lg border">
                 <div className="flex items-center justify-between mb-2">

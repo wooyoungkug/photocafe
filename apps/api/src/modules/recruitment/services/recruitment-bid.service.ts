@@ -174,6 +174,15 @@ export class RecruitmentBidService {
       throw new BadRequestException('본인이 등록한 구인에는 응찰할 수 없습니다.');
     }
 
+    // 촬영일(예식일)이 지난 구인에는 응찰 불가 (날짜 단위 비교, 당일은 허용)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const shootingDay = new Date(recruitment.shootingDate);
+    shootingDay.setHours(0, 0, 0, 0);
+    if (shootingDay.getTime() < today.getTime()) {
+      throw new BadRequestException('촬영일이 지난 구인에는 응찰할 수 없습니다.');
+    }
+
     // Advisory lock + 트랜잭션
     return this.prisma.$transaction(async (tx) => {
       // Advisory lock (recruitmentId 기반 해시)
