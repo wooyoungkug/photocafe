@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { useAuthStore } from '@/stores/auth-store';
+import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 function getMenuItems(user: {
@@ -92,27 +93,27 @@ export default function MyPageLayout({
   const menuItems = getMenuItems(user);
   const isCompactSidebar = false;
 
-  // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로)
+  // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로).
+  // api.get 을 사용해야 대리로그인 탭에서 sessionStorage 의 impersonate 토큰을
+  // Authorization 헤더로 자동 사용한다. (그냥 fetch 로는 admin cookie 로 호출됨)
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (user.role !== 'client' && user.type !== 'employee') return;
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
-    fetch(`${apiUrl}/auth/me`, { credentials: 'include' })
-      .then((r) => r.ok ? r.json() : null)
+    api
+      .get<any>('/auth/me')
       .then((data) => {
-        if (data) {
-          updateUser({
-            ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
-            ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
-            ...(data.enableNote !== undefined && { enableNote: data.enableNote }),
-            ...(data.businessNumber && { businessNumber: data.businessNumber }),
-            ...(data.representative && { representative: data.representative }),
-            ...(data.address && { address: data.address }),
-            ...(data.addressDetail && { addressDetail: data.addressDetail }),
-            ...(data.contactPerson && { contactPerson: data.contactPerson }),
-            ...(data.mobile && { mobile: data.mobile }),
-          });
-        }
+        if (!data) return;
+        updateUser({
+          ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
+          ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
+          ...(data.enableNote !== undefined && { enableNote: data.enableNote }),
+          ...(data.businessNumber && { businessNumber: data.businessNumber }),
+          ...(data.representative && { representative: data.representative }),
+          ...(data.address && { address: data.address }),
+          ...(data.addressDetail && { addressDetail: data.addressDetail }),
+          ...(data.contactPerson && { contactPerson: data.contactPerson }),
+          ...(data.mobile && { mobile: data.mobile }),
+        });
       })
       .catch(() => {});
   }, [isAuthenticated]);
