@@ -1,5 +1,4 @@
 {
-  "enableAllProjectMcpServers": true,
   "permissions": {
     "allow": [
       "Bash(cmd /c \"taskkill /PID 15924 /F\")",
@@ -17,9 +16,11 @@
       "Bash(PGPASSWORD=postgres \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\":*)",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -h localhost -c \"SELECT id, \"\"productName\"\", \"\"thumbnailUrl\"\" FROM \"\"Product\"\" LIMIT 5;\")",
       "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \":*)",
-      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"\\\\d products\")"
+      "Bash(\"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -U postgres -d printing_erp -c \"\\\\d products\")",
+      "Bash(node apps/api/scripts/test-enable-shooting.js)"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "hooks": {
     "Stop": [
       {
