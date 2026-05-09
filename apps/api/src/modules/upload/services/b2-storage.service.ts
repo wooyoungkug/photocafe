@@ -149,19 +149,35 @@ export class B2StorageService implements OnModuleInit {
 
   /**
    * Private 객체 GET용. 기본 5분(300초). `B2_PRESIGN_EXPIRES_IN`으로 기본값 덮어쓰기.
+   * `downloadFileName` 지정 시 응답에 Content-Disposition 헤더가 붙어
+   * 브라우저가 해당 이름으로 저장한다(한글 등 비ASCII는 RFC 5987로 인코딩).
    */
-  async getPrivatePresignedUrl(key: string, expiresInOverride?: number): Promise<string> {
+  async getPrivatePresignedUrl(
+    key: string,
+    expiresInOverride?: number,
+    options?: { downloadFileName?: string },
+  ): Promise<string> {
     const s3 = this.requireClient();
     const fromEnv = this.getFirst('B2_PRESIGN_EXPIRES_IN');
     const base =
       expiresInOverride ??
       (fromEnv ? parseInt(fromEnv, 10) : DEFAULT_PRESIGN_SECONDS);
     const exp = Number.isFinite(base) && base > 0 ? base : DEFAULT_PRESIGN_SECONDS;
-    return getSignedUrl(
-      s3,
-      new GetObjectCommand({ Bucket: this.privateBucket, Key: key }),
-      { expiresIn: exp },
-    );
+
+    const input: ConstructorParameters<typeof GetObjectCommand>[0] = {
+      Bucket: this.privateBucket,
+      Key: key,
+    };
+    if (options?.downloadFileName) {
+      const name = options.downloadFileName;
+      const asciiFallback = name.replace(/[^\x20-\x7E]/g, '_').replace(/"/g, "'");
+      const encoded = encodeURIComponent(name).replace(/['()*]/g, (c) =>
+        '%' + c.charCodeAt(0).toString(16).toUpperCase(),
+      );
+      input.ResponseContentDisposition = `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+    }
+
+    return getSignedUrl(s3, new GetObjectCommand(input), { expiresIn: exp });
   }
 
   async deletePrivateObject(key: string): Promise<void> {
