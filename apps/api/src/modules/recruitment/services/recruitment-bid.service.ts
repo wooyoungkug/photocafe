@@ -190,7 +190,7 @@ export class RecruitmentBidService {
         (acc, byte) => acc * 31 + byte,
         0,
       );
-      await tx.$queryRawUnsafe(
+      await tx.$executeRawUnsafe(
         `SELECT pg_advisory_xact_lock(${lockKey & 0x7fffffff})`,
       );
 

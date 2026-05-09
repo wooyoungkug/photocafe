@@ -114,7 +114,7 @@ export class ShootingBidService {
 
     return this.prisma.$transaction(async (tx) => {
       // PostgreSQL advisory lock 획득
-      await tx.$queryRawUnsafe(`SELECT pg_advisory_xact_lock(${lockKey})`);
+      await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock(${lockKey})`);
 
       // 중복 응찰 확인
       const existingBid = await tx.shootingBid.findUnique({
