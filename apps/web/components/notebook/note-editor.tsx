@@ -326,6 +326,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
 
         <div className="flex-1 min-h-[60vh]">
           <RichTextEditor
+            key={noteId}
             value={content}
             onChange={setContent}
             placeholder="노트 내용을 작성하세요..."
