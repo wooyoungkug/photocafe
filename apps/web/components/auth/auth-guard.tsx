@@ -75,8 +75,9 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
         try { meData = await meRes.json(); } catch { /* ignore */ }
 
         if (requireAdmin) {
+          const userType = meData?.type;
           const userRole = meData?.role;
-          if (userRole !== 'admin' && userRole !== 'staff') {
+          if (userType !== 'staff' && userRole !== 'admin' && userRole !== 'staff') {
             setStatus('unauthorized');
             checkedRef.current = true;
             return;
