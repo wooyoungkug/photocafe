@@ -123,6 +123,24 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     } catch { /* ignore */ }
   }
 
+  // 관리자/쇼핑몰 컨텍스트를 명시적으로 서버에 전달 (Referer 의존 제거)
+  const authContext = typeof window !== 'undefined' && (
+    window.location.pathname.startsWith('/dashboard') ||
+    window.location.pathname.startsWith('/admin') ||
+    window.location.pathname.startsWith('/company') ||
+    window.location.pathname.startsWith('/product') ||
+    window.location.pathname.startsWith('/order') ||
+    window.location.pathname.startsWith('/production') ||
+    window.location.pathname.startsWith('/pricing') ||
+    window.location.pathname.startsWith('/schedule') ||
+    window.location.pathname.startsWith('/master') ||
+    window.location.pathname.startsWith('/accounting') ||
+    window.location.pathname.startsWith('/cs') ||
+    window.location.pathname.startsWith('/settings') ||
+    window.location.pathname.startsWith('/statistics') ||
+    window.location.pathname.startsWith('/admin-login')
+  ) ? 'staff' : 'client';
+
   let response: Response;
   try {
     response = await fetch(url, {
@@ -131,6 +149,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        'X-Auth-Context': authContext,
         ...impersonateAuth,
         ...fetchOptions.headers,
       },

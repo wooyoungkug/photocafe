@@ -34,13 +34,23 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         selectedToken = clientToken;
         source = 'client';
       } else {
-        // 둘 다 있을 때 — Referer 기반으로 결정.
-        // middleware.ts 의 ADMIN_PATHS 와 동기화 유지.
-        const referer: string = req?.headers?.referer || '';
-        const isAdminCtx =
-          /\/(dashboard|admin-login|admin|settings|orders|company|production|accounting|statistics|cs|schedule|shooting|hr-committee|leave|master|analytics|pricing|impositions|delivery)/.test(
-            referer,
-          );
+        // 둘 다 있을 때 — X-Auth-Context 헤더 우선, 없으면 Referer 폴백.
+        // api.ts 가 현재 pathname 기반으로 헤더를 주입한다.
+        const authContextHeader = req?.headers?.['x-auth-context'] as string | undefined;
+
+        let isAdminCtx: boolean;
+        if (authContextHeader) {
+          isAdminCtx = authContextHeader === 'staff';
+        } else {
+          // Referer 폴백 (직접 fetch / 서버간 호출 등 헤더 없을 때)
+          // middleware.ts 의 ADMIN_PATHS 와 동기화 유지.
+          const referer: string = req?.headers?.referer || '';
+          isAdminCtx =
+            /\/(dashboard|admin-login|admin|settings|orders|company|production|accounting|statistics|cs|schedule|shooting|hr-committee|leave|master|analytics|pricing|impositions|delivery)/.test(
+              referer,
+            );
+        }
+
         if (isAdminCtx) {
           selectedToken = staffToken;
           source = 'staff';

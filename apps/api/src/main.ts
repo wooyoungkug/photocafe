@@ -108,7 +108,7 @@ async function bootstrap() {
       process.env.FRONTEND_URL,
     ].filter(Boolean) as string[],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Auth-Context'],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
