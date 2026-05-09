@@ -26,7 +26,8 @@
       "Bash(curl -s \"http://localhost:3001/api/v1/auth/me/preferences\" -H \"Cookie: staff_access_token=test\")",
       "Bash(findstr /S /R /N \"auth-storage\" .)",
       "Bash(\"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -U postgres -d printing_erp -c \"SELECT \\\\\"staffId\\\\\", \\\\\"isSuperAdmin\\\\\", \\\\\"menuPermissions\\\\\", \\\\\"isActive\\\\\" FROM staff WHERE \\\\\"staffId\\\\\" = 'admin';\")",
-      "PowerShell([Console]::Beep\\(880, 200\\); Start-Sleep -Milliseconds 100; [Console]::Beep\\(1100, 300\\))"
+      "PowerShell([Console]::Beep\\(880, 200\\); Start-Sleep -Milliseconds 100; [Console]::Beep\\(1100, 300\\))",
+      "mcp__playwright__browser_navigate"
     ],
     "additionalDirectories": [
       "z:\\출력팀\\Wooceo_출력백업\\!2025년\\접수대기\\Photocafe 관련자료"

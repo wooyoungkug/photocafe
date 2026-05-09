@@ -47,6 +47,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface HeaderProps {
   onMenuClick?: () => void;
@@ -291,15 +292,18 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             <TooltipContent side="bottom">알림</TooltipContent>
           </Tooltip>
 
-          {/* Divider - tablet and above */}
-          <div className="hidden sm:block h-6 w-px bg-slate-200/80 mx-1" />
+          {/* Divider - tablet and above (side 모드에서는 사이드바에 사용자 정보가 있으므로 숨김) */}
+          {isTopMode && <div className="hidden sm:block h-6 w-px bg-slate-200/80 mx-1" />}
 
-          {/* User dropdown */}
+          {/* User dropdown — top 모드(사이드바 없음)이거나 모바일일 때만 표시 */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-2 sm:gap-2.5 cursor-pointer rounded-lg hover:bg-slate-50/80 px-1.5 sm:px-2.5 py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30"
+                className={cn(
+                  "flex items-center gap-2 sm:gap-2.5 cursor-pointer rounded-lg hover:bg-slate-50/80 px-1.5 sm:px-2.5 py-1.5 transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/30",
+                  !isTopMode && "lg:hidden"
+                )}
                 aria-label="사용자 메뉴"
               >
                 {/* Avatar with gradient */}

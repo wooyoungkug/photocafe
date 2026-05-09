@@ -82,6 +82,7 @@ export class AuthService {
           type: 'staff',
           branchId: staff.branchId,
           departmentId: staff.departmentId,
+          aud: 'staff',
         };
 
         return {
@@ -111,6 +112,7 @@ export class AuthService {
           email: client.email,
           role: 'client',
           type: 'client',
+          aud: 'client',
         };
 
         return {
@@ -163,6 +165,7 @@ export class AuthService {
           canViewAllOrders: employment.canViewAllOrders,
           canManageProducts: employment.canManageProducts,
           canViewSettlement: employment.canViewSettlement,
+          aud: 'client',
         };
 
         return {
@@ -546,7 +549,7 @@ export class AuthService {
       data: { lastLoginAt: new Date(), ...(ip && { lastLoginIp: ip }) },
     });
 
-    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id };
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id, aud: 'client' };
     const accessToken = this.jwtService.sign(payload);
     const refreshToken = this.jwtService.sign(payload, { expiresIn: rememberMe ? '30d' : '7d' });
 
@@ -587,6 +590,7 @@ export class AuthService {
       sub: targetStaff.id, staffId: targetStaff.staffId, name: targetStaff.name,
       role: 'admin', type: 'staff', branchId: targetStaff.branchId,
       departmentId: targetStaff.departmentId, impersonatedBy: adminStaffId,
+      aud: 'staff',
     };
 
     return {
@@ -854,6 +858,7 @@ export class AuthService {
     const payload = {
       sub: staff.id, staffId: staff.staffId, name: staff.name,
       role: 'admin', type: 'staff', branchId: staff.branchId, departmentId: staff.departmentId,
+      aud: 'staff',
     };
 
     return {
@@ -913,6 +918,7 @@ export class AuthService {
     const payload = {
       sub: staff.id, staffId: staff.staffId, name: staff.name,
       role: 'admin', type: 'staff', branchId: staff.branchId, departmentId: staff.departmentId,
+      aud: 'staff',
     };
 
     return {
@@ -1085,6 +1091,7 @@ export class AuthService {
       canViewSettlement: employment.canViewSettlement,
       canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
       enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment, enableShooting: employment.company.enableShooting, enableNote: employment.company.enableNote,
+      aud: 'client',
     };
 
     return {
@@ -1138,6 +1145,7 @@ export class AuthService {
       canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
       enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment, enableShooting: targetEmployment.company.enableShooting, enableNote: targetEmployment.company.enableNote,
       impersonatedBy: requestorSub,
+      aud: 'client',
     };
 
     return {
@@ -1174,7 +1182,7 @@ export class AuthService {
     if (!client) throw new BadRequestException('회원을 찾을 수 없습니다');
     if (client.status !== 'active') throw new BadRequestException('비활성 회원은 대리 로그인할 수 없습니다');
 
-    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id, impersonatedBy: adminId };
+    const payload = { sub: client.id, email: client.email, role: 'client', type: 'client', clientId: client.id, impersonatedBy: adminId, aud: 'client' };
 
     return {
       accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }),
