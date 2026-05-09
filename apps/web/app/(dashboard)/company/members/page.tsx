@@ -319,6 +319,8 @@ function MembersPageContent() {
     acquisitionChannel: '',
     enableSchedule: true,
     enableRecruitment: true,
+    enableNote: false,
+    storageQuotaGb: 500,
   });
 
   // 비밀번호 설정
@@ -390,6 +392,8 @@ function MembersPageContent() {
         acquisitionChannel: member.acquisitionChannel || '',
         enableSchedule: member.enableSchedule ?? true,
         enableRecruitment: member.enableRecruitment ?? true,
+        enableNote: member.enableNote ?? false,
+        storageQuotaGb: member.storageQuotaGb ?? 500,
       });
     } else {
       setEditingMember(null);
@@ -426,6 +430,10 @@ function MembersPageContent() {
           shippingType: 'conditional',
           freeShippingThreshold: 90000,
           acquisitionChannel: '',
+          enableSchedule: true,
+          enableRecruitment: true,
+          enableNote: false,
+          storageQuotaGb: 500,
         });
       });
     }
@@ -1176,6 +1184,44 @@ function MembersPageContent() {
                     </Select>
                     <p className="text-xs text-muted-foreground">거래 완료 후 썸네일 파일 보관 기간</p>
                   </div>
+
+                  {/* 저장용량 한도 */}
+                  <div className="space-y-2">
+                    <Label htmlFor="storageQuotaGb" className="text-sm font-medium">
+                      저장용량 한도
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="storageQuotaGb"
+                        type="number"
+                        min={0}
+                        step={10}
+                        value={formData.storageQuotaGb ?? 500}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            storageQuotaGb: Math.max(0, parseInt(e.target.value || '0', 10)),
+                          })
+                        }
+                        className="bg-white"
+                      />
+                      <span className="text-sm text-muted-foreground shrink-0">GB</span>
+                    </div>
+                    {editingMember && (
+                      <p className="text-xs text-muted-foreground">
+                        현재 사용량: {(() => {
+                          const used = (editingMember as any).storageUsedBytes ?? 0;
+                          const usedGb = used / (1024 ** 3);
+                          const quota = formData.storageQuotaGb ?? 500;
+                          const pct = quota > 0 ? Math.min(100, (usedGb / quota) * 100) : 0;
+                          return `${usedGb.toFixed(2)} GB / ${quota} GB (${pct.toFixed(1)}%)`;
+                        })()}
+                      </p>
+                    )}
+                    {!editingMember && (
+                      <p className="text-xs text-muted-foreground">스튜디오당 노트 첨부파일 총 저장 한도 (기본 500GB)</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1581,6 +1627,16 @@ function MembersPageContent() {
                     <Switch
                       checked={formData.enableRecruitment ?? true}
                       onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableRecruitment: v }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
+                    <div>
+                      <p className="text-sm font-medium">노트장</p>
+                      <p className="text-xs text-muted-foreground">메모·견적 노트 작성 및 첨부파일 보관</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableNote ?? false}
+                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableNote: v }))}
                     />
                   </div>
                 </div>

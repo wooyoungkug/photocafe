@@ -120,6 +120,35 @@ export class B2StorageService implements OnModuleInit {
   }
 
   /**
+   * 디스크 임시파일을 streaming으로 업로드. 메모리에 전체를 올리지 않으므로
+   * 수백MB ~ 수GB 파일을 안전하게 처리한다.
+   */
+  async putPrivateObjectFromPath(
+    key: string,
+    filePath: string,
+    contentType: string,
+  ): Promise<string> {
+    const s3 = this.requireClient();
+    const size = fs.statSync(filePath).size;
+    const stream = fs.createReadStream(filePath);
+    try {
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: this.privateBucket,
+          Key: key,
+          Body: stream,
+          ContentType: contentType,
+          ContentLength: size,
+        }),
+      );
+    } finally {
+      // ReadStream이 다 안 읽혀도 핸들 닫기
+      stream.destroy();
+    }
+    return key;
+  }
+
+  /**
    * Public bucket: 썸네일, 로고, 워터마크 미리보기. 버킷/파일은 B2에서 public 또는 CDN 뒤에 둔다.
    */
   async putPublicObject(key: string, body: Buffer, contentType: string): Promise<string> {

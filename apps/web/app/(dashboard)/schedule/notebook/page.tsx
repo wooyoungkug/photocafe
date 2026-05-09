@@ -8,12 +8,28 @@ import { useCreateMemo, useMemos } from '@/hooks/use-schedule';
 import { NotebookSidebar } from '@/components/notebook/notebook-sidebar';
 import { NoteList } from '@/components/notebook/note-list';
 import { NoteEditor } from '@/components/notebook/note-editor';
+import { useAuthStore } from '@/stores/auth-store';
 
 export default function NotebookPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const createMemo = useCreateMemo();
+  const user = useAuthStore((s) => s.user);
+
+  // 노트장 서비스 사용 여부 가드: 본사 admin/staff 는 항상 통과,
+  // 스튜디오는 enableNote=true 일 때만 사용 가능
+  useEffect(() => {
+    if (!user) return;
+    const isHostStaff = user.role === 'admin' || user.role === 'staff';
+    if (!isHostStaff && !user.enableNote) {
+      toast({
+        title: '노트장이 비활성화되어 있습니다. 관리자에게 문의해주세요.',
+        variant: 'destructive',
+      });
+      router.replace('/schedule');
+    }
+  }, [user, router, toast]);
 
   const [selectedKey, setSelectedKey] = useState<string>('all');
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);

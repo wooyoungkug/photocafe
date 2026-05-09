@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuthStore } from '@/stores/auth-store';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { ArrowLeft, Building, Building2, Loader2, Save, StickyNote, User } from 'lucide-react';
@@ -58,10 +59,25 @@ function memoToScope(memo: Memo): MemoScope {
 
 export default function MemoEditorPage() {
   const params = useParams();
+  const router = useRouter();
   const id = typeof params.id === 'string' ? params.id : '';
   const { toast } = useToast();
+  const user = useAuthStore((s) => s.user);
   const { data: memo, isLoading, isError, error } = useMemoDetail(id);
   const updateMemo = useUpdateMemo();
+
+  // 노트장 서비스 가드 (스튜디오는 enableNote=true 일 때만)
+  useEffect(() => {
+    if (!user) return;
+    const isHostStaff = user.role === 'admin' || user.role === 'staff';
+    if (!isHostStaff && !user.enableNote) {
+      toast({
+        title: '노트장이 비활성화되어 있습니다.',
+        variant: 'destructive',
+      });
+      router.replace('/schedule');
+    }
+  }, [user, router, toast]);
 
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');

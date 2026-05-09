@@ -258,7 +258,7 @@ export class AuthService {
       const lookupId = type === 'employee' && companyClientId ? companyClientId : userId;
       const client = await this.prisma.client.findUnique({
         where: { id: lookupId },
-        select: { id: true, email: true, clientName: true, businessNumber: true, representative: true, address: true, addressDetail: true, contactPerson: true, mobile: true, enableSchedule: true, enableRecruitment: true },
+        select: { id: true, email: true, clientName: true, businessNumber: true, representative: true, address: true, addressDetail: true, contactPerson: true, mobile: true, enableSchedule: true, enableRecruitment: true, enableNote: true },
       });
       if (!client) throw new UnauthorizedException('User not found');
       return {
@@ -273,6 +273,7 @@ export class AuthService {
         mobile: client.mobile,
         enableSchedule: client.enableSchedule ?? true,
         enableRecruitment: client.enableRecruitment ?? true,
+        enableNote: client.enableNote ?? false,
       };
     }
 
@@ -556,6 +557,7 @@ export class AuthService {
         businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
         enableSchedule: client.enableSchedule ?? true, enableRecruitment: client.enableRecruitment ?? true,
+        enableNote: client.enableNote ?? false,
         oauthProvider: client.oauthProvider ?? null,
       },
     };
@@ -1056,7 +1058,7 @@ export class AuthService {
 
     const employment = await this.prisma.employment.findUnique({
       where: { id: employmentId },
-      include: { company: { select: { id: true, clientName: true, clientCode: true, enableSchedule: true, enableRecruitment: true } } },
+      include: { company: { select: { id: true, clientName: true, clientCode: true, enableSchedule: true, enableRecruitment: true, enableNote: true } } },
     });
 
     if (!employment || employment.memberClientId !== client.id || employment.status !== 'ACTIVE') {
@@ -1081,7 +1083,7 @@ export class AuthService {
       canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
       canViewSettlement: employment.canViewSettlement,
       canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
-      enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
+      enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment, enableNote: employment.company.enableNote,
     };
 
     return {
@@ -1095,7 +1097,7 @@ export class AuthService {
         canViewAllOrders: employment.canViewAllOrders, canManageProducts: employment.canManageProducts,
         canViewSettlement: employment.canViewSettlement,
         canManageSchedule: employment.canManageSchedule, canManageRecruitment: employment.canManageRecruitment,
-        enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment,
+        enableSchedule: employment.company.enableSchedule, enableRecruitment: employment.company.enableRecruitment, enableNote: employment.company.enableNote,
       },
     };
   }
@@ -1133,7 +1135,7 @@ export class AuthService {
       canViewAllOrders: targetEmployment.canViewAllOrders, canManageProducts: targetEmployment.canManageProducts,
       canViewSettlement: targetEmployment.canViewSettlement,
       canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
-      enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment,
+      enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment, enableNote: targetEmployment.company.enableNote,
       impersonatedBy: requestorSub,
     };
 
@@ -1148,7 +1150,7 @@ export class AuthService {
         canViewAllOrders: targetEmployment.canViewAllOrders, canManageProducts: targetEmployment.canManageProducts,
         canViewSettlement: targetEmployment.canViewSettlement,
         canManageSchedule: targetEmployment.canManageSchedule, canManageRecruitment: targetEmployment.canManageRecruitment,
-        enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment,
+        enableSchedule: targetEmployment.company.enableSchedule, enableRecruitment: targetEmployment.company.enableRecruitment, enableNote: targetEmployment.company.enableNote,
       },
       impersonated: true,
     };

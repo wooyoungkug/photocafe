@@ -414,6 +414,8 @@ model Client {
   gender                     String?
   enableRecruitment          Boolean                        @default(true)
   enableSchedule             Boolean                        @default(true)
+  enableNote                 Boolean                        @default(false)
+  storageQuotaGb             Int                            @default(500)
   smsNotificationStages      String[]                       @default([])
   notificationChannel        String                         @default("sms")
   withdrawnAt                DateTime?

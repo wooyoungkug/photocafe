@@ -664,17 +664,29 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
     if (val && typeof val === 'object' && (val as Record<string, unknown>).canView === true) return true;
     return false;
   };
+  // 스튜디오 회원(client/employee)에게는 enableNote 가 false 일 때 노트장 메뉴 숨김.
+  // 본사 admin/staff(isSuperAdmin) 는 항상 노출.
+  const isHostStaff = user?.role === 'admin' || user?.role === 'staff';
+  const noteEnabled = isHostStaff || (user?.enableNote ?? false);
+  const stripNoteFromChildren = (children: { name: string; href: string }[]) =>
+    noteEnabled ? children : children.filter((c) => c.href !== '/schedule/notebook');
+
   const filteredNavigation = isSuperAdmin
-    ? navigation
+    ? navigation.map((item) => {
+        if (!item.children) return item;
+        const children = stripNoteFromChildren(item.children);
+        if (children.length === 0) return null;
+        return { ...item, children };
+      }).filter(Boolean) as NavItem[]
     : navigation
         .map((item) => {
           // 메인카테고리 권한 체크
           if (!menuPerms[item.id]) return null;
           // 서브메뉴가 없는 직접 링크 항목
           if (!item.children) return item;
-          // 서브메뉴 필터링
-          const visibleChildren = item.children.filter(
-            (child) => hasPerm(child.href)
+          // 서브메뉴 필터링 (권한 + enableNote)
+          const visibleChildren = stripNoteFromChildren(
+            item.children.filter((child) => hasPerm(child.href)),
           );
           if (visibleChildren.length === 0) return null;
           return { ...item, children: visibleChildren };

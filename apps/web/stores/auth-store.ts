@@ -33,6 +33,7 @@ interface User {
   canManageRecruitment?: boolean;
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableNote?: boolean;
   menuPermissions?: Record<string, boolean>;
   oauthProvider?: string | null;
 }

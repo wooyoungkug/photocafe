@@ -228,6 +228,17 @@ export class CreateClientDto {
   @IsBoolean()
   enableRecruitment?: boolean;
 
+  @ApiPropertyOptional({ description: '노트장 기능 사용 여부', default: false })
+  @IsOptional()
+  @IsBoolean()
+  enableNote?: boolean;
+
+  @ApiPropertyOptional({ description: '저장용량 한도 (GB)', default: 500 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  storageQuotaGb?: number;
+
   @ApiPropertyOptional({ description: '문자 알림 받을 공정 단계 목록', type: [String] })
   @IsOptional()
   @IsArray()

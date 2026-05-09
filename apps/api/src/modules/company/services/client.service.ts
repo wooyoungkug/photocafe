@@ -187,8 +187,20 @@ export class ClientService {
       throw new NotFoundException('거래처를 찾을 수 없습니다');
     }
 
+    // 노트 첨부파일 총 용량 집계 (해당 클라이언트 소속 메모의 첨부 합)
+    const usageAgg = await this.prisma.noteAttachment.aggregate({
+      where: { memo: { clientId: id } },
+      _sum: { sizeBytes: true },
+    });
+    const storageUsedBytes = usageAgg._sum.sizeBytes ?? 0;
+
     const { password, assignedStaffMember, ...clientData } = client as any;
-    return { ...clientData, assignedStaffSingle: assignedStaffMember ?? null, hasPassword: !!password };
+    return {
+      ...clientData,
+      assignedStaffSingle: assignedStaffMember ?? null,
+      hasPassword: !!password,
+      storageUsedBytes,
+    };
   }
 
   async checkEmailDuplicate(email: string, excludeId?: string) {

@@ -65,6 +65,9 @@ export interface Client {
   status: 'active' | 'inactive' | 'suspended';
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableNote?: boolean;
+  storageQuotaGb?: number;
+  storageUsedBytes?: number;
   createdAt: string;
   updatedAt: string;
   // 단일 담당직원 (Client.assignedStaffId → Staff)
@@ -113,6 +116,8 @@ export interface CreateClientDto {
   status?: 'active' | 'inactive' | 'suspended';
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableNote?: boolean;
+  storageQuotaGb?: number;
   duplicateCheckMonths?: number;
   fileRetentionDays?: number;
   thumbnailRetentionMonths?: number;
