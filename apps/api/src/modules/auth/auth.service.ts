@@ -273,6 +273,13 @@ export class AuthService {
         select: { id: true, email: true, clientName: true, businessNumber: true, representative: true, address: true, addressDetail: true, contactPerson: true, mobile: true, enableSchedule: true, enableRecruitment: true, enableShooting: true, enableNote: true },
       });
       if (!client) throw new UnauthorizedException('User not found');
+
+      // 온보딩 완료 여부는 본인(=userId) 기준으로 별도 조회 (employee는 본인 Client.id가 곧 userId)
+      const ownProfile = (await this.prisma.client.findUnique({
+        where: { id: userId },
+        select: { profileCompletedAt: true } as any,
+      })) as any;
+
       return {
         id: client.id,
         email: client.email,
@@ -287,6 +294,7 @@ export class AuthService {
         enableRecruitment: client.enableRecruitment ?? true,
         enableShooting: client.enableShooting ?? true,
         enableNote: client.enableNote ?? false,
+        profileCompletedAt: ownProfile?.profileCompletedAt ?? null,
       };
     }
 
@@ -384,27 +392,28 @@ export class AuthService {
 
   // ========== 고객 OAuth 로그인 ==========
 
-  private readonly PROVIDER_LABELS: Record<string, string> = {
-    naver: '네이버',
-    kakao: '카카오',
-    google: 'Google',
-  };
-
-  private async checkEmailDuplicate(email: string, currentProvider: string): Promise<{ provider: string; date: string } | null> {
-    if (!email || email.includes(`${currentProvider}_`)) return null; // 가짜 이메일은 스킵
+  private async checkEmailDuplicate(
+    email: string,
+    currentProvider: string,
+  ): Promise<{ provider: string | null; date: string; isLegacy: boolean } | null> {
+    if (!email) return null; // 이메일 없으면 검사 불가 (정상 흐름은 strategy 단계에서 차단됨)
 
     const existing = await this.prisma.client.findFirst({
       where: {
         email,
-        oauthProvider: { not: currentProvider },
+        OR: [
+          { oauthProvider: { not: currentProvider } },
+          { oauthProvider: null }, // 일반 아이디 가입 회원도 충돌 대상
+        ],
       },
       select: { oauthProvider: true, createdAt: true },
     });
 
     if (existing) {
       return {
-        provider: existing.oauthProvider || '',
+        provider: existing.oauthProvider, // null = 일반 가입
         date: existing.createdAt.toISOString().split('T')[0],
+        isLegacy: existing.oauthProvider === null,
       };
     }
     return null;
@@ -426,10 +435,11 @@ export class AuthService {
     if (!client) {
       const dup = await this.checkEmailDuplicate(data.email, 'naver');
       if (dup) {
-        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
         return {
           _emailDuplicate: true,
-          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+          _dupProvider: dup.provider,
+          _dupDate: dup.date,
+          _dupIsLegacy: dup.isLegacy,
         } as any;
       }
       isNew = true;
@@ -473,10 +483,11 @@ export class AuthService {
     if (!client) {
       const dup = await this.checkEmailDuplicate(data.email, 'kakao');
       if (dup) {
-        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
         return {
           _emailDuplicate: true,
-          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+          _dupProvider: dup.provider,
+          _dupDate: dup.date,
+          _dupIsLegacy: dup.isLegacy,
         } as any;
       }
       isNew = true;
@@ -516,10 +527,11 @@ export class AuthService {
     if (!client) {
       const dup = await this.checkEmailDuplicate(data.email, 'google');
       if (dup) {
-        const providerLabel = this.PROVIDER_LABELS[dup.provider] || dup.provider;
         return {
           _emailDuplicate: true,
-          _dupMessage: `이미 ${providerLabel}(으)로 가입된 이메일입니다. (가입일: ${dup.date})`,
+          _dupProvider: dup.provider,
+          _dupDate: dup.date,
+          _dupIsLegacy: dup.isLegacy,
         } as any;
       }
       isNew = true;

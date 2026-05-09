@@ -2,3 +2,4 @@ export * from './client.dto';
 export * from './client-group.dto';
 export * from './category.dto';
 export * from './fabric.dto';
+export * from './onboarding.dto';

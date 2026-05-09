@@ -621,4 +621,202 @@ export class ClientService {
       include: { group: true },
     });
   }
+
+  /**
+   * 본인 온보딩 상태 조회
+   * - profileCompletedAt 이 null 이면 누락된 필드 목록 함께 반환
+   * - 소속 회사가 있는 경우 회사 부서 마스터도 함께 반환 (드롭다운용)
+   */
+  async getProfileStatus(clientId: string) {
+    const client = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      select: {
+        id: true,
+        clientName: true,
+        mobile: true,
+        postalCode: true,
+        address: true,
+        addressDetail: true,
+        emergencyContactName: true,
+        emergencyContactPhone: true,
+        emergencyContactRelation: true,
+        profileCompletedAt: true,
+      },
+    } as any) as any;
+    if (!client) {
+      throw new NotFoundException('회원 정보를 찾을 수 없습니다.');
+    }
+
+    // 본인이 소속된 ACTIVE Employment 조회 (회사·부서·가입일)
+    const employments = await this.prisma.employment.findMany({
+      where: { memberClientId: clientId, status: 'ACTIVE' },
+      select: {
+        id: true,
+        department: true,
+        joinedAt: true,
+        role: true,
+        companyClientId: true,
+        company: { select: { id: true, clientName: true } },
+      },
+      orderBy: { joinedAt: 'asc' },
+    });
+
+    // 자기 자신이 회사인 경우(소유자)는 제외 — 본인이 소속된 다른 회사가 우선
+    const primaryEmployment = employments.find(
+      (e) => e.companyClientId !== clientId,
+    ) || employments[0] || null;
+
+    // 회사가 등록한 부서 마스터 (있는 경우)
+    let companyDepartments: Array<{ id: string; name: string }> = [];
+    if (primaryEmployment?.companyClientId) {
+      companyDepartments = await this.prisma.clientDepartment.findMany({
+        where: { clientId: primaryEmployment.companyClientId },
+        select: { id: true, name: true },
+        orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+      });
+    }
+
+    // 누락 필드 판정 (clientName/mobile은 항상 필수,
+    // 주소·비상연락처는 있는 게 권장이지만 강제는 mobile/clientName 까지로 둘지는 추후 정책. 일단 전부 필수.)
+    const missingFields: string[] = [];
+    if (!client.clientName?.trim()) missingFields.push('clientName');
+    if (!client.mobile?.trim()) missingFields.push('mobile');
+    if (!client.address?.trim()) missingFields.push('address');
+    if (!client.emergencyContactName?.trim()) missingFields.push('emergencyContactName');
+    if (!client.emergencyContactPhone?.trim()) missingFields.push('emergencyContactPhone');
+    if (!client.emergencyContactRelation?.trim()) missingFields.push('emergencyContactRelation');
+    // 부서: 소속 employment 가 있으면 부서도 필수
+    if (primaryEmployment && !primaryEmployment.department?.trim()) {
+      missingFields.push('department');
+    }
+
+    return {
+      clientId: client.id,
+      profileCompletedAt: client.profileCompletedAt,
+      isComplete: !!client.profileCompletedAt,
+      profile: {
+        clientName: client.clientName ?? '',
+        mobile: client.mobile ?? '',
+        postalCode: client.postalCode ?? '',
+        address: client.address ?? '',
+        addressDetail: client.addressDetail ?? '',
+        emergencyContactName: client.emergencyContactName ?? '',
+        emergencyContactPhone: client.emergencyContactPhone ?? '',
+        emergencyContactRelation: client.emergencyContactRelation ?? '',
+      },
+      employment: primaryEmployment
+        ? {
+            employmentId: primaryEmployment.id,
+            companyId: primaryEmployment.companyClientId,
+            companyName: primaryEmployment.company?.clientName ?? '',
+            department: primaryEmployment.department ?? '',
+            joinedAt: primaryEmployment.joinedAt,
+            role: primaryEmployment.role,
+          }
+        : null,
+      companyDepartments,
+      missingFields,
+    };
+  }
+
+  /**
+   * 본인 온보딩 정보 일괄 저장
+   * - Client 기본정보 + Employment.department 같이 갱신
+   * - 모든 필수 필드 채워지면 profileCompletedAt = now()
+   */
+  async submitOnboarding(
+    clientId: string,
+    data: {
+      clientName?: string;
+      mobile?: string;
+      postalCode?: string;
+      address?: string;
+      addressDetail?: string;
+      emergencyContactName?: string;
+      emergencyContactPhone?: string;
+      emergencyContactRelation?: string;
+      department?: string;
+    },
+  ) {
+    const existing = await this.prisma.client.findUnique({
+      where: { id: clientId },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('회원 정보를 찾을 수 없습니다.');
+    }
+
+    // Employment 갱신용: 본인이 소속된 회사 (자기 자신 회사 제외 우선)
+    let primaryEmploymentId: string | null = null;
+    if (data.department !== undefined) {
+      const employments = await this.prisma.employment.findMany({
+        where: { memberClientId: clientId, status: 'ACTIVE' },
+        select: { id: true, companyClientId: true, joinedAt: true },
+        orderBy: { joinedAt: 'asc' },
+      });
+      const primary =
+        employments.find((e) => e.companyClientId !== clientId) ||
+        employments[0] ||
+        null;
+      primaryEmploymentId = primary?.id ?? null;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      // Client 기본 + 비상연락처 갱신
+      const clientUpdate: any = {};
+      if (data.clientName !== undefined) clientUpdate.clientName = data.clientName.trim();
+      if (data.mobile !== undefined) clientUpdate.mobile = data.mobile.trim() || null;
+      if (data.postalCode !== undefined) clientUpdate.postalCode = data.postalCode.trim() || null;
+      if (data.address !== undefined) clientUpdate.address = data.address.trim() || null;
+      if (data.addressDetail !== undefined) clientUpdate.addressDetail = data.addressDetail.trim() || null;
+      if (data.emergencyContactName !== undefined)
+        clientUpdate.emergencyContactName = data.emergencyContactName.trim() || null;
+      if (data.emergencyContactPhone !== undefined)
+        clientUpdate.emergencyContactPhone = data.emergencyContactPhone.trim() || null;
+      if (data.emergencyContactRelation !== undefined)
+        clientUpdate.emergencyContactRelation = data.emergencyContactRelation.trim() || null;
+
+      const updated = await tx.client.update({
+        where: { id: clientId },
+        data: clientUpdate,
+        select: {
+          id: true,
+          clientName: true,
+          mobile: true,
+          address: true,
+          emergencyContactName: true,
+          emergencyContactPhone: true,
+          emergencyContactRelation: true,
+          profileCompletedAt: true,
+        },
+      } as any) as any;
+
+      // Employment.department 갱신
+      if (primaryEmploymentId && data.department !== undefined) {
+        await tx.employment.update({
+          where: { id: primaryEmploymentId },
+          data: { department: data.department.trim() || null },
+        });
+      }
+
+      // 모든 필수 필드 채워졌는지 확인 → profileCompletedAt 설정
+      const requiredFilled =
+        !!updated.clientName?.trim() &&
+        !!updated.mobile?.trim() &&
+        !!updated.address?.trim() &&
+        !!updated.emergencyContactName?.trim() &&
+        !!updated.emergencyContactPhone?.trim() &&
+        !!updated.emergencyContactRelation?.trim() &&
+        (primaryEmploymentId ? !!data.department?.trim() : true);
+
+      if (requiredFilled && !updated.profileCompletedAt) {
+        await tx.client.update({
+          where: { id: clientId },
+          data: { profileCompletedAt: new Date() } as any,
+        });
+      }
+
+      return { ok: true, profileCompletedAt: requiredFilled ? new Date() : updated.profileCompletedAt };
+    });
+  }
 }

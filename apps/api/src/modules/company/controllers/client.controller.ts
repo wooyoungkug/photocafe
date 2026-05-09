@@ -14,6 +14,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ClientService } from '../services/client.service';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { SubmitOnboardingDto } from '../dto';
 
 @ApiTags('clients')
 @ApiBearerAuth()
@@ -75,6 +76,18 @@ export class ClientController {
     @Query('excludeId') excludeId?: string,
   ) {
     return this.clientService.checkEmailDuplicate(email, excludeId);
+  }
+
+  @Get('me/profile-status')
+  @ApiOperation({ summary: '본인 온보딩 상태 조회 (누락 필드 + 회사 부서 마스터 포함)' })
+  async getMyProfileStatus(@Request() req: any) {
+    return this.clientService.getProfileStatus(req.user.sub);
+  }
+
+  @Patch('me/onboarding')
+  @ApiOperation({ summary: '본인 온보딩 정보 저장 (모든 필수 필드 채우면 profileCompletedAt 자동 설정)' })
+  async submitMyOnboarding(@Request() req: any, @Body() dto: SubmitOnboardingDto) {
+    return this.clientService.submitOnboarding(req.user.sub, dto);
   }
 
   @Get(':id')

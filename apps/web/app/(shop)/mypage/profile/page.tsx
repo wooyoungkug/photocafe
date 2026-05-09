@@ -724,6 +724,9 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
+      {/* 소속/부서/비상연락처 카드 (온보딩에서 입력한 정보) */}
+      <ProfileStatusCard onEdit={() => router.push('/mypage/onboarding')} />
+
       {/* 공정별 문자 알림 카드 */}
       <Card>
           <CardHeader className="pb-3 pt-4 px-5">
@@ -1011,5 +1014,112 @@ export default function ProfilePage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// 소속/부서/가입일/비상연락처 카드 (온보딩에서 입력한 정보 표시)
+function ProfileStatusCard({ onEdit }: { onEdit: () => void }) {
+  const { data: status } = useQuery<{
+    profile: {
+      emergencyContactName: string;
+      emergencyContactPhone: string;
+      emergencyContactRelation: string;
+    };
+    employment: null | {
+      companyName: string;
+      department: string;
+      joinedAt: string;
+      role: string;
+    };
+  }>({
+    queryKey: ['profile-status'],
+    queryFn: async () => api.get('/clients/me/profile-status'),
+  });
+
+  if (!status) return null;
+
+  const hasEmployment = !!status.employment;
+  const hasEmergency =
+    !!status.profile.emergencyContactName ||
+    !!status.profile.emergencyContactPhone ||
+    !!status.profile.emergencyContactRelation;
+
+  if (!hasEmployment && !hasEmergency) return null;
+
+  const formatPhoneDisplay = (v: string) => {
+    if (!v) return '-';
+    const nums = v.replace(/\D/g, '');
+    if (nums.length === 11) return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+    if (nums.length === 10 && nums.startsWith('02'))
+      return `${nums.slice(0, 2)}-${nums.slice(2, 6)}-${nums.slice(6)}`;
+    if (nums.length === 10) return `${nums.slice(0, 3)}-${nums.slice(3, 6)}-${nums.slice(6)}`;
+    return v;
+  };
+
+  return (
+    <Card className="mt-4">
+      <CardHeader className="pb-3 pt-4 px-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
+              <UserIcon className="h-4 w-4" />
+              소속 · 비상연락처
+            </CardTitle>
+            <CardDescription className="text-[14px] mt-0.5">
+              회원 등록 시 입력한 정보입니다. 수정은 우측 상단 버튼을 이용해주세요.
+            </CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={onEdit} className="text-[12px]">
+            <Edit className="h-3.5 w-3.5 mr-1" />
+            수정
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pb-5 space-y-5">
+        {hasEmployment && (
+          <div className="space-y-2">
+            <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">소속 정보</h3>
+            <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600">소속 회사</Label>
+                <FieldValue value={status.employment!.companyName} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600">부서</Label>
+                <FieldValue value={status.employment!.department} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600">가입일</Label>
+                <FieldValue
+                  value={new Date(status.employment!.joinedAt).toLocaleDateString('ko-KR')}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {hasEmployment && hasEmergency && <Separator />}
+
+        {hasEmergency && (
+          <div className="space-y-2">
+            <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">비상연락처</h3>
+            <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600">이름</Label>
+                <FieldValue value={status.profile.emergencyContactName} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600">관계</Label>
+                <FieldValue value={status.profile.emergencyContactRelation} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600">전화번호</Label>
+                <FieldValue value={formatPhoneDisplay(status.profile.emergencyContactPhone)} />
+              </div>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

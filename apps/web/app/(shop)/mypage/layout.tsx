@@ -113,9 +113,12 @@ export default function MyPageLayout({
   // - 다른 탭 갔다가 돌아왔을 때(탭 활성화)
   // → updateUser 로 메뉴 즉시 갱신.
   // api.get 을 사용해야 대리로그인 탭에서 sessionStorage 의 impersonate 토큰을 자동 사용함.
+  // 동시에 profileCompletedAt=null 이면 /mypage/onboarding 으로 리다이렉트 (단 onboarding 페이지 자체는 통과).
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (user.role !== 'client' && user.type !== 'employee') return;
+
+    const isOnOnboarding = pathname === '/mypage/onboarding';
 
     const refresh = () => {
       api
@@ -134,6 +137,11 @@ export default function MyPageLayout({
             ...(data.contactPerson && { contactPerson: data.contactPerson }),
             ...(data.mobile && { mobile: data.mobile }),
           });
+
+          // 온보딩 미완료면 강제 이동 (이미 onboarding 페이지면 패스)
+          if (data.profileCompletedAt === null && !isOnOnboarding) {
+            router.replace('/mypage/onboarding');
+          }
         })
         .catch(() => {});
     };
@@ -145,7 +153,7 @@ export default function MyPageLayout({
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => document.removeEventListener('visibilitychange', onVisibilityChange);
-  }, [isAuthenticated, pathname]);
+  }, [isAuthenticated, pathname, router]);
 
   if (!isAuthenticated) {
     return (
@@ -163,6 +171,11 @@ export default function MyPageLayout({
         </Card>
       </div>
     );
+  }
+
+  // 온보딩 페이지는 사이드바/헤더 없이 단독 렌더 (완료 전까지 다른 메뉴 접근 차단)
+  if (pathname === '/mypage/onboarding') {
+    return <>{children}</>;
   }
 
   return (

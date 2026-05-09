@@ -421,6 +421,10 @@ model Client {
   notificationChannel        String                         @default("sms")
   withdrawnAt                DateTime?
   assignedStaffId            String?
+  emergencyContactName       String?
+  emergencyContactPhone      String?
+  emergencyContactRelation   String?
+  profileCompletedAt         DateTime?
   addresses                  ClientAddress[]
   albumPreference            ClientAlbumPreference?
   clientDepartments          ClientDepartment[]
