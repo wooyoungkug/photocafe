@@ -169,8 +169,8 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             </>
           )}
 
-          {/* Search bar - tablet and above (top 모드에선 숨김) */}
-          <div className={isTopMode ? "hidden" : "relative group hidden md:block"}>
+          {/* Search bar - top 모드에서만 표시 (side 모드는 사이드바 하단에 위치) */}
+          <div className={isTopMode ? "relative group hidden md:block" : "hidden"}>
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 transition-colors duration-200 group-focus-within:text-indigo-500" />
             <input
               ref={searchInputRef}

@@ -20,6 +20,7 @@ import {
   PieChart,
   Receipt,
   RefreshCw,
+  Search,
   Server,
   ShoppingBag,
   X,
@@ -665,6 +666,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const logout = useLogout();
   const changePassword = useChangePassword();
@@ -955,6 +957,28 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
 
       {/* ── Footer ── */}
       <div className="p-4 border-t border-white/[0.04] space-y-3 bg-gradient-to-b from-transparent to-black/20">
+        {/* Search bar */}
+        <div className="relative group">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 transition-colors duration-200 group-focus-within:text-indigo-400" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="검색어를 입력하세요..."
+            className="h-8 w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-8 text-[12px] text-slate-300 placeholder:text-slate-600 transition-all duration-200 focus:border-indigo-500/40 focus:bg-white/[0.07] focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
+            aria-label="검색"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors"
+              aria-label="검색어 지우기"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          )}
+        </div>
         {/* Server status - compact single row */}
         <button
           type="button"
