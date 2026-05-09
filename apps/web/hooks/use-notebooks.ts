@@ -3,10 +3,10 @@
 import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { Notebook } from '@/lib/types/schedule';
+import type { Notebook } from '@/lib/types/note';
 
 export type NotebookWithCounts = Notebook & {
-  _count?: { memos: number; children: number };
+  _count?: { notes: number; children: number };
 };
 
 export interface NotebookTreeNode extends NotebookWithCounts {

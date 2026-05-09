@@ -35,12 +35,12 @@ function attachmentIcon(mime: string) {
 }
 
 interface NoteAttachmentListProps {
-  memoId: string;
+  noteId: string;
 }
 
-export function NoteAttachmentList({ memoId }: NoteAttachmentListProps) {
+export function NoteAttachmentList({ noteId }: NoteAttachmentListProps) {
   const { toast } = useToast();
-  const { data: attachments = [], isLoading } = useNoteAttachments(memoId);
+  const { data: attachments = [], isLoading } = useNoteAttachments(noteId);
   const upload = useUploadNoteAttachment();
   const remove = useDeleteNoteAttachment();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +51,7 @@ export function NoteAttachmentList({ memoId }: NoteAttachmentListProps) {
       const arr = Array.from(files);
       for (const file of arr) {
         try {
-          await upload.mutateAsync({ memoId, file });
+          await upload.mutateAsync({ noteId, file });
         } catch (e) {
           toast({
             title: `${file.name} 업로드 실패: ${e instanceof Error ? e.message : '알 수 없음'}`,
@@ -60,7 +60,7 @@ export function NoteAttachmentList({ memoId }: NoteAttachmentListProps) {
         }
       }
     },
-    [memoId, upload, toast],
+    [noteId, upload, toast],
   );
 
   const handleSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -108,7 +108,7 @@ export function NoteAttachmentList({ memoId }: NoteAttachmentListProps) {
   const handleDelete = (id: string, fileName: string) => {
     if (!window.confirm(`'${fileName}'을(를) 삭제할까요?`)) return;
     remove.mutate(
-      { id, memoId },
+      { id, noteId },
       {
         onSuccess: () => toast({ title: '삭제되었습니다.' }),
         onError: (e: Error) =>

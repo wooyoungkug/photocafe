@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateNote, useNotes } from '@/hooks/use-schedule';
+import { useCreateNote, useNotes } from '@/hooks/use-notes';
 import { NotebookSidebar } from '@/components/notebook/notebook-sidebar';
 import { NoteList } from '@/components/notebook/note-list';
 import { NoteEditor } from '@/components/notebook/note-editor';

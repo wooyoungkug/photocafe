@@ -7,8 +7,8 @@ import { Building, Building2, Loader2, Pin, Plus, Search, StickyNote, User } fro
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useNotes } from '@/hooks/use-schedule';
-import type { Memo } from '@/lib/types/schedule';
+import { useNotes } from '@/hooks/use-notes';
+import type { Note as Memo } from '@/lib/types/note';
 import { cn } from '@/lib/utils';
 
 const scopeIcons = { personal: User, department: Building, company: Building2 } as const;

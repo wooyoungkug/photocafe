@@ -32,9 +32,9 @@ import {
   useDeleteNote,
   useNoteDetail,
   useUpdateNote,
-} from '@/hooks/use-schedule';
+} from '@/hooks/use-notes';
 import { useNotebooks } from '@/hooks/use-notebooks';
-import type { Memo, NoteTagDto } from '@/lib/types/schedule';
+import type { Note as Memo, NoteTagDto } from '@/lib/types/note';
 import { cn } from '@/lib/utils';
 import { NoteTagPicker } from './note-tag-picker';
 import { NoteAttachmentList } from './note-attachment-list';
@@ -113,19 +113,17 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
     update.mutate(
       {
         id: noteId,
-        data: {
-          title,
-          content,
-          contentFormat: 'html',
-          color,
-          notebookId: notebookId === 'none' ? null : notebookId,
-          isPersonal: scope === 'personal',
-          isDepartment: scope === 'department',
-          isCompany: scope === 'company',
-          isPinned,
-          tagIds: tags.map((t) => t.id),
-        } as any,
-      },
+        title,
+        content,
+        contentFormat: 'html',
+        color,
+        notebookId: notebookId === 'none' ? null : notebookId,
+        isPersonal: scope === 'personal',
+        isDepartment: scope === 'department',
+        isCompany: scope === 'company',
+        isPinned,
+        tagIds: tags.map((t) => t.id),
+      } as any,
       {
         onSuccess: () => toast({ title: '저장되었습니다.' }),
         onError: (e: Error) =>
@@ -312,7 +310,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
           </div>
         </div>
 
-        <NoteAttachmentList memoId={noteId} />
+        <NoteAttachmentList noteId={noteId} />
 
         <div className="flex-1 min-h-[60vh]">
           <RichTextEditor

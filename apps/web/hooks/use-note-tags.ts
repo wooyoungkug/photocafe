@@ -2,10 +2,10 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { NoteTagDto } from '@/lib/types/schedule';
+import type { NoteTagDto } from '@/lib/types/note';
 
 export type NoteTagWithCount = NoteTagDto & {
-  _count?: { memos: number };
+  _count?: { notes: number };
 };
 
 const TAGS_KEY = 'note-tags';
@@ -39,7 +39,7 @@ export function useUpdateNoteTag() {
       api.put<NoteTagWithCount>(`/note-tags/${id}`, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [TAGS_KEY] });
-      qc.invalidateQueries({ queryKey: ['memos'] });
+      qc.invalidateQueries({ queryKey: ['notes'] });
     },
   });
 }
@@ -50,7 +50,7 @@ export function useDeleteNoteTag() {
     mutationFn: (id: string) => api.delete(`/note-tags/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [TAGS_KEY] });
-      qc.invalidateQueries({ queryKey: ['memos'] });
+      qc.invalidateQueries({ queryKey: ['notes'] });
     },
   });
 }

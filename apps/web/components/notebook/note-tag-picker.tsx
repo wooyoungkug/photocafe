@@ -12,7 +12,7 @@ import {
   useNoteTags,
   type NoteTagWithCount,
 } from '@/hooks/use-note-tags';
-import type { NoteTagDto } from '@/lib/types/schedule';
+import type { NoteTagDto } from '@/lib/types/note';
 import { cn } from '@/lib/utils';
 
 interface NoteTagPickerProps {
@@ -171,7 +171,7 @@ export function NoteTagPicker({ selected, onChange }: NoteTagPickerProps) {
                       />
                       <span className="flex-1 truncate text-left">{tag.name}</span>
                       <span className="text-[11px] text-black/40">
-                        {tag._count?.memos ?? 0}
+                        {tag._count?.notes ?? 0}
                       </span>
                       {checked && <Check className="h-3.5 w-3.5 text-red-600" />}
                     </button>

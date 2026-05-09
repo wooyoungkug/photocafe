@@ -122,7 +122,7 @@ export function NotebookSidebar({
     const key = `nb:${node.id}`;
     const isOpen = expanded.has(node.id);
     const hasChildren = node.children.length > 0;
-    const memoCount = node._count?.memos ?? 0;
+    const memoCount = node._count?.notes ?? 0;
     return (
       <div key={node.id}>
         <div
@@ -319,7 +319,7 @@ export function NotebookSidebar({
                       />
                       <span className="truncate max-w-[100px]">{tag.name}</span>
                       <span className="text-[10px] text-black/40 tabular-nums">
-                        {tag._count?.memos ?? 0}
+                        {tag._count?.notes ?? 0}
                       </span>
                     </button>
                     <button
