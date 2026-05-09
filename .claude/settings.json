@@ -45,7 +45,9 @@
       "Bash(curl -sf -o /dev/null -w \"HTTP %{http_code}\\\\n\" https://api.photocafe.co.kr/health)",
       "Bash(curl -sf -o /dev/null -w \"HTTP %{http_code}\\\\n\" https://photocafe.co.kr)",
       "Bash(curl -sI https://photocafe.co.kr)",
-      "Bash(curl -sI https://api.photocafe.co.kr/health)"
+      "Bash(curl -sI https://api.photocafe.co.kr/health)",
+      "Bash(npx dotenv *)",
+      "Bash(node -e ' *)"
     ],
     "additionalDirectories": [
       "z:\\출력팀\\Wooceo_출력백업\\!2025년\\접수대기\\Photocafe 관련자료"
