@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
-import Link from 'next/link';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import {
   Calendar,
   CheckSquare,
@@ -22,8 +21,6 @@ import {
   ChevronDown,
   Save,
   StickyNote,
-  ExternalLink,
-  BookOpen,
 } from 'lucide-react';
 import {
   format,
@@ -198,8 +195,6 @@ const MEMO_COLORS = [
 
 type MemoScope = 'personal' | 'department' | 'company';
 
-type ScheduleTab = 'calendar' | 'todos' | 'memos';
-
 const memoScopeLabels: Record<MemoScope, string> = {
   personal: '개인',
   department: '부서',
@@ -216,42 +211,7 @@ export default function SchedulePage() {
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [activeTab, setActiveTab] = useState<ScheduleTab>('calendar');
-
-  const syncScheduleTabToUrl = useCallback((tab: ScheduleTab) => {
-    if (typeof window === 'undefined') return;
-    const path = tab === 'calendar' ? '/schedule' : `/schedule?tab=${tab}`;
-    window.history.replaceState(null, '', path);
-  }, []);
-
-  const changeScheduleTab = useCallback(
-    (tab: ScheduleTab) => {
-      setActiveTab(tab);
-      syncScheduleTabToUrl(tab);
-    },
-    [syncScheduleTabToUrl],
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const tab = new URLSearchParams(window.location.search).get('tab');
-    if (tab === 'memos' || tab === 'calendar' || tab === 'todos') {
-      setActiveTab(tab);
-    }
-  }, []);
-
-  useEffect(() => {
-    const onPopState = () => {
-      const tab = new URLSearchParams(window.location.search).get('tab');
-      if (tab === 'memos' || tab === 'todos') {
-        setActiveTab(tab);
-      } else {
-        setActiveTab('calendar');
-      }
-    };
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
+  const [activeTab, setActiveTab] = useState<'calendar' | 'todos' | 'memos'>('calendar');
 
   // 메모 상태
   const [memoScopeFilter, setMemoScopeFilter] = useState<
@@ -667,7 +627,7 @@ export default function SchedulePage() {
             <button
               key={key}
               type="button"
-              onClick={() => changeScheduleTab(key)}
+              onClick={() => setActiveTab(key)}
               className={cn(
                 'px-3 py-1.5 text-[13px] font-medium flex items-center gap-1.5 transition-colors',
                 activeTab === key
@@ -1341,18 +1301,10 @@ export default function SchedulePage() {
                 개인/부서/전체 범위로 메모를 공유할 수 있습니다.
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline">
-                <Link href="/schedule/notebook">
-                  <BookOpen className="h-4 w-4 mr-2" />
-                  노트장 열기
-                </Link>
-              </Button>
-              <Button onClick={() => handleOpenMemoDialog()}>
-                <Plus className="h-4 w-4 mr-2" />
-                메모 추가
-              </Button>
-            </div>
+            <Button onClick={() => handleOpenMemoDialog()}>
+              <Plus className="h-4 w-4 mr-2" />
+              메모 추가
+            </Button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1427,22 +1379,7 @@ export default function SchedulePage() {
                           {memo.title || '(제목 없음)'}
                         </span>
                       </div>
-                      <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6"
-                          title="새 창에서 열기"
-                          onClick={() =>
-                            window.open(
-                              `${window.location.origin}/schedule/memo/${memo.id}`,
-                              '_blank',
-                              'noopener,noreferrer',
-                            )
-                          }
-                        >
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </Button>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1461,34 +1398,12 @@ export default function SchedulePage() {
                         </Button>
                       </div>
                     </div>
-                    {memo.contentFormat === 'html' ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          window.open(
-                            `${window.location.origin}/schedule/memo/${memo.id}`,
-                            '_blank',
-                            'noopener,noreferrer',
-                          )
-                        }
-                        className="flex-1 text-left text-[14px] text-black font-normal w-full leading-relaxed min-h-[80px] overflow-hidden line-clamp-5 cursor-pointer hover:opacity-80"
-                        title="자세히 보기/편집"
-                      >
-                        {memo.content
-                          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-                          .replace(/<[^>]+>/g, ' ')
-                          .replace(/&nbsp;/g, ' ')
-                          .replace(/\s+/g, ' ')
-                          .trim() || '(내용 없음)'}
-                      </button>
-                    ) : (
-                      <textarea
-                        className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
-                        defaultValue={memo.content}
-                        placeholder="내용을 입력하세요..."
-                        onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
-                      />
-                    )}
+                    <textarea
+                      className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
+                      defaultValue={memo.content}
+                      placeholder="내용을 입력하세요..."
+                      onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
+                    />
                     <div className="flex items-center justify-between gap-1 text-[12px] text-black/40 mt-auto pt-1 border-t border-black/10">
                       <span>
                         {memo.creatorName}
@@ -1509,7 +1424,7 @@ export default function SchedulePage() {
 
       {/* 메모 다이얼로그 */}
       <Dialog open={isMemoDialogOpen} onOpenChange={setIsMemoDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <StickyNote className="h-5 w-5 text-yellow-500" />
@@ -1529,8 +1444,7 @@ export default function SchedulePage() {
               <Label>내용</Label>
               <Textarea
                 placeholder="메모 내용..."
-                className="min-h-[240px] resize-y"
-                rows={14}
+                rows={6}
                 value={memoForm.content}
                 onChange={(e) => setMemoForm({ ...memoForm, content: e.target.value })}
               />

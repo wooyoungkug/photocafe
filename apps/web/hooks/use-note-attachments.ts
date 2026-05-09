@@ -2,22 +2,22 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api, API_URL } from '@/lib/api';
-import type { NoteAttachment } from '@/lib/types/schedule';
+import type { NoteAttachment } from '@/lib/types/note';
 
 const ATT_KEY = 'note-attachments';
 
-export function useNoteAttachments(memoId: string | null) {
+export function useNoteAttachments(noteId: string | null) {
   return useQuery({
-    queryKey: [ATT_KEY, memoId],
-    queryFn: () => api.get<NoteAttachment[]>(`/memos/${memoId}/attachments`),
-    enabled: !!memoId,
+    queryKey: [ATT_KEY, noteId],
+    queryFn: () => api.get<NoteAttachment[]>(`/notes/${noteId}/attachments`),
+    enabled: !!noteId,
   });
 }
 
 export function useUploadNoteAttachment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ memoId, file }: { memoId: string; file: File }) => {
+    mutationFn: async ({ noteId, file }: { noteId: string; file: File }) => {
       const fd = new FormData();
       fd.append('file', file);
       let impersonateAuth: Record<string, string> = {};
@@ -35,7 +35,7 @@ export function useUploadNoteAttachment() {
           }
         } catch {}
       }
-      const res = await fetch(`${API_URL}/memos/${memoId}/attachments`, {
+      const res = await fetch(`${API_URL}/notes/${noteId}/attachments`, {
         method: 'POST',
         body: fd,
         credentials: 'include',
@@ -52,8 +52,8 @@ export function useUploadNoteAttachment() {
       return (await res.json()) as NoteAttachment;
     },
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: [ATT_KEY, vars.memoId] });
-      qc.invalidateQueries({ queryKey: ['memos'] });
+      qc.invalidateQueries({ queryKey: [ATT_KEY, vars.noteId] });
+      qc.invalidateQueries({ queryKey: ['notes'] });
     },
   });
 }
@@ -61,11 +61,11 @@ export function useUploadNoteAttachment() {
 export function useDeleteNoteAttachment() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id }: { id: string; memoId: string }) =>
+    mutationFn: ({ id }: { id: string; noteId: string }) =>
       api.delete(`/attachments/${id}`),
     onSuccess: (_data, vars) => {
-      qc.invalidateQueries({ queryKey: [ATT_KEY, vars.memoId] });
-      qc.invalidateQueries({ queryKey: ['memos'] });
+      qc.invalidateQueries({ queryKey: [ATT_KEY, vars.noteId] });
+      qc.invalidateQueries({ queryKey: ['notes'] });
     },
   });
 }

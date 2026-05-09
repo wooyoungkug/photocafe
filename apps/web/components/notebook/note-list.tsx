@@ -7,7 +7,7 @@ import { Building, Building2, Loader2, Pin, Plus, Search, StickyNote, User } fro
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useMemos } from '@/hooks/use-schedule';
+import { useNotes } from '@/hooks/use-schedule';
 import type { Memo } from '@/lib/types/schedule';
 import { cn } from '@/lib/utils';
 
@@ -60,7 +60,7 @@ export function NoteList({
     return q;
   }, [notebookFilter, tagFilter, search]);
 
-  const { data: memos = [], isLoading } = useMemos(query);
+  const { data: memos = [], isLoading } = useNotes(query);
 
   return (
     <section className="w-80 shrink-0 border-r bg-white flex flex-col min-h-0">

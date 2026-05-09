@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useCreateMemo, useMemos } from '@/hooks/use-schedule';
+import { useCreateNote, useNotes } from '@/hooks/use-schedule';
 import { NotebookSidebar } from '@/components/notebook/notebook-sidebar';
 import { NoteList } from '@/components/notebook/note-list';
 import { NoteEditor } from '@/components/notebook/note-editor';
@@ -14,7 +14,7 @@ export default function NotebookPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
-  const createMemo = useCreateMemo();
+  const createNote = useCreateNote();
   const user = useAuthStore((s) => s.user);
 
   // 노트장 서비스 사용 여부 가드: 본사 admin/staff 는 항상 통과,
@@ -41,10 +41,10 @@ export default function NotebookPage() {
     setSelectedNoteId(searchParams.get('note'));
   }, [searchParams]);
 
-  const { data: allMemos = [] } = useMemos({});
+  const { data: allNotes = [] } = useNotes({});
 
-  const totalCount = allMemos.length;
-  const uncategorizedCount = allMemos.filter((m) => !m.notebookId).length;
+  const totalCount = allNotes.length;
+  const uncategorizedCount = allNotes.filter((m) => !m.notebookId).length;
 
   const handleSelectNote = useCallback(
     (id: string) => {
@@ -63,7 +63,7 @@ export default function NotebookPage() {
         : selectedKey.startsWith('nb:')
           ? selectedKey.slice(3)
           : null;
-    createMemo.mutate(
+    createNote.mutate(
       {
         title: '',
         content: '',
@@ -72,14 +72,14 @@ export default function NotebookPage() {
         isPersonal: true,
       } as any,
       {
-        onSuccess: (memo: any) => {
-          handleSelectNote(memo.id);
+        onSuccess: (note: any) => {
+          handleSelectNote(note.id);
         },
         onError: (e: Error) =>
           toast({ title: e.message || '노트 생성 실패', variant: 'destructive' }),
       },
     );
-  }, [selectedKey, createMemo, handleSelectNote, toast]);
+  }, [selectedKey, createNote, handleSelectNote, toast]);
 
   const handleNoteDeleted = useCallback(() => {
     setSelectedNoteId(null);
@@ -120,7 +120,7 @@ export default function NotebookPage() {
         search={search}
         onSearchChange={setSearch}
       />
-      {createMemo.isPending && !selectedNoteId ? (
+      {createNote.isPending && !selectedNoteId ? (
         <div className="flex-1 flex items-center justify-center bg-gray-50">
           <Loader2 className="h-6 w-6 animate-spin text-black/40" />
         </div>

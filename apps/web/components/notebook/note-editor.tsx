@@ -29,9 +29,9 @@ import {
 import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { useToast } from '@/hooks/use-toast';
 import {
-  useDeleteMemo,
-  useMemoDetail,
-  useUpdateMemo,
+  useDeleteNote,
+  useNoteDetail,
+  useUpdateNote,
 } from '@/hooks/use-schedule';
 import { useNotebooks } from '@/hooks/use-notebooks';
 import type { Memo, NoteTagDto } from '@/lib/types/schedule';
@@ -82,9 +82,9 @@ interface NoteEditorProps {
 
 export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
   const { toast } = useToast();
-  const { data: memo, isLoading } = useMemoDetail(noteId || '');
-  const update = useUpdateMemo();
-  const remove = useDeleteMemo();
+  const { data: memo, isLoading } = useNoteDetail(noteId || '');
+  const update = useUpdateNote();
+  const remove = useDeleteNote();
   const { data: notebooks = [] } = useNotebooks();
 
   const [title, setTitle] = useState('');

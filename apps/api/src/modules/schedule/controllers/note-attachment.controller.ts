@@ -33,7 +33,7 @@ if (!existsSync(TMP_DIR)) mkdirSync(TMP_DIR, { recursive: true });
 export class NoteAttachmentController {
   constructor(private readonly service: NoteAttachmentService) {}
 
-  @Post('memos/:memoId/attachments')
+  @Post('notes/:noteId/attachments')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiConsumes('multipart/form-data')
@@ -51,20 +51,20 @@ export class NoteAttachmentController {
     }),
   )
   upload(
-    @Param('memoId') memoId: string,
+    @Param('noteId') noteId: string,
     @UploadedFile() file: Express.Multer.File,
     @Req() req: any,
   ) {
     if (!file) throw new BadRequestException('파일이 없습니다.');
-    return this.service.upload(memoId, file, req.user);
+    return this.service.upload(noteId, file, req.user);
   }
 
-  @Get('memos/:memoId/attachments')
+  @Get('notes/:noteId/attachments')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: '노트 첨부파일 목록' })
-  list(@Param('memoId') memoId: string, @Req() req: any) {
-    return this.service.list(memoId, req.user);
+  list(@Param('noteId') noteId: string, @Req() req: any) {
+    return this.service.list(noteId, req.user);
   }
 
   @Get('attachments/:id/url')
