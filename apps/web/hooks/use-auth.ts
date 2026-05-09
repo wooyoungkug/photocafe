@@ -160,6 +160,7 @@ export function useImpersonateEmployee() {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
         rememberMe: false,
+        isImpersonation: true,
       });
       router.push('/');
     },
@@ -174,6 +175,16 @@ export function useImpersonateStaff() {
     mutationFn: (staffId: string) =>
       api.post<ImpersonateStaffResponse>(`/auth/impersonate-staff/${staffId}`),
     onSuccess: (response) => {
+      // Bearer 헤더용 토큰을 setAuth 호출 전에 저장해야 setAuth의 정리 로직이 건너뜀
+      if (typeof window !== 'undefined' && response.accessToken) {
+        const tokenJson = JSON.stringify({
+          accessToken: response.accessToken,
+          refreshToken: response.refreshToken ?? '',
+        });
+        sessionStorage.setItem('impersonate-session', 'true');
+        sessionStorage.setItem('impersonate-tokens', tokenJson);
+        localStorage.setItem('impersonate-tokens', tokenJson);
+      }
       setAuth({
         user: {
           id: response.user.id,
@@ -187,17 +198,8 @@ export function useImpersonateStaff() {
         accessToken: response.accessToken,
         refreshToken: response.refreshToken,
         rememberMe: false,
+        isImpersonation: true,
       });
-      // Bearer 헤더용 토큰 저장 (sessionStorage + localStorage → 모든 탭에서 동작)
-      if (typeof window !== 'undefined' && response.accessToken) {
-        const tokenJson = JSON.stringify({
-          accessToken: response.accessToken,
-          refreshToken: response.refreshToken ?? '',
-        });
-        sessionStorage.setItem('impersonate-session', 'true');
-        sessionStorage.setItem('impersonate-tokens', tokenJson);
-        localStorage.setItem('impersonate-tokens', tokenJson);
-      }
       router.push('/dashboard');
     },
   });

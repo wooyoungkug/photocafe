@@ -39,8 +39,9 @@ export default function ShopLayout({
     try {
       const data = JSON.parse(raw);
       localStorage.removeItem('impersonate-data');
-      useAuthStore.getState().setAuth({ user: data.user, rememberMe: false });
+      // 임시 세션 플래그를 setAuth 전에 설정해 일반 로그인 정리 로직과 분리
       sessionStorage.setItem('impersonate-session', 'true');
+      useAuthStore.getState().setAuth({ user: data.user, rememberMe: false, isImpersonation: true });
       setIsImpersonating(true);
     } catch {
       localStorage.removeItem('impersonate-data');

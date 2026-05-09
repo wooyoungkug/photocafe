@@ -100,9 +100,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       try {
         const data = JSON.parse(raw);
         localStorage.removeItem('impersonate-data');
-        useAuthStore.getState().setAuth({ user: data.user, rememberMe: false });
+        // 임시 세션 플래그를 setAuth 전에 설정해 일반 로그인 정리 로직과 분리
         sessionStorage.setItem('impersonate-session', 'true');
-        // 토큰을 sessionStorage(탭 전용)에 보관 → api.ts에서 Bearer 헤더로 전송
         if (data.accessToken) {
           const tokenJson = JSON.stringify({
             accessToken: data.accessToken,
@@ -110,6 +109,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           });
           sessionStorage.setItem('impersonate-tokens', tokenJson);
         }
+        useAuthStore.getState().setAuth({ user: data.user, rememberMe: false, isImpersonation: true });
       } catch {
         localStorage.removeItem('impersonate-data');
       }

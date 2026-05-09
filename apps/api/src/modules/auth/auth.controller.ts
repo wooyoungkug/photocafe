@@ -626,6 +626,9 @@ export class AuthController {
     if (req.user.type !== 'staff') {
       throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
     }
+    if (req.user.impersonatedBy) {
+      throw new ForbiddenException('이미 대리 로그인 세션입니다. 원래 계정으로 돌아간 뒤 시도해주세요');
+    }
     return this.authService.impersonateStaff(staffId, req.user.sub);
   }
 
@@ -635,7 +638,10 @@ export class AuthController {
   @ApiOperation({ summary: '스튜디오 최고관리자가 소속 직원으로 대리 로그인' })
   async impersonateEmployee(@Param('employmentId') employmentId: string, @Request() req: any) {
     if (req.user.type !== 'employee' && req.user.type !== 'client') {
-      throw new ForbiddenException('직원 계정만 대리 로그인할 수 있습니다');
+      throw new ForbiddenException('회원/직원 계정만 대리 로그인할 수 있습니다');
+    }
+    if (req.user.impersonatedBy) {
+      throw new ForbiddenException('이미 대리 로그인 세션입니다. 원래 계정으로 돌아간 뒤 시도해주세요');
     }
     const clientId = req.user.clientId || req.user.sub;
     return this.authService.impersonateEmployee(employmentId, req.user.sub, clientId);
@@ -646,8 +652,11 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
   async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
-    if (req.user.type !== 'staff' && req.user.role !== 'admin') {
-      throw new ForbiddenException('관리자 계정만 대리 로그인할 수 있습니다');
+    if (req.user.type !== 'staff') {
+      throw new ForbiddenException('직원 계정만 회원 대리 로그인할 수 있습니다');
+    }
+    if (req.user.impersonatedBy) {
+      throw new ForbiddenException('이미 대리 로그인 세션입니다. 원래 계정으로 돌아간 뒤 시도해주세요');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
   }

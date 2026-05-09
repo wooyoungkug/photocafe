@@ -46,10 +46,26 @@ interface AuthState {
   isAuthenticated: boolean;
   rememberMe: boolean;
 
-  setAuth: (data: { user: User; rememberMe?: boolean; accessToken?: string; refreshToken?: string }) => void;
+  setAuth: (data: { user: User; rememberMe?: boolean; accessToken?: string; refreshToken?: string; isImpersonation?: boolean }) => void;
   updateUser: (user: Partial<User>) => void;
   logout: () => void;
 }
+
+const IMPERSONATE_KEYS = [
+  'impersonate-session',
+  'impersonate-tokens',
+  'impersonate-data',
+  'owner-session',
+  'pending-context-selection',
+] as const;
+
+const clearImpersonateKeys = () => {
+  if (typeof window === 'undefined') return;
+  for (const key of IMPERSONATE_KEYS) {
+    sessionStorage.removeItem(key);
+    localStorage.removeItem(key);
+  }
+};
 
 // 커스텀 스토리지: rememberMe 상태에 따라 localStorage 또는 sessionStorage 사용
 const createCustomStorage = (): StateStorage => {
@@ -116,29 +132,13 @@ export const useAuthStore = create<AuthState>()(
       isAuthenticated: false,
       rememberMe: false,
 
-      setAuth: ({ user, rememberMe = false, accessToken = null, refreshToken = null }) => {
+      setAuth: ({ user, rememberMe = false, accessToken = null, refreshToken = null, isImpersonation = false }) => {
         if (typeof window !== 'undefined') {
-          const isNewLoginAdmin = user.role === 'admin' || user.role === 'staff';
-
-          // localStorage에 관리자 세션이 이미 있는지 확인
-          const hasAdminInLocal = (() => {
-            try {
-              const raw = localStorage.getItem('auth-storage');
-              if (!raw) return false;
-              const parsed = JSON.parse(raw);
-              const role = parsed?.state?.user?.role;
-              return role === 'admin' || role === 'staff';
-            } catch { return false; }
-          })();
-
-          // rememberMe 정책에 따라 auth-storage 저장 위치만 분기
-          if (hasAdminInLocal && !rememberMe) {
-            // localStorage에 admin 세션이 있으면 sessionStorage에만 저장해 원본 세션 보호
+          // 일반 로그인(대리로그인 아님)이면 잔존 impersonate-* 키를 모두 정리
+          // → 직전 세션의 impersonate 토큰이 다음 요청에 끼어드는 사고 방지
+          if (!isImpersonation) {
+            clearImpersonateKeys();
           }
-
-          // 미들웨어 인증은 HttpOnly access_token 쿠키(백엔드 발급)로 검증하므로
-          // JS로 auth-verified 쿠키를 별도 설정하지 않음
-          void isNewLoginAdmin;
         }
         set({
           user,
@@ -161,10 +161,7 @@ export const useAuthStore = create<AuthState>()(
           fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
           localStorage.removeItem('auth-storage');
           sessionStorage.removeItem('auth-storage');
-          sessionStorage.removeItem('impersonate-session');
-          sessionStorage.removeItem('impersonate-tokens');
-          localStorage.removeItem('impersonate-tokens');
-          sessionStorage.removeItem('owner-session');
+          clearImpersonateKeys();
         }
         set({
           user: null,
