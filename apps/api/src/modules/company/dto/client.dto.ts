@@ -228,6 +228,11 @@ export class CreateClientDto {
   @IsBoolean()
   enableRecruitment?: boolean;
 
+  @ApiPropertyOptional({ description: '촬영관리 기능 사용 여부', default: true })
+  @IsOptional()
+  @IsBoolean()
+  enableShooting?: boolean;
+
   @ApiPropertyOptional({ description: '노트장 기능 사용 여부', default: false })
   @IsOptional()
   @IsBoolean()

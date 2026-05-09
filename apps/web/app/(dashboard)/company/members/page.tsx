@@ -319,6 +319,7 @@ function MembersPageContent() {
     acquisitionChannel: '',
     enableSchedule: true,
     enableRecruitment: true,
+    enableShooting: true,
     enableNote: false,
     storageQuotaGb: 500,
   });
@@ -392,6 +393,7 @@ function MembersPageContent() {
         acquisitionChannel: member.acquisitionChannel || '',
         enableSchedule: member.enableSchedule ?? true,
         enableRecruitment: member.enableRecruitment ?? true,
+        enableShooting: member.enableShooting ?? true,
         enableNote: member.enableNote ?? false,
         storageQuotaGb: member.storageQuotaGb ?? 500,
       });
@@ -432,6 +434,7 @@ function MembersPageContent() {
           acquisitionChannel: '',
           enableSchedule: true,
           enableRecruitment: true,
+          enableShooting: true,
           enableNote: false,
           storageQuotaGb: 500,
         });
@@ -1612,11 +1615,21 @@ function MembersPageContent() {
                   <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
                     <div>
                       <p className="text-sm font-medium">일정관리</p>
-                      <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
+                      <p className="text-xs text-muted-foreground">캘린더·할일·메모 관리 기능</p>
                     </div>
                     <Switch
                       checked={formData.enableSchedule ?? true}
                       onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableSchedule: v }))}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">
+                    <div>
+                      <p className="text-sm font-medium">촬영관리</p>
+                      <p className="text-xs text-muted-foreground">촬영 일정 등록·관리 기능</p>
+                    </div>
+                    <Switch
+                      checked={formData.enableShooting ?? true}
+                      onCheckedChange={(v) => setFormData(prev => ({ ...prev, enableShooting: v }))}
                     />
                   </div>
                   <div className="flex items-center justify-between bg-white rounded-lg px-4 py-3 border">

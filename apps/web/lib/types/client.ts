@@ -65,6 +65,7 @@ export interface Client {
   status: 'active' | 'inactive' | 'suspended';
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableShooting?: boolean;
   enableNote?: boolean;
   storageQuotaGb?: number;
   storageUsedBytes?: number;
@@ -116,6 +117,7 @@ export interface CreateClientDto {
   status?: 'active' | 'inactive' | 'suspended';
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableShooting?: boolean;
   enableNote?: boolean;
   storageQuotaGb?: number;
   duplicateCheckMonths?: number;

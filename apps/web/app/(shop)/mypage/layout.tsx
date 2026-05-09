@@ -37,13 +37,13 @@ function getMenuItems(user: {
   canManageRecruitment?: boolean;
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableShooting?: boolean;
   enableNote?: boolean;
 } | null) {
   const isEmployee = user?.type === 'employee';
-  // enableSchedule/Recruitment 는 신규회원 기본 true이므로 undefined일 때 true로 폴백.
-  // enableNote 는 기본 false 라 폴백 false (회원 수정에서 명시적으로 켜야 보임).
-  const enableSchedule = user?.enableSchedule ?? true;
+  // 기본값: schedule/recruitment/shooting=true, note=false (회원수정에서 명시적으로 켜야 보임)
   const enableRecruitment = user?.enableRecruitment ?? true;
+  const enableShooting = user?.enableShooting ?? true;
   const items: { icon: typeof User; label: string; href: string }[] = [
     { icon: User, label: '회원정보', href: '/mypage/profile' },
   ];
@@ -69,8 +69,8 @@ function getMenuItems(user: {
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
   }
 
-  // 일정관리: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
-  if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
+  // 촬영관리(/mypage/schedule): enableShooting 기준 + 직원 권한
+  if (enableShooting && (!isEmployee || user?.canManageSchedule)) {
     items.push({ icon: Camera, label: '촬영관리', href: '/mypage/schedule' });
   }
 
@@ -106,6 +106,7 @@ export default function MyPageLayout({
         updateUser({
           ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
           ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
+          ...(data.enableShooting !== undefined && { enableShooting: data.enableShooting }),
           ...(data.enableNote !== undefined && { enableNote: data.enableNote }),
           ...(data.businessNumber && { businessNumber: data.businessNumber }),
           ...(data.representative && { representative: data.representative }),
