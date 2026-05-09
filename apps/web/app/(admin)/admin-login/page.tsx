@@ -10,11 +10,9 @@ import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth-store';
 
 function getApiUrl() {
-  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-  if (typeof window !== 'undefined' && window.location.hostname.endsWith('photocafe.co.kr')) {
-    return 'https://api.photocafe.co.kr/api/v1';
-  }
-  return 'http://localhost:3001/api/v1';
+  // 같은 오리진의 Next.js rewrite 프록시(/api/v1 → API 서버)를 사용
+  // → 크로스오리진 쿠키 이슈 회피, 운영(Vercel)에서도 동일 동작
+  return '/api/v1';
 }
 
 

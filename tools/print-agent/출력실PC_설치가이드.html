@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>출력실 PC 인쇄 에이전트 자동시작 설치 가이드</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", system-ui, -apple-system, sans-serif;
+    color: #000;
+    background: #fff;
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+  }
+  body {
+    padding: 28mm 22mm;
+    font-size: 11pt;
+  }
+  h1 {
+    font-size: 22pt;
+    font-weight: 700;
+    margin: 0 0 6pt 0;
+    border-bottom: 3pt solid #000;
+    padding-bottom: 6pt;
+  }
+  h1 .sub { display: block; font-size: 11pt; font-weight: 400; color: #444; margin-top: 4pt; }
+  h2 {
+    font-size: 14pt;
+    font-weight: 700;
+    margin: 18pt 0 8pt 0;
+    background: #f1f5f9;
+    padding: 6pt 10pt;
+    border-left: 4pt solid #0f172a;
+  }
+  h2 .num {
+    display: inline-block;
+    background: #0f172a;
+    color: #fff;
+    width: 22pt;
+    height: 22pt;
+    line-height: 22pt;
+    text-align: center;
+    border-radius: 50%;
+    margin-right: 8pt;
+    font-size: 12pt;
+  }
+  p, li { font-size: 11pt; }
+  ol, ul { padding-left: 18pt; margin: 6pt 0 10pt 0; }
+  ol li, ul li { margin: 3pt 0; }
+  code, .path {
+    font-family: Consolas, "Courier New", monospace;
+    background: #f8fafc;
+    border: 1pt solid #cbd5e1;
+    padding: 1pt 4pt;
+    border-radius: 3pt;
+    font-size: 10pt;
+    word-break: break-all;
+  }
+  .callout {
+    border: 1.5pt solid #f59e0b;
+    background: #fffbeb;
+    padding: 8pt 12pt;
+    border-radius: 4pt;
+    margin: 8pt 0;
+  }
+  .callout.danger { border-color: #dc2626; background: #fef2f2; }
+  .callout.ok { border-color: #16a34a; background: #f0fdf4; }
+  .callout strong { display: block; margin-bottom: 4pt; font-size: 11pt; }
+  .step-box {
+    border: 1pt solid #cbd5e1;
+    border-radius: 4pt;
+    padding: 10pt 14pt;
+    margin: 6pt 0 10pt 0;
+    background: #fff;
+  }
+  .check-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 8pt 0;
+    font-size: 10pt;
+  }
+  .check-table th, .check-table td {
+    border: 1pt solid #94a3b8;
+    padding: 5pt 8pt;
+    text-align: left;
+    vertical-align: top;
+  }
+  .check-table th { background: #e2e8f0; font-weight: 700; }
+  .ok-mark { color: #16a34a; font-weight: 700; }
+  .ng-mark { color: #dc2626; font-weight: 700; }
+  .footer {
+    margin-top: 24pt;
+    padding-top: 8pt;
+    border-top: 1pt solid #cbd5e1;
+    font-size: 9pt;
+    color: #475569;
+  }
+  .key {
+    display: inline-block;
+    border: 1pt solid #475569;
+    padding: 0 4pt;
+    border-radius: 3pt;
+    background: #f8fafc;
+    font-family: Consolas, monospace;
+    font-size: 10pt;
+  }
+  @media print {
+    body { padding: 18mm 16mm; }
+    h2 { break-after: avoid; }
+    .step-box, .callout { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>
+  출력실 PC 인쇄 에이전트 자동시작 설치 가이드
+  <span class="sub">PhotoCafe ERP · 출력대기 JDF+PDF 변환 · 작업지시서 자동인쇄 사용을 위한 1회 설정</span>
+</h1>
+
+<div class="callout">
+  <strong>왜 필요한가요?</strong>
+  PhotoCafe 운영서버는 미국 클라우드(Railway)에서 동작합니다. 출력실 PC의 프린터/PDF저장 폴더에는 직접 접근할 수 없어, 출력실 PC에서 작은 프로그램(에이전트)을 띄워 다리 역할을 합니다. 이 에이전트가 꺼지면 <b>JDF+PDF 자동변환·작업지시서 자동인쇄·로컬 폴더 PDF 저장</b>이 모두 멈춥니다. 본 문서대로 한 번만 설정하면 PC를 켤 때마다 자동으로 시작·자동으로 재시작됩니다.
+</div>
+
+<h2><span class="num">1</span>준비물 확인</h2>
+<div class="step-box">
+  <ul>
+    <li>출력실 PC (Windows 10/11)</li>
+    <li>관리자 권한 계정 (UAC 「예」 클릭 가능해야 함)</li>
+    <li>Node.js LTS — 미설치 시 <a href="https://nodejs.org">https://nodejs.org</a> 에서 LTS 버전 설치</li>
+    <li>본 가이드와 함께 받은 <code>print-agent</code> 폴더 (USB·공유폴더로 전달)</li>
+  </ul>
+</div>
+
+<h2><span class="num">2</span>폴더 복사</h2>
+<div class="step-box">
+  <ol>
+    <li>전달받은 <code>print-agent</code> 폴더 통째로 출력실 PC의 다음 위치에 붙여넣기:
+      <div style="margin-top:4pt;"><span class="path">C:\PhotoCafe\print-agent\</span></div>
+    </li>
+    <li>붙여넣은 폴더 안에 다음 파일들이 보이는지 확인:
+      <ul>
+        <li><code>print-agent.js</code> (본체)</li>
+        <li><code>watch-agent.vbs</code> (자동재시작 워치독)</li>
+        <li><code>작업스케줄러_등록.bat</code> (1회 등록용)</li>
+        <li><code>run-print-agent.bat</code> (수동 실행용 — 평소엔 사용 안 함)</li>
+      </ul>
+    </li>
+  </ol>
+  <div class="callout">
+    <strong>경로 주의</strong>
+    경로에 한글이 들어가도 동작은 하지만, 권장 경로(<span class="path">C:\PhotoCafe\print-agent\</span>)를 사용하면 문제 발생 시 진단이 빠릅니다.
+  </div>
+</div>
+
+<h2><span class="num">3</span>관리자 권한으로 등록 (핵심)</h2>
+<div class="step-box">
+  <ol>
+    <li>파일 탐색기에서 <code>작업스케줄러_등록.bat</code> 을 찾기</li>
+    <li><b>마우스 우클릭 → 「관리자 권한으로 실행」</b> 선택
+      <div class="callout danger" style="margin-top:6pt;">
+        <strong>그냥 더블클릭 ✗</strong>
+        그냥 더블클릭하면 권한 부족으로 등록이 실패합니다. 반드시 <b>우클릭 → 관리자 권한으로 실행</b> 으로 진행하세요.
+      </div>
+    </li>
+    <li>UAC(사용자 계정 컨트롤) 창이 뜨면 <b>「예」</b> 클릭</li>
+    <li>검은 명령창에 다음 메시지가 나오면 성공:
+      <div class="callout ok" style="margin-top:6pt;">
+        <strong>[성공] 작업 스케줄러에 등록되었습니다.</strong>
+        - 다음 로그인부터 자동 실행됩니다.<br>
+        - 에이전트가 꺼지면 5초 후 자동 재시작합니다.
+      </div>
+    </li>
+    <li>아무 키나 눌러 창을 닫음</li>
+  </ol>
+</div>
+
+<h2><span class="num">4</span>지금 바로 시작 (재부팅 없이)</h2>
+<div class="step-box">
+  <p>등록 직후에는 아직 에이전트가 실행 전입니다. 즉시 실행하려면:</p>
+  <ol>
+    <li><span class="key">Win</span> + <span class="key">R</span> 눌러 실행창 열기</li>
+    <li><code>cmd</code> 입력 후 <span class="key">Enter</span></li>
+    <li>검은 창에 다음 명령 붙여넣고 <span class="key">Enter</span>:
+      <div style="margin-top:4pt;"><code>schtasks /run /tn "PhotoCafe 인쇄에이전트"</code></div>
+    </li>
+    <li><b>SUCCESS: Attempted to run the scheduled task ...</b> 메시지 확인</li>
+  </ol>
+  <p>이후 PC를 켤 때마다 자동으로 시작되므로 이 단계는 다시 할 필요 없습니다.</p>
+</div>
+
+<h2><span class="num">5</span>동작 확인</h2>
+<div class="step-box">
+  <p>출력실 PC의 크롬에서 PhotoCafe 출력대기 페이지에 접속:</p>
+  <p><code>https://photocafe.co.kr/orders/print-queue</code></p>
+  <table class="check-table">
+    <thead>
+      <tr><th>표시</th><th>상태</th><th>의미</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>에이전트 연결됨</b> (초록불 깜빡임)</td>
+        <td class="ok-mark">정상</td>
+        <td>설정 완료. 자동변환·자동인쇄 모두 사용 가능</td>
+      </tr>
+      <tr>
+        <td><b>에이전트 꺼짐</b> (빨간불)</td>
+        <td class="ng-mark">실패</td>
+        <td>3단계 다시 확인 → <b>관리자 권한</b> 으로 .bat 실행했는지 점검</td>
+      </tr>
+      <tr>
+        <td><b>확인 중…</b></td>
+        <td>대기</td>
+        <td>5초 안에 위 둘 중 하나로 변경됨</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="margin-top:6pt;">「연결 재확인」 버튼을 누르면 즉시 다시 점검합니다.</p>
+</div>
+
+<h2><span class="num">6</span>이상 동작 시 점검</h2>
+<div class="step-box">
+  <table class="check-table">
+    <thead>
+      <tr><th>증상</th><th>점검 / 조치</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>등록 시 「Access is denied」</td>
+        <td>관리자 권한으로 실행하지 않은 것. .bat 우클릭 → 「관리자 권한으로 실행」</td>
+      </tr>
+      <tr>
+        <td>등록은 됐는데 「에이전트 꺼짐」</td>
+        <td>① <span class="key">Win</span>+<span class="key">R</span> → <code>taskschd.msc</code> 작업 스케줄러 열기 → 「PhotoCafe 인쇄에이전트」 우클릭 → 「실행」<br>② 그래도 안 되면 Node.js 설치 확인 (<code>node -v</code>)</td>
+      </tr>
+      <tr>
+        <td>프린터 목록이 비어있음</td>
+        <td>출력실 PC의 「제어판 → 장치 및 프린터」에 프린터가 등록되어 있는지 확인. 등록 후 PhotoCafe 출력대기 화면 새로고침</td>
+      </tr>
+      <tr>
+        <td>자동 인쇄가 안 됨</td>
+        <td>PhotoCafe 「설정」 → 「자동 인쇄 사용」 체크 + 프린터명이 정확한지 확인</td>
+      </tr>
+      <tr>
+        <td>로그 보기</td>
+        <td><code>C:\PhotoCafe\print-agent\agent.log</code> 파일을 메모장으로 열어 마지막 줄 확인</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2><span class="num">7</span>해제 / 일시중지</h2>
+<div class="step-box">
+  <ul>
+    <li><b>일시 중지:</b> <span class="key">Win</span>+<span class="key">R</span> → <code>taskschd.msc</code> → 「PhotoCafe 인쇄에이전트」 우클릭 → 「사용 안 함」</li>
+    <li><b>완전 삭제:</b> 관리자 cmd 에서 <code>schtasks /delete /tn "PhotoCafe 인쇄에이전트" /f</code></li>
+  </ul>
+</div>
+
+<div class="footer">
+  PhotoCafe ERP · 인쇄 에이전트 자동시작 설치 가이드 · 작성일 2026-05-08<br>
+  문의: 본사 관리자 / 출력실 담당자에게 본 문서를 공유해 주세요.
+</div>
+
+</body>
+</html>

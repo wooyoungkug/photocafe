@@ -30,7 +30,7 @@ import {
   ImpositionResult,
 } from '@/hooks/use-imposition';
 import { downloadImpositionViaAgent, checkPrintAgentRunning, printSlipViaAgent } from '@/hooks/use-print-pdf';
-import { usePdfSettings } from './PdfSettingsDialog';
+import { usePdfSettings } from '@/hooks/use-pdf-settings';
 
 type ImpositionSeed = {
   orderId: string;

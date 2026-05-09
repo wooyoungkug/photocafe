@@ -22,7 +22,7 @@ import {
   usePdfSettings,
   DEFAULT_INDEX_ORDER,
   IndexOrderItem,
-} from './PdfSettingsDialog';
+} from '@/hooks/use-pdf-settings';
 
 interface PdfConvertDialogProps {
   open: boolean;

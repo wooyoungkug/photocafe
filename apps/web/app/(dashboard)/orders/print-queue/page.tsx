@@ -15,10 +15,9 @@ import {
 import PrintQueueTable from './components/PrintQueueTable';
 import PdfConvertDialog from './components/PdfConvertDialog';
 import PdfProgressTracker from './components/PdfProgressTracker';
-import PdfSettingsDialog, {
-  usePdfSettings,
-} from './components/PdfSettingsDialog';
+import { usePdfSettings } from '@/hooks/use-pdf-settings';
 import ImpositionSettingsDialog from './components/ImpositionSettingsDialog';
+import Link from 'next/link';
 import { PrintAgentStatusCard } from './components/print-agent-status';
 import { PrintQueueScanStrip } from './components/PrintQueueScanStrip';
 import { OrderQuickEditDialog } from '../components/order-quick-edit-dialog';
@@ -40,7 +39,6 @@ export default function PrintQueuePage() {
 
   // 다이얼로그 상태
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [impositionOpen, setImpositionOpen] = useState(false);
   type ImpositionSeed = {
     orderId: string;
@@ -176,14 +174,11 @@ export default function PrintQueuePage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSettingsDialogOpen(true)}
-            className="gap-1.5"
-          >
-            <Settings className="h-3.5 w-3.5" />
-            설정
+          <Button asChild variant="outline" size="sm" className="gap-1.5">
+            <Link href="/settings/production">
+              <Settings className="h-3.5 w-3.5" />
+              설정
+            </Link>
           </Button>
           <Button
             variant="outline"
@@ -296,12 +291,6 @@ export default function PrintQueuePage() {
         selectedIds={selectedIds}
         onGenerate={handleGenerate}
         isGenerating={generateMutation.isPending}
-      />
-
-      {/* PDF 출력 설정 다이얼로그 */}
-      <PdfSettingsDialog
-        open={settingsDialogOpen}
-        onOpenChange={setSettingsDialogOpen}
       />
 
       {/* 주문 검증 및 수정 다이얼로그 */}

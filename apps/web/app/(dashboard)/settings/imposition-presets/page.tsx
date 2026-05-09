@@ -35,7 +35,7 @@ import {
   ImpositionRule,
   BindingType,
 } from '@/hooks/use-imposition';
-import { usePdfSettings } from '@/app/(dashboard)/orders/print-queue/components/PdfSettingsDialog';
+import { usePdfSettings } from '@/hooks/use-pdf-settings';
 
 const BINDING_LABELS: Record<BindingType, string> = {
   compressed: '압축앨범',
