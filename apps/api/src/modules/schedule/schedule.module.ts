@@ -9,6 +9,7 @@ import {
   NotebookController,
   NoteTagController,
   NoteAttachmentController,
+  NoteAiController,
 } from './controllers';
 import {
   TodoService,
@@ -18,6 +19,7 @@ import {
   NotebookService,
   NoteTagService,
   NoteAttachmentService,
+  NoteAiService,
 } from './services';
 
 @Module({
@@ -30,6 +32,7 @@ import {
     NotebookController,
     NoteTagController,
     NoteAttachmentController,
+    NoteAiController,
   ],
   providers: [
     TodoService,
@@ -39,6 +42,7 @@ import {
     NotebookService,
     NoteTagService,
     NoteAttachmentService,
+    NoteAiService,
   ],
   exports: [
     TodoService,
@@ -48,6 +52,7 @@ import {
     NotebookService,
     NoteTagService,
     NoteAttachmentService,
+    NoteAiService,
   ],
 })
 export class ScheduleModule {}

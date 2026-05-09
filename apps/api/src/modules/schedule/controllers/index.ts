@@ -5,3 +5,4 @@ export * from './note.controller';
 export * from './notebook.controller';
 export * from './note-tag.controller';
 export * from './note-attachment.controller';
+export * from './note-ai.controller';

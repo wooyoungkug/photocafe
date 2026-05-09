@@ -5,3 +5,4 @@ export * from './note.service';
 export * from './notebook.service';
 export * from './note-tag.service';
 export * from './note-attachment.service';
+export * from './note-ai.service';

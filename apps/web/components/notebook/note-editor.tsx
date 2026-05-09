@@ -11,6 +11,7 @@ import {
   Loader2,
   Pin,
   Save,
+  Sparkles,
   StickyNote,
   Trash2,
   User,
@@ -38,6 +39,23 @@ import type { Note as Memo, NoteTagDto } from '@/lib/types/note';
 import { cn } from '@/lib/utils';
 import { NoteTagPicker } from './note-tag-picker';
 import { NoteAttachmentList } from './note-attachment-list';
+import { NoteAiPanel } from './note-ai-panel';
+
+function htmlToPlainPreview(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<\/(p|div|li|h[1-6]|tr)\s*>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
 
 type Scope = 'personal' | 'department' | 'company';
 const scopeIcons: Record<Scope, typeof User> = {
@@ -87,6 +105,7 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
   const remove = useDeleteNote();
   const { data: notebooks = [] } = useNotebooks();
 
+  const [aiPanelOpen, setAiPanelOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [color, setColor] = useState('#FFFFFF');
@@ -197,8 +216,10 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
   }
 
   const ScopeIcon = scopeIcons[scope];
+  const contentPlain = htmlToPlainPreview(content);
 
   return (
+    <div className="flex-1 flex min-h-0">
     <div className="flex-1 flex flex-col min-h-0" style={{ backgroundColor: color }}>
       <div className="px-4 py-2.5 border-b bg-white/70 flex items-center gap-2 flex-wrap shrink-0">
         <Badge variant="outline" className="h-6 text-[11px] bg-white">
@@ -245,6 +266,16 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
             title="삭제"
           >
             <Trash2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={aiPanelOpen ? 'default' : 'outline'}
+            size="sm"
+            className={cn('h-8', aiPanelOpen && 'bg-yellow-500 hover:bg-yellow-600')}
+            onClick={() => setAiPanelOpen((v) => !v)}
+            title="AI 보조 편집"
+          >
+            <Sparkles className="h-3.5 w-3.5 mr-1" />
+            AI
           </Button>
           <span className="hidden lg:inline text-[11px] text-black/40 ml-1">Ctrl+S</span>
           <Button onClick={handleSave} disabled={update.isPending} size="sm" className="ml-1">
@@ -334,6 +365,18 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
           />
         </div>
       </div>
+    </div>
+    {aiPanelOpen && (
+      <NoteAiPanel
+        noteId={noteId}
+        title={title}
+        contentHtml={content}
+        contentPlain={contentPlain}
+        onApplyContent={(html) => setContent(html)}
+        onApplyTitle={(t) => setTitle(t)}
+        onClose={() => setAiPanelOpen(false)}
+      />
+    )}
     </div>
   );
 }

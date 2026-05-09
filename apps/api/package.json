@@ -23,6 +23,7 @@
     "db:restore": "prisma db push --force-reset && PGPASSWORD=postgres psql -U postgres -h localhost -p 5432 -d printing_erp -f prisma/testdata.sql && echo 'DB 복원 완료'"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.1",
     "@aws-sdk/client-s3": "^3.1036.0",
     "@aws-sdk/s3-request-presigner": "^3.1036.0",
     "@nestjs/bullmq": "^11.0.4",
