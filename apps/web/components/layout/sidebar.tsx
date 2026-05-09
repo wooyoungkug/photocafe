@@ -26,24 +26,9 @@ import {
   TreePalm,
   Users,
   ScanBarcode,
-  LogOut,
-  Key,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
-import { useLogout, useChangePassword } from "@/hooks/use-auth";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -660,30 +645,8 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const { user } = useAuthStore();
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
-  const [isPwDialogOpen, setIsPwDialogOpen] = useState(false);
-  const [currentPw, setCurrentPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [confirmPw, setConfirmPw] = useState("");
-
-  const logout = useLogout();
-  const changePassword = useChangePassword();
-
-  const handlePasswordChange = async () => {
-    if (newPw !== confirmPw) { toast.error("새 비밀번호가 일치하지 않습니다"); return; }
-    if (newPw.length < 6) { toast.error("비밀번호는 최소 6자 이상이어야 합니다"); return; }
-    try {
-      await changePassword.mutateAsync({ currentPassword: currentPw, newPassword: newPw });
-      toast.success("비밀번호가 변경되었습니다");
-      setIsPwDialogOpen(false);
-      setCurrentPw(""); setNewPw(""); setConfirmPw("");
-    } catch {
-      toast.error("비밀번호 변경에 실패했습니다");
-    }
-  };
 
   const isAdmin = user?.role === "admin" || user?.role === "staff";
-  const roleBadge = getRoleBadge(user?.role);
-  const initials = getUserInitials(user?.name, user?.email);
 
   const { apiStatus, dbStatus, isRefreshing, checkAll } = useServerStatus();
   const { navigation, moveMenuUp, moveMenuDown, moveChildUp, moveChildDown } =
@@ -935,90 +898,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           </div>
         )}
 
-        {/* User info card */}
-        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.05]">
-          {/* Avatar with initials */}
-          <div className="h-9 w-9 rounded-lg bg-gradient-to-br from-indigo-600 to-indigo-800 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-900/20">
-            <span className="text-[11px] font-bold text-white/90 tracking-tight">
-              {initials}
-            </span>
-          </div>
-          <div className="flex flex-col min-w-0 gap-0.5">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-slate-200 truncate">
-                {user?.name || "사용자"}
-              </span>
-              <span
-                className={cn(
-                  "inline-flex items-center px-1.5 py-px rounded text-[9px] font-medium border",
-                  roleBadge.className
-                )}
-              >
-                {roleBadge.label}
-              </span>
-            </div>
-            <span className="text-[10px] text-slate-500 truncate">
-              {user?.email || ""}
-            </span>
-          </div>
-        </div>
-
-        {/* 비밀번호변경 / 로그아웃 */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setIsPwDialogOpen(true)}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06] transition-colors"
-          >
-            <Key className="h-3 w-3" />
-            비밀번호변경
-          </button>
-          <div className="w-px bg-white/[0.06]" />
-          <button
-            type="button"
-            onClick={logout}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-md text-[11px] text-rose-400/80 hover:text-rose-300 hover:bg-rose-900/20 transition-colors"
-          >
-            <LogOut className="h-3 w-3" />
-            로그아웃
-          </button>
-        </div>
-
-        {/* Copyright */}
-        <p className="text-[10px] text-slate-700 text-center select-none">
-          &copy; 2026 Photocafe Inc.
-        </p>
       </div>
-
-      {/* 비밀번호 변경 다이얼로그 */}
-      <Dialog open={isPwDialogOpen} onOpenChange={setIsPwDialogOpen}>
-        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>비밀번호 변경</DialogTitle>
-            <DialogDescription>현재 비밀번호를 확인하고 새 비밀번호를 입력하세요.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="sb-current-pw">현재 비밀번호</Label>
-              <Input id="sb-current-pw" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sb-new-pw">새 비밀번호</Label>
-              <Input id="sb-new-pw" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sb-confirm-pw">새 비밀번호 확인</Label>
-              <Input id="sb-confirm-pw" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handlePasswordChange()} />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsPwDialogOpen(false)}>취소</Button>
-            <Button onClick={handlePasswordChange} disabled={changePassword.isPending}>
-              {changePassword.isPending ? "변경 중..." : "변경"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
