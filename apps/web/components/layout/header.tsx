@@ -21,6 +21,7 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useLogout, useCurrentUser, useChangePassword, useIsImpersonating, useEndImpersonation } from "@/hooks/use-auth";
 import { useUserPreferences, useUpdatePreferences } from "@/hooks/use-user-preferences";
 import { TopNav } from "./top-nav";
+import { SubNavBar } from "./sub-nav-bar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -130,7 +131,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
 
   return (
     <TooltipProvider delayDuration={300}>
-      <header className="sticky top-0 z-30 flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/70 bg-white/80 backdrop-blur-xl px-3 sm:px-4 lg:px-6">
+      <header className="sticky top-0 z-30 relative flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/70 bg-white/80 backdrop-blur-xl px-3 sm:px-4 lg:px-6">
         {/* Left section */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {/* Mobile menu button */}
@@ -226,6 +227,15 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             <TooltipContent side="bottom">검색</TooltipContent>
           </Tooltip>
         </div>
+
+        {/* 2차 메뉴 — side 모드 데스크탑에서 헤더 정중앙 절대 배치 */}
+        {!isTopMode && (
+          <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none z-10">
+            <div className="pointer-events-auto">
+              <SubNavBar variant="inline" />
+            </div>
+          </div>
+        )}
 
         {/* Right section */}
         <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2">

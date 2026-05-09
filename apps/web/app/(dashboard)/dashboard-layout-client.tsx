@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { PinBar } from "@/components/layout/pin-bar";
-import { SubNavBar } from "@/components/layout/sub-nav-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Toaster } from "@/components/ui/toaster";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
@@ -179,8 +178,6 @@ export function DashboardLayoutClient({
           <div className="hidden lg:block">
             <PinBar />
           </div>
-          {/* 서브 내비게이션 바 — 사이드바 2차 메뉴를 콘텐츠 상단에 표시 */}
-          <SubNavBar />
           {/* 웹 푸시 알림 허용 배너 */}
           {(showNotifBanner || notifDenied) && (
             <div className={`flex items-center gap-3 px-4 py-2 border-b text-[13px] ${notifDenied ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
