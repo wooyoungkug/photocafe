@@ -21,9 +21,12 @@ async function silentRefresh(): Promise<boolean> {
     if (!res.ok) return false;
     await res.json().catch(() => ({}));
 
-    // auth-verified 쿠키 갱신
+    // auth-verified 쿠키 갱신 (staff 세션 확인)
     try {
-      const raw = localStorage.getItem('auth-storage') || sessionStorage.getItem('auth-storage');
+      const raw = sessionStorage.getItem('auth-storage-staff')
+        || localStorage.getItem('auth-storage-staff')
+        || sessionStorage.getItem('auth-storage') // legacy
+        || localStorage.getItem('auth-storage');  // legacy
       if (raw) {
         const parsed = JSON.parse(raw);
         const role = parsed?.state?.user?.role;

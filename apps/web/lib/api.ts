@@ -14,8 +14,12 @@ let refreshPromise: Promise<string | null> | null = null;
 
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('auth-storage');
-  sessionStorage.removeItem('auth-storage');
+  localStorage.removeItem('auth-storage-staff');
+  localStorage.removeItem('auth-storage-client');
+  localStorage.removeItem('auth-storage'); // legacy
+  sessionStorage.removeItem('auth-storage-staff');
+  sessionStorage.removeItem('auth-storage-client');
+  sessionStorage.removeItem('auth-storage'); // legacy
   fetch(`${API_URL}/auth/logout`, { method: 'POST', credentials: 'include' }).catch(() => {});
 }
 

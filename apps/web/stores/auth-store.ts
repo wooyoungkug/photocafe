@@ -65,9 +65,15 @@ const clearImpersonateKeys = () => {
     sessionStorage.removeItem(key);
     localStorage.removeItem(key);
   }
+  // 대리로그인 세션에서 저장된 클라이언트 데이터도 정리
+  sessionStorage.removeItem(CLIENT_KEY);
 };
 
-// 커스텀 스토리지: rememberMe 상태에 따라 localStorage 또는 sessionStorage 사용
+// staff/admin → 'auth-storage-staff', client/employee → 'auth-storage-client'
+// Zustand는 'auth-storage' 이름으로 호출하지만 내부적으로 역할별 키로 리매핑
+const STAFF_KEY = 'auth-storage-staff';
+const CLIENT_KEY = 'auth-storage-client';
+
 const createCustomStorage = (): StateStorage => {
   if (typeof window === 'undefined') {
     return {
@@ -78,47 +84,63 @@ const createCustomStorage = (): StateStorage => {
   }
 
   return {
-    getItem: (name: string) => {
-      // sessionStorage 우선: 대리로그인 등 탭별 독립 세션 지원
-      const sessionData = sessionStorage.getItem(name);
-      if (sessionData) return sessionData;
-      return localStorage.getItem(name);
+    getItem: (_name: string) => {
+      const isImpersonating = !!sessionStorage.getItem('impersonate-session');
+
+      if (isImpersonating) {
+        // 대리로그인 중: 클라이언트 세션 우선 반환
+        return sessionStorage.getItem(CLIENT_KEY)
+            || localStorage.getItem(CLIENT_KEY)
+            || null;
+      }
+
+      // 일반 세션: sessionStorage 우선 → localStorage 순
+      const sessionStaff = sessionStorage.getItem(STAFF_KEY);
+      if (sessionStaff) return sessionStaff;
+
+      const sessionClient = sessionStorage.getItem(CLIENT_KEY);
+      if (sessionClient) return sessionClient;
+
+      const lsStaff = localStorage.getItem(STAFF_KEY);
+      if (lsStaff) return lsStaff;
+
+      const lsClient = localStorage.getItem(CLIENT_KEY);
+      if (lsClient) return lsClient;
+
+      // 레거시 폴백 (이전 auth-storage 키)
+      return localStorage.getItem('auth-storage') || null;
     },
-    setItem: (name: string, value: string) => {
+    setItem: (_name: string, value: string) => {
       try {
         const parsed = JSON.parse(value);
         const rememberMe = parsed?.state?.rememberMe ?? false;
+        const role = parsed?.state?.user?.role;
+        const type = parsed?.state?.user?.type;
 
-        // localStorage에 admin 세션이 있고 rememberMe 없으면 → sessionStorage에만 저장
-        // (비관리자 로그인 + 직원 대리로그인 모두 포함)
-        if (!rememberMe && name === 'auth-storage') {
-          const existing = localStorage.getItem(name);
-          if (existing) {
-            try {
-              const existingParsed = JSON.parse(existing);
-              const existingRole = existingParsed?.state?.user?.role;
-              if (existingRole === 'admin' || existingRole === 'staff') {
-                sessionStorage.setItem(name, value);
-                return; // localStorage 덮어쓰지 않음
-              }
-            } catch { /* fall through */ }
-          }
-        }
+        const isStaff = role === 'admin' || role === 'staff' || type === 'staff';
+        const storageKey = isStaff ? STAFF_KEY : CLIENT_KEY;
 
         if (rememberMe) {
-          localStorage.setItem(name, value);
-          sessionStorage.removeItem(name);
+          localStorage.setItem(storageKey, value);
+          sessionStorage.removeItem(storageKey);
         } else {
-          sessionStorage.setItem(name, value);
-          localStorage.removeItem(name);
+          sessionStorage.setItem(storageKey, value);
+          if (!isStaff) {
+            localStorage.removeItem(storageKey);
+          }
         }
       } catch {
-        localStorage.setItem(name, value);
+        localStorage.setItem('auth-storage', value);
       }
     },
-    removeItem: (name: string) => {
-      localStorage.removeItem(name);
-      sessionStorage.removeItem(name);
+    removeItem: (_name: string) => {
+      localStorage.removeItem(STAFF_KEY);
+      localStorage.removeItem(CLIENT_KEY);
+      sessionStorage.removeItem(STAFF_KEY);
+      sessionStorage.removeItem(CLIENT_KEY);
+      // 레거시 정리
+      localStorage.removeItem('auth-storage');
+      sessionStorage.removeItem('auth-storage');
     },
   };
 };
@@ -159,8 +181,12 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           // 쿠키 세션 로그아웃
           fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
-          localStorage.removeItem('auth-storage');
-          sessionStorage.removeItem('auth-storage');
+          localStorage.removeItem(STAFF_KEY);
+          localStorage.removeItem(CLIENT_KEY);
+          localStorage.removeItem('auth-storage'); // legacy
+          sessionStorage.removeItem(STAFF_KEY);
+          sessionStorage.removeItem(CLIENT_KEY);
+          sessionStorage.removeItem('auth-storage'); // legacy
           clearImpersonateKeys();
         }
         set({

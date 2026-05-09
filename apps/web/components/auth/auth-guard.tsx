@@ -56,8 +56,7 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
             console.warn('[AuthGuard] 인증 세션 없음 → 로그인 페이지로 이동');
             checkedRef.current = true;
             authCache = null;
-            // 쿠키도 정리
-              window.location.href = loginPath;
+            window.location.href = loginPath;
             return;
           }
           meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
@@ -67,26 +66,20 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
           console.warn('[AuthGuard] 토큰 복구 실패 → 로그인 페이지로 이동');
           checkedRef.current = true;
           authCache = null;
-          // 쿠키도 정리
           window.location.href = loginPath;
           return;
         }
 
-        // requireAdmin인 경우 auth-storage에서 role 확인
+        // /auth/me 응답으로 role 확인 (localStorage 의존 제거)
+        let meData: { role?: string; [key: string]: unknown } | null = null;
+        try { meData = await meRes.json(); } catch { /* ignore */ }
+
         if (requireAdmin) {
-          const authStorage = localStorage.getItem('auth-storage') || sessionStorage.getItem('auth-storage');
-          if (authStorage) {
-            try {
-              const parsed = JSON.parse(authStorage);
-              const userRole = parsed?.state?.user?.role;
-              if (userRole !== 'admin' && userRole !== 'staff') {
-                setStatus('unauthorized');
-                checkedRef.current = true;
-                return;
-              }
-            } catch {
-              // 파싱 실패시 무시
-            }
+          const userRole = meData?.role;
+          if (userRole !== 'admin' && userRole !== 'staff') {
+            setStatus('unauthorized');
+            checkedRef.current = true;
+            return;
           }
         }
 

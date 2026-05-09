@@ -1024,7 +1024,10 @@ export default function CategoriesPage() {
                           if (!token) {
                             // zustand persist storage에서도 확인
                             try {
-                              const authStorage = localStorage.getItem('auth-storage');
+                              const authStorage = localStorage.getItem('auth-storage-staff')
+                                || sessionStorage.getItem('auth-storage-staff')
+                                || localStorage.getItem('auth-storage') // legacy
+                                || sessionStorage.getItem('auth-storage'); // legacy
                               if (authStorage) {
                                 const parsed = JSON.parse(authStorage);
                                 token = parsed?.state?.accessToken;
