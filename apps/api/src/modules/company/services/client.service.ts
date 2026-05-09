@@ -288,19 +288,30 @@ export class ClientService {
       delete data.password;
     }
 
-    const result = await this.prisma.client.update({
-      where: { id },
-      data,
-      include: {
-        group: true,
-        assignedStaffMember: {
-          select: { id: true, name: true, staffId: true },
+    try {
+      const result = await this.prisma.client.update({
+        where: { id },
+        data,
+        include: {
+          group: true,
+          assignedStaffMember: {
+            select: { id: true, name: true, staffId: true },
+          },
         },
-      },
-    });
+      });
 
-    const { password, assignedStaffMember, ...rest } = result as any;
-    return { ...rest, assignedStaffSingle: assignedStaffMember ?? null, hasPassword: !!password };
+      const { password, assignedStaffMember, ...rest } = result as any;
+      return { ...rest, assignedStaffSingle: assignedStaffMember ?? null, hasPassword: !!password };
+    } catch (err: any) {
+      // [DEBUG] 어떤 필드 때문에 거부됐는지 콘솔에 명확히 출력
+      // eslint-disable-next-line no-console
+      console.error('[client.update] payload keys =', Object.keys(data));
+      // eslint-disable-next-line no-console
+      console.error('[client.update] payload sample =', JSON.stringify(data, null, 2).slice(0, 1500));
+      // eslint-disable-next-line no-console
+      console.error('[client.update] error =', err?.message?.slice(0, 800) || err);
+      throw err;
+    }
   }
 
   async delete(id: string) {
