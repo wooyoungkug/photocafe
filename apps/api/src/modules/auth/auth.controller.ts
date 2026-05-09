@@ -610,7 +610,12 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
   async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
+    // [DEBUG] 403 발생 사유 추적
+    // eslint-disable-next-line no-console
+    console.log('[impersonate] req.user =', JSON.stringify(req.user));
     if (req.user.type !== 'staff' && req.user.role !== 'admin') {
+      // eslint-disable-next-line no-console
+      console.log('[impersonate] REJECTED at controller — type=', req.user.type, ' role=', req.user.role);
       throw new ForbiddenException('관리자 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
