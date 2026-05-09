@@ -180,7 +180,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               placeholder="검색어를 입력하세요..."
-              className="h-9 w-52 lg:w-64 rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-20 text-sm text-slate-700 placeholder:text-slate-400 transition-all duration-300 ease-out focus:w-72 lg:focus:w-80 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-sm"
+              className="h-9 w-52 lg:w-64 rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-20 text-[13px] text-slate-700 placeholder:text-slate-400 transition-all duration-300 ease-out focus:w-72 lg:focus:w-80 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:shadow-sm"
               aria-label="검색"
             />
             {/* Keyboard shortcut badge */}
@@ -237,7 +237,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
                 href="/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-medium text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100/80 transition-all duration-150 hover:shadow-sm"
+                className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100/80 transition-all duration-150 hover:shadow-sm"
               >
                 <ExternalLink className="h-3.5 w-3.5" />
                 <span>쇼핑몰</span>
@@ -310,7 +310,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
                 </div>
                 {/* User info - tablet and above */}
                 <div className="hidden sm:flex flex-col items-start">
-                  <span className="text-sm font-semibold text-slate-800 leading-tight">
+                  <span className="text-[13px] font-semibold text-slate-800 leading-tight">
                     {user?.type === 'employee'
                       ? user?.isOwner
                         ? `${user?.name || '사용자'}(최고관리자)`
@@ -327,7 +327,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
             <DropdownMenuContent align="end" className="w-52 p-1">
               {/* Mobile user info */}
               <div className="sm:hidden px-2 py-2.5">
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="text-[13px] font-semibold text-slate-800">
                   {user?.type === 'employee'
                     ? user?.isOwner
                       ? `${user?.name || '사용자'}(최고관리자)`
@@ -342,7 +342,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
 
               {/* Desktop user info label */}
               <DropdownMenuLabel className="hidden sm:block font-normal">
-                <p className="text-sm font-medium text-slate-700">
+                <p className="text-[13px] font-medium text-slate-700">
                   {user?.type === 'employee'
                     ? user?.isOwner
                       ? `${user?.name || '사용자'}(최고관리자)`
@@ -411,7 +411,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="검색어를 입력하세요..."
-              className="h-9 w-full rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-9 text-sm text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="h-9 w-full rounded-lg border border-slate-200/80 bg-slate-50/80 pl-9 pr-9 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-indigo-300 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
               aria-label="검색"
               autoFocus
             />

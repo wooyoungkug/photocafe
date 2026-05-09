@@ -36,10 +36,10 @@
     --fs-body: 14px;          /* 본문 */
     --fs-title: 18px;         /* 제목 */
     --fs-heading: 24px;       /* 큰제목 */
-    --fs-menu-main: 14px;     /* 상단 대메뉴 */
-    --fs-menu-sub: 14px;      /* 서브메뉴 항목 */
+    --fs-menu-main: 13px;     /* 상단 대메뉴 */
+    --fs-menu-sub: 13px;      /* 서브메뉴 항목 */
     --fs-menu-mega-header: 12px; /* 메가메뉴 그룹 헤더 */
-    --fs-pin: 14px;           /* 핀 바 */
+    --fs-pin: 13px;           /* 핀 바 */
     --fs-table-head: 13px;    /* 표 헤더 */
     --fs-table-body: 14px;    /* 표 셀(데이터) */
   }
