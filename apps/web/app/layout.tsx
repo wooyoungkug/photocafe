@@ -36,12 +36,8 @@ export const metadata: Metadata = {
   title: isLocal ? "[L] PhotoCafe" : "[R] PhotoCafe",
   description: "포토북/앨범 인쇄업체를 위한 통합 ERP 시스템",
   icons: {
-    icon: isLocal
-      ? "/images/favicon-512x512_Brown.png"
-      : "/images/favicon-512x512_red.png",
-    apple: isLocal
-      ? "/images/apple-touch-icon_Brown.png"
-      : "/images/apple-touch-icon_red.png",
+    icon: "/images/favicon-512x512_red.png",
+    apple: "/images/apple-touch-icon_red.png",
   },
   appleWebApp: {
     capable: true,
