@@ -37,6 +37,7 @@ import { useNotebooks } from '@/hooks/use-notebooks';
 import type { Memo, NoteTagDto } from '@/lib/types/schedule';
 import { cn } from '@/lib/utils';
 import { NoteTagPicker } from './note-tag-picker';
+import { NoteAttachmentList } from './note-attachment-list';
 
 type Scope = 'personal' | 'department' | 'company';
 const scopeIcons: Record<Scope, typeof User> = {
@@ -310,6 +311,8 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
             <NoteTagPicker selected={tags} onChange={setTags} />
           </div>
         </div>
+
+        <NoteAttachmentList memoId={noteId} />
 
         <div className="flex-1 min-h-[60vh]">
           <RichTextEditor

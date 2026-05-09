@@ -3,3 +3,4 @@ export * from './schedule.dto';
 export * from './memo.dto';
 export * from './notebook.dto';
 export * from './note-tag.dto';
+export * from './note-attachment.dto';

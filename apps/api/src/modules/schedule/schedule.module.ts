@@ -1,11 +1,13 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '@/common/prisma/prisma.module';
+import { UploadModule } from '@/modules/upload/upload.module';
 import {
   TodoController,
   ScheduleController,
   MemoController,
   NotebookController,
   NoteTagController,
+  NoteAttachmentController,
 } from './controllers';
 import {
   TodoService,
@@ -13,18 +15,34 @@ import {
   MemoService,
   NotebookService,
   NoteTagService,
+  NoteAttachmentService,
 } from './services';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [PrismaModule, UploadModule],
   controllers: [
     TodoController,
     ScheduleController,
     MemoController,
     NotebookController,
     NoteTagController,
+    NoteAttachmentController,
   ],
-  providers: [TodoService, ScheduleService, MemoService, NotebookService, NoteTagService],
-  exports: [TodoService, ScheduleService, MemoService, NotebookService, NoteTagService],
+  providers: [
+    TodoService,
+    ScheduleService,
+    MemoService,
+    NotebookService,
+    NoteTagService,
+    NoteAttachmentService,
+  ],
+  exports: [
+    TodoService,
+    ScheduleService,
+    MemoService,
+    NotebookService,
+    NoteTagService,
+    NoteAttachmentService,
+  ],
 })
 export class ScheduleModule {}
