@@ -10,11 +10,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/rich-text-editor';
 import { useToast } from '@/hooks/use-toast';
 import { useMemoDetail, useUpdateMemo } from '@/hooks/use-schedule';
 import type { Memo } from '@/lib/types/schedule';
 import { cn } from '@/lib/utils';
+
+function plainTextToHtml(text: string): string {
+  if (!text) return '';
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  return escaped
+    .split(/\n\n+/)
+    .map((para) => `<p>${para.replace(/\n/g, '<br>')}</p>`)
+    .join('');
+}
 
 const MEMO_COLORS = [
   { value: '#FEF9C3', label: '노랑' },
@@ -59,14 +71,19 @@ export default function MemoEditorPage() {
   useEffect(() => {
     if (!memo) return;
     setTitle(memo.title);
-    setContent(memo.content);
+    const initial =
+      (memo as any).contentFormat === 'html'
+        ? memo.content
+        : plainTextToHtml(memo.content);
+    setContent(initial);
     setColor(memo.color);
     setScope(memoToScope(memo));
   }, [memo]);
 
   const handleSave = useCallback(() => {
     if (!id) return;
-    if (!title.trim() && !content.trim()) {
+    const stripped = content.replace(/<[^>]*>/g, '').trim();
+    if (!title.trim() && !stripped) {
       toast({ title: '제목 또는 내용을 입력하세요.', variant: 'destructive' });
       return;
     }
@@ -81,9 +98,10 @@ export default function MemoEditorPage() {
         data: {
           title,
           content,
+          contentFormat: 'html',
           color,
           ...scopeData,
-        },
+        } as any,
       },
       {
         onSuccess: () => {
@@ -200,11 +218,11 @@ export default function MemoEditorPage() {
 
         <div className="space-y-2 flex flex-col flex-1 min-h-[50vh]">
           <Label className="text-[14px] text-black font-bold">내용</Label>
-          <Textarea
-            className="flex-1 min-h-[min(70vh,720px)] resize-y text-[14px] text-black font-normal leading-relaxed"
+          <RichTextEditor
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={setContent}
             placeholder="메모 내용..."
+            className="flex-1 min-h-[min(70vh,720px)]"
           />
         </div>
 

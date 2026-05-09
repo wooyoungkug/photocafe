@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsOptional, IsBoolean, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsBoolean, IsIn, IsArray } from 'class-validator';
 
 export class CreateMemoDto {
   @ApiPropertyOptional({ description: '메모 제목' })
@@ -11,6 +11,16 @@ export class CreateMemoDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @ApiPropertyOptional({ description: "본문 형식 ('text' | 'html')", enum: ['text', 'html'] })
+  @IsOptional()
+  @IsIn(['text', 'html'])
+  contentFormat?: 'text' | 'html';
+
+  @ApiPropertyOptional({ description: '소속 노트북 ID' })
+  @IsOptional()
+  @IsString()
+  notebookId?: string | null;
 
   @ApiPropertyOptional({ description: '메모 색상' })
   @IsOptional()
@@ -31,6 +41,12 @@ export class CreateMemoDto {
   @IsOptional()
   @IsBoolean()
   isCompany?: boolean;
+
+  @ApiPropertyOptional({ description: '태그 ID 목록', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagIds?: string[];
 }
 
 export class UpdateMemoDto {
@@ -43,6 +59,21 @@ export class UpdateMemoDto {
   @IsOptional()
   @IsString()
   content?: string;
+
+  @ApiPropertyOptional({ description: "본문 형식 ('text' | 'html')", enum: ['text', 'html'] })
+  @IsOptional()
+  @IsIn(['text', 'html'])
+  contentFormat?: 'text' | 'html';
+
+  @ApiPropertyOptional({ description: '소속 노트북 ID (null 입력 시 분류 해제)' })
+  @IsOptional()
+  @IsString()
+  notebookId?: string | null;
+
+  @ApiPropertyOptional({ description: 'AI 요약(캐시)' })
+  @IsOptional()
+  @IsString()
+  summary?: string | null;
 
   @ApiPropertyOptional({ description: '메모 색상' })
   @IsOptional()
@@ -68,6 +99,12 @@ export class UpdateMemoDto {
   @IsOptional()
   @IsBoolean()
   isPinned?: boolean;
+
+  @ApiPropertyOptional({ description: '태그 ID 목록 (전체 교체)', type: [String] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  tagIds?: string[];
 }
 
 export class QueryMemoDto {
@@ -80,4 +117,14 @@ export class QueryMemoDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ description: '노트북 ID 필터 (uncategorized: 미분류만)' })
+  @IsOptional()
+  @IsString()
+  notebookId?: string;
+
+  @ApiPropertyOptional({ description: '태그 ID 필터' })
+  @IsOptional()
+  @IsString()
+  tagId?: string;
 }

@@ -150,6 +150,44 @@ export interface QueryScheduleDto {
   search?: string;
 }
 
+export type MemoContentFormat = 'text' | 'html';
+
+export interface Notebook {
+  id: string;
+  name: string;
+  color: string;
+  icon?: string | null;
+  parentId?: string | null;
+  ownerId: string;
+  ownerName?: string;
+  scope: 'personal' | 'department' | 'all';
+  departmentId?: string | null;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  children?: Notebook[];
+}
+
+export interface NoteTagDto {
+  id: string;
+  name: string;
+  color: string;
+  ownerId: string;
+  createdAt: string;
+}
+
+export interface NoteAttachment {
+  id: string;
+  memoId: string;
+  url: string;
+  storageKey?: string | null;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 // Memo 타입
 export interface Memo {
   id: string;
@@ -159,11 +197,18 @@ export interface Memo {
   creatorDeptName?: string;
   title: string;
   content: string;
+  contentFormat?: MemoContentFormat;
+  summary?: string | null;
+  notebookId?: string | null;
+  notebook?: { id: string; name: string; color: string; icon?: string | null } | null;
+  tags?: { tag: NoteTagDto }[];
+  attachments?: NoteAttachment[];
   color: string;
   isPersonal: boolean;
   isDepartment: boolean;
   isCompany: boolean;
   isPinned: boolean;
+  lastEditedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -171,17 +216,23 @@ export interface Memo {
 export interface CreateMemoDto {
   title?: string;
   content?: string;
+  contentFormat?: MemoContentFormat;
+  notebookId?: string | null;
   color?: string;
   isPersonal?: boolean;
   isDepartment?: boolean;
   isCompany?: boolean;
+  tagIds?: string[];
 }
 
 export interface UpdateMemoDto extends Partial<CreateMemoDto> {
   isPinned?: boolean;
+  summary?: string | null;
 }
 
 export interface QueryMemoDto {
   scope?: 'personal' | 'department' | 'company' | 'all';
   search?: string;
+  notebookId?: string;
+  tagId?: string;
 }

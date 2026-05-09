@@ -1451,12 +1451,34 @@ export default function SchedulePage() {
                         </Button>
                       </div>
                     </div>
-                    <textarea
-                      className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
-                      defaultValue={memo.content}
-                      placeholder="내용을 입력하세요..."
-                      onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
-                    />
+                    {memo.contentFormat === 'html' ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          window.open(
+                            `${window.location.origin}/schedule/memo/${memo.id}`,
+                            '_blank',
+                            'noopener,noreferrer',
+                          )
+                        }
+                        className="flex-1 text-left text-[14px] text-black font-normal w-full leading-relaxed min-h-[80px] overflow-hidden line-clamp-5 cursor-pointer hover:opacity-80"
+                        title="자세히 보기/편집"
+                      >
+                        {memo.content
+                          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+                          .replace(/<[^>]+>/g, ' ')
+                          .replace(/&nbsp;/g, ' ')
+                          .replace(/\s+/g, ' ')
+                          .trim() || '(내용 없음)'}
+                      </button>
+                    ) : (
+                      <textarea
+                        className="flex-1 resize-none text-[14px] text-black font-normal bg-transparent border-none outline-none w-full leading-relaxed min-h-[80px]"
+                        defaultValue={memo.content}
+                        placeholder="내용을 입력하세요..."
+                        onChange={(e) => handleMemoContentChange(memo.id, e.target.value)}
+                      />
+                    )}
                     <div className="flex items-center justify-between gap-1 text-[12px] text-black/40 mt-auto pt-1 border-t border-black/10">
                       <span>
                         {memo.creatorName}
