@@ -1,3 +1,5 @@
+import { isStaffContext, isStaffContextPath } from './admin-paths';
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 export const API_BASE_URL = API_URL.replace('/api/v1', '');
 
@@ -11,37 +13,22 @@ interface RequestOptions extends RequestInit {
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-// 현재 URL이 관리자(staff) 컨텍스트인지 판별
-function isAdminContext(): boolean {
-  if (typeof window === 'undefined') return false;
-  const p = window.location.pathname;
-  return (
-    p.startsWith('/dashboard') ||
-    p.startsWith('/admin') ||
-    p.startsWith('/company') ||
-    p.startsWith('/product') ||
-    p.startsWith('/order') ||
-    p.startsWith('/production') ||
-    p.startsWith('/pricing') ||
-    p.startsWith('/schedule') ||
-    p.startsWith('/master') ||
-    p.startsWith('/accounting') ||
-    p.startsWith('/cs') ||
-    p.startsWith('/settings') ||
-    p.startsWith('/statistics')
-  );
-}
-
 function clearAllAuth() {
   if (typeof window === 'undefined') return;
   // 현재 컨텍스트(staff/client)에 해당하는 스토리지만 삭제
   // → 반대편 세션(다른 탭/컨텍스트)은 그대로 유지
-  const authContext = isAdminContext() ? 'staff' : 'client';
+  const authContext = isStaffContext() ? 'staff' : 'client';
   const storageKey = authContext === 'staff' ? 'auth-storage-staff' : 'auth-storage-client';
   localStorage.removeItem(storageKey);
   sessionStorage.removeItem(storageKey);
   localStorage.removeItem('auth-storage'); // legacy
   sessionStorage.removeItem('auth-storage'); // legacy
+  // 대리로그인 세션도 함께 정리 — 401 후 배너만 남는 좀비 상태 방지
+  sessionStorage.removeItem('impersonate-session');
+  sessionStorage.removeItem('impersonate-tokens');
+  sessionStorage.removeItem('owner-session');
+  localStorage.removeItem('impersonate-data');
+  localStorage.removeItem('impersonate-tokens'); // legacy
   fetch(`${API_URL}/auth/logout`, {
     method: 'POST',
     credentials: 'include',
@@ -52,20 +39,7 @@ function clearAllAuth() {
 function redirectToLogin() {
   if (typeof window === 'undefined') return;
   if (window.location.pathname.includes('/login')) return;
-
-  const isDashboard = window.location.pathname.startsWith('/dashboard') ||
-    window.location.pathname.startsWith('/company') ||
-    window.location.pathname.startsWith('/product') ||
-    window.location.pathname.startsWith('/order') ||
-    window.location.pathname.startsWith('/production') ||
-    window.location.pathname.startsWith('/pricing') ||
-    window.location.pathname.startsWith('/schedule') ||
-    window.location.pathname.startsWith('/master') ||
-    window.location.pathname.startsWith('/accounting') ||
-    window.location.pathname.startsWith('/cs') ||
-    window.location.pathname.startsWith('/settings') ||
-    window.location.pathname.startsWith('/statistics');
-  window.location.href = isDashboard ? '/admin-login' : '/login';
+  window.location.href = isStaffContext() ? '/admin-login' : '/login';
 }
 
 // refresh token으로 새 access token 발급 (네트워크 에러 시 1회 재시도)
@@ -80,21 +54,7 @@ async function refreshAccessToken(): Promise<string | null> {
     // 네트워크 에러 시 1회 재시도 (서버 재시작 중 대응)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const isAdminPath = typeof window !== 'undefined' && (
-          window.location.pathname.startsWith('/dashboard') ||
-          window.location.pathname.startsWith('/admin') ||
-          window.location.pathname.startsWith('/company') ||
-          window.location.pathname.startsWith('/product') ||
-          window.location.pathname.startsWith('/order') ||
-          window.location.pathname.startsWith('/production') ||
-          window.location.pathname.startsWith('/pricing') ||
-          window.location.pathname.startsWith('/schedule') ||
-          window.location.pathname.startsWith('/master') ||
-          window.location.pathname.startsWith('/accounting') ||
-          window.location.pathname.startsWith('/cs') ||
-          window.location.pathname.startsWith('/settings') ||
-          window.location.pathname.startsWith('/statistics')
-        );
+        const isAdminPath = isStaffContext();
         const response = await fetch(`${API_URL}/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'X-Auth-Context': isAdminPath ? 'staff' : 'client' },
@@ -165,22 +125,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
   }
 
   // 관리자/쇼핑몰 컨텍스트를 명시적으로 서버에 전달 (Referer 의존 제거)
-  const authContext = typeof window !== 'undefined' && (
-    window.location.pathname.startsWith('/dashboard') ||
-    window.location.pathname.startsWith('/admin') ||
-    window.location.pathname.startsWith('/company') ||
-    window.location.pathname.startsWith('/product') ||
-    window.location.pathname.startsWith('/order') ||
-    window.location.pathname.startsWith('/production') ||
-    window.location.pathname.startsWith('/pricing') ||
-    window.location.pathname.startsWith('/schedule') ||
-    window.location.pathname.startsWith('/master') ||
-    window.location.pathname.startsWith('/accounting') ||
-    window.location.pathname.startsWith('/cs') ||
-    window.location.pathname.startsWith('/settings') ||
-    window.location.pathname.startsWith('/statistics') ||
-    window.location.pathname.startsWith('/admin-login')
-  ) ? 'staff' : 'client';
+  const authContext =
+    typeof window !== 'undefined' && isStaffContextPath(window.location.pathname)
+      ? 'staff'
+      : 'client';
 
   let response: Response;
   try {

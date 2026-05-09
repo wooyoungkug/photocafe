@@ -74,7 +74,7 @@ export class AuthService {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const newPayload = {
+        const newPayload: Record<string, any> = {
           sub: staff.id,
           staffId: staff.staffId,
           name: staff.name,
@@ -84,6 +84,9 @@ export class AuthService {
           departmentId: staff.departmentId,
           aud: 'staff',
         };
+        if (payload.impersonatedBy) {
+          newPayload.impersonatedBy = payload.impersonatedBy;
+        }
 
         return {
           accessToken: this.jwtService.sign(newPayload),
@@ -107,13 +110,16 @@ export class AuthService {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const newPayload = {
+        const newPayload: Record<string, any> = {
           sub: client.id,
           email: client.email,
           role: 'client',
           type: 'client',
           aud: 'client',
         };
+        if (payload.impersonatedBy) {
+          newPayload.impersonatedBy = payload.impersonatedBy;
+        }
 
         return {
           accessToken: this.jwtService.sign(newPayload),
@@ -155,7 +161,7 @@ export class AuthService {
           throw new UnauthorizedException('Invalid refresh token');
         }
 
-        const newPayload = {
+        const newPayload: Record<string, any> = {
           sub: client.id,
           email: client.email,
           type: 'employee',
@@ -167,6 +173,9 @@ export class AuthService {
           canViewSettlement: employment.canViewSettlement,
           aud: 'client',
         };
+        if (payload.impersonatedBy) {
+          newPayload.impersonatedBy = payload.impersonatedBy;
+        }
 
         return {
           accessToken: this.jwtService.sign(newPayload),

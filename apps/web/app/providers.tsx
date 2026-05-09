@@ -9,6 +9,34 @@ import { ErrorBoundary } from "@/components/error-boundary";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 
+// 대리로그인 데이터 처리 — 모듈 로드 시점에 동기 실행
+// 자식 컴포넌트의 useEffect 보다 먼저 sessionStorage를 채워야
+// 첫 fetch 에서 Bearer 헤더가 누락되는 race condition을 방지한다.
+// Why: (shop)/layout.tsx 에 동일 처리가 있던 시절 자식 effect 가 먼저 돌면서
+//      impersonate-data 만 소비하고 impersonate-tokens 는 저장 못 해 401 → 로그아웃 됨.
+let pendingImpersonateUser: any = null;
+if (typeof window !== 'undefined') {
+  try {
+    const raw = localStorage.getItem('impersonate-data');
+    if (raw) {
+      const data = JSON.parse(raw);
+      localStorage.removeItem('impersonate-data');
+      sessionStorage.setItem('impersonate-session', 'true');
+      if (data.accessToken) {
+        sessionStorage.setItem(
+          'impersonate-tokens',
+          JSON.stringify({ accessToken: data.accessToken, refreshToken: data.refreshToken ?? '' }),
+        );
+      }
+      pendingImpersonateUser = data.user;
+    }
+  } catch {
+    localStorage.removeItem('impersonate-data');
+  }
+  // 잔존 localStorage impersonate-tokens 제거 (탭 간 토큰 오염 방지)
+  localStorage.removeItem('impersonate-tokens');
+}
+
 // refresh token으로 새 access token 발급 (providers 전용 - api.ts와 독립)
 async function silentRefresh(): Promise<boolean> {
   try {
@@ -97,29 +125,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   // Zustand persist 수동 하이드레이션 및 토큰 검증 (SSR 호환)
   useEffect(() => {
-    // 대리로그인 데이터가 있으면 rehydrate 전에 먼저 처리 (admin 세션이 덮어쓰는 문제 방지)
-    const raw = typeof window !== 'undefined' ? localStorage.getItem('impersonate-data') : null;
-    if (raw) {
-      try {
-        const data = JSON.parse(raw);
-        localStorage.removeItem('impersonate-data');
-        // 임시 세션 플래그를 setAuth 전에 설정해 일반 로그인 정리 로직과 분리
-        sessionStorage.setItem('impersonate-session', 'true');
-        if (data.accessToken) {
-          const tokenJson = JSON.stringify({
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken ?? '',
-          });
-          sessionStorage.setItem('impersonate-tokens', tokenJson);
-        }
-        useAuthStore.getState().setAuth({ user: data.user, rememberMe: false, isImpersonation: true });
-      } catch {
-        localStorage.removeItem('impersonate-data');
-      }
+    // 모듈 레벨에서 sessionStorage 세팅은 끝났으므로 여기서는 Zustand 만 적용
+    if (pendingImpersonateUser) {
+      useAuthStore
+        .getState()
+        .setAuth({ user: pendingImpersonateUser, rememberMe: false, isImpersonation: true });
+      pendingImpersonateUser = null;
     }
-
-    // 잔존 localStorage impersonate-tokens 제거 (탭 간 토큰 오염 방지)
-    localStorage.removeItem('impersonate-tokens');
 
     useAuthStore.persist.rehydrate();
 

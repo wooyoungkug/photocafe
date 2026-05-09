@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { isStaffContextReferer } from '@/common/admin-paths';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -43,12 +44,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           isAdminCtx = authContextHeader === 'staff';
         } else {
           // Referer 폴백 (직접 fetch / 서버간 호출 등 헤더 없을 때)
-          // middleware.ts 의 ADMIN_PATHS 와 동기화 유지.
-          const referer: string = req?.headers?.referer || '';
-          isAdminCtx =
-            /\/(dashboard|admin-login|admin|settings|orders|company|production|accounting|statistics|cs|schedule|shooting|hr-committee|leave|master|analytics|pricing|impositions|delivery)/.test(
-              referer,
-            );
+          // common/admin-paths.ts 의 STAFF_CONTEXT_PATHS 단일 정의 사용
+          isAdminCtx = isStaffContextReferer(req?.headers?.referer);
         }
 
         if (isAdminCtx) {

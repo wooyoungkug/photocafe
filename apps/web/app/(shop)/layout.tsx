@@ -26,26 +26,10 @@ export default function ShopLayout({
       : 'Photocafe';
   }, [isAuthenticated, user?.name, user?.clientName, user?.type]);
 
-  // 대리로그인 세션 여부 확인
+  // 대리로그인 세션 여부 확인 — providers.tsx 모듈 레벨에서 sessionStorage 세팅이 끝난 뒤 mount 됨
+  // (이전엔 여기서 impersonate-data 를 직접 소비했지만 impersonate-tokens 누락 race 가 발생해 제거)
   useEffect(() => {
     setIsImpersonating(!!sessionStorage.getItem('impersonate-session'));
-  }, []);
-
-  // 대리로그인 데이터가 있으면 sessionStorage에 직접 적용
-  // 쿠키 기반 인증: 사용자 정보만 스토어에 반영
-  useEffect(() => {
-    const raw = localStorage.getItem('impersonate-data');
-    if (!raw) return;
-    try {
-      const data = JSON.parse(raw);
-      localStorage.removeItem('impersonate-data');
-      // 임시 세션 플래그를 setAuth 전에 설정해 일반 로그인 정리 로직과 분리
-      sessionStorage.setItem('impersonate-session', 'true');
-      useAuthStore.getState().setAuth({ user: data.user, rememberMe: false, isImpersonation: true });
-      setIsImpersonating(true);
-    } catch {
-      localStorage.removeItem('impersonate-data');
-    }
   }, []);
 
   const studioName = user?.clientName || user?.name;

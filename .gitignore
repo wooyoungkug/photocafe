@@ -53,6 +53,13 @@ tmpclaude-*
 .mcp.json
 .playwright-mcp/
 
+# Ad-hoc analysis reports (루트에 생성되는 임시 분석 결과물)
+/skills-report.html
+/skills-usage-analysis.html
+/agents-report.html
+/*-report.html
+/*-analysis.html
+
 # TypeScript build artifacts
 tsc_errors.txt
 .turbo/
