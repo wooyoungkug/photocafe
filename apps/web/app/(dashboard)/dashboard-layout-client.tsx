@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { PinBar } from "@/components/layout/pin-bar";
+import { SubNavBar } from "@/components/layout/sub-nav-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Toaster } from "@/components/ui/toaster";
 import { PanelLeftClose, PanelLeft } from "lucide-react";
@@ -174,6 +175,8 @@ export function DashboardLayoutClient({
             showMenuButton={isMobile}
             layoutMode={layoutMode}
           />
+          {/* 2차 메뉴 바 — 현재 페이지의 서브메뉴 전체 표시 */}
+          <SubNavBar />
           {/* 핀 바 (데스크탑 전용, 모든 레이아웃 모드에서 표시) */}
           <div className="hidden lg:block">
             <PinBar />

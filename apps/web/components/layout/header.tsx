@@ -21,7 +21,6 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useLogout, useCurrentUser, useChangePassword, useIsImpersonating, useEndImpersonation } from "@/hooks/use-auth";
 import { useUserPreferences, useUpdatePreferences } from "@/hooks/use-user-preferences";
 import { TopNav } from "./top-nav";
-import { SubNavBar } from "./sub-nav-bar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -228,14 +227,6 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
           </Tooltip>
         </div>
 
-        {/* 2차 메뉴 — side 모드 데스크탑에서 헤더 정중앙 절대 배치 */}
-        {!isTopMode && (
-          <div className="hidden lg:flex absolute inset-0 items-center justify-center pointer-events-none z-10">
-            <div className="pointer-events-auto">
-              <SubNavBar variant="inline" />
-            </div>
-          </div>
-        )}
 
         {/* Right section */}
         <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2">
