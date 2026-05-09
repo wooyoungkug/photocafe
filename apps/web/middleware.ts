@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import { detectLocaleFromHeader, locales, type Locale } from './i18n/routing';
 
-// 관리자 전용 경로 (로그인 없이 접근 차단)
+// 관리자 전용 경로 (로그인 없이 접근 차단).
+// /schedule 은 일정관리/노트장으로 client 도 접근 가능 — admin staff_access_token 또는
+// 일반 회원 access_token 중 하나라도 있으면 통과.
 const ADMIN_PATHS = ['/dashboard', '/settings', '/orders', '/company', '/production', '/accounting', '/statistics'];
+const SHARED_AUTHED_PATHS = ['/schedule'];
 
 async function verifyAccessToken(token: string): Promise<boolean> {
   try {
@@ -23,8 +26,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 관리자 경로 접근 시 HttpOnly staff_access_token 쿠키를 직접 검증.
-  // (분리된 cookie 체계: staff 는 staff_access_token, 일반 회원은 access_token)
+  // 관리자 전용 경로: staff_access_token 만 허용
   if (ADMIN_PATHS.some(p => pathname.startsWith(p))) {
     if (pathname === '/admin-login') {
       return NextResponse.next();
@@ -33,6 +35,19 @@ export async function middleware(request: NextRequest) {
     const staffToken = request.cookies.get('staff_access_token')?.value;
     const isValid = staffToken ? await verifyAccessToken(staffToken) : false;
     if (!isValid) {
+      const loginUrl = new URL('/admin-login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+  }
+
+  // 공유 경로 (일정관리/노트장 등): staff 또는 일반 회원 둘 다 허용
+  if (SHARED_AUTHED_PATHS.some(p => pathname.startsWith(p))) {
+    const staffToken = request.cookies.get('staff_access_token')?.value;
+    const clientToken = request.cookies.get('access_token')?.value;
+    const ok =
+      (staffToken && (await verifyAccessToken(staffToken))) ||
+      (clientToken && (await verifyAccessToken(clientToken)));
+    if (!ok) {
       const loginUrl = new URL('/admin-login', request.url);
       return NextResponse.redirect(loginUrl);
     }

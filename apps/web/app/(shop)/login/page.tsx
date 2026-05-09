@@ -276,22 +276,7 @@ function LoginForm() {
   // ============================================================
   return (
     <Card className="w-full max-w-md shadow-lg">
-      <CardHeader className="space-y-1 text-center">
-        <Link href="/" className="inline-block mb-4 mx-auto">
-          <Image
-            src="/images/photocafe_logo_v3.png"
-            alt="Photocafe"
-            width={220}
-            height={66}
-            priority
-            className="h-[66px] w-auto"
-          />
-        </Link>
-        <CardTitle className="text-2xl">로그인</CardTitle>
-        <CardDescription>Photocafe에 오신 것을 환영합니다</CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 pt-6">
         {justRegistered && (
           <div className="p-4 rounded-md bg-green-50 border border-green-200 text-center">
             <p className="text-[14px] text-green-800 font-medium">
