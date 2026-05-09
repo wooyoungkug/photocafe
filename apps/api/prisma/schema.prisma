@@ -2041,6 +2041,7 @@ model Schedule {
   @@map("schedules")
 }
 
+// 메모장 — 단순 메모(제목/내용/범위만). 노트장과 완전히 분리됨.
 model Memo {
   id              String    @id @default(cuid())
   clientId        String?
@@ -2050,7 +2051,34 @@ model Memo {
   creatorDeptName String?
   title           String    @default("")
   content         String    @default("")
-  contentFormat   String    @default("text")
+  color           String    @default("#FEF9C3")
+  isPersonal      Boolean   @default(true)
+  isDepartment    Boolean   @default(false)
+  isCompany       Boolean   @default(false)
+  isPinned        Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([clientId])
+  @@index([creatorId])
+  @@index([creatorDeptId])
+  @@index([isPersonal])
+  @@index([isDepartment])
+  @@index([isCompany])
+  @@map("memos")
+}
+
+// 노트장 — 리치텍스트, 태그, 첨부, 노트북 분류 지원
+model Note {
+  id              String    @id @default(cuid())
+  clientId        String?
+  creatorId       String
+  creatorName     String
+  creatorDeptId   String?
+  creatorDeptName String?
+  title           String    @default("")
+  content         String    @default("")
+  contentFormat   String    @default("html")
   summary         String?
   notebookId      String?
   color           String    @default("#FEF9C3")
@@ -2063,7 +2091,7 @@ model Memo {
   updatedAt       DateTime  @updatedAt
 
   notebook    Notebook?        @relation(fields: [notebookId], references: [id], onDelete: SetNull)
-  tags        MemoTag[]
+  tags        NoteTagLink[]
   attachments NoteAttachment[]
 
   @@index([clientId])
@@ -2073,7 +2101,7 @@ model Memo {
   @@index([isDepartment])
   @@index([isCompany])
   @@index([notebookId])
-  @@map("memos")
+  @@map("notes")
 }
 
 model Notebook {
@@ -2093,7 +2121,7 @@ model Notebook {
 
   parent   Notebook?  @relation("NotebookTree", fields: [parentId], references: [id], onDelete: SetNull)
   children Notebook[] @relation("NotebookTree")
-  memos    Memo[]
+  notes    Note[]
 
   @@index([clientId])
   @@index([ownerId])
@@ -2112,7 +2140,7 @@ model NoteTag {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memos MemoTag[]
+  notes NoteTagLink[]
 
   @@unique([ownerId, name])
   @@index([clientId])
@@ -2120,23 +2148,23 @@ model NoteTag {
   @@map("note_tags")
 }
 
-model MemoTag {
-  memoId    String
+model NoteTagLink {
+  noteId    String
   tagId     String
   createdAt DateTime @default(now())
 
-  memo Memo    @relation(fields: [memoId], references: [id], onDelete: Cascade)
+  note Note    @relation(fields: [noteId], references: [id], onDelete: Cascade)
   tag  NoteTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
-  @@id([memoId, tagId])
-  @@index([memoId])
+  @@id([noteId, tagId])
+  @@index([noteId])
   @@index([tagId])
-  @@map("memo_tags")
+  @@map("note_tag_links")
 }
 
 model NoteAttachment {
   id         String   @id @default(cuid())
-  memoId     String
+  noteId     String
   url        String
   storageKey String?
   fileName   String
@@ -2145,9 +2173,9 @@ model NoteAttachment {
   uploadedBy String
   createdAt  DateTime @default(now())
 
-  memo Memo @relation(fields: [memoId], references: [id], onDelete: Cascade)
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
 
-  @@index([memoId])
+  @@index([noteId])
   @@map("note_attachments")
 }
 

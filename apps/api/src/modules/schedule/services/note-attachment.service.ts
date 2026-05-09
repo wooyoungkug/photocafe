@@ -35,17 +35,16 @@ const ALLOWED_MIMES = new Set([
   'application/zip',
   'application/x-zip-compressed',
   // 디자인 원본 (인쇄업 특성)
-  'application/postscript', // .ai, .eps
+  'application/postscript',
   'application/illustrator',
   'application/x-photoshop',
-  'image/vnd.adobe.photoshop', // .psd
-  'application/x-indesign', // .indd
-  'application/x-coreldraw', // .cdr
+  'image/vnd.adobe.photoshop',
+  'application/x-indesign',
+  'application/x-coreldraw',
   'application/eps',
   'image/x-eps',
 ]);
 
-// 디자인 원본 등 브라우저가 octet-stream으로 보고할 때를 위한 확장자 화이트리스트
 const ALLOWED_EXTENSIONS = new Set([
   '.ai', '.psd', '.eps', '.indd', '.idml', '.cdr',
   '.sketch', '.fig', '.xd',
@@ -60,7 +59,6 @@ function sanitizeFileName(name: string): string {
 function isAllowedFile(mime: string, fileName: string): boolean {
   if (ALLOWED_MIMES.has(mime)) return true;
   if (ALLOWED_MIME_PREFIXES.some((p) => mime.startsWith(p))) return true;
-  // octet-stream 등으로 들어와도 확장자가 화이트리스트면 허용
   const ext = extname(fileName).toLowerCase();
   if (ext && ALLOWED_EXTENSIONS.has(ext)) return true;
   return false;
@@ -74,8 +72,8 @@ function isZipLike(mime: string, fileName: string): boolean {
 @Injectable()
 export class NoteAttachmentService {
   private readonly logger = new Logger(NoteAttachmentService.name);
-  private readonly maxBytesAny: number; // ZIP 한도 (가장 큼)
-  private readonly maxBytesGeneral: number; // 일반 파일 한도
+  private readonly maxBytesAny: number;
+  private readonly maxBytesGeneral: number;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -90,7 +88,7 @@ export class NoteAttachmentService {
       (Number.isFinite(anyMb) && anyMb > 0 ? anyMb : 1024) * 1024 * 1024;
   }
 
-  async upload(memoId: string, file: Express.Multer.File, user: CurrentUser) {
+  async upload(noteId: string, file: Express.Multer.File, user: CurrentUser) {
     if (!file) throw new BadRequestException('파일이 없습니다.');
 
     const tmpPath = (file as any).path as string | undefined;
@@ -108,7 +106,7 @@ export class NoteAttachmentService {
       if (!isAllowedFile(file.mimetype, originalName)) {
         throw new BadRequestException(`지원하지 않는 파일 형식입니다: ${file.mimetype}`);
       }
-      await this.assertMemoEditable(memoId, user);
+      await this.assertNoteEditable(noteId, user);
 
       const safeName = sanitizeFileName(originalName);
       const stamp = Date.now();
@@ -116,7 +114,7 @@ export class NoteAttachmentService {
       const ext = extname(safeName);
       const baseName = safeName.slice(0, safeName.length - ext.length).slice(0, 80);
       const fileName = `${stamp}_${id}_${baseName}${ext}`;
-      const storageKey = `notes/${user.id}/${memoId}/${fileName}`;
+      const storageKey = `notes/${user.id}/${noteId}/${fileName}`;
 
       if (!tmpPath) {
         throw new BadRequestException('업로드 임시파일을 찾을 수 없습니다.');
@@ -132,16 +130,16 @@ export class NoteAttachmentService {
           throw new BadRequestException('파일 업로드에 실패했습니다.');
         }
       } else {
-        const dir = join(getUploadBasePath(), 'notes', user.id, memoId);
+        const dir = join(getUploadBasePath(), 'notes', user.id, noteId);
         if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
         const destPath = join(dir, fileName);
         await copyFile(tmpPath, destPath);
-        url = `/uploads/notes/${user.id}/${memoId}/${encodeURIComponent(fileName)}`;
+        url = `/uploads/notes/${user.id}/${noteId}/${encodeURIComponent(fileName)}`;
       }
 
       const att = await this.prisma.noteAttachment.create({
         data: {
-          memoId,
+          noteId,
           url,
           storageKey,
           fileName: originalName,
@@ -153,17 +151,16 @@ export class NoteAttachmentService {
 
       return this.toResponse(att);
     } finally {
-      // 임시파일 정리 — 성공/실패 무관
       if (tmpPath) {
         unlink(tmpPath).catch(() => undefined);
       }
     }
   }
 
-  async list(memoId: string, user: CurrentUser) {
-    await this.assertMemoAccess(memoId, user);
+  async list(noteId: string, user: CurrentUser) {
+    await this.assertNoteAccess(noteId, user);
     const items = await this.prisma.noteAttachment.findMany({
-      where: { memoId },
+      where: { noteId },
       orderBy: { createdAt: 'asc' },
     });
     return Promise.all(items.map((a) => this.toResponse(a)));
@@ -172,14 +169,14 @@ export class NoteAttachmentService {
   async getFreshUrl(id: string, user: CurrentUser) {
     const att = await this.prisma.noteAttachment.findUnique({ where: { id } });
     if (!att) throw new NotFoundException('첨부파일을 찾을 수 없습니다.');
-    await this.assertMemoAccess(att.memoId, user);
+    await this.assertNoteAccess(att.noteId, user);
     return { url: await this.resolveUrl(att) };
   }
 
   async delete(id: string, user: CurrentUser) {
     const att = await this.prisma.noteAttachment.findUnique({ where: { id } });
     if (!att) throw new NotFoundException('첨부파일을 찾을 수 없습니다.');
-    await this.assertMemoEditable(att.memoId, user);
+    await this.assertNoteEditable(att.noteId, user);
 
     if (this.b2.isEnabled() && att.storageKey) {
       try {
@@ -200,25 +197,25 @@ export class NoteAttachmentService {
     return { ok: true };
   }
 
-  private async assertMemoAccess(memoId: string, user: CurrentUser) {
-    const memo = await this.prisma.memo.findUnique({ where: { id: memoId } });
-    if (!memo) throw new NotFoundException('메모를 찾을 수 없습니다.');
+  private async assertNoteAccess(noteId: string, user: CurrentUser) {
+    const note = await this.prisma.note.findUnique({ where: { id: noteId } });
+    if (!note) throw new NotFoundException('노트를 찾을 수 없습니다.');
     const sameTenant =
-      (user.clientId && memo.clientId && memo.clientId === user.clientId) ||
-      (!user.clientId && !memo.clientId);
+      (user.clientId && note.clientId && note.clientId === user.clientId) ||
+      (!user.clientId && !note.clientId);
     if (!sameTenant) throw new ForbiddenException('접근 권한이 없습니다.');
     if (user.role === 'admin') return;
-    if (memo.creatorId === user.id) return;
-    if (memo.isCompany) return;
-    if (memo.isDepartment && memo.creatorDeptId === user.departmentId) return;
+    if (note.creatorId === user.id) return;
+    if (note.isCompany) return;
+    if (note.isDepartment && note.creatorDeptId === user.departmentId) return;
     throw new ForbiddenException('접근 권한이 없습니다.');
   }
 
-  private async assertMemoEditable(memoId: string, user: CurrentUser) {
-    const memo = await this.prisma.memo.findUnique({ where: { id: memoId } });
-    if (!memo) throw new NotFoundException('메모를 찾을 수 없습니다.');
+  private async assertNoteEditable(noteId: string, user: CurrentUser) {
+    const note = await this.prisma.note.findUnique({ where: { id: noteId } });
+    if (!note) throw new NotFoundException('노트를 찾을 수 없습니다.');
     if (user.role === 'admin') return;
-    if (memo.creatorId === user.id) return;
+    if (note.creatorId === user.id) return;
     throw new ForbiddenException('수정 권한이 없습니다.');
   }
 
@@ -242,7 +239,7 @@ export class NoteAttachmentService {
   private async toResponse(att: any) {
     return {
       id: att.id,
-      memoId: att.memoId,
+      noteId: att.noteId,
       url: await this.resolveUrl(att),
       fileName: att.fileName,
       mimeType: att.mimeType,

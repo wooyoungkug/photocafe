@@ -44,7 +44,7 @@ export class NoteTagService {
     return this.prisma.noteTag.findMany({
       where: { ownerId: user.id },
       orderBy: { name: 'asc' },
-      include: { _count: { select: { memos: true } } },
+      include: { _count: { select: { notes: true } } },
     });
   }
 

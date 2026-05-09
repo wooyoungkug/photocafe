@@ -51,14 +51,14 @@ export class NotebookService {
     return this.prisma.notebook.findMany({
       where,
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
-      include: { _count: { select: { memos: true, children: true } } },
+      include: { _count: { select: { notes: true, children: true } } },
     });
   }
 
   async findOne(id: string, user: CurrentUser) {
     const nb = await this.prisma.notebook.findUnique({
       where: { id },
-      include: { _count: { select: { memos: true, children: true } } },
+      include: { _count: { select: { notes: true, children: true } } },
     });
     if (!nb) throw new NotFoundException('노트북을 찾을 수 없습니다.');
     if (!this.canAccess(nb, user)) {
@@ -100,8 +100,8 @@ export class NotebookService {
     if (nb._count.children > 0) {
       throw new BadRequestException('하위 노트북이 있어 삭제할 수 없습니다.');
     }
-    if (nb._count.memos > 0) {
-      throw new BadRequestException('소속된 메모가 있어 삭제할 수 없습니다. (먼저 이동하거나 분류 해제하세요)');
+    if (nb._count.notes > 0) {
+      throw new BadRequestException('소속된 노트가 있어 삭제할 수 없습니다. (먼저 이동하거나 분류 해제하세요)');
     }
     return this.prisma.notebook.delete({ where: { id } });
   }
