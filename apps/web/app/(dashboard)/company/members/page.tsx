@@ -1185,10 +1185,10 @@ function MembersPageContent() {
                     <p className="text-xs text-muted-foreground">거래 완료 후 썸네일 파일 보관 기간</p>
                   </div>
 
-                  {/* 저장용량 한도 */}
+                  {/* 저장용량 한도 (일정관리) */}
                   <div className="space-y-2">
                     <Label htmlFor="storageQuotaGb" className="text-sm font-medium">
-                      저장용량 한도
+                      일정관리 저장용량 한도
                     </Label>
                     <div className="flex items-center gap-2">
                       <Input
@@ -1219,7 +1219,7 @@ function MembersPageContent() {
                       </p>
                     )}
                     {!editingMember && (
-                      <p className="text-xs text-muted-foreground">스튜디오당 노트 첨부파일 총 저장 한도 (기본 500GB)</p>
+                      <p className="text-xs text-muted-foreground">일정관리 내 노트 첨부파일 총 저장 한도 (기본 500GB)</p>
                     )}
                   </div>
                 </div>
