@@ -54,9 +54,24 @@ async function refreshAccessToken(): Promise<string | null> {
     // 네트워크 에러 시 1회 재시도 (서버 재시작 중 대응)
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+        const isAdminPath = typeof window !== 'undefined' && (
+          window.location.pathname.startsWith('/dashboard') ||
+          window.location.pathname.startsWith('/admin') ||
+          window.location.pathname.startsWith('/company') ||
+          window.location.pathname.startsWith('/product') ||
+          window.location.pathname.startsWith('/order') ||
+          window.location.pathname.startsWith('/production') ||
+          window.location.pathname.startsWith('/pricing') ||
+          window.location.pathname.startsWith('/schedule') ||
+          window.location.pathname.startsWith('/master') ||
+          window.location.pathname.startsWith('/accounting') ||
+          window.location.pathname.startsWith('/cs') ||
+          window.location.pathname.startsWith('/settings') ||
+          window.location.pathname.startsWith('/statistics')
+        );
         const response = await fetch(`${API_URL}/auth/refresh`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-Auth-Context': isAdminPath ? 'staff' : 'client' },
           body: JSON.stringify({}),
           credentials: 'include',
         });

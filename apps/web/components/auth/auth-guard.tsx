@@ -20,7 +20,7 @@ async function tryRecoverSession(): Promise<boolean> {
   try {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Auth-Context': 'staff' },
       body: JSON.stringify({}),
       credentials: 'include',
     });
@@ -49,7 +49,8 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
 
     const checkAuth = async () => {
       try {
-        let meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+        const staffHeaders = { 'X-Auth-Context': 'staff' };
+        let meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include', headers: staffHeaders });
         if (!meRes.ok) {
           const recovered = await tryRecoverSession();
           if (!recovered) {
@@ -59,7 +60,7 @@ export function AuthGuard({ children, requireAdmin = false, loginPath = '/admin-
             window.location.href = loginPath;
             return;
           }
-          meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include' });
+          meRes = await fetch(`${API_URL}/auth/me`, { credentials: 'include', headers: staffHeaders });
         }
 
         if (!meRes.ok) {

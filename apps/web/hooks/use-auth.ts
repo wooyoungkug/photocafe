@@ -146,14 +146,13 @@ export function useImpersonateEmployee() {
       ),
     onSuccess: (response) => {
       sessionStorage.setItem('impersonate-session', 'true');
-      // 직원 토큰을 impersonate-tokens에 저장 → api.ts가 Bearer 헤더로 전송
+      // 대리로그인 토큰은 현재 탭(sessionStorage)에만 저장 — localStorage는 탭 간 오염 위험
       if (response.accessToken) {
         const tokenJson = JSON.stringify({
           accessToken: response.accessToken,
           refreshToken: response.refreshToken ?? '',
         });
         sessionStorage.setItem('impersonate-tokens', tokenJson);
-        localStorage.setItem('impersonate-tokens', tokenJson);
       }
       setAuth({
         user: response.user,
@@ -175,7 +174,7 @@ export function useImpersonateStaff() {
     mutationFn: (staffId: string) =>
       api.post<ImpersonateStaffResponse>(`/auth/impersonate-staff/${staffId}`),
     onSuccess: (response) => {
-      // Bearer 헤더용 토큰을 setAuth 호출 전에 저장해야 setAuth의 정리 로직이 건너뜀
+      // Bearer 헤더용 토큰은 현재 탭(sessionStorage)에만 저장 — localStorage는 탭 간 오염 위험
       if (typeof window !== 'undefined' && response.accessToken) {
         const tokenJson = JSON.stringify({
           accessToken: response.accessToken,
@@ -183,7 +182,6 @@ export function useImpersonateStaff() {
         });
         sessionStorage.setItem('impersonate-session', 'true');
         sessionStorage.setItem('impersonate-tokens', tokenJson);
-        localStorage.setItem('impersonate-tokens', tokenJson);
       }
       setAuth({
         user: {
