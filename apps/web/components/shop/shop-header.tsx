@@ -65,7 +65,7 @@ export function ShopHeader() {
             {/* Logo */}
             <Link href="/" className="flex items-center">
               <Image
-                src="/images/photocafe_logo_v2.png"
+                src="/images/photocafe_logo_v3.png"
                 alt="Photocafe"
                 width={362}
                 height={97}
@@ -205,7 +205,7 @@ export function ShopHeader() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
                 <Image
-                  src="/images/photocafe_logo_v2.png"
+                  src="/images/photocafe_logo_v3.png"
                   alt="Photocafe"
                   width={362}
                   height={97}
