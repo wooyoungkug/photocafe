@@ -178,8 +178,11 @@ const DEFAULT_NAVIGATION: NavItem[] = [
   {
     id: "schedule",
     name: "일정관리",
-    href: "/schedule",
     icon: CalendarDays,
+    children: [
+      { name: "캘린더/할일/메모", href: "/schedule" },
+      { name: "노트장", href: "/schedule/notebook" },
+    ],
   },
   {
     id: "shooting",

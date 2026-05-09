@@ -161,6 +161,7 @@ export const NAVIGATION: NavItem[] = [
     icon: CalendarDays,
     children: [
       { name: "일정관리", href: "/schedule" },
+      { name: "노트장", href: "/schedule/notebook" },
       { name: "촬영일정", href: "/shooting" },
       { name: "작가관리", href: "/shooting/photographers" },
     ],

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import {
   Calendar,
   CheckSquare,
@@ -22,6 +23,7 @@ import {
   Save,
   StickyNote,
   ExternalLink,
+  BookOpen,
 } from 'lucide-react';
 import {
   format,
@@ -1339,10 +1341,18 @@ export default function SchedulePage() {
                 개인/부서/전체 범위로 메모를 공유할 수 있습니다.
               </p>
             </div>
-            <Button onClick={() => handleOpenMemoDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              메모 추가
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline">
+                <Link href="/schedule/notebook">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  노트장 열기
+                </Link>
+              </Button>
+              <Button onClick={() => handleOpenMemoDialog()}>
+                <Plus className="h-4 w-4 mr-2" />
+                메모 추가
+              </Button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mb-4">
