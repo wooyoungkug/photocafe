@@ -93,31 +93,45 @@ export default function MyPageLayout({
   const menuItems = getMenuItems(user);
   const isCompactSidebar = false;
 
-  // 마운트 시 최신 서비스 기능 설정 반영 (관리자가 변경했을 수 있으므로).
-  // api.get 을 사용해야 대리로그인 탭에서 sessionStorage 의 impersonate 토큰을
-  // Authorization 헤더로 자동 사용한다. (그냥 fetch 로는 admin cookie 로 호출됨)
+  // 최신 서비스 기능 설정 자동 동기화 (관리자가 변경했을 수 있으므로).
+  // - 마운트 시
+  // - 페이지 이동(pathname 변경) 시
+  // - 다른 탭 갔다가 돌아왔을 때(탭 활성화)
+  // → updateUser 로 메뉴 즉시 갱신.
+  // api.get 을 사용해야 대리로그인 탭에서 sessionStorage 의 impersonate 토큰을 자동 사용함.
   useEffect(() => {
     if (!isAuthenticated || !user) return;
     if (user.role !== 'client' && user.type !== 'employee') return;
-    api
-      .get<any>('/auth/me')
-      .then((data) => {
-        if (!data) return;
-        updateUser({
-          ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
-          ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
-          ...(data.enableShooting !== undefined && { enableShooting: data.enableShooting }),
-          ...(data.enableNote !== undefined && { enableNote: data.enableNote }),
-          ...(data.businessNumber && { businessNumber: data.businessNumber }),
-          ...(data.representative && { representative: data.representative }),
-          ...(data.address && { address: data.address }),
-          ...(data.addressDetail && { addressDetail: data.addressDetail }),
-          ...(data.contactPerson && { contactPerson: data.contactPerson }),
-          ...(data.mobile && { mobile: data.mobile }),
-        });
-      })
-      .catch(() => {});
-  }, [isAuthenticated]);
+
+    const refresh = () => {
+      api
+        .get<any>('/auth/me')
+        .then((data) => {
+          if (!data) return;
+          updateUser({
+            ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
+            ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
+            ...(data.enableShooting !== undefined && { enableShooting: data.enableShooting }),
+            ...(data.enableNote !== undefined && { enableNote: data.enableNote }),
+            ...(data.businessNumber && { businessNumber: data.businessNumber }),
+            ...(data.representative && { representative: data.representative }),
+            ...(data.address && { address: data.address }),
+            ...(data.addressDetail && { addressDetail: data.addressDetail }),
+            ...(data.contactPerson && { contactPerson: data.contactPerson }),
+            ...(data.mobile && { mobile: data.mobile }),
+          });
+        })
+        .catch(() => {});
+    };
+
+    refresh();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [isAuthenticated, pathname]);
 
   if (!isAuthenticated) {
     return (
