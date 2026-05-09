@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { useClientLogin } from '@/hooks/use-auth';
@@ -194,10 +195,15 @@ function LoginForm() {
     return (
       <Card className="w-full max-w-md shadow-lg">
         <CardHeader className="space-y-1 text-center">
-          <Link href="/" className="inline-block mb-4">
-            <div className="w-12 h-12 bg-[#E4007F] rounded-lg flex items-center justify-center mx-auto">
-              <span className="text-white font-bold text-2xl">P</span>
-            </div>
+          <Link href="/" className="inline-block mb-4 mx-auto">
+            <Image
+              src="/images/photocafe_logo_v3.png"
+              alt="Photocafe"
+              width={220}
+              height={66}
+              priority
+              className="h-[66px] w-auto"
+            />
           </Link>
           <CardTitle className="text-2xl">계정 선택</CardTitle>
           <CardDescription>로그인할 계정을 선택해주세요</CardDescription>
@@ -271,10 +277,15 @@ function LoginForm() {
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1 text-center">
-        <Link href="/" className="inline-block mb-4">
-          <div className="w-12 h-12 bg-[#E4007F] rounded-lg flex items-center justify-center mx-auto">
-            <span className="text-white font-bold text-2xl">P</span>
-          </div>
+        <Link href="/" className="inline-block mb-4 mx-auto">
+          <Image
+            src="/images/photocafe_logo_v3.png"
+            alt="Photocafe"
+            width={220}
+            height={66}
+            priority
+            className="h-[66px] w-auto"
+          />
         </Link>
         <CardTitle className="text-2xl">로그인</CardTitle>
         <CardDescription>Photocafe에 오신 것을 환영합니다</CardDescription>
@@ -495,8 +506,15 @@ function LoginFormFallback() {
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1 text-center">
-        <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mx-auto mb-4">
-          <span className="text-white font-bold text-2xl">P</span>
+        <div className="mx-auto mb-4 flex justify-center">
+          <Image
+            src="/images/photocafe_logo_v3.png"
+            alt="Photocafe"
+            width={220}
+            height={66}
+            priority
+            className="h-[66px] w-auto"
+          />
         </div>
         <CardTitle className="text-2xl">로그인</CardTitle>
         <CardDescription>Photocafe에 오신 것을 환영합니다</CardDescription>

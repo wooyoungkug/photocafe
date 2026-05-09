@@ -14,6 +14,8 @@ import {
   Users,
   Briefcase,
   ChevronRight,
+  CalendarDays,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -42,8 +44,10 @@ function getMenuItems(user: {
 } | null) {
   const isEmployee = user?.type === 'employee';
   // 기본값: schedule/recruitment/shooting=true, note=false (회원수정에서 명시적으로 켜야 보임)
+  const enableSchedule = user?.enableSchedule ?? true;
   const enableRecruitment = user?.enableRecruitment ?? true;
   const enableShooting = user?.enableShooting ?? true;
+  const enableNote = user?.enableNote ?? false;
   const items: { icon: typeof User; label: string; href: string }[] = [
     { icon: User, label: '회원정보', href: '/mypage/profile' },
   ];
@@ -69,6 +73,11 @@ function getMenuItems(user: {
     items.push({ icon: Wallet, label: '입금내역', href: '/mypage/deposits' });
   }
 
+  // 일정관리(캘린더/할일/메모): enableSchedule 기준 + 직원 권한
+  if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
+    items.push({ icon: CalendarDays, label: '일정관리', href: '/schedule' });
+  }
+
   // 촬영관리(/mypage/schedule): enableShooting 기준 + 직원 권한
   if (enableShooting && (!isEmployee || user?.canManageSchedule)) {
     items.push({ icon: Camera, label: '촬영관리', href: '/mypage/schedule' });
@@ -77,6 +86,11 @@ function getMenuItems(user: {
   // 촬영파트너: 1차(스튜디오 활성) AND (거래처 소유자 OR 직원 권한 있음)
   if (enableRecruitment && (!isEmployee || user?.canManageRecruitment)) {
     items.push({ icon: Briefcase, label: '촬영파트너', href: '/mypage/recruitment' });
+  }
+
+  // 노트장: enableNote=true 일 때만 노출 (기본 OFF). 본사 admin/staff 와 무관하게 client 토글 기준.
+  if (enableNote) {
+    items.push({ icon: BookOpen, label: '노트장', href: '/schedule/notebook' });
   }
 
   return items;
