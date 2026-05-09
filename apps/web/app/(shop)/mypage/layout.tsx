@@ -36,8 +36,11 @@ function getMenuItems(user: {
   canManageRecruitment?: boolean;
   enableSchedule?: boolean;
   enableRecruitment?: boolean;
+  enableNote?: boolean;
 } | null) {
   const isEmployee = user?.type === 'employee';
+  // enableSchedule/Recruitment 는 신규회원 기본 true이므로 undefined일 때 true로 폴백.
+  // enableNote 는 기본 false 라 폴백 false (회원 수정에서 명시적으로 켜야 보임).
   const enableSchedule = user?.enableSchedule ?? true;
   const enableRecruitment = user?.enableRecruitment ?? true;
   const items: { icon: typeof User; label: string; href: string }[] = [
@@ -101,6 +104,7 @@ export default function MyPageLayout({
           updateUser({
             ...(data.enableSchedule !== undefined && { enableSchedule: data.enableSchedule }),
             ...(data.enableRecruitment !== undefined && { enableRecruitment: data.enableRecruitment }),
+            ...(data.enableNote !== undefined && { enableNote: data.enableNote }),
             ...(data.businessNumber && { businessNumber: data.businessNumber }),
             ...(data.representative && { representative: data.representative }),
             ...(data.address && { address: data.address }),

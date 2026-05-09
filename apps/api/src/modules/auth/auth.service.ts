@@ -1184,6 +1184,9 @@ export class AuthService {
         mobile: client.mobile, businessNumber: client.businessNumber, representative: client.representative,
         address: client.address, addressDetail: client.addressDetail, contactPerson: client.contactPerson,
         group: client.group,
+        enableSchedule: client.enableSchedule ?? true,
+        enableRecruitment: client.enableRecruitment ?? true,
+        enableNote: client.enableNote ?? false,
       },
       impersonated: true,
     };
