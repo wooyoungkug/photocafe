@@ -198,13 +198,17 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
-          // 쿠키 세션 로그아웃
-          fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
-          localStorage.removeItem(STAFF_KEY);
-          localStorage.removeItem(CLIENT_KEY);
+          // 현재 컨텍스트의 쿠키/스토리지만 제거 (반대편 세션 보존)
+          const authContext = isAdminContext() ? 'staff' : 'client';
+          const storageKey = authContext === 'staff' ? STAFF_KEY : CLIENT_KEY;
+          fetch('/api/v1/auth/logout', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-Auth-Context': authContext },
+          }).catch(() => {});
+          localStorage.removeItem(storageKey);
+          sessionStorage.removeItem(storageKey);
           localStorage.removeItem('auth-storage'); // legacy
-          sessionStorage.removeItem(STAFF_KEY);
-          sessionStorage.removeItem(CLIENT_KEY);
           sessionStorage.removeItem('auth-storage'); // legacy
           clearImpersonateKeys();
         }
