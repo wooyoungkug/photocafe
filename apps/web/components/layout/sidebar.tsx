@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { useState, useCallback, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import {
   Building2,
   Camera,
@@ -56,12 +56,12 @@ interface SidebarProps {
   isMobile?: boolean;
 }
 
-interface NavChild {
+export interface NavChild {
   name: string;
   href: string;
 }
 
-interface NavItem {
+export interface NavItem {
   id: string;
   name: string;
   href?: string;
@@ -85,7 +85,7 @@ type ChildrenOrder = Record<string, string[]>;
 const STORAGE_KEY = "sidebar-menu-order";
 const CHILDREN_STORAGE_KEY = "sidebar-children-order";
 
-const DEFAULT_NAVIGATION: NavItem[] = [
+export const DEFAULT_NAVIGATION: NavItem[] = [
   {
     id: "basic-info",
     name: "기초정보",
@@ -659,6 +659,7 @@ function useMenuOrder() {
 
 export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuthStore();
 
   const [openMenu, setOpenMenu] = useState<string | null>(null);
@@ -667,6 +668,75 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   const [newPw, setNewPw] = useState("");
   const [confirmPw, setConfirmPw] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // 전체 메뉴 항목을 평탄화 (검색용)
+  const allMenuItems = useMemo(() => {
+    const items: { parent: string; name: string; href: string }[] = [];
+    DEFAULT_NAVIGATION.forEach((nav) => {
+      if (nav.href) {
+        items.push({ parent: "", name: nav.name, href: nav.href });
+      }
+      nav.children?.forEach((child) => {
+        items.push({ parent: nav.name, name: child.name, href: child.href });
+      });
+    });
+    return items;
+  }, []);
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return allMenuItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.parent.toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [searchQuery, allMenuItems]);
+
+  // 검색창 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setIsSearchOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // 검색 결과 선택 초기화
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [searchResults]);
+
+  function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!isSearchOpen || searchResults.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedIndex((i) => Math.min(i + 1, searchResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const item = searchResults[selectedIndex];
+      if (item) navigateTo(item.href);
+    } else if (e.key === "Escape") {
+      setIsSearchOpen(false);
+      setSearchQuery("");
+    }
+  }
+
+  function navigateTo(href: string) {
+    router.push(href);
+    setSearchQuery("");
+    setIsSearchOpen(false);
+    onClose?.();
+  }
 
   const logout = useLogout();
   const changePassword = useChangePassword();
@@ -958,25 +1028,61 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
       {/* ── Footer ── */}
       <div className="p-4 border-t border-white/[0.04] space-y-3 bg-gradient-to-b from-transparent to-black/20">
         {/* Search bar */}
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 transition-colors duration-200 group-focus-within:text-indigo-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="검색어를 입력하세요..."
-            className="h-8 w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-8 text-[12px] text-slate-300 placeholder:text-slate-600 transition-all duration-200 focus:border-indigo-500/40 focus:bg-white/[0.07] focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
-            aria-label="검색"
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors"
-              aria-label="검색어 지우기"
-            >
-              <X className="h-3 w-3" />
-            </button>
+        <div className="relative" ref={searchRef}>
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500 transition-colors duration-200 group-focus-within:text-indigo-400" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setIsSearchOpen(true); }}
+              onFocus={() => setIsSearchOpen(true)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="메뉴 검색..."
+              className="h-8 w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-8 text-[12px] text-slate-300 placeholder:text-slate-600 transition-all duration-200 focus:border-indigo-500/40 focus:bg-white/[0.07] focus:outline-none focus:ring-1 focus:ring-indigo-500/20"
+              aria-label="메뉴 검색"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => { setSearchQuery(""); setIsSearchOpen(false); searchInputRef.current?.focus(); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-500 hover:text-slate-300 transition-colors"
+                aria-label="검색어 지우기"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+          {/* 검색 결과 드롭다운 (위쪽으로 열림) */}
+          {isSearchOpen && searchResults.length > 0 && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 z-50 rounded-lg border border-white/[0.10] bg-[#1e2130] shadow-xl overflow-hidden">
+              {searchResults.map((item, idx) => (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => navigateTo(item.href)}
+                  className={cn(
+                    "w-full flex items-center gap-2.5 px-3 py-2 text-left transition-colors",
+                    idx === selectedIndex
+                      ? "bg-indigo-600/30 text-slate-100"
+                      : "text-slate-300 hover:bg-white/[0.05]"
+                  )}
+                >
+                  <Search className="h-3 w-3 shrink-0 text-slate-500" />
+                  <div className="min-w-0">
+                    <span className="text-[12px] font-medium truncate block">{item.name}</span>
+                    {item.parent && (
+                      <span className="text-[10px] text-slate-500 truncate block">{item.parent}</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {isSearchOpen && searchQuery.trim() && searchResults.length === 0 && (
+            <div className="absolute bottom-full mb-1 left-0 right-0 z-50 rounded-lg border border-white/[0.10] bg-[#1e2130] shadow-xl px-3 py-2.5">
+              <span className="text-[12px] text-slate-500">검색 결과 없음</span>
+            </div>
           )}
         </div>
         {/* Server status - compact single row */}
