@@ -1,11 +1,34 @@
 # Photocafe 호스팅 인프라 설계서
 
-> **버전**: v1.0
-> **작성일**: 2026-04
+> **버전**: v1.1 (실운영 동기화)
+> **작성일**: 2026-04 / **갱신일**: 2026-05-09
 > **구성**: Vercel + Railway + B2 + Cloudflare 밸런스 구성
 > **출처**: 프린팅솔루션즈(Photocafe) 인프라 설계 문서 (`photocafe.co.kr`)
 
-이 문서는 향후 모든 인프라/배포/보안 작업의 **북극성 기준 문서**입니다. CLAUDE.md 의 서버 정보 표는 이 문서의 요약이며, 상세 절차·근거·체크리스트는 본 문서를 따르세요.
+이 문서는 향후 모든 인프라/배포/보안 작업의 **북극성 기준 문서**입니다. CLAUDE.md 의 서버 정보 표와 `.claude/skills/server-hosting/SKILL.md` 는 이 문서의 요약이며, 상세 절차·근거·체크리스트는 본 문서를 따르세요.
+
+> **연관 스킬**:
+> - `server-hosting` — 인프라 구성·배포·환경변수 빠른 참조
+> - `backup-recovery` — DB 백업/복구 절차 (본 문서 §5 상세본의 작업용)
+> - `incident-response` — 장애 대응·KISA 24h 신고 (본 문서 §6 상세본의 대응용)
+
+---
+
+## 0.5 실운영 마이그레이션 진행 상태 (2026-05-09 기준)
+
+| 항목 | 상태 |
+|------|------|
+| ✅ Railway API 배포 | 완료 (`api.photocafe.co.kr` → `photocafe-production.up.railway.app`) |
+| ✅ Vercel 프론트 분리 | 완료 (`photocafe.co.kr`, `www.*` → Vercel `icn1`, ERP 관리자 UI 통합) |
+| ✅ Cloudflare DNS/CDN | 활성 (`cdn.photocafe.co.kr` → Cloudflare 프록시) |
+| ✅ B2 버킷 `allPrivate` | 확인 (Lifecycle daily 31d / weekly 12w / monthly 6mo) |
+| ✅ DB 백업 GPG 암호화 | GitHub Actions 매일 KST 03:30 (AES-256) |
+| ✅ B2 이미지 업로드 이전 | 2026-05-02 완료 (`photocafe`=public, `photocafe-originals`=private) |
+| ✅ 레거시 NAS 포트 차단 | 2026-05-02 완료 (5433/3000/3001 ipTIME 포트포워딩 제거) |
+| ⏳ Synology Cloud Sync 미러 | 도입 예정 (B2 → `/volume1/backups/db/` 단방향) |
+| ⏳ DB 마이그레이션 정책 전환 | 현재 `db push`, 파일럿 종료 후 `migrate deploy` 로 전환 예정 |
+| ⏳ Sentry 알림 룰 활성화 | `@sentry/nestjs` 10.40 설치됨, 알림 임계값 설정 미완 |
+| ⏳ SecurityLog 실구현 | 스키마 정의됨(§6.9), 실제 코드/룰 미상
 
 ---
 
@@ -65,9 +88,9 @@
 
 | 도메인 | 용도 | 호스팅 |
 |--------|------|--------|
-| `photocafe.co.kr` | 메인 웹사이트 | **Vercel** |
+| `photocafe.co.kr` | 쇼핑몰 + ERP 관리자 UI (apps/web 통합) | **Vercel** |
 | `www.photocafe.co.kr` | www 리다이렉트 | **Vercel** |
-| `api.photocafe.co.kr` | 백엔드 API | **Railway** |
+| `api.photocafe.co.kr` | 백엔드 API only | **Railway** |
 | `cdn.photocafe.co.kr` | 이미지 CDN | **B2 + Cloudflare** |
 
 ### 1.5 운영 전략
@@ -152,11 +175,13 @@ photocafe.co.kr   api.photocafe.co.kr   cdn.photocafe.co.kr
 | 항목 | 값 |
 |------|-----|
 | 계정 | `wooceo@gmail.com` |
-| 버킷명 | `photocafe` |
+| 버킷명 (Public) | `photocafe` (로고·썸네일·DB 백업 `backups/` 경로) |
+| 버킷명 (Private) | `photocafe-originals` (고객 원본·완성본, 프리사인드 URL 5분) |
 | Region | `us-east-005` |
-| Bucket ID | `88fd538fbf15b75f98d70216` |
+| Bucket ID (Public) | `88fd538fbf15b75f98d70216` |
 | Endpoint | `s3.us-east-005.backblazeb2.com` |
 | 예상 월 비용 (9TB) | 약 75,700원 |
+| Lifecycle | daily 31일 / weekly 12주 / monthly 6개월 |
 
 ### 3.2 Cloudflare — 동네 편의점 + 경비원
 
@@ -278,17 +303,21 @@ NODE_ENV=production
 CORS_ORIGIN=https://photocafe.co.kr,https://www.photocafe.co.kr
 B2_ACCESS_KEY=<키>
 B2_SECRET_KEY=<시크릿>
-B2_BUCKET=photocafe
+B2_BUCKET=photocafe                    # Public
+B2_BUCKET_PRIVATE=photocafe-originals  # Private (고객 원본)
 B2_ENDPOINT=s3.us-east-005.backblazeb2.com
 JWT_SECRET=<32자 랜덤>
 ADMIN_2FA_ISSUER=Photocafe
 ```
 
-**시작 명령어** (DB 마이그레이션 자동 적용)
+**시작 명령어** (DB 마이그레이션 정책)
 
-```bash
-pnpm prisma migrate deploy && pnpm start:prod
-```
+| 시점 | 명령어 | 비고 |
+|------|--------|------|
+| **현재 (초기 셋업/스키마 격변기)** | `npx prisma db push --accept-data-loss && pnpm start:prod` | 빠르지만 데이터 손실 가능 |
+| **운영 안정화 후 전환 목표** | `npx prisma migrate deploy && pnpm start:prod` | 마이그레이션 파일 순차 적용, 안전 |
+
+**전환 시점**: 파일럿 운영 종료 + 실데이터 누적 시점부터 마이그레이션 파일 관리 시작
 
 **헬스체크**: `@nestjs/terminus` 로 `/health` 구현 → Railway Health Check 등록, 실패 3회 시 자동 재시작.
 
@@ -298,21 +327,27 @@ GET /health → { status: 'ok', db: 'ok', b2: 'ok' }
 
 ### 4.3 Backblaze B2
 
-**버킷 구조 (2단계 전략, 보안 핵심)**
+**버킷 구조 (2단계 전략, 보안 핵심)** — 실 운영 버킷명
 
 ```
-photocafe-public/    (Public, CDN 캐시 OK)
-   ├─ site-assets/     → 로고, 배너, 아이콘
-   ├─ thumbnails/      → 저해상도 + 워터마크
-   └─ shared/          → 공개 설정한 작품
+photocafe/                  (Public, CDN 캐시 OK)
+   ├─ site-assets/            → 로고, 배너, 아이콘
+   ├─ thumbnails/             → 저해상도 + 워터마크
+   ├─ shared/                 → 공개 설정한 작품
+   └─ backups/                → DB 백업 GPG 암호화본
+       ├─ daily/YYYY/MM/
+       ├─ weekly/YYYY/MM/
+       └─ monthly/YYYY/MM/
 
-photocafe-private/   (Private, 프리사인드 URL만)
+photocafe-originals/        (Private, 프리사인드 URL 만, 5분)
    ├─ users/
    │  └─ {userId}/
-   │     ├─ originals/  → 고객 원본 사진
-   │     └─ finished/   → 완성된 앨범
-   └─ orders/           → 주문 관련 파일
+   │     ├─ originals/        → 고객 원본 사진
+   │     └─ finished/         → 완성된 앨범
+   └─ orders/                 → 주문 관련 파일
 ```
+
+> 📦 **백업 자동화 워크플로우/복구 절차** → `backup-recovery` 스킬 또는 §5 본문 참조
 
 **Application Key 발급 원칙**
 - 용도별 별도 키 (Railway API용, 백업용, 관리자용 분리)
@@ -950,3 +985,4 @@ rclone sync b2:photocafe/ /backup/       # 동기화
 |------|------|-----------|
 | v1.0 | 2026-04-24 | 초기 문서 작성 (밸런스 구성 기준) |
 | v1.0-repo | 2026-04-26 | 저장소에 정식 등록 (`docs/INFRASTRUCTURE.md`) |
+| v1.1 | 2026-05-09 | 실운영 동기화: ① 도메인 표 ERP는 Vercel 통합 명시 (Railway는 API only) ② B2 버킷 실명 반영(`photocafe`+`photocafe-originals`) ③ Railway DB 마이그레이션 명령어 이원화(`db push` 현재 + `migrate deploy` 전환목표) ④ §0.5 마이그레이션 진행 상태 블록 추가 ⑤ `backup-recovery`·`incident-response` 스킬 연계 표시 |
