@@ -43,6 +43,7 @@
     "@tanstack/react-virtual": "^3.13.18",
     "@tinymce/tinymce-react": "^6.3.0",
     "@tiptap/extension-color": "^3.17.0",
+    "@tiptap/extension-font-family": "^3.17.0",
     "@tiptap/extension-image": "^3.17.0",
     "@tiptap/extension-link": "^3.17.0",
     "@tiptap/extension-placeholder": "^3.17.0",

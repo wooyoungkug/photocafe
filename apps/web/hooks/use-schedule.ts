@@ -144,6 +144,14 @@ export function useMemos(query: QueryMemoDto = {}) {
   });
 }
 
+export function useMemoDetail(id: string) {
+  return useQuery({
+    queryKey: [MEMOS_KEY, id],
+    queryFn: () => api.get<Memo>(`/memos/${id}`),
+    enabled: !!id,
+  });
+}
+
 export function useCreateMemo() {
   const queryClient = useQueryClient();
 
@@ -161,8 +169,11 @@ export function useUpdateMemo() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateMemoDto }) =>
       api.put<Memo>(`/memos/${id}`, data),
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [MEMOS_KEY] });
+      if (variables?.id) {
+        queryClient.invalidateQueries({ queryKey: [MEMOS_KEY, variables.id] });
+      }
     },
   });
 }

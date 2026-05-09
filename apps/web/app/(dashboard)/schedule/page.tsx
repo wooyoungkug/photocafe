@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import {
   Calendar,
   CheckSquare,
@@ -21,6 +21,7 @@ import {
   ChevronDown,
   Save,
   StickyNote,
+  ExternalLink,
 } from 'lucide-react';
 import {
   format,
@@ -195,6 +196,8 @@ const MEMO_COLORS = [
 
 type MemoScope = 'personal' | 'department' | 'company';
 
+type ScheduleTab = 'calendar' | 'todos' | 'memos';
+
 const memoScopeLabels: Record<MemoScope, string> = {
   personal: '개인',
   department: '부서',
@@ -211,7 +214,42 @@ export default function SchedulePage() {
   const { toast } = useToast();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
-  const [activeTab, setActiveTab] = useState<'calendar' | 'todos' | 'memos'>('calendar');
+  const [activeTab, setActiveTab] = useState<ScheduleTab>('calendar');
+
+  const syncScheduleTabToUrl = useCallback((tab: ScheduleTab) => {
+    if (typeof window === 'undefined') return;
+    const path = tab === 'calendar' ? '/schedule' : `/schedule?tab=${tab}`;
+    window.history.replaceState(null, '', path);
+  }, []);
+
+  const changeScheduleTab = useCallback(
+    (tab: ScheduleTab) => {
+      setActiveTab(tab);
+      syncScheduleTabToUrl(tab);
+    },
+    [syncScheduleTabToUrl],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const tab = new URLSearchParams(window.location.search).get('tab');
+    if (tab === 'memos' || tab === 'calendar' || tab === 'todos') {
+      setActiveTab(tab);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const tab = new URLSearchParams(window.location.search).get('tab');
+      if (tab === 'memos' || tab === 'todos') {
+        setActiveTab(tab);
+      } else {
+        setActiveTab('calendar');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // 메모 상태
   const [memoScopeFilter, setMemoScopeFilter] = useState<
@@ -627,7 +665,7 @@ export default function SchedulePage() {
             <button
               key={key}
               type="button"
-              onClick={() => setActiveTab(key)}
+              onClick={() => changeScheduleTab(key)}
               className={cn(
                 'px-3 py-1.5 text-[13px] font-medium flex items-center gap-1.5 transition-colors',
                 activeTab === key
@@ -1379,7 +1417,22 @@ export default function SchedulePage() {
                           {memo.title || '(제목 없음)'}
                         </span>
                       </div>
-                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <div className="flex gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          title="새 창에서 열기"
+                          onClick={() =>
+                            window.open(
+                              `${window.location.origin}/schedule/memo/${memo.id}`,
+                              '_blank',
+                              'noopener,noreferrer',
+                            )
+                          }
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -1424,7 +1477,7 @@ export default function SchedulePage() {
 
       {/* 메모 다이얼로그 */}
       <Dialog open={isMemoDialogOpen} onOpenChange={setIsMemoDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <StickyNote className="h-5 w-5 text-yellow-500" />
@@ -1444,7 +1497,8 @@ export default function SchedulePage() {
               <Label>내용</Label>
               <Textarea
                 placeholder="메모 내용..."
-                rows={6}
+                className="min-h-[240px] resize-y"
+                rows={14}
                 value={memoForm.content}
                 onChange={(e) => setMemoForm({ ...memoForm, content: e.target.value })}
               />
