@@ -1159,9 +1159,6 @@ export class AuthService {
 
   async impersonateClient(clientId: string, adminId: string) {
     const adminStaff = await this.prisma.staff.findUnique({ where: { id: adminId } });
-    // [DEBUG] 403 사유 추적
-    // eslint-disable-next-line no-console
-    console.log('[impersonate.service] adminId=', adminId, ' staff=', adminStaff ? `id=${adminStaff.id} active=${adminStaff.isActive} super=${adminStaff.isSuperAdmin}` : 'NULL');
     if (!adminStaff || !adminStaff.isActive) {
       throw new ForbiddenException('활성 직원만 대리 로그인할 수 있습니다');
     }

@@ -23,15 +23,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 관리자 경로 접근 시 HttpOnly access_token 쿠키를 직접 검증
-  // auth-verified(JS 설정 가능) 대신 서버가 발급한 JWT를 jose로 검증
+  // 관리자 경로 접근 시 HttpOnly staff_access_token 쿠키를 직접 검증.
+  // (분리된 cookie 체계: staff 는 staff_access_token, 일반 회원은 access_token)
   if (ADMIN_PATHS.some(p => pathname.startsWith(p))) {
     if (pathname === '/admin-login') {
       return NextResponse.next();
     }
 
-    const accessToken = request.cookies.get('access_token')?.value;
-    const isValid = accessToken ? await verifyAccessToken(accessToken) : false;
+    const staffToken = request.cookies.get('staff_access_token')?.value;
+    const isValid = staffToken ? await verifyAccessToken(staffToken) : false;
     if (!isValid) {
       const loginUrl = new URL('/admin-login', request.url);
       return NextResponse.redirect(loginUrl);

@@ -53,18 +53,32 @@ export class AuthController {
     private employmentService: EmploymentService,
   ) { }
 
+  /**
+   * Cookie 이름을 type 별로 분리해서 set:
+   *   - staff             → `staff_access_token`, `staff_refresh_token`
+   *   - client / employee → `access_token`, `refresh_token` (기존)
+   *
+   * 같은 브라우저에서 admin과 일반 회원이 동시에 로그인되어 있어도 cookie가
+   * 충돌하지 않도록 분리한다. JwtStrategy 가 Referer 기반으로 어떤 cookie를
+   * 우선 검사할지 결정한다.
+   */
   private setAuthCookies(
     res: Response,
     accessToken: string,
     refreshToken: string,
     rememberMe = false,
+    userType: 'staff' | 'client' | 'employee' = 'client',
   ) {
     const isProd = process.env.NODE_ENV === 'production';
     const cookieDomain = isProd ? process.env.COOKIE_DOMAIN || '.photocafe.co.kr' : undefined;
     const accessMaxAge = 8 * 60 * 60 * 1000; // 8h
     const refreshMaxAge = rememberMe ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
 
-    res.cookie('access_token', accessToken, {
+    const prefix = userType === 'staff' ? 'staff_' : '';
+    const accessName = `${prefix}access_token`;
+    const refreshName = `${prefix}refresh_token`;
+
+    res.cookie(accessName, accessToken, {
       httpOnly: true,
       secure: isProd,
       sameSite: 'lax',
@@ -72,7 +86,7 @@ export class AuthController {
       maxAge: accessMaxAge,
       ...(cookieDomain && { domain: cookieDomain }),
     });
-    res.cookie('refresh_token', refreshToken, {
+    res.cookie(refreshName, refreshToken, {
       httpOnly: true,
       secure: isProd,
       sameSite: 'lax',
@@ -82,7 +96,10 @@ export class AuthController {
     });
   }
 
-  private clearAuthCookies(res: Response) {
+  /**
+   * userType 미지정 시 두 cookie 쌍 모두 clear (혼합 세션 모두 정리).
+   */
+  private clearAuthCookies(res: Response, userType?: 'staff' | 'client' | 'employee') {
     const isProd = process.env.NODE_ENV === 'production';
     const cookieDomain = isProd ? process.env.COOKIE_DOMAIN || '.photocafe.co.kr' : undefined;
     const baseOptions = {
@@ -92,8 +109,14 @@ export class AuthController {
       path: '/',
       ...(cookieDomain && { domain: cookieDomain }),
     };
-    res.clearCookie('access_token', baseOptions);
-    res.clearCookie('refresh_token', baseOptions);
+    if (!userType || userType !== 'staff') {
+      res.clearCookie('access_token', baseOptions);
+      res.clearCookie('refresh_token', baseOptions);
+    }
+    if (!userType || userType === 'staff') {
+      res.clearCookie('staff_access_token', baseOptions);
+      res.clearCookie('staff_refresh_token', baseOptions);
+    }
   }
 
   @Public()
@@ -101,7 +124,11 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 20 } })
   @ApiOperation({ summary: '토큰 갱신' })
   async refresh(@Body() refreshTokenDto: RefreshTokenDto, @Request() req: any, @Res({ passthrough: true }) res: Response) {
-    const refreshToken = refreshTokenDto.refreshToken || req?.cookies?.refresh_token;
+    // staff/client cookie 둘 다 시도 (분리 대응)
+    const refreshToken =
+      refreshTokenDto.refreshToken ||
+      req?.cookies?.staff_refresh_token ||
+      req?.cookies?.refresh_token;
     if (!refreshToken) {
       throw new UnauthorizedException('refresh token이 필요합니다.');
     }
@@ -109,7 +136,14 @@ export class AuthController {
     if (!result.refreshToken) {
       throw new UnauthorizedException('유효한 refresh token을 발급하지 못했습니다.');
     }
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    // refresh 응답의 user.type 으로 분리해서 set
+    const userType: 'staff' | 'client' | 'employee' =
+      result.user?.type === 'staff'
+        ? 'staff'
+        : result.user?.type === 'employee'
+          ? 'employee'
+          : 'client';
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false, userType);
     return result;
   }
 
@@ -179,7 +213,9 @@ export class AuthController {
       dto.rememberMe,
       ip,
     );
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, !!dto.rememberMe);
+    // selectContext 결과는 client 또는 employee. 둘 다 같은 cookie 이름 사용.
+    const userType: 'client' | 'employee' = (result.user?.type === 'employee') ? 'employee' : 'client';
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, !!dto.rememberMe, userType);
     return result;
   }
 
@@ -371,7 +407,7 @@ export class AuthController {
       throw new UnauthorizedException('인증 코드가 필요합니다.');
     }
     const result = this.authService.exchangeOAuthCode(code);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false, 'client');
     return result;
   }
 
@@ -384,7 +420,7 @@ export class AuthController {
   async clientLogin(@Body() dto: ClientLoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.loginClientWithPassword(dto.loginId, dto.password, ip);
     if ('accessToken' in result && result.accessToken && result.refreshToken) {
-      this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+      this.setAuthCookies(res, result.accessToken, result.refreshToken, false, 'client');
     }
     return result;
   }
@@ -436,7 +472,7 @@ export class AuthController {
   @ApiOperation({ summary: '직원 ID/PW 로그인' })
   async staffLogin(@Body() dto: StaffLoginDto, @Ip() ip: string, @Res({ passthrough: true }) res: Response) {
     const result = await this.authService.loginStaffWithPassword(dto.staffId, dto.password, ip);
-    this.setAuthCookies(res, result.accessToken, result.refreshToken, false);
+    this.setAuthCookies(res, result.accessToken, result.refreshToken, false, 'staff');
     return result;
   }
 
@@ -610,12 +646,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: '관리자가 특정 회원으로 대리 로그인' })
   async impersonateClient(@Param('clientId') clientId: string, @Request() req: any) {
-    // [DEBUG] 403 발생 사유 추적
-    // eslint-disable-next-line no-console
-    console.log('[impersonate] req.user =', JSON.stringify(req.user));
     if (req.user.type !== 'staff' && req.user.role !== 'admin') {
-      // eslint-disable-next-line no-console
-      console.log('[impersonate] REJECTED at controller — type=', req.user.type, ' role=', req.user.role);
       throw new ForbiddenException('관리자 계정만 대리 로그인할 수 있습니다');
     }
     return this.authService.impersonateClient(clientId, req.user.sub);
