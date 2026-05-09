@@ -36,9 +36,14 @@ export default function NotebookPage() {
   const [search, setSearch] = useState('');
   const noteParam = searchParams.get('note');
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(noteParam);
+  const [mobilePane, setMobilePane] = useState<'tree' | 'list' | 'editor'>(
+    noteParam ? 'editor' : 'list',
+  );
 
   useEffect(() => {
-    setSelectedNoteId(searchParams.get('note'));
+    const np = searchParams.get('note');
+    setSelectedNoteId(np);
+    if (np) setMobilePane('editor');
   }, [searchParams]);
 
   const { data: allNotes = [] } = useNotes({});
@@ -49,6 +54,7 @@ export default function NotebookPage() {
   const handleSelectNote = useCallback(
     (id: string) => {
       setSelectedNoteId(id);
+      setMobilePane('editor');
       const params = new URLSearchParams(searchParams.toString());
       params.set('note', id);
       router.replace(`/schedule/notebook?${params.toString()}`, { scroll: false });
@@ -83,6 +89,7 @@ export default function NotebookPage() {
 
   const handleNoteDeleted = useCallback(() => {
     setSelectedNoteId(null);
+    setMobilePane('list');
     const params = new URLSearchParams(searchParams.toString());
     params.delete('note');
     const qs = params.toString();
@@ -100,33 +107,65 @@ export default function NotebookPage() {
 
   return (
     <div className="h-full flex bg-gray-50 rounded-lg overflow-hidden border">
-      <NotebookSidebar
-        selectedKey={selectedKey}
-        onSelect={(k) => {
-          setSelectedKey(k);
-          // 노트북 변경 시 검색·선택 초기화는 의도적으로 유지(편의)
-        }}
-        selectedTagId={selectedTagId}
-        onSelectTag={setSelectedTagId}
-        totalCount={totalCount}
-        uncategorizedCount={uncategorizedCount}
-      />
-      <NoteList
-        notebookFilter={notebookFilter}
-        tagFilter={selectedTagId}
-        selectedNoteId={selectedNoteId}
-        onSelectNote={handleSelectNote}
-        onCreateNote={handleCreateNote}
-        search={search}
-        onSearchChange={setSearch}
-      />
-      {createNote.isPending && !selectedNoteId ? (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
-          <Loader2 className="h-6 w-6 animate-spin text-black/40" />
-        </div>
-      ) : (
-        <NoteEditor noteId={selectedNoteId} onDeleted={handleNoteDeleted} />
-      )}
+      <div
+        className={
+          mobilePane === 'tree'
+            ? 'flex w-full md:w-60 md:shrink-0'
+            : 'hidden md:flex md:w-60 md:shrink-0'
+        }
+      >
+        <NotebookSidebar
+          selectedKey={selectedKey}
+          onSelect={(k) => {
+            setSelectedKey(k);
+            setMobilePane('list');
+          }}
+          selectedTagId={selectedTagId}
+          onSelectTag={(t) => {
+            setSelectedTagId(t);
+            setMobilePane('list');
+          }}
+          totalCount={totalCount}
+          uncategorizedCount={uncategorizedCount}
+        />
+      </div>
+      <div
+        className={
+          mobilePane === 'list'
+            ? 'flex w-full md:w-80 md:shrink-0'
+            : 'hidden md:flex md:w-80 md:shrink-0'
+        }
+      >
+        <NoteList
+          notebookFilter={notebookFilter}
+          tagFilter={selectedTagId}
+          selectedNoteId={selectedNoteId}
+          onSelectNote={handleSelectNote}
+          onCreateNote={handleCreateNote}
+          search={search}
+          onSearchChange={setSearch}
+          onBack={() => setMobilePane('tree')}
+        />
+      </div>
+      <div
+        className={
+          mobilePane === 'editor'
+            ? 'flex flex-1 min-w-0'
+            : 'hidden md:flex md:flex-1 md:min-w-0'
+        }
+      >
+        {createNote.isPending && !selectedNoteId ? (
+          <div className="flex-1 flex items-center justify-center bg-gray-50">
+            <Loader2 className="h-6 w-6 animate-spin text-black/40" />
+          </div>
+        ) : (
+          <NoteEditor
+            noteId={selectedNoteId}
+            onDeleted={handleNoteDeleted}
+            onBack={() => setMobilePane('list')}
+          />
+        )}
+      </div>
     </div>
   );
 }

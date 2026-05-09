@@ -75,7 +75,7 @@ function getMenuItems(user: {
 
   // 일정관리(캘린더/할일/메모): enableSchedule 기준 + 직원 권한
   if (enableSchedule && (!isEmployee || user?.canManageSchedule)) {
-    items.push({ icon: CalendarDays, label: '일정관리', href: '/schedule' });
+    items.push({ icon: CalendarDays, label: '일정관리', href: '/mypage/calendar' });
   }
 
   // 촬영관리(/mypage/schedule): enableShooting 기준 + 직원 권한
@@ -90,7 +90,7 @@ function getMenuItems(user: {
 
   // 노트장: enableNote=true 일 때만 노출 (기본 OFF). 본사 admin/staff 와 무관하게 client 토글 기준.
   if (enableNote) {
-    items.push({ icon: BookOpen, label: '노트장', href: '/schedule/notebook' });
+    items.push({ icon: BookOpen, label: '노트장', href: '/mypage/notebook' });
   }
 
   return items;

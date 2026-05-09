@@ -204,7 +204,7 @@ export function NotebookSidebar({
   };
 
   return (
-    <aside className="w-60 shrink-0 border-r bg-white flex flex-col min-h-0">
+    <aside className="w-full border-r bg-white flex flex-col min-h-0">
       <div className="p-3 border-b flex items-center justify-between">
         <h2 className="text-[14px] text-black font-bold flex items-center gap-1.5">
           <BookOpen className="h-4 w-4 text-yellow-600" />

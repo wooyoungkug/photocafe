@@ -7,6 +7,7 @@ import { ko } from 'date-fns/locale';
 import {
   Building,
   Building2,
+  ChevronLeft,
   ExternalLink,
   Loader2,
   Pin,
@@ -96,11 +97,12 @@ function memoToScope(m: Memo): Scope {
 interface NoteEditorProps {
   noteId: string | null;
   onDeleted?: () => void;
+  onBack?: () => void;
 }
 
-export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
+export function NoteEditor({ noteId, onDeleted, onBack }: NoteEditorProps) {
   const { toast } = useToast();
-  const { data: memo, isLoading } = useNoteDetail(noteId || '');
+  const { data: memo, isLoading, isError, error } = useNoteDetail(noteId || '');
   const update = useUpdateNote();
   const remove = useDeleteNote();
   const { data: notebooks = [] } = useNotebooks();
@@ -207,6 +209,24 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
+        <div className="text-center max-w-md">
+          <p className="text-[14px] text-red-600 mb-3">
+            {error instanceof Error ? error.message : '노트를 불러올 수 없습니다.'}
+          </p>
+          {onBack && (
+            <Button variant="outline" size="sm" onClick={onBack}>
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+              목록으로
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading || !memo) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -222,6 +242,18 @@ export function NoteEditor({ noteId, onDeleted }: NoteEditorProps) {
     <div className="flex-1 flex min-h-0">
     <div className="flex-1 flex flex-col min-h-0" style={{ backgroundColor: color }}>
       <div className="px-4 py-2.5 border-b bg-white/70 flex items-center gap-2 flex-wrap shrink-0">
+        {onBack && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 md:hidden -ml-2"
+            onClick={onBack}
+            aria-label="노트 목록으로"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
         <Badge variant="outline" className="h-6 text-[11px] bg-white">
           <ScopeIcon className="h-3 w-3 mr-1" />
           {scopeLabels[scope]}

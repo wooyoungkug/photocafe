@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { Building, Building2, Loader2, Pin, Plus, Search, StickyNote, User } from 'lucide-react';
+import { Building, Building2, ChevronLeft, Loader2, Pin, Plus, Search, StickyNote, User } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ interface NoteListProps {
   onCreateNote: () => void;
   search: string;
   onSearchChange: (v: string) => void;
+  onBack?: () => void;
 }
 
 export function NoteList({
@@ -51,6 +52,7 @@ export function NoteList({
   onCreateNote,
   search,
   onSearchChange,
+  onBack,
 }: NoteListProps) {
   const query = useMemo(() => {
     const q: { search?: string; notebookId?: string; tagId?: string } = {};
@@ -60,13 +62,25 @@ export function NoteList({
     return q;
   }, [notebookFilter, tagFilter, search]);
 
-  const { data: memos = [], isLoading } = useNotes(query);
+  const { data: memos = [], isLoading, isError, error } = useNotes(query);
 
   return (
-    <section className="w-80 shrink-0 border-r bg-white flex flex-col min-h-0">
+    <section className="w-full border-r bg-white flex flex-col min-h-0">
       <div className="p-3 border-b flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-[14px] text-black font-bold flex items-center gap-1.5 truncate">
+            {onBack && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 md:hidden -ml-1"
+                onClick={onBack}
+                aria-label="노트북 목록으로"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+            )}
             <StickyNote className="h-4 w-4 text-yellow-600 shrink-0" />
             <span className="truncate">
               {notebookFilter === 'all' && '모든 노트'}
@@ -98,6 +112,12 @@ export function NoteList({
         {isLoading ? (
           <div className="flex items-center justify-center py-12 text-black/40">
             <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : isError ? (
+          <div className="text-center py-12 px-4">
+            <p className="text-[13px] text-red-600">
+              {error instanceof Error ? error.message : '노트를 불러올 수 없습니다.'}
+            </p>
           </div>
         ) : memos.length === 0 ? (
           <div className="text-center py-12 px-4">
