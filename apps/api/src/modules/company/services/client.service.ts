@@ -803,8 +803,8 @@ export class ClientService {
         clientUpdate.signupPurpose = data.signupPurpose.trim() || null;
       if (data.signupPurposeNote !== undefined)
         clientUpdate.signupPurposeNote = data.signupPurposeNote.trim() || null;
-      if (data.contactEmail !== undefined && data.contactEmail.trim())
-        clientUpdate.contactEmail = data.contactEmail.trim().toLowerCase();
+      if (data.contactEmail !== undefined)
+        clientUpdate.contactEmail = data.contactEmail.trim().toLowerCase() || null;
 
       const updated = await tx.client.update({
         where: { id: clientId },

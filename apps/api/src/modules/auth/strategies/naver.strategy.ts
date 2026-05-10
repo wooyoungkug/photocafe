@@ -36,14 +36,12 @@ export class NaverStrategy extends PassportStrategy(Strategy, 'naver') {
       // passport-naver-v2 프로필 구조
       const { id, email, nickname, profileImage, gender, birthday, birthYear, mobile, name } = profile;
 
-      if (!email) {
-        // 네이버 이메일 미동의 → 가입 차단 (가짜 이메일 fallback 금지)
-        return done(null, { _consentRequired: true, _provider: 'naver' } as any);
-      }
+      // 네이버는 이메일 미동의 시 null 허용 → onboarding에서 contactEmail 수집
+      // (비즈앱 등록 전까지 이메일 동의항목 권한 없음 상태 대응)
 
       const user = await this.authService.validateNaverUser({
         oauthId: id,
-        email,
+        email: email || undefined,
         name: name || nickname || '네이버사용자',
         profileImage,
         gender: gender,

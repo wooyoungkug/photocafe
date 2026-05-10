@@ -82,10 +82,10 @@ export class SubmitOnboardingDto {
   @MaxLength(200)
   signupPurposeNote?: string;
 
-  @ApiPropertyOptional({ description: '실제 이메일 (소셜 로그인 가짜 이메일 대체용)' })
+  @ApiPropertyOptional({ description: '연락용 이메일 (알림·CS용, 소셜 로그인 이메일 미동의·가짜 이메일 대체용)' })
   @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
   @IsOptional()
   @IsEmail()
-  @MaxLength(200)
+  @MaxLength(255)
   contactEmail?: string;
 }

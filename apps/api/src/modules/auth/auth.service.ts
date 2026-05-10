@@ -420,7 +420,7 @@ export class AuthService {
   }
 
   async validateNaverUser(data: {
-    oauthId: string; email: string; name: string;
+    oauthId: string; email?: string; name: string;
     profileImage?: string; gender?: string; birthday?: string; birthyear?: string; mobile?: string;
   }) {
     let client = await this.prisma.client.findFirst({
@@ -433,20 +433,22 @@ export class AuthService {
 
     let isNew = false;
     if (!client) {
-      const dup = await this.checkEmailDuplicate(data.email, 'naver');
-      if (dup) {
-        return {
-          _emailDuplicate: true,
-          _dupProvider: dup.provider,
-          _dupDate: dup.date,
-          _dupIsLegacy: dup.isLegacy,
-        } as any;
+      if (data.email) {
+        const dup = await this.checkEmailDuplicate(data.email, 'naver');
+        if (dup) {
+          return {
+            _emailDuplicate: true,
+            _dupProvider: dup.provider,
+            _dupDate: dup.date,
+            _dupIsLegacy: dup.isLegacy,
+          } as any;
+        }
       }
       isNew = true;
       const clientCode = `N${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({
         data: {
-          clientCode, clientName: data.name, email: data.email,
+          clientCode, clientName: data.name, ...(data.email && { email: data.email }),
           oauthProvider: 'naver', oauthId: data.oauthId, profileImage: data.profileImage,
           gender, birthday, ...(mobile && { mobile }),
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
@@ -460,12 +462,15 @@ export class AuthService {
       if (!client.gender && gender) updateData.gender = gender;
       if (!client.birthday && birthday) updateData.birthday = birthday;
       if (!client.mobile && mobile) updateData.mobile = mobile;
-      if (!client.email && data.email) updateData.email = data.email;
-      // 과거 가입자(인증 메일 대기 상태) 자동 해소: 네이버 검증 이메일은 인증 완료 처리
-      if (!(client as any).emailVerified) {
-        updateData.emailVerified = true;
-        updateData.emailVerifyToken = null;
-        updateData.emailVerifyTokenExpiry = null;
+      // email이 없거나 이전 fake 패턴이면 실제(네이버 검증) 이메일로 갱신
+      if (data.email && (!client.email || client.email.startsWith('naver_'))) {
+        updateData.email = data.email;
+        // 과거 가입자(인증 메일 대기 상태) 자동 해소: 네이버 검증 이메일은 인증 완료 처리
+        if (!(client as any).emailVerified) {
+          updateData.emailVerified = true;
+          updateData.emailVerifyToken = null;
+          updateData.emailVerifyTokenExpiry = null;
+        }
       }
       if (Object.keys(updateData).length > 0) {
         client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
@@ -476,7 +481,7 @@ export class AuthService {
   }
 
   async validateKakaoUser(data: {
-    oauthId: string; email: string; name: string;
+    oauthId: string; email?: string; name: string;
     profileImage?: string; gender?: string; birthday?: string; birthyear?: string; mobile?: string;
   }) {
     let client = await this.prisma.client.findFirst({
@@ -489,20 +494,22 @@ export class AuthService {
 
     let isNew = false;
     if (!client) {
-      const dup = await this.checkEmailDuplicate(data.email, 'kakao');
-      if (dup) {
-        return {
-          _emailDuplicate: true,
-          _dupProvider: dup.provider,
-          _dupDate: dup.date,
-          _dupIsLegacy: dup.isLegacy,
-        } as any;
+      if (data.email) {
+        const dup = await this.checkEmailDuplicate(data.email, 'kakao');
+        if (dup) {
+          return {
+            _emailDuplicate: true,
+            _dupProvider: dup.provider,
+            _dupDate: dup.date,
+            _dupIsLegacy: dup.isLegacy,
+          } as any;
+        }
       }
       isNew = true;
       const clientCode = `K${Date.now().toString().slice(-8)}`;
       client = await this.prisma.client.create({
         data: {
-          clientCode, clientName: data.name, email: data.email,
+          clientCode, clientName: data.name, ...(data.email && { email: data.email }),
           oauthProvider: 'kakao', oauthId: data.oauthId, profileImage: data.profileImage,
           gender, birthday, ...(mobile && { mobile }),
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
@@ -517,11 +524,14 @@ export class AuthService {
       if (!client.gender && gender) updateData.gender = gender;
       if (!client.birthday && birthday) updateData.birthday = birthday;
       if (!client.mobile && mobile) updateData.mobile = mobile;
-      if (!client.email && data.email) updateData.email = data.email;
-      if (!(client as any).emailVerified) {
-        updateData.emailVerified = true;
-        updateData.emailVerifyToken = null;
-        updateData.emailVerifyTokenExpiry = null;
+      // email이 없거나 이전 fake 패턴이면 실제(카카오 검증) 이메일로 갱신
+      if (data.email && (!client.email || client.email.startsWith('kakao_'))) {
+        updateData.email = data.email;
+        if (!(client as any).emailVerified) {
+          updateData.emailVerified = true;
+          updateData.emailVerifyToken = null;
+          updateData.emailVerifyTokenExpiry = null;
+        }
       }
       if (Object.keys(updateData).length > 0) {
         client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });

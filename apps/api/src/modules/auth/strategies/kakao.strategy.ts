@@ -42,14 +42,15 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
       // 카카오는 is_email_valid + is_email_verified 모두 true 여야 신뢰 가능
       const verified = kakaoAccount?.is_email_valid === true && kakaoAccount?.is_email_verified === true;
 
-      if (!email || !verified) {
-        // 이메일 미동의/미검증 → 가입 차단 (가짜 이메일 fallback 금지)
+      // 이메일이 있는데 미검증인 경우만 차단 (탈취된 이메일 방어)
+      // 이메일 자체가 없는 경우(비즈앱 미등록 등)는 null로 허용 → onboarding에서 contactEmail 수집
+      if (email && !verified) {
         return done(null, { _consentRequired: true, _provider: 'kakao' } as any);
       }
 
       const user = await this.authService.validateKakaoUser({
         oauthId: String(id),
-        email,
+        email: verified ? email : undefined,
         name: kakaoAccount?.profile?.nickname || username || '카카오사용자',
         profileImage: kakaoAccount?.profile?.profile_image_url,
         gender: kakaoAccount?.gender,
