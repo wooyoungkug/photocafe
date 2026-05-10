@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import Image from 'next/image';
 import { api } from '@/lib/api';
@@ -11,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Lock, MailWarning, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, LogIn, Mail, User, Building2, UserPlus, Lock, MailWarning, CheckCircle2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -43,6 +44,7 @@ function LoginForm() {
   const { setAuth } = useAuthStore();
   const clientLogin = useClientLogin();
   const resendVerification = useResendVerification();
+  const t = useTranslations('auth');
 
   const [phase, setPhase] = useState<LoginPhase>('social');
   const [isLoading, setIsLoading] = useState(false);
@@ -56,6 +58,25 @@ function LoginForm() {
   // 이메일 미인증 상태
   const [emailNotVerified, setEmailNotVerified] = useState(false);
   const [resendResult, setResendResult] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+
+  // 중복가입 안내 상태
+  const [duplicateProvider, setDuplicateProvider] = useState<string | null>(null);
+  const [duplicateDate, setDuplicateDate] = useState<string | null>(null);
+  const [duplicateIsLegacy, setDuplicateIsLegacy] = useState(false);
+  // 이메일 동의 필요 안내 상태
+  const [consentRequiredProvider, setConsentRequiredProvider] = useState<string | null>(null);
+
+  const getProviderLabel = (p: string | null): string => {
+    if (p === 'naver') return '네이버';
+    if (p === 'kakao') return '카카오';
+    if (p === 'google') return 'Google';
+    return p || '';
+  };
+
+  const dimOtherSocial = (p: string): string =>
+    duplicateProvider && duplicateProvider !== p
+      ? 'opacity-40 pointer-events-none'
+      : '';
 
   // ID/password login state
   const [loginId, setLoginId] = useState('');
@@ -131,7 +152,7 @@ function LoginForm() {
     }
   };
 
-  // URL 에러 파라미터 감지 (미가입, 이메일 중복 등)
+  // URL 에러 파라미터 감지 (미가입, 이메일 중복, 이메일 동의 필요 등)
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
       if (searchParams.get('checkEmail') === '1') {
@@ -145,12 +166,25 @@ function LoginForm() {
       setNotRegistered(true);
       setNotRegisteredProvider(searchParams.get('provider'));
     } else if (errorParam === 'EMAIL_DUPLICATE') {
-      const message = searchParams.get('message');
-      setError(message && message !== 'undefined' ? message : '이미 다른 소셜 계정으로 가입된 이메일입니다.');
+      // 신규 파라미터 (provider/registeredAt/isLegacy) 우선
+      const provider = searchParams.get('provider');
+      const registeredAt = searchParams.get('registeredAt');
+      const isLegacy = searchParams.get('isLegacy') === '1';
+      if (provider || isLegacy) {
+        setDuplicateProvider(provider || null);
+        setDuplicateDate(registeredAt || null);
+        setDuplicateIsLegacy(isLegacy);
+      } else {
+        // 구버전 fallback (message 파라미터)
+        const message = searchParams.get('message');
+        setError(message && message !== 'undefined' ? message : t('emailDuplicateFallback'));
+      }
+    } else if (errorParam === 'EMAIL_CONSENT_REQUIRED') {
+      setConsentRequiredProvider(searchParams.get('provider'));
     } else if (errorParam === 'session_expired') {
       setError('로그인 세션이 만료되었습니다. 다시 로그인해주세요.');
     }
-  }, [searchParams]);
+  }, [searchParams, t]);
 
   // OAuth 콜백에서 컨텍스트 선택이 필요한 경우 처리
   useEffect(() => {
@@ -438,15 +472,91 @@ function LoginForm() {
           </DialogContent>
         </Dialog>
 
-        {error && (
+        {/* 이메일 동의 필요 안내 (OAuth 동의 화면에서 이메일 항목 거부) */}
+        {consentRequiredProvider && (
+          <div className="p-4 rounded-md bg-amber-50 border border-amber-200">
+            <div className="flex items-start gap-2">
+              <Mail className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-[14px] text-amber-800 font-bold">
+                  {t('emailConsentRequiredTitle')}
+                </p>
+                <p className="text-[13px] text-amber-700 mt-1">
+                  {t('emailConsentRequiredMessage')}
+                </p>
+                <a
+                  href={`${apiUrl}/auth/${consentRequiredProvider}-login`}
+                  className="inline-flex items-center gap-1.5 mt-3 px-3 py-2 rounded-md text-[13px] font-medium bg-amber-600 hover:bg-amber-700 text-white transition-colors"
+                >
+                  <LogIn className="h-4 w-4" />
+                  {t('emailConsentRequiredAction', { provider: getProviderLabel(consentRequiredProvider) })}
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 중복가입 안내 (다른 SNS 또는 일반 아이디로 이미 가입된 이메일) */}
+        {(duplicateProvider || duplicateIsLegacy) && (
+          <div className="p-4 rounded-md bg-red-50 border border-red-200">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                {duplicateIsLegacy ? (
+                  <>
+                    <p className="text-[14px] text-red-800 font-bold">
+                      {t('emailDuplicateLegacyTitle')}
+                    </p>
+                    {duplicateDate && (
+                      <p className="text-[12px] text-red-600 mt-0.5">
+                        {t('emailDuplicateRegisteredAt', { date: duplicateDate })}
+                      </p>
+                    )}
+                    <p className="text-[13px] text-red-700 mt-2">
+                      {t('emailDuplicateLegacyMessage')}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[14px] text-red-800 font-bold">
+                      {t('emailDuplicateTitle', { provider: getProviderLabel(duplicateProvider) })}
+                    </p>
+                    {duplicateDate && (
+                      <p className="text-[12px] text-red-600 mt-0.5">
+                        {t('emailDuplicateRegisteredAt', { date: duplicateDate })}
+                      </p>
+                    )}
+                    <p className="text-[13px] text-red-700 mt-2">
+                      {t('emailDuplicateMessage', { provider: getProviderLabel(duplicateProvider) })}
+                    </p>
+                    {duplicateProvider && (
+                      <a
+                        href={`${apiUrl}/auth/${duplicateProvider}-login`}
+                        className={`inline-flex items-center justify-center gap-1.5 mt-3 px-4 py-2.5 rounded-md text-[14px] font-bold text-white transition-colors ${
+                          duplicateProvider === 'naver'
+                            ? 'bg-[#03C75A] hover:bg-[#02b351]'
+                            : duplicateProvider === 'kakao'
+                              ? 'bg-[#FEE500] hover:bg-[#FDD835] !text-[#3C1E1E]'
+                              : 'bg-gray-700 hover:bg-gray-800'
+                        }`}
+                      >
+                        <LogIn className="h-4 w-4" />
+                        {t('emailDuplicateAction', { provider: getProviderLabel(duplicateProvider) })}
+                      </a>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {error && !duplicateProvider && !duplicateIsLegacy && !consentRequiredProvider && (
           <div className="p-4 rounded-md bg-red-50 border border-red-200">
             <div className="flex items-start gap-2">
               <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
               <div>
                 <p className="text-[14px] text-red-800 font-medium">{error}</p>
-                <p className="text-[13px] text-red-600 mt-1">
-                  기존에 가입한 소셜 계정으로 로그인해주세요.
-                </p>
               </div>
             </div>
           </div>
@@ -516,7 +626,7 @@ function LoginForm() {
 
         <a
           href={`${apiUrl}/auth/naver-login`}
-          className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors"
+          className={`inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#03C75A] hover:bg-[#02b351] text-white transition-colors ${dimOtherSocial('naver')}`}
         >
           <svg
             viewBox="0 0 24 24"
@@ -530,7 +640,7 @@ function LoginForm() {
 
         <a
           href={`${apiUrl}/auth/kakao-login`}
-          className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors"
+          className={`inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium bg-[#FEE500] hover:bg-[#FDD835] text-[#3C1E1E] transition-colors ${dimOtherSocial('kakao')}`}
         >
           <svg
             viewBox="0 0 24 24"
@@ -544,7 +654,7 @@ function LoginForm() {
 
         <a
           href={`${apiUrl}/auth/google-login`}
-          className="inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+          className={`inline-flex items-center justify-center w-full h-12 rounded-md text-sm font-medium border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors ${dimOtherSocial('google')}`}
         >
           <svg
             viewBox="0 0 24 24"

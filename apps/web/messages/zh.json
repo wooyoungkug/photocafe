@@ -130,7 +130,17 @@
     "notMember": "还不是会员？",
     "socialLogin": "社交账号登录",
     "naverLogin": "Naver登录",
-    "kakaoLogin": "Kakao登录"
+    "kakaoLogin": "Kakao登录",
+    "emailDuplicateTitle": "此邮箱已通过{provider}注册",
+    "emailDuplicateMessage": "此邮箱已用{provider}注册，无法使用其他社交账号再次注册。",
+    "emailDuplicateLegacyTitle": "此邮箱已通过普通账号注册",
+    "emailDuplicateLegacyMessage": "请使用下方的账号/密码登录。",
+    "emailDuplicateRegisteredAt": "注册日期: {date}",
+    "emailDuplicateAction": "使用{provider}登录",
+    "emailDuplicateFallback": "此邮箱已通过其他社交账号注册。",
+    "emailConsentRequiredTitle": "需要同意提供邮箱",
+    "emailConsentRequiredMessage": "重试时请务必同意提供邮箱。需要邮箱才能完成注册。",
+    "emailConsentRequiredAction": "使用{provider}重试"
   },
   "product": {
     "addToCart": "加入购物车",

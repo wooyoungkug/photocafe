@@ -31,9 +31,18 @@ export class CustomerGoogleStrategy extends PassportStrategy(Strategy, 'customer
     try {
       const { id, emails, displayName, photos } = profile;
 
+      const primaryEmail = emails?.[0];
+      const email = primaryEmail?.value;
+      const verified = primaryEmail?.verified === true || primaryEmail?.verified === 'true';
+
+      if (!email || !verified) {
+        // 이메일 미동의 또는 미검증 → 가입 차단 (가짜 이메일 fallback 금지)
+        return done(null, { _consentRequired: true, _provider: 'google' } as any);
+      }
+
       const user = await this.authService.validateGoogleUser({
         oauthId: id,
-        email: emails?.[0]?.value || `google_${id}@gmail.com`,
+        email,
         name: displayName || 'Google사용자',
         profileImage: photos?.[0]?.value,
       });

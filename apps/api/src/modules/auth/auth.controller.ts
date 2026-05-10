@@ -346,10 +346,21 @@ export class AuthController {
   }
 
   private async handleOAuthCallback(client: any, frontendUrl: string, res: Response, req?: any) {
-    // 이메일 중복 체크 실패: 다른 소셜로 이미 가입된 이메일
+    // 이메일 미동의/미검증 → 가입 차단 (strategy 단계에서 차단됨)
+    if (client._consentRequired) {
+      const provider = encodeURIComponent(client._provider || '');
+      return res.redirect(`${frontendUrl}/login?error=EMAIL_CONSENT_REQUIRED&provider=${provider}`);
+    }
+
+    // 이메일 중복 체크 실패: 다른 소셜 또는 일반 아이디로 이미 가입된 이메일
     if (client._emailDuplicate) {
+      const provider = encodeURIComponent(client._dupProvider || '');
+      const registeredAt = encodeURIComponent(client._dupDate || '');
+      const isLegacy = client._dupIsLegacy ? '1' : '0';
       const msg = encodeURIComponent(client._dupMessage || '이미 다른 소셜 계정으로 가입된 이메일입니다.');
-      return res.redirect(`${frontendUrl}/login?error=EMAIL_DUPLICATE&message=${msg}`);
+      return res.redirect(
+        `${frontendUrl}/login?error=EMAIL_DUPLICATE&provider=${provider}&registeredAt=${registeredAt}&isLegacy=${isLegacy}&message=${msg}`,
+      );
     }
 
     // auth_mode 쿠키 처리 (login: 기존 회원만, register: 신규 회원만)

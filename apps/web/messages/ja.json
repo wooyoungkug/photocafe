@@ -130,7 +130,17 @@
     "notMember": "まだ会員ではありませんか？",
     "socialLogin": "ソーシャルログイン",
     "naverLogin": "NAVERでログイン",
-    "kakaoLogin": "カカオでログイン"
+    "kakaoLogin": "カカオでログイン",
+    "emailDuplicateTitle": "このメールアドレスはすでに{provider}で登録されています",
+    "emailDuplicateMessage": "このメールアドレスは{provider}で登録されているため、他のSNSでは登録できません。",
+    "emailDuplicateLegacyTitle": "通常のIDで登録されたメールアドレスです",
+    "emailDuplicateLegacyMessage": "下のID／パスワード入力欄からログインしてください。",
+    "emailDuplicateRegisteredAt": "登録日: {date}",
+    "emailDuplicateAction": "{provider}でログイン",
+    "emailDuplicateFallback": "他のソーシャルアカウントで登録済みのメールアドレスです。",
+    "emailConsentRequiredTitle": "メールアドレスの提供同意が必要です",
+    "emailConsentRequiredMessage": "再試行する際に「メールアドレスの提供」項目に必ず同意してください。メールアドレスがないと登録できません。",
+    "emailConsentRequiredAction": "{provider}で再試行"
   },
   "product": {
     "addToCart": "カートに入れる",

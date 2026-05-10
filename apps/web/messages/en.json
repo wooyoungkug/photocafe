@@ -130,7 +130,17 @@
     "notMember": "Not a member yet?",
     "socialLogin": "Social Login",
     "naverLogin": "Login with Naver",
-    "kakaoLogin": "Login with Kakao"
+    "kakaoLogin": "Login with Kakao",
+    "emailDuplicateTitle": "This email is already registered with {provider}",
+    "emailDuplicateMessage": "This email is registered with {provider}. You can't sign up again with another social account.",
+    "emailDuplicateLegacyTitle": "This email is registered with a regular ID",
+    "emailDuplicateLegacyMessage": "Please log in with the ID and password fields below.",
+    "emailDuplicateRegisteredAt": "Registered: {date}",
+    "emailDuplicateAction": "Continue with {provider}",
+    "emailDuplicateFallback": "This email is already registered with another social account.",
+    "emailConsentRequiredTitle": "Email permission is required",
+    "emailConsentRequiredMessage": "Please grant the 'email' permission when retrying. An email is required to sign up.",
+    "emailConsentRequiredAction": "Try again with {provider}"
   },
   "product": {
     "addToCart": "Add to Cart",
