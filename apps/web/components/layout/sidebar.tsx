@@ -614,7 +614,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
   return (
     <div
       className={cn(
-        "flex h-full w-56 flex-col",
+        "flex h-full w-[200px] flex-col",
         "bg-gradient-to-b from-[#0F172A] via-[#0F172A] to-[#0B1120]",
         "border-r border-slate-800/60",
         "shadow-2xl shadow-black/30"

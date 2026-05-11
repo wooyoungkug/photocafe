@@ -124,7 +124,7 @@ export function DashboardLayoutClient({
         <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
           <SheetContent
             side="left"
-            className="w-56 max-w-[85vw] p-0 border-r-0 gap-0 [&>button:last-child]:hidden"
+            className="w-[200px] max-w-[85vw] p-0 border-r-0 gap-0 [&>button:last-child]:hidden"
           >
             <SheetTitle className="sr-only">탐색 메뉴</SheetTitle>
             <Sidebar
@@ -139,7 +139,7 @@ export function DashboardLayoutClient({
           <aside
             className={cn(
               "hidden lg:block transition-all duration-300 ease-in-out shrink-0",
-              sidebarCollapsed ? "w-0 overflow-hidden" : "w-56"
+              sidebarCollapsed ? "w-0 overflow-hidden" : "w-[200px]"
             )}
           >
             <Sidebar isMobile={false} />
