@@ -7,8 +7,7 @@ import { useState, useCallback, useEffect } from "react";
 import {
   Building2,
   Camera,
-  ChevronDown,
-  ChevronUp,
+
   CreditCard,
   Headphones,
   Image as ImageIcon,
@@ -308,89 +307,6 @@ function StatusDot({ status }: { status: ServerStatusInfo }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sub-component: ReorderButtons (parent menu)
-// ---------------------------------------------------------------------------
-
-function ReorderButtons({
-  index,
-  total,
-  onMoveUp,
-  onMoveDown,
-}: {
-  index: number;
-  total: number;
-  onMoveUp: (i: number, e: React.MouseEvent) => void;
-  onMoveDown: (i: number, e: React.MouseEvent) => void;
-}) {
-  return (
-    <div className="flex items-center gap-px ml-1 opacity-0 group-hover/nav:opacity-100 transition-opacity duration-200">
-      <button
-        type="button"
-        onClick={(e) => onMoveUp(index, e)}
-        disabled={index === 0}
-        className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-white/5 disabled:opacity-20 disabled:cursor-default transition-colors"
-        title="위로 이동"
-        aria-label="위로 이동"
-      >
-        <ChevronUp className="h-3 w-3" />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => onMoveDown(index, e)}
-        disabled={index === total - 1}
-        className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-white/5 disabled:opacity-20 disabled:cursor-default transition-colors"
-        title="아래로 이동"
-        aria-label="아래로 이동"
-      >
-        <ChevronDown className="h-3 w-3" />
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-component: ChildReorderButtons
-// ---------------------------------------------------------------------------
-
-function ChildReorderButtons({
-  menuId,
-  childIndex,
-  childrenLength,
-  onMoveUp,
-  onMoveDown,
-}: {
-  menuId: string;
-  childIndex: number;
-  childrenLength: number;
-  onMoveUp: (menuId: string, idx: number, e: React.MouseEvent) => void;
-  onMoveDown: (menuId: string, idx: number, len: number, e: React.MouseEvent) => void;
-}) {
-  return (
-    <div className="flex items-center gap-px ml-1 opacity-0 group-hover/child:opacity-100 transition-opacity duration-200">
-      <button
-        type="button"
-        onClick={(e) => onMoveUp(menuId, childIndex, e)}
-        disabled={childIndex === 0}
-        className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-white/5 disabled:opacity-20 disabled:cursor-default transition-colors"
-        title="위로 이동"
-        aria-label="위로 이동"
-      >
-        <ChevronUp className="h-2.5 w-2.5" />
-      </button>
-      <button
-        type="button"
-        onClick={(e) => onMoveDown(menuId, childIndex, childrenLength, e)}
-        disabled={childIndex === childrenLength - 1}
-        className="p-0.5 rounded text-slate-600 hover:text-indigo-400 hover:bg-white/5 disabled:opacity-20 disabled:cursor-default transition-colors"
-        title="아래로 이동"
-        aria-label="아래로 이동"
-      >
-        <ChevronDown className="h-2.5 w-2.5" />
-      </button>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Hooks: useServerStatus
@@ -805,12 +721,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                         />
                         <span>{item.name}</span>
                       </Link>
-                      <ReorderButtons
-                        index={index}
-                        total={navigation.length}
-                        onMoveUp={moveMenuUp}
-                        onMoveDown={moveMenuDown}
-                      />
                     </div>
                   ) : (
                     /* ── Parent item → SubNavBar shows children at top of content ── */
@@ -833,12 +743,6 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
                         />
                         <span className="flex-1 text-left">{item.name}</span>
                       </Link>
-                      <ReorderButtons
-                        index={index}
-                        total={navigation.length}
-                        onMoveUp={moveMenuUp}
-                        onMoveDown={moveMenuDown}
-                      />
                     </div>
                   )}
                 </li>
