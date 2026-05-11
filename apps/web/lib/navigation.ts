@@ -92,7 +92,6 @@ export const NAVIGATION: NavItem[] = [
     name: "회사정보",
     icon: Building2,
     children: [
-      { name: "환경설정", href: "/company/settings" },
       { name: "직원관리", href: "/company/employees" },
       { name: "부서/팀관리", href: "/company/departments" },
       { name: "회원관리", href: "/company/members" },
