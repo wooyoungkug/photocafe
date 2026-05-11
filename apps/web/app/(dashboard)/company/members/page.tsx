@@ -1216,7 +1216,7 @@ function MembersPageContent() {
                         type="number"
                         min={0}
                         step={10}
-                        value={formData.storageQuotaGb ?? 500}
+                        value={formData.storageQuotaGb ?? 100}
                         onChange={(e) =>
                           setFormData({
                             ...formData,
@@ -1232,14 +1232,14 @@ function MembersPageContent() {
                         현재 사용량: {(() => {
                           const used = (editingMember as any).storageUsedBytes ?? 0;
                           const usedGb = used / (1024 ** 3);
-                          const quota = formData.storageQuotaGb ?? 500;
+                          const quota = formData.storageQuotaGb ?? 100;
                           const pct = quota > 0 ? Math.min(100, (usedGb / quota) * 100) : 0;
                           return `${usedGb.toFixed(2)} GB / ${quota} GB (${pct.toFixed(1)}%)`;
                         })()}
                       </p>
                     )}
                     {!editingMember && (
-                      <p className="text-xs text-muted-foreground">일정관리 내 노트 첨부파일 총 저장 한도 (기본 500GB)</p>
+                      <p className="text-xs text-muted-foreground">일정관리 내 노트 첨부파일 총 저장 한도 (기본 100GB)</p>
                     )}
                   </div>
                 </div>
