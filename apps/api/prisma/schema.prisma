@@ -425,6 +425,14 @@ model Client {
   emergencyContactPhone      String?
   emergencyContactRelation   String?
   profileCompletedAt         DateTime?
+  emailVerified              Boolean                        @default(false)
+  emailVerifyToken           String?                        @unique
+  emailVerifyTokenExpiry     DateTime?
+  businessUpgradeStatus      String?
+  businessUpgradeAt          DateTime?
+  businessRegCertPath        String?
+  businessUpgradeRejectReason String?
+  emailConsentAt             DateTime?
   addresses                  ClientAddress[]
   albumPreference            ClientAlbumPreference?
   clientDepartments          ClientDepartment[]
