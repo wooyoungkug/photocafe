@@ -186,12 +186,11 @@ export const DEFAULT_NAVIGATION: NavItem[] = [
   },
   {
     id: "shooting",
-    name: "일정관리",
+    name: "촬영관리",
     icon: CalendarDays,
     children: [
-      { name: "일정관리", href: "/schedule" },
-      { name: "촬영일정", href: "/shooting" },
-      { name: "작가관리", href: "/shooting/photographers" },
+      { name: "촬영관리", href: "/shooting" },
+      { name: "촬영자관리", href: "/shooting/photographers" },
     ],
   },
   {

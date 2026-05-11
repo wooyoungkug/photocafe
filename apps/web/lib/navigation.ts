@@ -155,14 +155,21 @@ export const NAVIGATION: NavItem[] = [
     ],
   },
   {
-    id: "shooting",
+    id: "schedule",
     name: "일정관리",
     icon: CalendarDays,
     children: [
-      { name: "일정관리", href: "/schedule" },
+      { name: "캘린더/할일/메모", href: "/schedule" },
       { name: "노트장", href: "/schedule/notebook" },
-      { name: "촬영일정", href: "/shooting" },
-      { name: "작가관리", href: "/shooting/photographers" },
+    ],
+  },
+  {
+    id: "shooting",
+    name: "촬영관리",
+    icon: CalendarDays,
+    children: [
+      { name: "촬영관리", href: "/shooting" },
+      { name: "촬영자관리", href: "/shooting/photographers" },
     ],
   },
   {
