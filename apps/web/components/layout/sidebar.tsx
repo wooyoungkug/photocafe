@@ -621,7 +621,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
       )}
     >
       {/* ── Logo ── */}
-      <div className="flex h-[72px] items-center justify-between px-5 border-b border-white/[0.04]">
+      <div className="flex h-[56px] items-center justify-between px-4 border-b border-white/[0.04]">
         <Link
           href="/dashboard"
           className="flex items-center group"
@@ -631,9 +631,9 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           <Image
             src="/images/photocafe_logo_v3.png"
             alt="Photocafe 로고"
-            width={260}
-            height={78}
-            className="h-[62px] w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
+            width={160}
+            height={48}
+            className="h-[38px] w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
             priority
           />
         </Link>
