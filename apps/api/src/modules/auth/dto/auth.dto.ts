@@ -46,15 +46,23 @@ export class ClientRegisterDto {
   @IsNotEmpty({ message: '이메일을 입력해주세요' })
   contactEmail: string;
 
-  @ApiPropertyOptional({ example: 'cuid_verification_id', description: '이메일 인증 ID (선택)' })
-  @IsOptional()
-  @IsString()
-  verificationId?: string;
-
   @ApiPropertyOptional({ example: '01012345678', description: '전화번호' })
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({ example: true, description: '이메일 수신 동의 (필수)' })
+  @IsBoolean({ message: '이메일 수신 동의 여부를 선택해주세요' })
+  emailConsent: boolean;
+}
+
+// ========== 이메일 링크 인증 / 재발송 DTO ==========
+
+export class ResendVerificationDto {
+  @ApiProperty({ example: 'myid123', description: '아이디(loginId)' })
+  @IsString()
+  @IsNotEmpty({ message: '아이디를 입력해주세요' })
+  loginId: string;
 }
 
 // ========== 비밀번호 변경 DTO ==========

@@ -1,11 +1,11 @@
-import { Controller, Post, UseInterceptors, UploadedFile, BadRequestException, Get, Param, Res, Body, Delete, Logger } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request, BadRequestException, Get, Param, Res, Body, Delete, Logger } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiConsumes, ApiBody, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiBody, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
-import { existsSync, mkdirSync, createReadStream, statSync } from 'fs';
+import { existsSync, mkdirSync, createReadStream, statSync, unlinkSync } from 'fs';
 import { writeFile as fsWriteFile } from 'fs/promises';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
@@ -13,6 +13,16 @@ import { ThumbnailService } from './services/thumbnail.service';
 import { B2StorageService } from './services/b2-storage.service';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Public } from '@/common/decorators/public.decorator';
+import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+
+/** B2 키 세그먼트 정규화 (b2-storage.service 의 sanitizeStorageKeyPart 와 동일 규칙) */
+function sanitizeStorageKeyPart(value: string): string {
+    return value
+        .replace(/\\/g, '/')
+        .replace(/^\.+/, '')
+        .replace(/\.\./g, '_')
+        .replace(/[^a-zA-Z0-9._/-]/g, '_');
+}
 
 /** 동적 업로드 디렉토리 헬퍼 (DB 설정 반영) */
 function ensureDir(subPath: string): string {
@@ -210,6 +220,69 @@ export class UploadController {
     deleteTempFolder(@Param('tempFolderId') tempFolderId: string) {
         this.fileStorage.cleanupTempFolder(tempFolderId);
         return { message: '임시 파일이 삭제되었습니다.' };
+    }
+
+    // ==================== 사업자등록증 업로드 (B2 private) ====================
+
+    @Post('business-cert')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Throttle({ default: { ttl: 60000, limit: 10 } })
+    @ApiOperation({ summary: '사업자등록증 업로드 (사업자 회원 전환 신청용, B2 private 저장)' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: { file: { type: 'string', format: 'binary' } },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: diskStorage({
+                destination: (_req, _file, cb) => cb(null, ensureDir('business-certs')),
+                filename: (_req, file, cb) => {
+                    const uniqueName = `${randomUUID()}${extname(file.originalname).toLowerCase()}`;
+                    cb(null, uniqueName);
+                },
+            }),
+            fileFilter: (_req, file, cb) => {
+                const ok = /\.(pdf|jpg|jpeg|png)$/i.test(file.originalname) &&
+                    /\/(pdf|jpg|jpeg|png)$/i.test(file.mimetype);
+                if (!ok) {
+                    return cb(new BadRequestException('PDF, JPG, PNG 파일만 업로드 가능합니다.'), false);
+                }
+                cb(null, true);
+            },
+            limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+        }),
+    )
+    async uploadBusinessCert(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+        if (req.user?.type === 'staff') {
+            // 임시파일 정리
+            try { unlinkSync(file.path); } catch { /* noop */ }
+            throw new BadRequestException('회원 계정으로만 업로드할 수 있습니다.');
+        }
+        const clientId: string = req.user?.clientId || req.user?.sub;
+        if (!clientId) {
+            try { unlinkSync(file.path); } catch { /* noop */ }
+            throw new BadRequestException('유효하지 않은 사용자입니다.');
+        }
+        if (!this.b2Storage.isEnabled()) {
+            try { unlinkSync(file.path); } catch { /* noop */ }
+            throw new BadRequestException('파일 스토리지가 설정되지 않았습니다. 관리자에게 문의하세요.');
+        }
+
+        const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+        const key = `clients/${sanitizeStorageKeyPart(clientId)}/business-cert/${Date.now()}-${sanitizeStorageKeyPart(originalName)}`;
+        try {
+            await this.b2Storage.putPrivateObjectFromPath(key, file.path, file.mimetype);
+        } finally {
+            try { unlinkSync(file.path); } catch { /* noop */ }
+        }
+        return { uploadKey: key, originalName, size: file.size };
     }
 
     // ==================== 카테고리 아이콘 ====================

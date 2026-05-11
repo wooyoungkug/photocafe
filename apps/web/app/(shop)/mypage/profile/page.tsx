@@ -112,6 +112,9 @@ export default function ProfilePage() {
     enabled: isAuthenticated && !!user?.id,
   });
 
+  // 사업자 회원만 사업자 정보(사업자등록번호/대표자명/담당자) 표시 — 개인회원은 비표시
+  const isBusiness = profile?.memberType === 'business';
+
   useEffect(() => {
     if (profile?.smsNotificationStages) {
       setSmsStages(profile.smsNotificationStages);
@@ -607,10 +610,10 @@ export default function ProfilePage() {
               </div>
             </div>}
 
-            {!isEmployee && <Separator />}
+            {!isEmployee && isBusiness && <Separator />}
 
-            {/* 사업자 정보 - 직원은 비표시 */}
-            {!isEmployee && <div className="space-y-3">
+            {/* 사업자 정보 - 직원·개인회원은 비표시 */}
+            {!isEmployee && isBusiness && <div className="space-y-3">
               <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">사업자 정보 (선택)</h3>
               <div className="grid md:grid-cols-2 gap-x-6 gap-y-3">
                 <div className="space-y-1">

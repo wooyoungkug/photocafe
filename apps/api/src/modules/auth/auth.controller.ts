@@ -34,6 +34,7 @@ import {
   SendEmailVerificationDto,
   VerifyEmailDto,
   ChangePasswordDto,
+  ResendVerificationDto,
 } from './dto/auth.dto';
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { EmploymentService } from '../employment/employment.service';
@@ -371,6 +372,12 @@ export class AuthController {
       );
     }
 
+    // 이메일 링크 인증 미완료: 토큰 발급/로그인하지 않고 인증 대기 페이지로 리다이렉트
+    if (!client.emailVerified) {
+      await this.authService.ensureEmailVerificationIssued(client.id);
+      return res.redirect(`${frontendUrl}/verify-email?pending=1&provider=${client.oauthProvider ?? ''}`);
+    }
+
     const inviteToken = req?.cookies?.invite_token;
     if (inviteToken) {
       try {
@@ -436,30 +443,48 @@ export class AuthController {
   @Public()
   @Post('client/register')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  @ApiOperation({ summary: '고객 아이디/PW 회원가입' })
+  @ApiOperation({ summary: '고객 아이디/PW 회원가입 (가입 후 인증 메일 발송)' })
   async clientRegister(@Body() dto: ClientRegisterDto) {
     return this.authService.registerClientWithPassword(
       dto.loginId,
       dto.password,
       dto.name,
       dto.contactEmail,
-      dto.verificationId,
       dto.phone,
+      dto.emailConsent,
     );
   }
 
   @Public()
+  @Get('client/verify-email')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '이메일 링크 인증 (가입 후 메일의 링크 클릭)' })
+  async verifyEmailByToken(@Query('token') token: string) {
+    return this.authService.verifyEmailToken(token);
+  }
+
+  @Public()
+  @Post('client/resend-verification')
+  @Throttle({ default: { ttl: 60000, limit: 1 } })
+  @ApiOperation({ summary: '이메일 인증 메일 재발송' })
+  async resendVerification(@Body() dto: ResendVerificationDto) {
+    return this.authService.resendVerificationEmail(dto.loginId);
+  }
+
+  /** @deprecated 가입폼 내 6자리 코드 인증. 링크 인증(client/verify-email GET, client/resend-verification)으로 대체됨. */
+  @Public()
   @Post('client/send-email-verification')
   @Throttle({ default: { ttl: 60000, limit: 3 } })
-  @ApiOperation({ summary: '이메일 인증코드 발송' })
+  @ApiOperation({ summary: '[DEPRECATED] 이메일 인증코드 발송 (코드 방식)' })
   async sendEmailVerification(@Body() dto: SendEmailVerificationDto) {
     return this.authService.sendEmailVerification(dto.email);
   }
 
+  /** @deprecated 가입폼 내 6자리 코드 인증. 링크 인증으로 대체됨. */
   @Public()
   @Post('client/verify-email')
   @Throttle({ default: { ttl: 60000, limit: 5 } })
-  @ApiOperation({ summary: '이메일 인증코드 확인' })
+  @ApiOperation({ summary: '[DEPRECATED] 이메일 인증코드 확인 (코드 방식)' })
   async verifyEmail(@Body() dto: VerifyEmailDto) {
     return this.authService.verifyEmailCode(dto.email, dto.code);
   }

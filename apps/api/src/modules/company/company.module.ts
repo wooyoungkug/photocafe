@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ClientController } from './controllers/client.controller';
+import { BusinessUpgradeController } from './controllers/business-upgrade.controller';
 import { ClientAddressController } from './controllers/client-address.controller';
 import { ClientGroupController } from './controllers/client-group.controller';
 import { CategoryController } from './controllers/category.controller';
@@ -8,6 +9,7 @@ import { CopperPlateController } from './controllers/copper-plate.controller';
 import { FabricController } from './controllers/fabric.controller';
 import { ClientAlbumPreferenceController } from './controllers/client-album-preference.controller';
 import { ClientService } from './services/client.service';
+import { BusinessUpgradeService } from './services/business-upgrade.service';
 import { ClientAddressService } from './services/client-address.service';
 import { ClientGroupService } from './services/client-group.service';
 import { CategoryService } from './services/category.service';
@@ -15,9 +17,14 @@ import { SalesCategoryService } from './services/sales-category.service';
 import { CopperPlateService } from './services/copper-plate.service';
 import { FabricService } from './services/fabric.service';
 import { ClientAlbumPreferenceService } from './services/client-album-preference.service';
+import { UploadModule } from '../upload/upload.module';
 
 @Module({
+  imports: [UploadModule],
   controllers: [
+    // BusinessUpgradeController must be registered before ClientController:
+    // `GET /clients/business-upgrade-requests` would otherwise match `GET /clients/:id`.
+    BusinessUpgradeController,
     ClientController,
     ClientAddressController,
     ClientGroupController,
@@ -29,6 +36,7 @@ import { ClientAlbumPreferenceService } from './services/client-album-preference
   ],
   providers: [
     ClientService,
+    BusinessUpgradeService,
     ClientAddressService,
     ClientGroupService,
     CategoryService,

@@ -450,8 +450,12 @@ export class AuthService {
           oauthProvider: 'naver', oauthId: data.oauthId, profileImage: data.profileImage,
           gender, birthday, ...(mobile && { mobile }),
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
-        },
+          // 이메일 있으면 링크 인증 필요(false), 없으면 인증 불가하므로 통과(true)
+          emailVerified: !data.email,
+        } as any,
       });
+      await this.issueEmailVerification(client.id);
+      client = (await this.prisma.client.findUnique({ where: { id: client.id } })) ?? client;
     } else {
       const updateData: any = {};
       if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
@@ -498,8 +502,12 @@ export class AuthService {
           oauthProvider: 'kakao', oauthId: data.oauthId, profileImage: data.profileImage,
           gender, birthday, ...(mobile && { mobile }),
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
-        },
+          // 이메일 있으면 링크 인증 필요(false), 없으면 인증 불가하므로 통과(true)
+          emailVerified: !data.email,
+        } as any,
       });
+      await this.issueEmailVerification(client.id);
+      client = (await this.prisma.client.findUnique({ where: { id: client.id } })) ?? client;
     } else {
       const updateData: any = {};
       if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
@@ -541,8 +549,12 @@ export class AuthService {
           clientCode, clientName: data.name, email: data.email,
           oauthProvider: 'google', oauthId: data.oauthId, profileImage: data.profileImage,
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
-        },
+          // 이메일 있으면 링크 인증 필요(false), 없으면 인증 불가하므로 통과(true)
+          emailVerified: !data.email,
+        } as any,
       });
+      await this.issueEmailVerification(client.id);
+      client = (await this.prisma.client.findUnique({ where: { id: client.id } })) ?? client;
     } else {
       const updateData: any = {};
       if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
@@ -706,6 +718,15 @@ export class AuthService {
       throw new UnauthorizedException('비활성 계정입니다');
     }
 
+    // 이메일 링크 인증 필수 (최초 로그인 전)
+    if (!(client as any).emailVerified) {
+      throw new ForbiddenException({
+        code: 'EMAIL_NOT_VERIFIED',
+        message: '이메일 인증이 필요합니다. 가입 시 받은 인증 메일을 확인해 주세요.',
+        email: this.maskEmail(client.contactEmail || client.email || ''),
+      });
+    }
+
     // 소속(employment)이 있으면 컨텍스트 선택 필요
     const employments = await this.getActiveEmployments(client.id);
     if (employments.length > 0) {
@@ -733,20 +754,11 @@ export class AuthService {
     password: string,
     name: string,
     contactEmail: string,
-    verificationId?: string,
     phone?: string,
+    emailConsent?: boolean,
   ) {
-    // 이메일 인증 확인 (verificationId가 있을 때만)
-    if (verificationId) {
-      const verification = await this.prisma.emailVerification.findUnique({
-        where: { id: verificationId },
-      });
-      if (!verification || !verification.verified || verification.email !== contactEmail) {
-        throw new BadRequestException('이메일 인증이 완료되지 않았습니다');
-      }
-      if (verification.expiresAt < new Date()) {
-        throw new BadRequestException('인증이 만료되었습니다. 다시 인증해주세요');
-      }
+    if (!emailConsent) {
+      throw new BadRequestException('이메일 수신 동의가 필요합니다');
     }
 
     // 아이디 중복 확인
@@ -759,8 +771,9 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(password, 12);
     const clientCode = `P${Date.now().toString().slice(-8)}`;
+    const token = crypto.randomBytes(32).toString('hex');
 
-    await this.prisma.client.create({
+    const client = await this.prisma.client.create({
       data: {
         clientCode,
         clientName: name,
@@ -772,19 +785,161 @@ export class AuthService {
         priceType: 'standard',
         paymentType: 'order',
         status: 'active',
-      },
+        emailVerified: false,
+        emailVerifyToken: token,
+        emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        emailConsentAt: new Date(),
+      } as any,
     });
 
-    // 사용된 인증 레코드 삭제
-    if (verificationId) {
-      await this.prisma.emailVerification.delete({ where: { id: verificationId } }).catch(() => {});
-    }
+    // 인증 메일 발송 (실패해도 가입은 완료 처리)
+    await this.sendVerificationEmail(client);
 
-    return { success: true, message: '회원가입이 완료되었습니다' };
+    return {
+      success: true,
+      message: '회원가입이 완료되었습니다. 이메일로 발송된 인증 링크를 클릭해 인증을 완료해 주세요.',
+      requiresEmailVerification: true,
+    };
   }
 
-  // ========== 이메일 인증 ==========
+  // ========== 이메일 링크 인증 ==========
 
+  private maskEmail(email: string): string {
+    if (!email || !email.includes('@')) return email || '';
+    const [local, domain] = email.split('@');
+    if (local.length <= 1) return `${local}***@${domain}`;
+    return `${local[0]}***@${domain}`;
+  }
+
+  /** 클라이언트에 emailVerifyToken을 보장(없으면 새로 발급+저장)하고 인증 메일을 발송한다. 실패해도 throw 하지 않는다. */
+  private async sendVerificationEmail(client: any): Promise<void> {
+    try {
+      let token = client.emailVerifyToken as string | null;
+      if (!token) {
+        token = crypto.randomBytes(32).toString('hex');
+        await this.prisma.client.update({
+          where: { id: client.id },
+          data: {
+            emailVerifyToken: token,
+            emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          } as any,
+        });
+      }
+      const to = client.contactEmail || client.email;
+      if (!to) {
+        this.logger.warn(`이메일 인증 메일 발송 스킵: client ${client.id}에 이메일이 없습니다`);
+        return;
+      }
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+      const link = `${baseUrl}/verify-email?token=${token}`;
+      const name = client.clientName || '회원';
+      const html = `
+        <div style="font-family: 'Apple SD Gothic Neo', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #222;">
+          <h2 style="margin: 0 0 16px;">이메일 인증을 완료해 주세요</h2>
+          <p style="line-height: 1.6;">${name}님, Photocafe 회원가입을 환영합니다.<br/>
+          아래 버튼을 눌러 이메일 인증을 완료하시면 로그인하실 수 있습니다.</p>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${link}" style="display: inline-block; background: #E4007F; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold;">이메일 인증하기</a>
+          </div>
+          <p style="font-size: 13px; color: #888; line-height: 1.6;">버튼이 동작하지 않으면 아래 링크를 복사해 브라우저에 붙여넣어 주세요.<br/>
+          <a href="${link}" style="color: #555;">${link}</a></p>
+          <p style="font-size: 13px; color: #888;">이 링크는 24시간 동안 유효합니다.</p>
+        </div>
+      `;
+      const text = `${name}님, Photocafe 회원가입을 환영합니다.\n아래 링크를 눌러 이메일 인증을 완료해 주세요. (24시간 유효)\n${link}`;
+      const result = await this.emailService.sendEmail({
+        to,
+        subject: '[Photocafe] 이메일 인증을 완료해 주세요',
+        html,
+        text,
+      });
+      if (!result.success) {
+        this.logger.warn(`이메일 인증 메일 발송 실패 (${to}): ${result.error}`);
+      }
+    } catch (e: any) {
+      this.logger.warn(`이메일 인증 메일 발송 중 오류: ${e?.message}`);
+    }
+  }
+
+  /** OAuth 신규 가입자에 대해: 이메일 있으면 토큰 발급+메일 발송(emailVerified=false), 이메일 없으면 emailVerified=true로 통과 */
+  private async issueEmailVerification(clientId: string): Promise<void> {
+    const client = await this.prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return;
+    if ((client as any).emailVerified) return;
+    if (!client.email) {
+      // 이메일 없는 소셜 계정은 링크 인증이 불가하므로 통과 처리
+      await this.prisma.client.update({
+        where: { id: clientId },
+        data: { emailVerified: true } as any,
+      });
+      return;
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const updated = await this.prisma.client.update({
+      where: { id: clientId },
+      data: {
+        emailVerifyToken: token,
+        emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      } as any,
+    });
+    await this.sendVerificationEmail(updated);
+  }
+
+  /** 컨트롤러 외부에서 호출 가능한 래퍼: emailVerified=false 인 클라이언트에 인증 토큰/메일 보장 */
+  async ensureEmailVerificationIssued(clientId: string): Promise<void> {
+    await this.issueEmailVerification(clientId);
+  }
+
+  async verifyEmailToken(token: string) {
+    if (!token || typeof token !== 'string') {
+      throw new BadRequestException('유효하지 않거나 만료된 인증 링크입니다');
+    }
+    const client = await this.prisma.client.findFirst({
+      where: { emailVerifyToken: token } as any,
+    });
+    if (!client) {
+      throw new BadRequestException('유효하지 않거나 만료된 인증 링크입니다. 이미 인증되었거나 링크가 만료되었을 수 있습니다.');
+    }
+    const expiry = (client as any).emailVerifyTokenExpiry as Date | null;
+    if (expiry && expiry.getTime() < Date.now()) {
+      throw new BadRequestException('인증 링크가 만료되었습니다. 인증 메일을 다시 받아 주세요.');
+    }
+    await this.prisma.client.update({
+      where: { id: client.id },
+      data: {
+        emailVerified: true,
+        emailVerifyToken: null,
+        emailVerifyTokenExpiry: null,
+      } as any,
+    });
+    return { success: true, email: this.maskEmail(client.contactEmail || client.email || '') };
+  }
+
+  async resendVerificationEmail(loginId: string) {
+    const client = await this.prisma.client.findFirst({ where: { email: loginId } });
+    if (!client) {
+      // 존재 노출 방지
+      this.logger.log(`인증 메일 재발송 요청 - 존재하지 않는 아이디: ${loginId}`);
+      return { success: true };
+    }
+    if ((client as any).emailVerified) {
+      return { success: true, alreadyVerified: true };
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const updated = await this.prisma.client.update({
+      where: { id: client.id },
+      data: {
+        emailVerifyToken: token,
+        emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      } as any,
+    });
+    await this.sendVerificationEmail(updated);
+    return { success: true };
+  }
+
+  // ========== 이메일 인증 (코드 방식 - DEPRECATED, 사용 안 함) ==========
+
+  /** @deprecated 가입폼 내 6자리 코드 인증 방식. 링크 인증(sendVerificationEmail/verifyEmailToken)으로 대체됨. */
   async sendEmailVerification(email: string) {
     // 1분 이내 동일 이메일 요청 확인 (스팸 방지)
     const recent = await this.prisma.emailVerification.findFirst({
@@ -831,6 +986,7 @@ export class AuthService {
     return { success: true, message: '인증코드가 발송되었습니다' };
   }
 
+  /** @deprecated 가입폼 내 6자리 코드 인증 방식. 링크 인증(verifyEmailToken)으로 대체됨. */
   async verifyEmailCode(email: string, code: string) {
     const verification = await this.prisma.emailVerification.findFirst({
       where: {
