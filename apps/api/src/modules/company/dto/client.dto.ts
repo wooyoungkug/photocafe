@@ -133,9 +133,9 @@ export class CreateClientDto {
   @Max(365)
   paymentTerms?: number;
 
-  @ApiPropertyOptional({ description: '결제조건 구분', enum: ['당월말', '익월말', '2개월여신'] })
+  @ApiPropertyOptional({ description: '결제조건 구분', enum: ['주문시결제', '당월말', '익월말', '2개월여신'] })
   @IsOptional()
-  @IsIn(['당월말', '익월말', '2개월여신'])
+  @IsIn(['주문시결제', '당월말', '익월말', '2개월여신'])
   paymentCondition?: string;
 
   @ApiPropertyOptional({ description: '상태', enum: ['active', 'inactive', 'suspended'] })
