@@ -1,13 +1,15 @@
 'use client';
 
 import { Suspense } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Clock, LogOut } from 'lucide-react';
+import { Clock, LogOut, Mail } from 'lucide-react';
 
 function StaffPendingContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const staffId = searchParams.get('staffId');
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 p-4">
@@ -25,6 +27,16 @@ function StaffPendingContent() {
           <p className="text-sm text-slate-400">
             관리자가 승인하면 로그인할 수 있습니다.
           </p>
+          {staffId && (
+            <button
+              type="button"
+              onClick={() => router.push(`/auth/staff/register?staffId=${staffId}`)}
+              className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition-colors mt-1"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              회사 이메일 등록하기
+            </button>
+          )}
         </CardContent>
         <CardFooter className="flex justify-center pb-8">
           <Button
@@ -54,3 +66,4 @@ export default function StaffPendingPage() {
     </Suspense>
   );
 }
+
