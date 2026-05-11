@@ -7,7 +7,6 @@ import { PinBar } from "@/components/layout/pin-bar";
 import { SubNavBar } from "@/components/layout/sub-nav-bar";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { Toaster } from "@/components/ui/toaster";
-import { PanelLeftClose, PanelLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePageView } from "@/hooks/use-page-view";
 import { useNotificationConfig } from "@/hooks/use-notification-config";
@@ -146,34 +145,14 @@ export function DashboardLayoutClient({
           </aside>
         )}
 
-        {/* 사이드바 토글 버튼 (side 모드 데스크탑 전용) */}
-        {showDesktopSidebar && (
-          <button
-            type="button"
-            onClick={toggleSidebarCollapsed}
-            className={cn(
-              "hidden lg:flex fixed z-[60] top-[5.5rem] items-center justify-center w-6 h-12",
-              "bg-slate-800/90 hover:bg-indigo-600 text-white/80 hover:text-white",
-              "rounded-r-md shadow-lg backdrop-blur-sm",
-              "transition-all duration-300 group",
-              sidebarCollapsed ? "left-0" : "left-72"
-            )}
-            title={sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기"}
-          >
-            {sidebarCollapsed ? (
-              <PanelLeft className="h-4 w-4 group-hover:scale-110 transition-transform" />
-            ) : (
-              <PanelLeftClose className="h-4 w-4 group-hover:scale-110 transition-transform" />
-            )}
-          </button>
-        )}
-
         {/* 메인 콘텐츠 */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <Header
             onMenuClick={() => setSheetOpen(true)}
             showMenuButton={isMobile}
             layoutMode={layoutMode}
+            onSidebarToggle={showDesktopSidebar ? toggleSidebarCollapsed : undefined}
+            sidebarCollapsed={sidebarCollapsed}
           />
           {/* 2차 메뉴 바 — 현재 페이지의 서브메뉴 전체 표시 */}
           <SubNavBar />

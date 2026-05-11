@@ -16,6 +16,7 @@ import {
   ArrowLeftRight,
   PanelTop,
   PanelLeft,
+  PanelLeftClose,
 } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useLogout, useCurrentUser, useChangePassword, useIsImpersonating, useEndImpersonation } from "@/hooks/use-auth";
@@ -53,9 +54,11 @@ interface HeaderProps {
   onMenuClick?: () => void;
   showMenuButton?: boolean;
   layoutMode?: "top" | "side";
+  onSidebarToggle?: () => void;
+  sidebarCollapsed?: boolean;
 }
 
-export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: HeaderProps) {
+export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSidebarToggle, sidebarCollapsed }: HeaderProps) {
   const { user } = useCurrentUser();
   const logout = useLogout();
   const isImpersonating = useIsImpersonating();
@@ -133,6 +136,26 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side" }: Hea
       <header className="sticky top-0 z-30 relative flex h-14 sm:h-16 items-center justify-between border-b border-slate-200/70 bg-white/80 backdrop-blur-xl px-3 sm:px-4 lg:px-6">
         {/* Left section */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          {/* 사이드바 토글 버튼 (side 모드 데스크탑 전용) */}
+          {!isTopMode && onSidebarToggle && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={onSidebarToggle}
+                  className="hidden lg:flex items-center justify-center w-8 h-8 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100/80 transition-all duration-150"
+                >
+                  {sidebarCollapsed
+                    ? <PanelLeft className="h-5 w-5" />
+                    : <PanelLeftClose className="h-5 w-5" />}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기"}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           {/* Mobile menu button */}
           {showMenuButton && (
             <Tooltip>
