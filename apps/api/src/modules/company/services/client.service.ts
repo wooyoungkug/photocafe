@@ -736,6 +736,8 @@ export class ClientService {
       emergencyContactPhone?: string;
       emergencyContactRelation?: string;
       department?: string;
+      acquisitionChannel?: string;
+      acquisitionChannelNote?: string;
     },
   ) {
     const existing = await this.prisma.client.findUnique({
@@ -775,6 +777,10 @@ export class ClientService {
         clientUpdate.emergencyContactPhone = data.emergencyContactPhone.trim() || null;
       if (data.emergencyContactRelation !== undefined)
         clientUpdate.emergencyContactRelation = data.emergencyContactRelation.trim() || null;
+      if (data.acquisitionChannel !== undefined)
+        clientUpdate.acquisitionChannel = data.acquisitionChannel.trim() || null;
+      if (data.acquisitionChannelNote !== undefined)
+        clientUpdate.acquisitionChannelNote = data.acquisitionChannelNote.trim() || null;
 
       const updated = await tx.client.update({
         where: { id: clientId },
@@ -787,6 +793,7 @@ export class ClientService {
           emergencyContactName: true,
           emergencyContactPhone: true,
           emergencyContactRelation: true,
+          acquisitionChannel: true,
           profileCompletedAt: true,
         },
       } as any) as any;
@@ -804,6 +811,7 @@ export class ClientService {
         !!updated.clientName?.trim() &&
         !!updated.mobile?.trim() &&
         !!updated.address?.trim() &&
+        !!updated.acquisitionChannel?.trim() &&
         (primaryEmploymentId ? !!data.department?.trim() : true);
 
       if (requiredFilled && !updated.profileCompletedAt) {

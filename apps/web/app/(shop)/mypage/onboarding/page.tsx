@@ -79,6 +79,8 @@ export default function OnboardingPage() {
     emergencyContactPhone: '',
     emergencyContactRelation: '',
     department: '',
+    acquisitionChannel: '',
+    acquisitionChannelNote: '',
   });
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
@@ -149,6 +151,8 @@ export default function OnboardingPage() {
       emergencyContactPhone: status.profile.emergencyContactPhone ?? '',
       emergencyContactRelation: status.profile.emergencyContactRelation ?? '',
       department: status.employment?.department ?? '',
+      acquisitionChannel: (status.profile as any).acquisitionChannel ?? '',
+      acquisitionChannelNote: (status.profile as any).acquisitionChannelNote ?? '',
     });
   }, [status]);
 
@@ -184,6 +188,7 @@ export default function OnboardingPage() {
       ['clientName', '이름/상호명'],
       ['mobile', '휴대전화'],
       ['address', '주소'],
+      ['acquisitionChannel', '가입경로'],
     ];
     if (status?.employment) required.push(['department', '부서']);
 
@@ -279,6 +284,40 @@ export default function OnboardingPage() {
                   maxLength={13}
                   required
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">
+                  가입경로 <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={form.acquisitionChannel || ''}
+                  onValueChange={(v) =>
+                    setForm({ ...form, acquisitionChannel: v, acquisitionChannelNote: v !== 'etc' ? '' : form.acquisitionChannelNote })
+                  }
+                >
+                  <SelectTrigger className="text-[14px]">
+                    <SelectValue placeholder="어떻게 알게 되셨나요?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="direct" className="text-[14px]">직접 가입</SelectItem>
+                    <SelectItem value="referral" className="text-[14px]">지인 소개</SelectItem>
+                    <SelectItem value="naver_search" className="text-[14px]">네이버 검색</SelectItem>
+                    <SelectItem value="google_search" className="text-[14px]">구글 검색</SelectItem>
+                    <SelectItem value="exhibition" className="text-[14px]">전시회 / 박람회</SelectItem>
+                    <SelectItem value="sns" className="text-[14px]">SNS (인스타그램·유튜브 등)</SelectItem>
+                    <SelectItem value="etc" className="text-[14px]">기타</SelectItem>
+                  </SelectContent>
+                </Select>
+                {form.acquisitionChannel === 'etc' && (
+                  <Input
+                    value={form.acquisitionChannelNote}
+                    onChange={(e) => setForm({ ...form, acquisitionChannelNote: e.target.value })}
+                    placeholder="어떻게 알게 되셨는지 알려주세요"
+                    className="text-[14px]"
+                    maxLength={200}
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

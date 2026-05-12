@@ -56,4 +56,16 @@ export class SubmitOnboardingDto {
   @IsString()
   @MaxLength(50)
   department?: string;
+
+  @ApiPropertyOptional({ description: '가입경로 (direct | referral | naver_search | google_search | exhibition | sns | etc)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  acquisitionChannel?: string;
+
+  @ApiPropertyOptional({ description: '가입경로 기타 설명' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  acquisitionChannelNote?: string;
 }
