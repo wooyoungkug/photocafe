@@ -300,7 +300,9 @@ export default function MyPageLayout({
                   <h3 className="text-[14px] font-medium text-gray-500 mb-1.5">회원 정보</h3>
                   <div className="text-[14px] text-gray-600 space-y-0.5">
                     <p className="truncate">{user?.clientName}</p>
-                    {user?.email && <p className="truncate" title={user.email}>{user.email}</p>}
+                    {user?.email && !/^(kakao_\d+@kakao\.com|naver_[a-z0-9]+@naver\.com)$/i.test(user.email) && (
+                      <p className="truncate" title={user.email}>{user.email}</p>
+                    )}
                   </div>
                 </CardContent>
               </Card>

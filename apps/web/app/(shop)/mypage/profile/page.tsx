@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, Bell, LogOut } from 'lucide-react';
+import { Lock, User as UserIcon, AlertCircle, CheckCircle, Edit, Save, X, Bell, LogOut, Mail } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +57,13 @@ const SMS_STAGES = [
   { value: 'shipped', label: '배송완료', description: '배송이 출고됐을 때' },
 ];
 
+function isFakeProviderEmail(email: string, oauthProvider?: string | null): boolean {
+  if (!oauthProvider) return false;
+  if (/^kakao_\d+@kakao\.com$/i.test(email)) return true;
+  if (/^naver_[a-z0-9]+@naver\.com$/i.test(email)) return true;
+  return false;
+}
+
 // 읽기 전용 필드값 표시 컴포넌트
 function FieldValue({ value }: { value: string }) {
   return (
@@ -77,6 +84,7 @@ export default function ProfilePage() {
   const [profileData, setProfileData] = useState({
     clientName: '',
     email: '',
+    contactEmail: '',
     mobile: '',
     phone: '',
     postalCode: '',
@@ -117,6 +125,7 @@ export default function ProfilePage() {
 
   // 사업자 회원만 사업자 정보(사업자등록번호/대표자명/담당자) 표시 — 개인회원은 비표시
   const isBusiness = profile?.memberType === 'business';
+  const isFakeEmail = isFakeProviderEmail(profile?.email ?? '', profile?.oauthProvider);
 
   useEffect(() => {
     if (profile?.smsNotificationStages) {
@@ -133,6 +142,7 @@ export default function ProfilePage() {
       setProfileData({
         clientName: profile.clientName || '',
         email: profile.email || '',
+        contactEmail: profile.contactEmail || '',
         mobile: profile.mobile || '',
         phone: profile.phone || '',
         postalCode: profile.postalCode || '',
@@ -242,8 +252,21 @@ export default function ProfilePage() {
     e.preventDefault();
     setError('');
     setSuccess('');
-    if (!profileData.clientName || !profileData.email) {
-      setError('이름과 이메일은 필수 입력 항목입니다.');
+    if (!profileData.clientName) {
+      setError('이름은 필수 입력 항목입니다.');
+      return;
+    }
+    if (isFakeEmail) {
+      if (!profileData.contactEmail?.trim()) {
+        setError('실제 이메일 주소를 입력해주세요.');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.contactEmail.trim())) {
+        setError('올바른 이메일 형식을 입력해주세요.');
+        return;
+      }
+    } else if (!profileData.email) {
+      setError('이메일은 필수 입력 항목입니다.');
       return;
     }
     if (!isEmployee && !profileData.address) {
@@ -256,7 +279,7 @@ export default function ProfilePage() {
     }
     // 직원은 개인 기본 정보만 저장 (주소/사업자 정보 제외)
     const dataToSave = isEmployee
-      ? { clientName: profileData.clientName, email: profileData.email, mobile: profileData.mobile, phone: profileData.phone }
+      ? { clientName: profileData.clientName, email: profileData.email, contactEmail: profileData.contactEmail || undefined, mobile: profileData.mobile, phone: profileData.phone }
       : profileData;
     updateProfileMutation.mutate(dataToSave as typeof profileData);
   };
@@ -266,6 +289,7 @@ export default function ProfilePage() {
       setProfileData({
         clientName: profile.clientName || '',
         email: profile.email || '',
+        contactEmail: profile.contactEmail || '',
         mobile: profile.mobile || '',
         phone: profile.phone || '',
         postalCode: profile.postalCode || '',
@@ -415,14 +439,36 @@ export default function ProfilePage() {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="email" className="text-[14px] font-normal text-gray-600">
+                  <Label htmlFor="email" className="text-[14px] font-normal text-gray-600 flex items-center gap-1">
                     이메일 <span className="text-red-500">*</span>
                   </Label>
                   {isEditMode ? (
-                    <Input id="email" type="email" className={inputCls} value={profileData.email}
-                      onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} required />
+                    isFakeEmail ? (
+                      <div className="space-y-1">
+                        <Input
+                          id="contactEmail"
+                          type="email"
+                          className={inputCls}
+                          value={profileData.contactEmail}
+                          onChange={(e) => setProfileData({ ...profileData, contactEmail: e.target.value })}
+                          placeholder="실제 이메일 주소를 입력해주세요"
+                        />
+                        <p className="text-[11px] text-gray-400">소셜 로그인 계정의 실제 이메일 주소를 입력해주세요.</p>
+                      </div>
+                    ) : (
+                      <Input id="email" type="email" className={inputCls} value={profileData.email}
+                        onChange={(e) => setProfileData({ ...profileData, email: e.target.value })} required />
+                    )
                   ) : (
-                    <FieldValue value={profile?.email || ''} />
+                    <div>
+                      <FieldValue value={isFakeEmail ? (profile?.contactEmail || '') : (profile?.email || '')} />
+                      {isFakeEmail && !profile?.contactEmail && (
+                        <p className="text-[11px] text-orange-500 mt-0.5 flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          이메일 미등록 — 수정 버튼을 눌러 실제 이메일을 입력해주세요.
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
