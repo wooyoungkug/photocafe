@@ -348,7 +348,7 @@ export class AuthController {
   private async handleOAuthCallback(client: any, frontendUrl: string, res: Response, req?: any) {
     // 이메일 중복 체크 실패: 다른 소셜로 이미 가입된 이메일
     if (client._emailDuplicate) {
-      const msg = encodeURIComponent(client._dupMessage);
+      const msg = encodeURIComponent(client._dupMessage || '이미 다른 소셜 계정으로 가입된 이메일입니다.');
       return res.redirect(`${frontendUrl}/login?error=EMAIL_DUPLICATE&message=${msg}`);
     }
 
