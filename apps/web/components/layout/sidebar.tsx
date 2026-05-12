@@ -629,7 +629,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           aria-label="대시보드로 이동"
         >
           <Image
-            src="/images/photocafe_가로.png"
+            src="/images/photocafe-logo.png"
             alt="Photocafe 로고"
             width={2363}
             height={626}

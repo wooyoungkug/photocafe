@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
         <CardHeader className="space-y-1 text-center">
           <div className="mx-auto mb-4 flex justify-center">
             <Image
-              src="/images/photocafe_가로.png"
+              src="/images/photocafe-logo.png"
               alt="PhotoCafe"
               width={2363}
               height={626}

@@ -68,7 +68,7 @@ export function ShopHeader() {
             {!isLoginPage && (
               <Link href="/" className="flex items-center">
                 <Image
-                  src="/images/photocafe_가로.png"
+                  src="/images/photocafe-logo.png"
                   alt="Photocafe"
                   width={2363}
                   height={626}

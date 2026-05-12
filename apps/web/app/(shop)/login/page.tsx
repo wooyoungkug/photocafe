@@ -237,7 +237,7 @@ function LoginForm() {
         <CardHeader className="space-y-1 text-center">
           <Link href="/" className="inline-block mb-4 mx-auto">
             <Image
-              src="/images/photocafe_가로.png"
+              src="/images/photocafe-logo.png"
               alt="Photocafe"
               width={2363}
               height={626}
@@ -319,7 +319,7 @@ function LoginForm() {
       <CardHeader className="space-y-1 text-center">
         <Link href="/" className="inline-block mb-4 mx-auto">
           <Image
-            src="/images/photocafe_가로.png"
+            src="/images/photocafe-logo.png"
             alt="Photocafe"
             width={2363}
             height={626}
@@ -586,7 +586,7 @@ function LoginFormFallback() {
       <CardHeader className="space-y-1 text-center">
         <div className="mx-auto mb-4 flex justify-center">
           <Image
-            src="/images/photocafe_가로.png"
+            src="/images/photocafe-logo.png"
             alt="Photocafe"
             width={2363}
             height={626}
