@@ -578,8 +578,8 @@ export default function ProfilePage() {
                 <div className="space-y-1">
                   <Label htmlFor="postalCode" className="text-[14px] font-normal text-gray-600">우편번호</Label>
                   {isEditMode ? (
-                    <Input id="postalCode" className={inputCls} value={profileData.postalCode} readOnly
-                      placeholder="주소 검색을 이용하세요" />
+                    <Input id="postalCode" className={`${inputCls} cursor-pointer hover:border-gray-400`} value={profileData.postalCode} readOnly
+                      placeholder="클릭하여 검색" onClick={() => setAddressEmbedOpen(true)} />
                   ) : (
                     <FieldValue value={profile?.postalCode || ''} />
                   )}
@@ -587,8 +587,8 @@ export default function ProfilePage() {
                 <div className="space-y-1">
                   <Label htmlFor="address" className="text-[14px] font-normal text-gray-600">주소</Label>
                   {isEditMode ? (
-                    <Input id="address" className={inputCls} value={profileData.address} readOnly
-                      placeholder="주소 검색을 이용하세요" />
+                    <Input id="address" className={`${inputCls} cursor-pointer hover:border-gray-400`} value={profileData.address} readOnly
+                      placeholder="클릭하여 검색" onClick={() => setAddressEmbedOpen(true)} />
                   ) : (
                     <FieldValue value={profile?.address || ''} />
                   )}

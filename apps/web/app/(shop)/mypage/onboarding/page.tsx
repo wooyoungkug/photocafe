@@ -298,34 +298,34 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
-                <div className="space-y-1.5">
-                  <Label className="text-[14px] text-black font-normal">
-                    우편번호 / 도로명주소 <span className="text-red-500">*</span>
-                  </Label>
-                  <div className="grid grid-cols-[120px_1fr] gap-2">
-                    <Input
-                      value={form.postalCode}
-                      placeholder="우편번호"
-                      readOnly
-                      className="text-[14px] bg-gray-50"
-                    />
-                    <Input
-                      value={form.address}
-                      placeholder="주소 검색을 클릭해주세요"
-                      readOnly
-                      className="text-[14px] bg-gray-50"
-                    />
-                  </div>
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal">
+                  우편번호 / 도로명주소 <span className="text-red-500">*</span>
+                </Label>
+                <div className="grid grid-cols-[120px_1fr_auto] gap-2">
+                  <Input
+                    value={form.postalCode}
+                    placeholder="우편번호"
+                    readOnly
+                    onClick={() => setAddressOpen(true)}
+                    className="text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400"
+                  />
+                  <Input
+                    value={form.address}
+                    placeholder="클릭하거나 검색 버튼을 누르세요"
+                    readOnly
+                    onClick={() => setAddressOpen(true)}
+                    className="text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAddressOpen(true)}
+                    className="text-[14px]"
+                  >
+                    주소 검색
+                  </Button>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setAddressOpen(true)}
-                  className="text-[14px]"
-                >
-                  주소 검색
-                </Button>
               </div>
 
               {addressOpen && (
