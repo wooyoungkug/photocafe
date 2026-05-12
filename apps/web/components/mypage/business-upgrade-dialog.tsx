@@ -295,8 +295,11 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     if (!certUploadKey) {
       setError('사업자등록증 파일을 첨부해 주세요.'); return;
     }
+    if (!addressDetail.trim()) {
+      setError('상세주소를 입력해 주세요.'); return;
+    }
 
-    // 담당자 또는 상세주소 공란 확인
+    // 담당자 공란 확인
     const managersEmpty = !practicalManagerName.trim() && !approvalManagerName.trim();
     if (managersEmpty) {
       setManagerConfirmPending(true);
@@ -543,7 +546,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
             </div>
 
             <DaumAddressFields
-              label="사업장 주소 (선택)"
+              label={<>사업장 주소 <span className="text-[12px] text-gray-400">(우편번호·주소 선택 / 상세주소 <span className="text-red-500">필수</span>)</span></>}
               postalCode={postalCode}
               address={address}
               addressDetail={addressDetail}
@@ -554,30 +557,41 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 setAddress(data.address);
               }}
               onAddressDetailChange={setAddressDetail}
-              postalCodeClassName={ocrFields.has('postalCode') ? 'bg-blue-50 border-blue-300 text-blue-900' : undefined}
-              addressClassName={ocrFields.has('address') ? 'bg-blue-50 border-blue-300 text-blue-900' : undefined}
-              detailPlaceholder="상세주소 (선택)"
+              postalCodeClassName={
+                ocrFields.has('postalCode')
+                  ? 'bg-blue-50 border-blue-300 text-blue-900'
+                  : !postalCode ? 'border-dashed border-amber-400 bg-amber-50/40' : undefined
+              }
+              addressClassName={
+                ocrFields.has('address')
+                  ? 'bg-blue-50 border-blue-300 text-blue-900'
+                  : !address ? 'border-dashed border-amber-400 bg-amber-50/40' : undefined
+              }
+              detailPlaceholder="상세주소 입력 (필수)"
+              detailClassName={!addressDetail.trim() ? 'border-dashed border-amber-400 bg-amber-50/40 placeholder:text-amber-600' : ''}
             />
 
             <div className="space-y-2 pt-1">
-              <p className="text-[13px] font-medium text-gray-700">담당자 정보 (선택 — 미입력 시 대표자 정보로 자동 기재)</p>
+              <p className="text-[13px] font-medium text-gray-700">
+                담당자 정보 <span className="font-normal text-gray-400">(선택 — 미입력 시 신청하기를 누르면 대표자 정보로 자동 기재)</span>
+              </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 이름</Label>
                   <Input
-                    className={fieldCls('practicalManagerName', practicalManagerName)}
+                    className={fieldCls('practicalManagerName', practicalManagerName, true)}
                     value={practicalManagerName}
                     onChange={(e) => setPracticalManagerName(e.target.value)}
-                    placeholder={representative || '이름'}
+                    placeholder="이름 (선택)"
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 연락처</Label>
                   <Input
-                    className={fieldCls('practicalManagerPhone', practicalManagerPhone)}
+                    className={fieldCls('practicalManagerPhone', practicalManagerPhone, true)}
                     value={practicalManagerPhone}
                     onChange={(e) => setPracticalManagerPhone(formatPhone(e.target.value))}
-                    placeholder={user?.mobile || '010-0000-0000'}
+                    placeholder="연락처 (선택)"
                     inputMode="numeric"
                   />
                 </div>
@@ -586,19 +600,19 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">결재담당자 이름</Label>
                   <Input
-                    className={fieldCls('approvalManagerName', approvalManagerName)}
+                    className={fieldCls('approvalManagerName', approvalManagerName, true)}
                     value={approvalManagerName}
                     onChange={(e) => setApprovalManagerName(e.target.value)}
-                    placeholder={representative || '이름'}
+                    placeholder="이름 (선택)"
                   />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">결재담당자 연락처</Label>
                   <Input
-                    className={fieldCls('approvalManagerPhone', approvalManagerPhone)}
+                    className={fieldCls('approvalManagerPhone', approvalManagerPhone, true)}
                     value={approvalManagerPhone}
                     onChange={(e) => setApprovalManagerPhone(formatPhone(e.target.value))}
-                    placeholder={user?.mobile || '010-0000-0000'}
+                    placeholder="연락처 (선택)"
                     inputMode="numeric"
                   />
                 </div>

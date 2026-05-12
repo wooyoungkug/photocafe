@@ -235,9 +235,9 @@ export class BusinessCertOcrService {
       }
     }
 
-    // 대표자 fullText fallback
+    // 대표자 fullText fallback — 최대 4자(한국 이름 범위)만 캡처
     if (!result.representative) {
-      const m = fullText.match(/대\s*표\s*자\s*[:：\s]\s*((?:[가-힣]\s*){2,15})/);
+      const m = fullText.match(/대\s*표\s*자\s*[:：\s]\s*((?:[가-힣]\s*){2,4})/);
       if (m && m[1].trim()) {
         result.representative = this.extractName(m[1]);
       }
@@ -267,7 +267,7 @@ export class BusinessCertOcrService {
     }
     const sorted = [...tokens].sort((a, b) => a.y - b.y);
     const lines: string[][] = [];
-    const threshold = 20; // px — 글자 간격이 넓은 공문서 대응
+    const threshold = 12; // px
     let currentY = -Infinity;
     for (const t of sorted) {
       if (Math.abs(t.y - currentY) > threshold || lines.length === 0) {

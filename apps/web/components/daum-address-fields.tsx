@@ -26,11 +26,12 @@ interface DaumAddressFieldsProps {
   required?: boolean;           // adds * to label
   className?: string;
   embedHeight?: number;         // default 380
-  label?: string;               // default "주소"
+  label?: string | React.ReactNode;
   /** show label row above fields, default true */
   showLabel?: boolean;
   postalCodeClassName?: string;
   addressClassName?: string;
+  detailClassName?: string;
 }
 
 export function DaumAddressFields({
@@ -48,6 +49,7 @@ export function DaumAddressFields({
   showLabel = true,
   postalCodeClassName,
   addressClassName,
+  detailClassName,
 }: DaumAddressFieldsProps) {
   const [open, setOpen] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(!!getDaum());
@@ -142,7 +144,7 @@ export function DaumAddressFields({
           value={addressDetail}
           onChange={(e) => onAddressDetailChange?.(e.target.value)}
           placeholder={detailPlaceholder}
-          className="text-[14px]"
+          className={`text-[14px] ${detailClassName || ''}`}
         />
       )}
     </div>
