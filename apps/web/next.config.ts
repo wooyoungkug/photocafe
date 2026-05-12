@@ -22,6 +22,8 @@ const cspDirectives = [
   "worker-src 'self' blob:",
   "media-src 'self' blob: https:",
   "form-action 'self'",
+  // Daum(Kakao) 우편번호 서비스 iframe 허용
+  "frame-src 'self' https://postcode.map.daum.net https://t1.daumcdn.net",
 ].join("; ");
 
 const nextConfig: NextConfig = {
