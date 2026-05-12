@@ -27,6 +27,18 @@ function formatBusinessNumber(value: string): string {
   return nums;
 }
 
+function formatPhone(value: string): string {
+  const nums = value.replace(/\D/g, '').slice(0, 11);
+  if (nums.startsWith('02')) {
+    if (nums.length > 6) return `${nums.slice(0, 2)}-${nums.slice(2, 6)}-${nums.slice(6)}`;
+    if (nums.length > 2) return `${nums.slice(0, 2)}-${nums.slice(2)}`;
+    return nums;
+  }
+  if (nums.length > 7) return `${nums.slice(0, 3)}-${nums.slice(3, 7)}-${nums.slice(7)}`;
+  if (nums.length > 3) return `${nums.slice(0, 3)}-${nums.slice(3)}`;
+  return nums;
+}
+
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 const MAX_SIZE = 10 * 1024 * 1024;
 
@@ -286,8 +298,9 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Input
                     className={inputCls}
                     value={practicalManagerPhone}
-                    onChange={(e) => setPracticalManagerPhone(e.target.value)}
+                    onChange={(e) => setPracticalManagerPhone(formatPhone(e.target.value))}
                     placeholder="010-0000-0000"
+                    inputMode="numeric"
                   />
                 </div>
               </div>
@@ -306,8 +319,9 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Input
                     className={inputCls}
                     value={approvalManagerPhone}
-                    onChange={(e) => setApprovalManagerPhone(e.target.value)}
+                    onChange={(e) => setApprovalManagerPhone(formatPhone(e.target.value))}
                     placeholder="010-0000-0000"
+                    inputMode="numeric"
                   />
                 </div>
               </div>
