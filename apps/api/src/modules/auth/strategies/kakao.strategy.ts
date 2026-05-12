@@ -23,7 +23,9 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
       clientID: clientID || 'disabled',
       clientSecret: clientSecret || '',
       callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/kakao/callback',
-      scope: ['profile_nickname'],
+      // account_email: 카카오계정 이메일 (개발자콘솔 동의항목 활성화 필요)
+      // phone_number: 비즈앱 전환 후 추가 가능
+      scope: ['profile_nickname', 'account_email'],
     } as any);
   }
 
@@ -38,10 +40,18 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
       const { id, username, _json } = profile;
       const kakaoAccount = _json?.kakao_account;
 
+      // 카카오에서 이메일을 실제로 받은 경우만 사용, 동의 안 했거나 없으면 가짜 이메일
+      const realEmail =
+        kakaoAccount?.email &&
+        kakaoAccount?.email_needs_agreement !== true &&
+        kakaoAccount?.is_email_valid !== false
+          ? kakaoAccount.email
+          : null;
+
       const user = await this.authService.validateKakaoUser({
         oauthId: String(id),
-        email: kakaoAccount?.email || `kakao_${id}@kakao.com`,
-        name: username || kakaoAccount?.profile?.nickname || '카카오사용자',
+        email: realEmail || `kakao_${id}@kakao.com`,
+        name: kakaoAccount?.profile?.nickname || username || '카카오사용자',
         profileImage: kakaoAccount?.profile?.profile_image_url,
         gender: kakaoAccount?.gender,
         birthday: kakaoAccount?.birthday,

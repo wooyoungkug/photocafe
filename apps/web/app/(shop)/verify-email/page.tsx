@@ -124,6 +124,10 @@ function VerifyEmailContent() {
   }, [token]);
 
   const providerLabel = provider ? PROVIDER_LABEL[provider] || provider : null;
+  // 카카오/네이버 시스템 생성 이메일 감지 — 진짜 이메일이 아님
+  const isFakeEmail =
+    /^kakao_\d+@kakao\.com$/i.test(emailParam) ||
+    /^naver_[a-z0-9]+@naver\.com$/i.test(emailParam);
 
   return (
     <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4 py-8">
@@ -187,18 +191,33 @@ function VerifyEmailContent() {
               <div className="flex flex-col items-center gap-3 py-4">
                 <Info className="h-12 w-12 text-blue-500" />
                 <p className="text-[16px] text-black font-medium">이메일 인증이 필요합니다</p>
-                <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
-                  {providerLabel ? `${providerLabel} 계정으로 가입되었습니다. ` : ''}
-                  인증 링크를 보냈습니다. 메일함을 확인해 인증을 완료한 뒤 다시 로그인해 주세요.
-                </p>
-                {emailParam && (
+                {isFakeEmail ? (
+                  <>
+                    <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
+                      {providerLabel} 계정으로 가입되었으나, 실제 이메일 주소를 가져오지 못했습니다.
+                    </p>
+                    <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-left w-full">
+                      <p className="text-[13px] text-amber-800 font-medium mb-1">📧 인증 메일 수신을 위해 실제 이메일이 필요합니다</p>
+                      <p className="text-[12px] text-amber-700 leading-relaxed">
+                        아래 재발송 란에 <strong>본인의 실제 이메일 주소</strong>를 입력해 인증 메일을 받으세요.
+                        로그인 아이디(ID)로 등록되어 이후 로그인 시에도 사용됩니다.
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
+                    {providerLabel ? `${providerLabel} 계정으로 가입되었습니다. ` : ''}
+                    인증 링크를 보냈습니다. 메일함을 확인해 인증을 완료한 뒤 다시 로그인해 주세요.
+                  </p>
+                )}
+                {emailParam && !isFakeEmail && (
                   <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-4 py-2">
                     <Mail className="h-4 w-4 text-blue-500 shrink-0" />
                     <span className="text-[14px] text-blue-800 font-medium">{maskEmail(emailParam)}</span>
                   </div>
                 )}
               </div>
-              <ResendBox initialLoginId={emailParam} />
+              <ResendBox initialLoginId={isFakeEmail ? '' : emailParam} />
               <Link href="/login">
                 <Button variant="outline" className="w-full h-11">
                   로그인 페이지로
