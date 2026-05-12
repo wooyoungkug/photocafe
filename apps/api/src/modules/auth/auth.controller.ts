@@ -475,7 +475,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60000, limit: 1 } })
   @ApiOperation({ summary: '이메일 인증 메일 재발송' })
   async resendVerification(@Body() dto: ResendVerificationDto) {
-    return this.authService.resendVerificationEmail(dto.loginId);
+    return this.authService.resendVerificationEmail(dto.loginId, dto.contactEmail);
   }
 
   @Public()

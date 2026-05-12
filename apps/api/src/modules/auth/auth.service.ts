@@ -923,10 +923,9 @@ export class AuthService {
     return { success: true, email: this.maskEmail(client.contactEmail || client.email || '') };
   }
 
-  async resendVerificationEmail(loginId: string) {
+  async resendVerificationEmail(loginId: string, contactEmail?: string) {
     const client = await this.prisma.client.findFirst({ where: { email: loginId } });
     if (!client) {
-      // 존재 노출 방지
       this.logger.log(`인증 메일 재발송 요청 - 존재하지 않는 아이디: ${loginId}`);
       return { success: true };
     }
@@ -934,12 +933,17 @@ export class AuthService {
       return { success: true, alreadyVerified: true };
     }
     const token = crypto.randomBytes(32).toString('hex');
+    const updateData: any = {
+      emailVerifyToken: token,
+      emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    };
+    // 소셜 가입자가 실제 이메일을 입력한 경우 contactEmail 저장
+    if (contactEmail && !this.isFakeProviderEmail(contactEmail)) {
+      updateData.contactEmail = contactEmail;
+    }
     const updated = await this.prisma.client.update({
       where: { id: client.id },
-      data: {
-        emailVerifyToken: token,
-        emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      } as any,
+      data: updateData,
     });
     await this.sendVerificationEmail(updated);
     return { success: true };

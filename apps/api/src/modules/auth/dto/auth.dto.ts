@@ -63,6 +63,11 @@ export class ResendVerificationDto {
   @IsString()
   @IsNotEmpty({ message: '아이디를 입력해주세요' })
   loginId: string;
+
+  @ApiProperty({ example: 'real@email.com', description: '인증 메일을 받을 실제 이메일 (소셜 가입자용)', required: false })
+  @IsEmail({}, { message: '올바른 이메일 형식을 입력해주세요' })
+  @IsOptional()
+  contactEmail?: string;
 }
 
 // ========== 중복 확인 DTO ==========

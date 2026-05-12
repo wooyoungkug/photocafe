@@ -137,8 +137,8 @@ export function useClientRegister() {
 /** 이메일 인증 메일 재발송 (rate limit 1회/분 → 429 가능) */
 export function useResendVerification() {
   return useMutation({
-    mutationFn: (loginId: string) =>
-      api.post<{ success: boolean; alreadyVerified?: boolean }>('/auth/client/resend-verification', { loginId }),
+    mutationFn: ({ loginId, contactEmail }: { loginId: string; contactEmail?: string }) =>
+      api.post<{ success: boolean; alreadyVerified?: boolean }>('/auth/client/resend-verification', { loginId, contactEmail }),
   });
 }
 
