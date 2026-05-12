@@ -114,7 +114,7 @@ function LoginForm() {
     }
     setResendResult(null);
     try {
-      const res = await resendVerification.mutateAsync(loginId.trim());
+      const res = await resendVerification.mutateAsync({ loginId: loginId.trim() });
       if (res?.alreadyVerified) {
         setResendResult({ type: 'ok', text: '이미 인증이 완료되었습니다. 다시 로그인해 주세요.' });
         setEmailNotVerified(false);
