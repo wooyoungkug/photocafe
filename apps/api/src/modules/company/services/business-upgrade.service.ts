@@ -111,7 +111,7 @@ export class BusinessUpgradeService {
   // ==================== 관리자 ====================
 
   async listRequests(status: string = 'pending') {
-    return this.prisma.client.findMany({
+    const rows = await this.prisma.client.findMany({
       where: { businessUpgradeStatus: status } as any,
       orderBy: { businessUpgradeAt: 'asc' } as any,
       select: {
@@ -135,7 +135,8 @@ export class BusinessUpgradeService {
         businessUpgradeRejectReason: true,
         businessRegCertPath: true,
       } as any,
-    });
+    }) as any[];
+    return rows.map((r) => ({ ...r, submittedAt: r.businessUpgradeAt ?? null }));
   }
 
   async getCertUrl(clientId: string) {
