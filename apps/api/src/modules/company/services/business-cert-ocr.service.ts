@@ -208,9 +208,10 @@ export class BusinessCertOcrService {
         }
       }
 
-      // 업태 — 종목 앞까지 or 줄 끝까지 (공백 제한 없이)
+      // 업태 — 종목 앞까지 or 줄 끝까지 (greedy, 공백 제한 없이)
       if (!result.businessType) {
-        const m = line.match(/업\s*태\s*[:：]?\s*(.+?)(?=\s*종\s*목|\s*$)/);
+        const m = line.match(/업\s*태\s*[:：]?\s*(.+?)(?=\s+종\s*목)/) ||
+                  line.match(/업\s*태\s*[:：]?\s*(.+)$/);
         if (m && m[1].trim()) result.businessType = this.cleanValue(m[1]);
       }
 
