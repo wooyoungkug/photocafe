@@ -26,6 +26,7 @@ import {
   XCircle,
   AlertTriangle,
   HelpCircle,
+  CalendarDays,
 } from 'lucide-react';
 import {
   useSubmitBusinessUpgrade,
@@ -126,6 +127,8 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   // OCR 자동인식으로 채워진 필드 추적
   const [ocrFilled, setOcrFilled] = useState(false);
   const [ocrFields, setOcrFields] = useState<Set<string>>(new Set());
+  // 개업연월일 (OCR에서만 추출, 읽기전용 표시)
+  const [openDate, setOpenDate] = useState<string | null>(null);
 
   const resetForm = () => {
     setBusinessNumber('');
@@ -148,6 +151,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setNtsVerifiedFor('');
     setOcrFilled(false);
     setOcrFields(new Set());
+    setOpenDate(null);
     analyzeCert.reset();
     verifyStatus.reset();
   };
@@ -245,9 +249,23 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
         setPostalCode(ocr.postalCode);
         filled.add('postalCode');
       }
+      // 개업연월일 (표시용, 폼 제출에는 미포함)
+      if (ocr.openDate) setOpenDate(ocr.openDate);
+
       if (filled.size > 0) {
         setOcrFields(filled);
         setOcrFilled(true);
+      }
+
+      // OCR로 사업자번호가 인식됐으면 국세청 상태 자동 조회
+      if (ocr.businessNumber) {
+        try {
+          const nts = await verifyStatus.mutateAsync(ocr.businessNumber);
+          setNtsResult(nts);
+          setNtsVerifiedFor(formatBusinessNumber(ocr.businessNumber.replace(/\D/g, '')));
+        } catch {
+          // NTS 미설정이거나 조회 실패 시 무시 (수동 확인 버튼으로 재시도 가능)
+        }
       }
     } catch {
       // OCR 실패는 사용자 입력으로 대체 — 에러 표시 없음 (서비스 미설정 가능)
@@ -442,13 +460,30 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                     )}
                   </Button>
                 </div>
-                {ntsValid && (
-                  <div className="flex items-center gap-1.5">
-                    <NtsStatusBadge status={ntsResult.status} statusText={ntsResult.statusText} />
-                    {ntsResult.taxType && (
-                      <span className="text-[11px] text-gray-500">{ntsResult.taxType}</span>
+                {/* 국세청 상태 + 개업연월일 */}
+                {(ntsValid || openDate) && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {ntsValid && (
+                      <>
+                        <NtsStatusBadge status={ntsResult.status} statusText={ntsResult.statusText} />
+                        {ntsResult.taxType && (
+                          <span className="text-[11px] text-gray-500">{ntsResult.taxType}</span>
+                        )}
+                      </>
+                    )}
+                    {openDate && (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
+                        <CalendarDays className="h-3 w-3" />
+                        개업 {openDate}
+                      </span>
                     )}
                   </div>
+                )}
+                {verifyStatus.isPending && (
+                  <p className="text-[11px] text-blue-500 flex items-center gap-1">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    국세청 조회 중...
+                  </p>
                 )}
               </div>
               <div className="space-y-1">
