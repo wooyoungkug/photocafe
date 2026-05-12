@@ -492,6 +492,21 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               </div>
             </div>
 
+            {/* 개업연월일 — OCR 인식 시에만 표시 (읽기전용) */}
+            {openDate && (
+              <div className="space-y-1">
+                <Label className="text-[14px] font-normal text-gray-600 flex items-center gap-1">
+                  <CalendarDays className="h-3.5 w-3.5" />
+                  개업연월일 (자동 인식)
+                </Label>
+                <Input
+                  className="h-9 text-[14px] font-normal bg-blue-50 border-blue-300 text-blue-900"
+                  value={openDate}
+                  readOnly
+                />
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">업태 (선택)</Label>

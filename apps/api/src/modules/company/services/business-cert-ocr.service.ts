@@ -187,14 +187,13 @@ export class BusinessCertOcrService {
       if (!result.representative) {
         const m = line.match(/(?:대\s*표\s*자|성\s*명)\s*(?:\([^)]*\))?\s*[:：]?\s*((?:[가-힣]\s*){2,15})/);
         if (m && m[1].trim()) {
-          result.representative = m[1].replace(/\s+/g, '').trim();
+          result.representative = this.extractName(m[1]);
         } else if (/(?:대\s*표\s*자|성\s*명)/.test(line)) {
-          // 라벨만 있고 값이 없는 경우 → 다음 줄에서 한글 이름 추출
           const next = lines[i + 1];
           if (next) {
             const nm = next.match(/^((?:[가-힣]\s*){2,15})\s*(?:[①-⑩]|$)/);
             if (nm && nm[1].trim()) {
-              result.representative = nm[1].replace(/\s+/g, '').trim();
+              result.representative = this.extractName(nm[1]);
             }
           }
         }
@@ -236,12 +235,11 @@ export class BusinessCertOcrService {
       }
     }
 
-    // 대표자 fullText fallback — 라인 묶음 실패 시 전체 토큰 스트림에서 재시도
+    // 대표자 fullText fallback
     if (!result.representative) {
-      // 구분자가 콜론·공백 모두 허용, 글자 사이 공백 허용
       const m = fullText.match(/대\s*표\s*자\s*[:：\s]\s*((?:[가-힣]\s*){2,15})/);
       if (m && m[1].trim()) {
-        result.representative = m[1].replace(/\s+/g, '').trim();
+        result.representative = this.extractName(m[1]);
       }
     }
 
@@ -284,6 +282,21 @@ export class BusinessCertOcrService {
 
   private looksLikeKeywordLine(line: string): boolean {
     return /상\s*호|법\s*인\s*명|대\s*표\s*자|성\s*명|업\s*태|종\s*목|개\s*업|등\s*록\s*번\s*호|소\s*재\s*지|사업장/.test(line);
+  }
+
+  /**
+   * OCR이 대표자 이름과 다음 키워드(개업, 법인 등)를 하나의 토큰으로 붙인 경우 분리.
+   * 예: "우영국개업연월일" → "우영국", "김 철 수 법 인" → "김철수"
+   */
+  private extractName(raw: string): string {
+    const name = raw.replace(/\s+/g, '').trim();
+    const splitKeywords = ['개업', '법인', '사업', '소재', '본점', '등록', '주민', '사업자', '공동'];
+    for (const kw of splitKeywords) {
+      const idx = name.indexOf(kw);
+      if (idx >= 2) return name.slice(0, idx);
+    }
+    // 이름이 5자 초과면 앞 2~4자만 (한국 이름 최대 4자)
+    return name.length > 5 ? name.slice(0, 4) : name;
   }
 
   /** 값 앞뒤 잡음(콜론, 괄호 라벨, 과도한 공백) 정리 */
