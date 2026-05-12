@@ -23,9 +23,7 @@ export class KakaoStrategy extends PassportStrategy(Strategy, 'kakao') {
       clientID: clientID || 'disabled',
       clientSecret: clientSecret || '',
       callbackURL: callbackURL || 'http://localhost:3001/api/v1/auth/kakao/callback',
-      // account_email 은 카카오 검수 승인이 필요해 제거(미승인 시 KOE205). 이메일 없으면 가짜 이메일 발급 후
-      // verify-email 페이지에서 사용자가 실제 이메일을 입력하도록 유도한다.
-      scope: ['profile_nickname'],
+      scope: ['profile_nickname', 'account_email'],
     } as any);
   }
 
