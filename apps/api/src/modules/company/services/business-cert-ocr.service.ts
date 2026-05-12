@@ -220,7 +220,9 @@ export class BusinessCertOcrService {
         if (!result.businessType && /업\s*태/.test(line)) {
           const next = lines[i + 1];
           if (next && !this.looksLikeKeywordLine(next)) {
-            const parts = next.trim().split(/\s{2,}/);
+            // collapseKoreanSpaces 적용 후 split — "제 조 디지탈인쇄" → ["제조", "디지탈인쇄"]
+            const collapsed = this.collapseKoreanSpaces(next.trim());
+            const parts = collapsed.split(/\s+/);
             if (parts[0]) result.businessType = this.cleanValue(parts[0]);
             if (!result.businessCategory && parts[1]) {
               result.businessCategory = this.cleanValue(parts[1]);
@@ -229,10 +231,13 @@ export class BusinessCertOcrService {
         }
       }
 
-      // 종목
+      // 종목 — 캡처값에서 첫 번째 의미있는 한글 단어만 추출
       if (!result.businessCategory) {
         const m = line.match(/종\s*목\s*[:：]?\s*(.+)$/);
-        if (m && m[1].trim()) result.businessCategory = this.cleanValue(m[1]);
+        if (m && m[1].trim()) {
+          const collapsed = this.collapseKoreanSpaces(this.cleanValue(m[1]));
+          result.businessCategory = collapsed.split(/\s+/)[0];
+        }
       }
 
       // 사업장 소재지 / 소재지 (다음 줄까지 이어질 수 있음) — 스페이스 삽입 변형 허용
@@ -282,7 +287,32 @@ export class BusinessCertOcrService {
       if (pcMatch) result.postalCode = pcMatch[1];
     }
 
-    // 업태/종목: OCR이 글자 사이에 공백 삽입한 경우 정리 ("제 조" → "제조")
+    // 업태 fullText fallback: "업태 [값] 종목" 구간에서 값 추출
+    if (!result.businessType) {
+      // 업태 ← 종목 사이의 한글 시퀀스 (라자 매치)
+      const m = fullText.match(/업\s*태\s*((?:[가-힣]+\s?)*?)(?=종\s*목)/);
+      if (m && m[1].trim()) {
+        const first = this.collapseKoreanSpaces(m[1].trim()).split(/\s+/)[0];
+        if (first && first.length >= 2) result.businessType = first;
+      }
+    }
+    // 종목 fullText fallback: "종목" 직후 연속 한글 단어(2~12자)
+    if (!result.businessCategory) {
+      const m = fullText.match(/종\s*목\s*([가-힣]{2,12})/);
+      if (m) result.businessCategory = m[1];
+    }
+
+    // 업태/종목 garbage 값 제거 (노이즈 포함 시 초기화)
+    const isNoise = (v?: string) => !v || v.length > 20 || /[:：\d]/.test(v) || /사업의|사업장|소재지/.test(v);
+    if (isNoise(result.businessType)) delete result.businessType;
+    if (isNoise(result.businessCategory)) delete result.businessCategory;
+
+    // 주소 garbage 검증: "사업장 :" 로 시작하면 파싱 실패이므로 초기화
+    if (result.address && /^사\s*업\s*장\s*[:：]/.test(result.address)) {
+      delete result.address;
+    }
+
+    // 상호·업태·종목 내 글자 사이 공백 정리
     if (result.businessType) result.businessType = this.collapseKoreanSpaces(result.businessType);
     if (result.businessCategory) result.businessCategory = this.collapseKoreanSpaces(result.businessCategory);
     if (result.companyName) result.companyName = this.collapseKoreanSpaces(result.companyName);
@@ -337,16 +367,20 @@ export class BusinessCertOcrService {
     return name.length > 5 ? name.slice(0, 4) : name;
   }
 
-  /** OCR이 단어 내 글자 사이에 삽입한 공백 제거 ("제 조" → "제조", "도 소 매" → "도소매") */
+  /**
+   * OCR이 단어 내 글자 사이에 삽입한 공백 제거.
+   * "제 조" → "제조", "도 소 매" → "도소매"
+   * 단, "도소매 인쇄관련원부자재" (이미 완성된 단어 사이 공백)는 건드리지 않는다.
+   * 원리: 좌·우에 한글이 없는(고립된) 단일 글자 시퀀스만 붙인다.
+   */
   private collapseKoreanSpaces(text: string): string {
-    let s = text;
-    // 한글 글자 사이 공백을 반복 제거 (3글자 이상 단어도 처리)
-    let prev = '';
-    while (prev !== s) {
-      prev = s;
-      s = s.replace(/([가-힣]) ([가-힣])/g, '$1$2');
-    }
-    return s;
+    // 고립된 한글 단일자 연속 시퀀스를 하나의 단어로 합침
+    // 예: "제 조" (제 ← 앞에 한글 없음, 조 → 뒤에 한글 없음) → "제조"
+    //     "도소매 인쇄" → "매" 앞에 "소"(한글) → lookbehind 실패 → 유지
+    return text.replace(
+      /(?<![가-힣])([가-힣](?:\s[가-힣])*)(?![가-힣])/g,
+      (m) => m.replace(/\s/g, ''),
+    );
   }
 
   /** 값 앞뒤 잡음(콜론, 괄호 라벨, 과도한 공백) 정리 */
