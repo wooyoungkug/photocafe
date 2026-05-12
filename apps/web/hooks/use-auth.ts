@@ -59,8 +59,12 @@ export function useClientLogin() {
 
       if (res.status === 403) {
         const body = await res.json().catch(() => ({}));
-        if (body?.code === 'EMAIL_NOT_VERIFIED') {
-          throw new EmailNotVerifiedError(body?.message || '이메일 인증이 완료되지 않았습니다.', body?.email);
+        // NestJS 예외 필터가 payload를 details 안에 래핑함
+        const code = body?.code ?? body?.details?.code;
+        if (code === 'EMAIL_NOT_VERIFIED') {
+          const email = body?.email ?? body?.details?.email;
+          const message = body?.message ?? body?.details?.message ?? '이메일 인증이 완료되지 않았습니다.';
+          throw new EmailNotVerifiedError(message, email);
         }
         throw new Error(body?.message || '로그인 권한이 없습니다.');
       }
