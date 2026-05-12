@@ -209,7 +209,7 @@ export function ShopHeader() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
                 <Image
-                  src="/images/photocafe_정방.png"
+                  src="/images/photocafe-logo-square.png"
                   alt="Photocafe"
                   width={1066}
                   height={1004}
