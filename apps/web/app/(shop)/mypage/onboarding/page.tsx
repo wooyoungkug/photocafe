@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, User, MapPin, Heart, Briefcase, Save, AlertCircle, Mail } from 'lucide-react';
@@ -95,7 +95,23 @@ export default function OnboardingPage() {
   });
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const embedRef = useRef<HTMLDivElement>(null);
+
+  // 필드별 ref (스크롤 + 포커스용)
+  const clientNameRef = useRef<HTMLInputElement>(null);
+  const mobileRef = useRef<HTMLInputElement>(null);
+  const contactEmailRef = useRef<HTMLInputElement>(null);
+  const acquisitionChannelRef = useRef<HTMLDivElement>(null);
+  const addressAreaRef = useRef<HTMLDivElement>(null);
+  const departmentRef = useRef<HTMLDivElement>(null);
+
+  const scrollToField = (ref: React.RefObject<HTMLElement | null>) => {
+    if (!ref.current) return;
+    ref.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const input = ref.current.querySelector('input,button,[tabindex]') as HTMLElement | null;
+    setTimeout(() => input?.focus(), 300);
+  };
 
   // Daum 우편번호 스크립트 로드
   useEffect(() => {
@@ -197,33 +213,36 @@ export default function OnboardingPage() {
     e.preventDefault();
     setError('');
 
-    // 필수 필드 검증 (비상연락처는 선택)
-    const required: Array<[keyof typeof form, string]> = [
-      ['clientName', '이름/상호명'],
-      ['mobile', '휴대전화'],
-      ['address', '주소'],
-      ['acquisitionChannel', '가입경로'],
-    ];
-    if (status?.employment) required.push(['department', '부서']);
+    const errs: Record<string, string> = {};
 
-    for (const [key, label] of required) {
-      if (!form[key]?.trim()) {
-        setError(`${label}을(를) 입력해주세요.`);
-        return;
-      }
-    }
-
+    if (!form.clientName?.trim()) errs.clientName = '이름/상호명을 입력해주세요.';
+    if (!form.mobile?.trim()) errs.mobile = '휴대전화를 입력해주세요.';
     if (needsContactEmail) {
-      if (!form.contactEmail.trim()) {
-        setError('이메일 주소를 입력해주세요.');
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail.trim())) {
-        setError('올바른 이메일 형식을 입력해주세요.');
-        return;
-      }
+      if (!form.contactEmail.trim()) errs.contactEmail = '이메일 주소를 입력해주세요.';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail.trim()))
+        errs.contactEmail = '올바른 이메일 형식을 입력해주세요.';
+    }
+    if (!form.acquisitionChannel?.trim()) errs.acquisitionChannel = '가입경로를 선택해주세요.';
+    if (!form.address?.trim()) errs.address = '주소를 입력해주세요.';
+    if (status?.employment && !form.department?.trim()) errs.department = '부서를 입력해주세요.';
+
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      // 첫 번째 오류 필드로 스크롤 + 포커스
+      const refMap: Record<string, React.RefObject<HTMLElement | null>> = {
+        clientName: clientNameRef as React.RefObject<HTMLElement>,
+        mobile: mobileRef as React.RefObject<HTMLElement>,
+        contactEmail: contactEmailRef as React.RefObject<HTMLElement>,
+        acquisitionChannel: acquisitionChannelRef as React.RefObject<HTMLElement>,
+        address: addressAreaRef as React.RefObject<HTMLElement>,
+        department: departmentRef as React.RefObject<HTMLElement>,
+      };
+      const firstKey = Object.keys(errs)[0];
+      scrollToField(refMap[firstKey]);
+      return;
     }
 
+    setFieldErrors({});
     submit.mutate(form);
   };
 
@@ -262,7 +281,7 @@ export default function OnboardingPage() {
           </p>
         </div>
 
-        {error && (
+        {error && Object.keys(fieldErrors).every(k => !fieldErrors[k]) && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
@@ -287,13 +306,14 @@ export default function OnboardingPage() {
                   이름/상호명 <span className="text-red-500">*</span>
                 </Label>
                 <Input
+                  ref={clientNameRef}
                   value={form.clientName}
-                  onChange={(e) => setForm({ ...form, clientName: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, clientName: e.target.value }); if (fieldErrors.clientName) setFieldErrors(p => ({ ...p, clientName: '' })); }}
                   placeholder="홍길동 또는 (주)홍길동스튜디오"
-                  className="text-[14px]"
+                  className={`text-[14px] ${fieldErrors.clientName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                   maxLength={100}
-                  required
                 />
+                {fieldErrors.clientName && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.clientName}</p>}
               </div>
 
               <div className="space-y-1.5">
@@ -301,14 +321,15 @@ export default function OnboardingPage() {
                   휴대전화 <span className="text-red-500">*</span>
                 </Label>
                 <Input
+                  ref={mobileRef}
                   value={form.mobile}
-                  onChange={(e) => setForm({ ...form, mobile: formatPhone(e.target.value) })}
+                  onChange={(e) => { setForm({ ...form, mobile: formatPhone(e.target.value) }); if (fieldErrors.mobile) setFieldErrors(p => ({ ...p, mobile: '' })); }}
                   placeholder="010-1234-5678"
-                  className="text-[14px]"
+                  className={`text-[14px] ${fieldErrors.mobile ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                   inputMode="tel"
                   maxLength={13}
-                  required
                 />
+                {fieldErrors.mobile && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.mobile}</p>}
               </div>
 
               {needsContactEmail && (
@@ -318,30 +339,33 @@ export default function OnboardingPage() {
                     이메일 주소 <span className="text-red-500">*</span>
                   </Label>
                   <Input
+                    ref={contactEmailRef}
                     type="email"
                     value={form.contactEmail}
-                    onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
+                    onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); }}
                     placeholder="실제 이메일 주소를 입력해주세요"
-                    className="text-[14px]"
+                    className={`text-[14px] ${fieldErrors.contactEmail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                     maxLength={200}
                   />
-                  <p className="text-[12px] text-gray-500">
-                    소셜 로그인으로 가입하셔서 이메일 주소 확인이 필요합니다. 입력하신 주소로 인증 메일이 발송됩니다.
-                  </p>
+                  {fieldErrors.contactEmail
+                    ? <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.contactEmail}</p>
+                    : <p className="text-[12px] text-gray-500">소셜 로그인으로 가입하셔서 이메일 주소 확인이 필요합니다. 입력하신 주소로 인증 메일이 발송됩니다.</p>
+                  }
                 </div>
               )}
 
-              <div className="space-y-1.5">
+              <div ref={acquisitionChannelRef} className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">
                   가입경로 <span className="text-red-500">*</span>
                 </Label>
                 <Select
                   value={form.acquisitionChannel || ''}
-                  onValueChange={(v) =>
-                    setForm({ ...form, acquisitionChannel: v, acquisitionChannelNote: v !== 'etc' ? '' : form.acquisitionChannelNote })
-                  }
+                  onValueChange={(v) => {
+                    setForm({ ...form, acquisitionChannel: v, acquisitionChannelNote: v !== 'etc' ? '' : form.acquisitionChannelNote });
+                    if (fieldErrors.acquisitionChannel) setFieldErrors(p => ({ ...p, acquisitionChannel: '' }));
+                  }}
                 >
-                  <SelectTrigger className="text-[14px]">
+                  <SelectTrigger className={`text-[14px] ${fieldErrors.acquisitionChannel ? 'border-red-500 ring-1 ring-red-400' : ''}`}>
                     <SelectValue placeholder="어떻게 알게 되셨나요?" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,6 +378,7 @@ export default function OnboardingPage() {
                     <SelectItem value="etc" className="text-[14px]">기타</SelectItem>
                   </SelectContent>
                 </Select>
+                {fieldErrors.acquisitionChannel && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.acquisitionChannel}</p>}
                 {form.acquisitionChannel === 'etc' && (
                   <Input
                     value={form.acquisitionChannelNote}
@@ -379,7 +404,7 @@ export default function OnboardingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="space-y-1.5">
+              <div ref={addressAreaRef} className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">
                   우편번호 / 도로명주소 <span className="text-red-500">*</span>
                 </Label>
@@ -388,25 +413,26 @@ export default function OnboardingPage() {
                     value={form.postalCode}
                     placeholder="우편번호"
                     readOnly
-                    onClick={() => setAddressOpen(true)}
-                    className="text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400"
+                    onClick={() => { setAddressOpen(true); if (fieldErrors.address) setFieldErrors(p => ({ ...p, address: '' })); }}
+                    className={`text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400 ${fieldErrors.address ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                   />
                   <Input
                     value={form.address}
                     placeholder="클릭하거나 검색 버튼을 누르세요"
                     readOnly
-                    onClick={() => setAddressOpen(true)}
-                    className="text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400"
+                    onClick={() => { setAddressOpen(true); if (fieldErrors.address) setFieldErrors(p => ({ ...p, address: '' })); }}
+                    className={`text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400 ${fieldErrors.address ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                   />
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setAddressOpen(true)}
-                    className="text-[14px]"
+                    onClick={() => { setAddressOpen(true); if (fieldErrors.address) setFieldErrors(p => ({ ...p, address: '' })); }}
+                    className={`text-[14px] ${fieldErrors.address ? 'border-red-500 text-red-600' : ''}`}
                   >
                     주소 검색
                   </Button>
                 </div>
+                {fieldErrors.address && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.address}</p>}
               </div>
 
               {addressOpen && (
@@ -516,16 +542,16 @@ export default function OnboardingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="space-y-1.5">
+                <div ref={departmentRef} className="space-y-1.5">
                   <Label className="text-[14px] text-black font-normal">
                     부서 <span className="text-red-500">*</span>
                   </Label>
                   {hasCompanyDepartments ? (
                     <Select
                       value={form.department || undefined}
-                      onValueChange={(v) => setForm({ ...form, department: v })}
+                      onValueChange={(v) => { setForm({ ...form, department: v }); if (fieldErrors.department) setFieldErrors(p => ({ ...p, department: '' })); }}
                     >
-                      <SelectTrigger className="text-[14px]">
+                      <SelectTrigger className={`text-[14px] ${fieldErrors.department ? 'border-red-500 ring-1 ring-red-400' : ''}`}>
                         <SelectValue placeholder="부서 선택" />
                       </SelectTrigger>
                       <SelectContent>
@@ -540,9 +566,9 @@ export default function OnboardingPage() {
                     <>
                       <Input
                         value={form.department}
-                        onChange={(e) => setForm({ ...form, department: e.target.value })}
+                        onChange={(e) => { setForm({ ...form, department: e.target.value }); if (fieldErrors.department) setFieldErrors(p => ({ ...p, department: '' })); }}
                         placeholder="예: 사진작가, 디자이너"
-                        className="text-[14px]"
+                        className={`text-[14px] ${fieldErrors.department ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                         maxLength={50}
                       />
                       <p className="text-[12px] text-gray-500">
@@ -550,6 +576,7 @@ export default function OnboardingPage() {
                       </p>
                     </>
                   )}
+                  {fieldErrors.department && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.department}</p>}
                 </div>
               </CardContent>
             </Card>
