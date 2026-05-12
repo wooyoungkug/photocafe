@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { DaumAddressFields } from '@/components/daum-address-fields';
 import {
   AlertCircle,
   CheckCircle2,
@@ -266,9 +265,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
         businessType: businessType.trim() || undefined,
         businessCategory: businessCategory.trim() || undefined,
         taxInvoiceEmail: taxInvoiceEmail.trim(),
-        postalCode: postalCode || undefined,
-        address: address || undefined,
-        addressDetail: addressDetail.trim() || undefined,
+        address: address.trim() || undefined,
         practicalManagerName: (overrides?.practicalName ?? practicalManagerName).trim() || undefined,
         practicalManagerPhone: (overrides?.practicalPhone ?? practicalManagerPhone).trim() || undefined,
         approvalManagerName: (overrides?.approvalName ?? approvalManagerName).trim() || undefined,
@@ -303,9 +300,6 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     }
     if (!certUploadKey) {
       setError('사업자등록증 파일을 첨부해 주세요.'); return;
-    }
-    if (!addressDetail.trim()) {
-      setError('상세주소를 입력해 주세요.'); return;
     }
 
     // 담당자 공란 확인
@@ -554,31 +548,15 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               />
             </div>
 
-            <DaumAddressFields
-              label={<>사업장 주소 <span className="text-[12px] text-gray-400">(우편번호·주소 선택 / 상세주소 <span className="text-red-500">필수</span>)</span></>}
-              postalCode={postalCode}
-              address={address}
-              addressDetail={addressDetail}
-              onComplete={(data) => {
-                clearOcrField('postalCode');
-                clearOcrField('address');
-                setPostalCode(data.postalCode);
-                setAddress(data.address);
-              }}
-              onAddressDetailChange={setAddressDetail}
-              postalCodeClassName={
-                ocrFields.has('postalCode')
-                  ? 'bg-blue-50 border-blue-300 text-blue-900'
-                  : !postalCode ? 'border-dashed border-amber-400 bg-amber-50/40' : undefined
-              }
-              addressClassName={
-                ocrFields.has('address')
-                  ? 'bg-blue-50 border-blue-300 text-blue-900'
-                  : !address ? 'border-dashed border-amber-400 bg-amber-50/40' : undefined
-              }
-              detailPlaceholder="상세주소 입력 (필수)"
-              detailClassName={!addressDetail.trim() ? 'border-dashed border-amber-400 bg-amber-50/40 placeholder:text-amber-600' : ''}
-            />
+            <div className="space-y-1.5">
+              <Label className="text-[14px] font-normal text-gray-600">사업장 주소</Label>
+              <Input
+                className={`text-[14px] font-normal ${ocrFields.has('address') ? 'bg-blue-50 border-blue-300 text-blue-900' : ''}`}
+                value={address}
+                onChange={(e) => { clearOcrField('address'); setAddress(e.target.value); }}
+                placeholder="예: 경기도 성남시 중원구 둔촌대로 560, 311호"
+              />
+            </div>
 
             <div className="space-y-2 pt-1">
               <p className="text-[13px] font-medium text-gray-700">
