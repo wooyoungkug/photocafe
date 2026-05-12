@@ -242,7 +242,7 @@ function LoginForm() {
               width={2363}
               height={626}
               priority
-              className="h-[60px] w-auto"
+              className="h-[60px] w-auto mt-5"
             />
           </Link>
           <CardTitle className="text-2xl">계정 선택</CardTitle>
@@ -324,7 +324,7 @@ function LoginForm() {
             width={2363}
             height={626}
             priority
-            className="h-[60px] w-auto"
+            className="h-[60px] w-auto mt-5"
           />
         </Link>
       </CardHeader>
@@ -591,7 +591,7 @@ function LoginFormFallback() {
             width={2363}
             height={626}
             priority
-            className="h-[60px] w-auto"
+            className="h-[60px] w-auto mt-5"
           />
         </div>
         <CardTitle className="text-2xl">로그인</CardTitle>
