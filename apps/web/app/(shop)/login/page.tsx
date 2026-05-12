@@ -319,12 +319,12 @@ function LoginForm() {
       <CardHeader className="space-y-1 text-center">
         <Link href="/" className="inline-block mb-4 mx-auto">
           <Image
-            src="/images/photocafe_logo_v3.png"
+            src="/images/photocafe_정방.png"
             alt="Photocafe"
-            width={220}
-            height={66}
+            width={1066}
+            height={1004}
             priority
-            className="h-[66px] w-auto"
+            className="h-[100px] w-auto"
           />
         </Link>
       </CardHeader>
@@ -586,12 +586,12 @@ function LoginFormFallback() {
       <CardHeader className="space-y-1 text-center">
         <div className="mx-auto mb-4 flex justify-center">
           <Image
-            src="/images/photocafe_logo_v3.png"
+            src="/images/photocafe_정방.png"
             alt="Photocafe"
-            width={220}
-            height={66}
+            width={1066}
+            height={1004}
             priority
-            className="h-[66px] w-auto"
+            className="h-[100px] w-auto"
           />
         </div>
         <CardTitle className="text-2xl">로그인</CardTitle>
