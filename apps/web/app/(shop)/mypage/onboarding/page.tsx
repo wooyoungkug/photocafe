@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, User, Phone, MapPin, Heart, Briefcase, Save, AlertCircle } from 'lucide-react';
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
-import { AddressSearch } from '@/components/address-search';
+// AddressSearch 컴포넌트 미사용 — 페이지 레벨에서 직접 Daum 위젯 구현
 import { useToast } from '@/hooks/use-toast';
 
 function formatPhone(value: string): string {
@@ -82,6 +82,53 @@ export default function OnboardingPage() {
   });
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
+  const embedRef = useRef<HTMLDivElement>(null);
+
+  // Daum 우편번호 스크립트 로드
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if ((window as any).daum?.Postcode) return;
+    const existing = document.querySelector('script[src*="postcode.v2.js"]');
+    if (existing) return;
+    const s = document.createElement('script');
+    s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
+  // addressOpen이 true가 되면 위젯 embed
+  useEffect(() => {
+    if (!addressOpen || !embedRef.current) return;
+    const doEmbed = () => {
+      if (!(window as any).daum?.Postcode || !embedRef.current) return;
+      embedRef.current.innerHTML = '';
+      new (window as any).daum.Postcode({
+        width: '100%',
+        height: '100%',
+        oncomplete: (data: any) => {
+          const addr = data.roadAddress || data.jibunAddress;
+          setForm((f) => ({ ...f, postalCode: data.zonecode, address: addr }));
+          setAddressOpen(false);
+        },
+      }).embed(embedRef.current, { autoClose: false });
+    };
+    // 스크립트가 이미 로드됐으면 바로, 아니면 load 이벤트 대기
+    if ((window as any).daum?.Postcode) {
+      doEmbed();
+    } else {
+      const script = document.querySelector('script[src*="postcode.v2.js"]') as HTMLScriptElement | null;
+      if (script) {
+        script.addEventListener('load', doEmbed, { once: true });
+      } else {
+        // 혹시 스크립트가 없으면 삽입
+        const s = document.createElement('script');
+        s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+        s.async = true;
+        s.addEventListener('load', doEmbed, { once: true });
+        document.head.appendChild(s);
+      }
+    }
+  }, [addressOpen]);
 
   const { data: status, isLoading } = useQuery<ProfileStatusResponse>({
     queryKey: ['profile-status', user?.id],
@@ -282,23 +329,16 @@ export default function OnboardingPage() {
               </div>
 
               {addressOpen && (
-                <div className="border rounded-md overflow-hidden">
-                  <AddressSearch
-                    headless
-                    inline
-                    isOpen={addressOpen}
-                    onOpenChange={setAddressOpen}
-                    embedHeight={420}
-                    onComplete={(d) => {
-                      setForm((f) => ({
-                        ...f,
-                        postalCode: d.postalCode,
-                        address: d.address,
-                        addressDetail: d.addressDetail || f.addressDetail,
-                      }));
-                      setAddressOpen(false);
-                    }}
-                  />
+                <div className="border rounded-md overflow-hidden relative">
+                  <button
+                    type="button"
+                    title="닫기"
+                    onClick={() => setAddressOpen(false)}
+                    className="absolute top-1 right-1 z-10 bg-white rounded-full p-0.5 shadow hover:bg-gray-100"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                  <div ref={embedRef} className="h-[420px]" />
                 </div>
               )}
 
