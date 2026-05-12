@@ -135,7 +135,9 @@ const MemberTableRow = memo(({
         </button>
       </TableCell>
       <TableCell className="text-center">
-        <div className="text-sm text-muted-foreground">{member.email || '-'}</div>
+        <div className="text-sm text-muted-foreground">
+          {(member as any).contactEmail || member.email || '-'}
+        </div>
         {member.clientCode && (
           <div className="text-xs text-gray-400">{member.clientCode}</div>
         )}
@@ -368,6 +370,7 @@ function MembersPageContent() {
         phone: member.phone || '',
         mobile: member.mobile || '',
         email: member.email || '',
+        contactEmail: (member as any).contactEmail || '',
         postalCode: member.postalCode || '',
         address: member.address || '',
         addressDetail: member.addressDetail || '',
@@ -953,41 +956,67 @@ function MembersPageContent() {
                           className="bg-white"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
-                        <div className="relative">
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => handleEmailChange(e.target.value)}
-                            placeholder="contact@example.com"
-                            className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                          />
-                          {emailChecking && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                      {editingMember?.oauthProvider ? (
+                        <>
+                          {/* 소셜 로그인 회원: OAuth 이메일(읽기전용) + 연락 이메일(수정 가능) */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">로그인 이메일 <span className="text-xs text-gray-400 font-normal">(소셜 — 변경 불가)</span></Label>
+                            <Input
+                              value={formData.email}
+                              readOnly
+                              className="bg-gray-50 text-gray-500 cursor-not-allowed"
+                            />
+                            <p className="text-xs text-gray-400">{editingMember.oauthProvider} 계정의 로그인 식별자입니다.</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="contactEmail" className="text-sm font-medium">연락 이메일</Label>
+                            <Input
+                              id="contactEmail"
+                              type="email"
+                              value={(formData as any).contactEmail || ''}
+                              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value } as any)}
+                              placeholder="실제 연락 이메일"
+                              className="bg-white"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                          <div className="relative">
+                            <Input
+                              id="email"
+                              type="email"
+                              value={formData.email}
+                              onChange={(e) => handleEmailChange(e.target.value)}
+                              placeholder="contact@example.com"
+                              className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                            />
+                            {emailChecking && (
+                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                            )}
+                          </div>
+                          {emailDuplicate?.exists && emailDuplicate.member && (
+                            <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
+                              <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                이미 등록된 이메일입니다
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
+                                <span>회원코드: {emailDuplicate.member.clientCode}</span>
+                                <span>회원명: {emailDuplicate.member.clientName}</span>
+                                <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
+                                <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
+                                <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
+                                <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
+                                {emailDuplicate.member.groupName && (
+                                  <span>그룹: {emailDuplicate.member.groupName}</span>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
-                        {emailDuplicate?.exists && emailDuplicate.member && (
-                          <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
-                            <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              이미 등록된 이메일입니다
-                            </div>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
-                              <span>회원코드: {emailDuplicate.member.clientCode}</span>
-                              <span>회원명: {emailDuplicate.member.clientName}</span>
-                              <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
-                              <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
-                              <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
-                              <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
-                              {emailDuplicate.member.groupName && (
-                                <span>그룹: {emailDuplicate.member.groupName}</span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </>
                   )}
 
@@ -1041,41 +1070,67 @@ function MembersPageContent() {
                           className="bg-white"
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
-                        <div className="relative">
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => handleEmailChange(e.target.value)}
-                            placeholder="contact@example.com"
-                            className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
-                          />
-                          {emailChecking && (
-                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                      {editingMember?.oauthProvider ? (
+                        <>
+                          {/* 소셜 로그인 회원: OAuth 이메일(읽기전용) + 연락 이메일(수정 가능) */}
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">로그인 이메일 <span className="text-xs text-gray-400 font-normal">(소셜 — 변경 불가)</span></Label>
+                            <Input
+                              value={formData.email}
+                              readOnly
+                              className="bg-gray-50 text-gray-500 cursor-not-allowed"
+                            />
+                            <p className="text-xs text-gray-400">{editingMember.oauthProvider} 계정의 로그인 식별자입니다.</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="contactEmail" className="text-sm font-medium">연락 이메일</Label>
+                            <Input
+                              id="contactEmail"
+                              type="email"
+                              value={(formData as any).contactEmail || ''}
+                              onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value } as any)}
+                              placeholder="실제 연락 이메일"
+                              className="bg-white"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <Label htmlFor="email" className="text-sm font-medium">이메일</Label>
+                          <div className="relative">
+                            <Input
+                              id="email"
+                              type="email"
+                              value={formData.email}
+                              onChange={(e) => handleEmailChange(e.target.value)}
+                              placeholder="contact@example.com"
+                              className={`bg-white ${emailDuplicate?.exists ? 'border-red-500 focus-visible:ring-red-500' : ''}`}
+                            />
+                            {emailChecking && (
+                              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-gray-400" />
+                            )}
+                          </div>
+                          {emailDuplicate?.exists && emailDuplicate.member && (
+                            <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
+                              <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                이미 등록된 이메일입니다
+                              </div>
+                              <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
+                                <span>회원코드: {emailDuplicate.member.clientCode}</span>
+                                <span>회원명: {emailDuplicate.member.clientName}</span>
+                                <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
+                                <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
+                                <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
+                                <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
+                                {emailDuplicate.member.groupName && (
+                                  <span>그룹: {emailDuplicate.member.groupName}</span>
+                                )}
+                              </div>
+                            </div>
                           )}
                         </div>
-                        {emailDuplicate?.exists && emailDuplicate.member && (
-                          <div className="mt-1.5 rounded-md border border-red-200 bg-red-50 p-2.5 text-xs">
-                            <div className="flex items-center gap-1 font-semibold text-red-700 mb-1">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              이미 등록된 이메일입니다
-                            </div>
-                            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-red-600">
-                              <span>회원코드: {emailDuplicate.member.clientCode}</span>
-                              <span>회원명: {emailDuplicate.member.clientName}</span>
-                              <span>가입일: {format(new Date(emailDuplicate.member.createdAt), 'yyyy.MM.dd')}</span>
-                              <span>가입경로: {emailDuplicate.member.oauthProvider || '일반가입'}</span>
-                              <span>유형: {emailDuplicate.member.memberType === 'business' ? '사업자' : '개인'}</span>
-                              <span>상태: {emailDuplicate.member.status === 'active' ? '활성' : emailDuplicate.member.status === 'inactive' ? '비활성' : emailDuplicate.member.status}</span>
-                              {emailDuplicate.member.groupName && (
-                                <span>그룹: {emailDuplicate.member.groupName}</span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                      )}
                     </>
                   )}
 
