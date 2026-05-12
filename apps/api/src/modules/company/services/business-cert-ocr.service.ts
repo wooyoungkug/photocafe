@@ -183,10 +183,21 @@ export class BusinessCertOcrService {
         if (m && m[1].trim()) result.companyName = this.cleanValue(m[1]);
       }
 
-      // 대표자 / 성명
+      // 대표자 / 성명 — OCR이 글자 사이에 공백을 끼울 수 있으므로 공백 허용
       if (!result.representative) {
-        const m = line.match(/(?:대\s*표\s*자|성\s*명)\s*(?:\(.*?\))?\s*[:：]?\s*([가-힣]{2,10})/);
-        if (m && m[1].trim()) result.representative = m[1].trim();
+        const m = line.match(/(?:대\s*표\s*자|성\s*명)\s*(?:\([^)]*\))?\s*[:：]?\s*((?:[가-힣]\s*){2,15})/);
+        if (m && m[1].trim()) {
+          result.representative = m[1].replace(/\s+/g, '').trim();
+        } else if (/(?:대\s*표\s*자|성\s*명)/.test(line)) {
+          // 라벨만 있고 값이 없는 경우 → 다음 줄에서 한글 이름 추출
+          const next = lines[i + 1];
+          if (next) {
+            const nm = next.match(/^((?:[가-힣]\s*){2,15})\s*(?:[①-⑩]|$)/);
+            if (nm && nm[1].trim()) {
+              result.representative = nm[1].replace(/\s+/g, '').trim();
+            }
+          }
+        }
       }
 
       // 개업연월일
@@ -197,9 +208,9 @@ export class BusinessCertOcrService {
         }
       }
 
-      // 업태
+      // 업태 — 종목 앞까지 or 줄 끝까지 (공백 제한 없이)
       if (!result.businessType) {
-        const m = line.match(/업\s*태\s*[:：]?\s*([^\s종].*?)(?=\s*종\s*목|$)/);
+        const m = line.match(/업\s*태\s*[:：]?\s*(.+?)(?=\s*종\s*목|\s*$)/);
         if (m && m[1].trim()) result.businessType = this.cleanValue(m[1]);
       }
 
