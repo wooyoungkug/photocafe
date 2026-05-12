@@ -90,8 +90,9 @@ const SIGNUP_PURPOSE_OPTIONS = [
 
 function isFakeProviderEmail(email: string, oauthProvider: string | null): boolean {
   if (!oauthProvider) return false;
-  if (/^kakao_\d+@kakao\.com$/i.test(email)) return true;
-  if (/^naver_[a-z0-9]+@naver\.com$/i.test(email)) return true;
+  if (/^kakao_[a-z0-9_-]+@kakao\.com$/i.test(email)) return true;
+  if (/^naver_[a-z0-9_-]+@naver\.com$/i.test(email)) return true;
+  if (/^google_[a-z0-9_-]+@gmail\.com$/i.test(email)) return true;
   return false;
 }
 

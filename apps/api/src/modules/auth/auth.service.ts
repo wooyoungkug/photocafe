@@ -450,12 +450,10 @@ export class AuthService {
           oauthProvider: 'naver', oauthId: data.oauthId, profileImage: data.profileImage,
           gender, birthday, ...(mobile && { mobile }),
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
-          // 이메일 있으면 링크 인증 필요(false), 없으면 인증 불가하므로 통과(true)
-          emailVerified: !data.email,
+          // 네이버는 가입 시 이메일 소유를 검증하므로 별도 링크 인증 불필요
+          emailVerified: true,
         } as any,
       });
-      await this.issueEmailVerification(client.id);
-      client = (await this.prisma.client.findUnique({ where: { id: client.id } })) ?? client;
     } else {
       const updateData: any = {};
       if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
@@ -463,6 +461,12 @@ export class AuthService {
       if (!client.birthday && birthday) updateData.birthday = birthday;
       if (!client.mobile && mobile) updateData.mobile = mobile;
       if (!client.email && data.email) updateData.email = data.email;
+      // 과거 가입자(인증 메일 대기 상태) 자동 해소: 네이버 검증 이메일은 인증 완료 처리
+      if (!(client as any).emailVerified) {
+        updateData.emailVerified = true;
+        updateData.emailVerifyToken = null;
+        updateData.emailVerifyTokenExpiry = null;
+      }
       if (Object.keys(updateData).length > 0) {
         client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
       }
@@ -502,12 +506,11 @@ export class AuthService {
           oauthProvider: 'kakao', oauthId: data.oauthId, profileImage: data.profileImage,
           gender, birthday, ...(mobile && { mobile }),
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
-          // 이메일 있으면 링크 인증 필요(false), 없으면 인증 불가하므로 통과(true)
-          emailVerified: !data.email,
+          // 카카오 OAuth 로 받은 이메일은 카카오가 검증한 값이므로 별도 링크 인증 불필요
+          // (실제 이메일 동의를 안 한 경우는 kakao_xxx@kakao.com 가짜값 → 온보딩에서 실제 이메일 입력 유도)
+          emailVerified: true,
         } as any,
       });
-      await this.issueEmailVerification(client.id);
-      client = (await this.prisma.client.findUnique({ where: { id: client.id } })) ?? client;
     } else {
       const updateData: any = {};
       if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
@@ -515,6 +518,11 @@ export class AuthService {
       if (!client.birthday && birthday) updateData.birthday = birthday;
       if (!client.mobile && mobile) updateData.mobile = mobile;
       if (!client.email && data.email) updateData.email = data.email;
+      if (!(client as any).emailVerified) {
+        updateData.emailVerified = true;
+        updateData.emailVerifyToken = null;
+        updateData.emailVerifyTokenExpiry = null;
+      }
       if (Object.keys(updateData).length > 0) {
         client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
       }
@@ -549,16 +557,19 @@ export class AuthService {
           clientCode, clientName: data.name, email: data.email,
           oauthProvider: 'google', oauthId: data.oauthId, profileImage: data.profileImage,
           memberType: 'individual', priceType: 'standard', paymentType: 'order', status: 'active',
-          // 이메일 있으면 링크 인증 필요(false), 없으면 인증 불가하므로 통과(true)
-          emailVerified: !data.email,
+          // Google 은 가입 시 이메일 소유를 검증하므로 별도 링크 인증 불필요
+          emailVerified: true,
         } as any,
       });
-      await this.issueEmailVerification(client.id);
-      client = (await this.prisma.client.findUnique({ where: { id: client.id } })) ?? client;
     } else {
       const updateData: any = {};
       if (!client.profileImage && data.profileImage) updateData.profileImage = data.profileImage;
       if (!client.email && data.email) updateData.email = data.email;
+      if (!(client as any).emailVerified) {
+        updateData.emailVerified = true;
+        updateData.emailVerifyToken = null;
+        updateData.emailVerifyTokenExpiry = null;
+      }
       if (Object.keys(updateData).length > 0) {
         client = await this.prisma.client.update({ where: { id: client.id }, data: updateData });
       }
@@ -861,9 +872,11 @@ export class AuthService {
     }
   }
 
-  /** 소셜 로그인이 자동 생성한 가짜 이메일 패턴 감지 (kakao_XXXX@kakao.com, naver_XXXX@naver.com 등) */
+  /** 소셜 로그인이 자동 생성한 가짜 이메일 패턴 감지 (kakao_XXXX@kakao.com, naver_XXXX@naver.com, google_XXXX@gmail.com) */
   private isFakeProviderEmail(email: string): boolean {
-    return /^kakao_\d+@kakao\.com$/i.test(email) || /^naver_[a-z0-9]+@naver\.com$/i.test(email);
+    return /^kakao_[a-z0-9_-]+@kakao\.com$/i.test(email)
+      || /^naver_[a-z0-9_-]+@naver\.com$/i.test(email)
+      || /^google_[a-z0-9_-]+@gmail\.com$/i.test(email);
   }
 
   /** OAuth 신규 가입자에 대해: 실제 contactEmail 있으면 토큰 발급+메일 발송, 없으면(가짜 이메일 포함) emailVerified=true로 통과.

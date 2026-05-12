@@ -27,7 +27,9 @@ function maskEmail(email: string): string {
 }
 
 function isFakeOAuthEmail(email: string): boolean {
-  return /^kakao_\d+@kakao\.com$/i.test(email) || /^naver_[a-z0-9]+@naver\.com$/i.test(email);
+  return /^kakao_[a-z0-9_-]+@kakao\.com$/i.test(email)
+    || /^naver_[a-z0-9_-]+@naver\.com$/i.test(email)
+    || /^google_[a-z0-9_-]+@gmail\.com$/i.test(email);
 }
 
 /** 소셜 가입자 전용 — 실제 이메일 입력 후 재발송 */
