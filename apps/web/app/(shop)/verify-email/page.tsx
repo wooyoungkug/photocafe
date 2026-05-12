@@ -26,6 +26,76 @@ function maskEmail(email: string): string {
   return `${visible}${stars}${domain}`;
 }
 
+function isFakeOAuthEmail(email: string): boolean {
+  return /^kakao_\d+@kakao\.com$/i.test(email) || /^naver_[a-z0-9]+@naver\.com$/i.test(email);
+}
+
+/** 소셜 가입자 전용 — 실제 이메일 입력 후 재발송 */
+function OAuthResendBox({ loginId, providerLabel }: { loginId: string; providerLabel: string }) {
+  const resend = useResendVerification();
+  const [contactEmail, setContactEmail] = useState('');
+  const [msg, setMsg] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
+
+  const handleSend = async () => {
+    if (!contactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+      setMsg({ type: 'error', text: '올바른 이메일 주소를 입력해 주세요.' });
+      return;
+    }
+    setMsg(null);
+    try {
+      await resend.mutateAsync({ loginId, contactEmail: contactEmail.trim() });
+      setMsg({ type: 'ok', text: `${contactEmail} 로 인증 메일을 보냈습니다. 메일함을 확인해 주세요.` });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '';
+      if (message.includes('429') || message.toLowerCase().includes('too many')) {
+        setMsg({ type: 'error', text: '잠시 후 다시 시도해 주세요. (1분에 1회만 가능)' });
+      } else {
+        setMsg({ type: 'error', text: '발송에 실패했습니다. 잠시 후 다시 시도해 주세요.' });
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-3 text-left">
+      <p className="text-[14px] text-gray-600 leading-relaxed text-center">
+        {providerLabel} 계정으로 가입하셨습니다.<br />
+        인증 메일을 받을 <strong>실제 이메일 주소</strong>를 입력해 주세요.
+      </p>
+      <div className="space-y-1.5">
+        <Label htmlFor="contactEmail" className="text-[14px] text-black font-normal">이메일 주소</Label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Input
+              id="contactEmail"
+              type="email"
+              placeholder="example@email.com"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              className="pl-10 h-10"
+            />
+          </div>
+          <Button
+            type="button"
+            className="h-10 px-4 shrink-0 bg-[#E4007F] hover:bg-[#C5006D] text-white"
+            onClick={handleSend}
+            disabled={resend.isPending}
+          >
+            {resend.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : '인증 메일 받기'}
+          </Button>
+        </div>
+      </div>
+      {msg && (
+        <p className={`text-[13px] ${msg.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+          {msg.text}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** 일반 회원 재발송 박스 */
 function ResendBox({ initialLoginId = '' }: { initialLoginId?: string }) {
   const resend = useResendVerification();
   const [loginId, setLoginId] = useState(initialLoginId);
@@ -38,7 +108,7 @@ function ResendBox({ initialLoginId = '' }: { initialLoginId?: string }) {
     }
     setResendMsg(null);
     try {
-      const res = await resend.mutateAsync(loginId.trim());
+      const res = await resend.mutateAsync({ loginId: loginId.trim() });
       if (res?.alreadyVerified) {
         setResendMsg({ type: 'verified', text: '이미 인증이 완료된 계정입니다. 로그인해 주세요.' });
       } else {
@@ -77,11 +147,7 @@ function ResendBox({ initialLoginId = '' }: { initialLoginId?: string }) {
         </div>
       </div>
       {resendMsg && (
-        <p
-          className={`text-[13px] ${
-            resendMsg.type === 'ok' || resendMsg.type === 'verified' ? 'text-green-600' : 'text-red-600'
-          }`}
-        >
+        <p className={`text-[13px] ${resendMsg.type === 'ok' || resendMsg.type === 'verified' ? 'text-green-600' : 'text-red-600'}`}>
           {resendMsg.text}
         </p>
       )}
@@ -93,7 +159,7 @@ function VerifyEmailContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
   const pending = searchParams.get('pending');
-  const provider = searchParams.get('provider');
+  const provider = searchParams.get('provider') ?? '';
   const emailParam = searchParams.get('email') ?? '';
 
   const verifyToken = useVerifyEmailToken();
@@ -117,17 +183,12 @@ function VerifyEmailContent() {
         setTokenError(err instanceof Error ? err.message : '인증에 실패했습니다.');
         setTokenState('error');
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   const providerLabel = provider ? PROVIDER_LABEL[provider] || provider : null;
-  // 카카오/네이버 시스템 생성 이메일 감지 — 진짜 이메일이 아님
-  const isFakeEmail =
-    /^kakao_\d+@kakao\.com$/i.test(emailParam) ||
-    /^naver_[a-z0-9]+@naver\.com$/i.test(emailParam);
+  const isFakeEmail = emailParam ? isFakeOAuthEmail(emailParam) : false;
 
   return (
     <div className="min-h-[calc(100vh-300px)] flex items-center justify-center p-4 py-8">
@@ -178,55 +239,50 @@ function VerifyEmailContent() {
               </div>
               <ResendBox />
               <Link href="/login">
-                <Button variant="outline" className="w-full h-11">
-                  로그인 페이지로
-                </Button>
+                <Button variant="outline" className="w-full h-11">로그인 페이지로</Button>
               </Link>
             </div>
           )}
 
-          {/* 소셜 가입 후 인증 대기 안내 */}
-          {!token && pending === '1' && (
+          {/* 소셜 가입 — 가짜 이메일: 실제 이메일 입력 폼 표시 */}
+          {!token && pending === '1' && isFakeEmail && providerLabel && (
+            <div className="space-y-4">
+              <div className="flex flex-col items-center gap-2 py-2">
+                <Info className="h-12 w-12 text-blue-500" />
+                <p className="text-[16px] text-black font-medium">이메일 인증이 필요합니다</p>
+              </div>
+              <OAuthResendBox loginId={emailParam} providerLabel={providerLabel} />
+              <Link href="/login">
+                <Button variant="outline" className="w-full h-11">로그인 페이지로</Button>
+              </Link>
+            </div>
+          )}
+
+          {/* 소셜 가입 — 실제 이메일로 발송된 경우 */}
+          {!token && pending === '1' && !isFakeEmail && (
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-3 py-4">
                 <Info className="h-12 w-12 text-blue-500" />
                 <p className="text-[16px] text-black font-medium">이메일 인증이 필요합니다</p>
-                {isFakeEmail ? (
-                  <>
-                    <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
-                      {providerLabel} 계정으로 가입되었으나, 실제 이메일 주소를 가져오지 못했습니다.
-                    </p>
-                    <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-left w-full">
-                      <p className="text-[13px] text-amber-800 font-medium mb-1">📧 인증 메일 수신을 위해 실제 이메일이 필요합니다</p>
-                      <p className="text-[12px] text-amber-700 leading-relaxed">
-                        아래 재발송 란에 <strong>본인의 실제 이메일 주소</strong>를 입력해 인증 메일을 받으세요.
-                        로그인 아이디(ID)로 등록되어 이후 로그인 시에도 사용됩니다.
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
-                    {providerLabel ? `${providerLabel} 계정으로 가입되었습니다. ` : ''}
-                    인증 링크를 보냈습니다. 메일함을 확인해 인증을 완료한 뒤 다시 로그인해 주세요.
-                  </p>
-                )}
-                {emailParam && !isFakeEmail && (
+                <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
+                  {providerLabel ? `${providerLabel} 계정으로 가입되었습니다. ` : ''}
+                  인증 링크를 보냈습니다. 메일함을 확인해 인증을 완료한 뒤 다시 로그인해 주세요.
+                </p>
+                {emailParam && (
                   <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-4 py-2">
                     <Mail className="h-4 w-4 text-blue-500 shrink-0" />
                     <span className="text-[14px] text-blue-800 font-medium">{maskEmail(emailParam)}</span>
                   </div>
                 )}
               </div>
-              <ResendBox initialLoginId={isFakeEmail ? '' : emailParam} />
+              <ResendBox initialLoginId={emailParam} />
               <Link href="/login">
-                <Button variant="outline" className="w-full h-11">
-                  로그인 페이지로
-                </Button>
+                <Button variant="outline" className="w-full h-11">로그인 페이지로</Button>
               </Link>
             </div>
           )}
 
-          {/* 잘못된 접근 (토큰도 pending도 없음) */}
+          {/* 잘못된 접근 */}
           {!token && pending !== '1' && (
             <div className="space-y-4">
               <div className="flex flex-col items-center gap-3 py-4">
@@ -237,9 +293,7 @@ function VerifyEmailContent() {
               </div>
               <ResendBox />
               <Link href="/login">
-                <Button variant="outline" className="w-full h-11">
-                  로그인 페이지로
-                </Button>
+                <Button variant="outline" className="w-full h-11">로그인 페이지로</Button>
               </Link>
             </div>
           )}
