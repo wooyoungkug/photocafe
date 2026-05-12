@@ -662,10 +662,10 @@ export default function ProfilePage() {
               </div>
             </div>}
 
-            {!isEmployee && <Separator />}
+            {isBusiness && !isEmployee && <Separator />}
 
-            {/* 담당자 정보 - 직원은 비표시 */}
-            {!isEmployee && <div className="space-y-3">
+            {/* 담당자 정보 - 사업자 회원만 표시 */}
+            {isBusiness && !isEmployee && <div className="space-y-3">
               <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">담당자 정보 (선택)</h3>
               <div className="grid md:grid-cols-2 gap-x-6 gap-y-4">
                 <div className="space-y-3">

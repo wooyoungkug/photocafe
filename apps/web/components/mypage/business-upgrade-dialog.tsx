@@ -53,10 +53,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [addressDetail, setAddressDetail] = useState('');
   const [addressEmbedOpen, setAddressEmbedOpen] = useState(false);
 
-  const [contactPerson, setContactPerson] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
-  const [paymentContactName, setPaymentContactName] = useState('');
-  const [paymentContactPhone, setPaymentContactPhone] = useState('');
+  const [practicalManagerName, setPracticalManagerName] = useState('');
+  const [practicalManagerPhone, setPracticalManagerPhone] = useState('');
+  const [approvalManagerName, setApprovalManagerName] = useState('');
+  const [approvalManagerPhone, setApprovalManagerPhone] = useState('');
 
   const [certUploadKey, setCertUploadKey] = useState<string | null>(null);
   const [certFileName, setCertFileName] = useState<string | null>(null);
@@ -73,10 +73,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setAddress('');
     setAddressDetail('');
     setAddressEmbedOpen(false);
-    setContactPerson('');
-    setContactPhone('');
-    setPaymentContactName('');
-    setPaymentContactPhone('');
+    setPracticalManagerName('');
+    setPracticalManagerPhone('');
+    setApprovalManagerName('');
+    setApprovalManagerPhone('');
     setCertUploadKey(null);
     setCertFileName(null);
     setError(null);
@@ -137,10 +137,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
         postalCode: postalCode || undefined,
         address: address || undefined,
         addressDetail: addressDetail.trim() || undefined,
-        contactPerson: contactPerson.trim() || undefined,
-        contactPhone: contactPhone.trim() || undefined,
-        paymentContactName: paymentContactName.trim() || undefined,
-        paymentContactPhone: paymentContactPhone.trim() || undefined,
+        practicalManagerName: practicalManagerName.trim() || undefined,
+        practicalManagerPhone: practicalManagerPhone.trim() || undefined,
+        approvalManagerName: approvalManagerName.trim() || undefined,
+        approvalManagerPhone: approvalManagerPhone.trim() || undefined,
         certUploadKey,
       });
       setDone(true);
@@ -276,8 +276,8 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 이름</Label>
                   <Input
                     className={inputCls}
-                    value={contactPerson}
-                    onChange={(e) => setContactPerson(e.target.value)}
+                    value={practicalManagerName}
+                    onChange={(e) => setPracticalManagerName(e.target.value)}
                     placeholder="이름"
                   />
                 </div>
@@ -285,8 +285,8 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 연락처</Label>
                   <Input
                     className={inputCls}
-                    value={contactPhone}
-                    onChange={(e) => setContactPhone(e.target.value)}
+                    value={practicalManagerPhone}
+                    onChange={(e) => setPracticalManagerPhone(e.target.value)}
                     placeholder="010-0000-0000"
                   />
                 </div>
@@ -296,8 +296,8 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Label className="text-[14px] font-normal text-gray-600">결재담당자 이름</Label>
                   <Input
                     className={inputCls}
-                    value={paymentContactName}
-                    onChange={(e) => setPaymentContactName(e.target.value)}
+                    value={approvalManagerName}
+                    onChange={(e) => setApprovalManagerName(e.target.value)}
                     placeholder="이름"
                   />
                 </div>
@@ -305,8 +305,8 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Label className="text-[14px] font-normal text-gray-600">결재담당자 연락처</Label>
                   <Input
                     className={inputCls}
-                    value={paymentContactPhone}
-                    onChange={(e) => setPaymentContactPhone(e.target.value)}
+                    value={approvalManagerPhone}
+                    onChange={(e) => setApprovalManagerPhone(e.target.value)}
                     placeholder="010-0000-0000"
                   />
                 </div>

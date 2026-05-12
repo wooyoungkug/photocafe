@@ -376,8 +376,6 @@ model Client {
   colorProfile               String?
   contactPerson              String?
   contactPhone               String?
-  paymentContactName         String?
-  paymentContactPhone        String?
   deliveryNote               String?
   hasLogo                    Boolean                        @default(false)
   isBlacklist                Boolean                        @default(false)
