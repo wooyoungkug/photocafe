@@ -10,6 +10,7 @@ import { FabricController } from './controllers/fabric.controller';
 import { ClientAlbumPreferenceController } from './controllers/client-album-preference.controller';
 import { ClientService } from './services/client.service';
 import { BusinessUpgradeService } from './services/business-upgrade.service';
+import { BusinessCertOcrService } from './services/business-cert-ocr.service';
 import { ClientAddressService } from './services/client-address.service';
 import { ClientGroupService } from './services/client-group.service';
 import { CategoryService } from './services/category.service';
@@ -37,6 +38,7 @@ import { UploadModule } from '../upload/upload.module';
   providers: [
     ClientService,
     BusinessUpgradeService,
+    BusinessCertOcrService,
     ClientAddressService,
     ClientGroupService,
     CategoryService,

@@ -100,3 +100,40 @@ export function useMyBusinessCertUrl() {
     mutationFn: () => api.get<{ url: string }>('/clients/me/business-cert-url'),
   });
 }
+
+export interface AnalyzeCertResult {
+  businessNumber?: string;
+  representative?: string;
+  businessType?: string;
+  businessCategory?: string;
+  postalCode?: string;
+  address?: string;
+  companyName?: string;
+  openDate?: string;
+  confidence: number;
+}
+
+export type NtsStatus = 'active' | 'suspended' | 'closed' | 'unknown';
+
+export interface VerifyStatusResult {
+  status: NtsStatus;
+  statusText: string;
+  taxType?: string;
+  endDate?: string;
+}
+
+/** 사업자등록증 OCR 자동 인식 */
+export function useAnalyzeBusinessCert() {
+  return useMutation({
+    mutationFn: (uploadKey: string) =>
+      api.post<AnalyzeCertResult>('/clients/me/business-upgrade/analyze-cert', { uploadKey }),
+  });
+}
+
+/** 국세청 사업자 상태 조회 */
+export function useVerifyBusinessStatus() {
+  return useMutation({
+    mutationFn: (businessNumber: string) =>
+      api.post<VerifyStatusResult>('/clients/me/business-upgrade/verify-status', { businessNumber }),
+  });
+}

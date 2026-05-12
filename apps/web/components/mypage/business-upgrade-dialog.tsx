@@ -13,11 +13,26 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { DaumAddressFields } from '@/components/daum-address-fields';
-import { AlertCircle, CheckCircle2, FileUp, Loader2, Paperclip } from 'lucide-react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileUp,
+  Loader2,
+  Paperclip,
+  Search,
+  Sparkles,
+  XCircle,
+  AlertTriangle,
+  HelpCircle,
+} from 'lucide-react';
 import {
   useSubmitBusinessUpgrade,
   useUploadBusinessCert,
+  useAnalyzeBusinessCert,
+  useVerifyBusinessStatus,
+  type NtsStatus,
 } from '@/hooks/use-business-upgrade';
 
 function formatBusinessNumber(value: string): string {
@@ -42,10 +57,38 @@ function formatPhone(value: string): string {
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 const MAX_SIZE = 10 * 1024 * 1024;
 
+function NtsStatusBadge({ status, statusText }: { status: NtsStatus; statusText: string }) {
+  if (status === 'active')
+    return (
+      <Badge className="bg-green-100 text-green-800 border-green-200 font-normal text-[12px]">
+        <CheckCircle2 className="h-3 w-3 mr-1" />
+        {statusText}
+      </Badge>
+    );
+  if (status === 'suspended')
+    return (
+      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 font-normal text-[12px]">
+        <AlertTriangle className="h-3 w-3 mr-1" />
+        {statusText}
+      </Badge>
+    );
+  if (status === 'closed')
+    return (
+      <Badge className="bg-red-100 text-red-800 border-red-200 font-normal text-[12px]">
+        <XCircle className="h-3 w-3 mr-1" />
+        {statusText}
+      </Badge>
+    );
+  return (
+    <Badge className="bg-gray-100 text-gray-600 border-gray-200 font-normal text-[12px]">
+      <HelpCircle className="h-3 w-3 mr-1" />
+      {statusText}
+    </Badge>
+  );
+}
+
 interface Props {
-  /** 다이얼로그 트리거 버튼 (없으면 children 사용) */
   children?: React.ReactNode;
-  /** 제출 성공 시 콜백 */
   onSubmitted?: () => void;
 }
 
@@ -53,6 +96,8 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [open, setOpen] = useState(false);
 
   const uploadCert = useUploadBusinessCert();
+  const analyzeCert = useAnalyzeBusinessCert();
+  const verifyStatus = useVerifyBusinessStatus();
   const submitUpgrade = useSubmitBusinessUpgrade();
 
   const [businessNumber, setBusinessNumber] = useState('');
@@ -74,6 +119,13 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // NTS 상태
+  const [ntsResult, setNtsResult] = useState<{ status: NtsStatus; statusText: string; taxType?: string } | null>(null);
+  const [ntsVerifiedFor, setNtsVerifiedFor] = useState<string>('');
+
+  // OCR 자동인식 결과 안내
+  const [ocrFilled, setOcrFilled] = useState(false);
+
   const resetForm = () => {
     setBusinessNumber('');
     setRepresentative('');
@@ -91,6 +143,11 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setCertFileName(null);
     setError(null);
     setDone(false);
+    setNtsResult(null);
+    setNtsVerifiedFor('');
+    setOcrFilled(false);
+    analyzeCert.reset();
+    verifyStatus.reset();
   };
 
   const handleOpenChange = (next: boolean) => {
@@ -112,14 +169,74 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
       setError('파일 크기는 10MB 이하여야 합니다.');
       return;
     }
+
+    // 1) 파일 업로드
+    let uploadKey: string;
     try {
       const res = await uploadCert.mutateAsync(file);
-      setCertUploadKey(res.uploadKey);
+      uploadKey = res.uploadKey;
+      setCertUploadKey(uploadKey);
       setCertFileName(file.name);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '파일 업로드에 실패했습니다.');
       setCertUploadKey(null);
       setCertFileName(null);
+      return;
+    }
+
+    // 2) OCR 자동 인식 (업로드 직후 자동 실행)
+    setOcrFilled(false);
+    try {
+      const ocr = await analyzeCert.mutateAsync(uploadKey);
+      let filled = false;
+      if (ocr.businessNumber && !businessNumber) {
+        setBusinessNumber(formatBusinessNumber(ocr.businessNumber.replace(/\D/g, '')));
+        filled = true;
+      }
+      if (ocr.representative && !representative) {
+        setRepresentative(ocr.representative);
+        filled = true;
+      }
+      if (ocr.businessType && !businessType) {
+        setBusinessType(ocr.businessType);
+        filled = true;
+      }
+      if (ocr.businessCategory && !businessCategory) {
+        setBusinessCategory(ocr.businessCategory);
+        filled = true;
+      }
+      if (ocr.address && !address) {
+        setAddress(ocr.address);
+        filled = true;
+      }
+      if (ocr.postalCode && !postalCode) {
+        setPostalCode(ocr.postalCode);
+        filled = true;
+      }
+      if (filled) setOcrFilled(true);
+    } catch {
+      // OCR 실패는 사용자 입력으로 대체 — 에러 표시 없음 (서비스 미설정 가능)
+    }
+  };
+
+  const handleVerifyNts = async () => {
+    const bno = businessNumber.replace(/\D/g, '');
+    if (bno.length !== 10) {
+      setError('사업자등록번호 10자리를 먼저 입력해 주세요.');
+      return;
+    }
+    setError(null);
+    try {
+      const result = await verifyStatus.mutateAsync(businessNumber);
+      setNtsResult(result);
+      setNtsVerifiedFor(businessNumber);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('503') || msg.includes('설정되지')) {
+        setError('국세청 연동이 아직 설정되지 않았습니다. 관리자에게 문의하세요.');
+      } else {
+        setError(msg || '국세청 조회에 실패했습니다.');
+      }
     }
   };
 
@@ -168,6 +285,9 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   };
 
   const inputCls = 'h-9 text-[14px] font-normal';
+  const isOcrRunning = uploadCert.isPending || analyzeCert.isPending;
+  // NTS 상태가 바뀐 사업자번호면 결과 초기화
+  const ntsValid = ntsResult && ntsVerifiedFor === businessNumber;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -196,18 +316,91 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               </div>
             )}
 
+            {/* 사업자등록증 첨부 — 폼 최상단으로 이동 (업로드 즉시 OCR 자동 인식) */}
+            <div className="space-y-1.5">
+              <Label className="text-[14px] font-normal text-gray-600">
+                사업자등록증 첨부 <span className="text-red-500">*</span>
+              </Label>
+              <div className="flex items-center gap-2 flex-wrap">
+                <label className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-[14px] cursor-pointer">
+                  {isOcrRunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileUp className="h-4 w-4" />
+                  )}
+                  파일 선택
+                  <input
+                    type="file"
+                    accept={ACCEPTED}
+                    className="hidden"
+                    onChange={handleFileChange}
+                    disabled={isOcrRunning}
+                  />
+                </label>
+                {certFileName && (
+                  <span className="inline-flex items-center gap-1 text-[13px] text-green-700">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {certFileName}
+                  </span>
+                )}
+              </div>
+              {/* OCR 상태 표시 */}
+              {analyzeCert.isPending && (
+                <p className="text-[12px] text-blue-600 flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                  사업자등록증 정보를 자동 인식 중입니다...
+                </p>
+              )}
+              {ocrFilled && !analyzeCert.isPending && (
+                <p className="text-[12px] text-green-600 flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  정보를 자동으로 채웠습니다. 내용을 확인하고 수정해 주세요.
+                </p>
+              )}
+              <p className="text-[12px] text-gray-400">PDF, JPG, PNG / 최대 10MB</p>
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
+              {/* 사업자등록번호 + 국세청 확인 */}
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">
                   사업자등록번호 <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  className={inputCls}
-                  value={businessNumber}
-                  onChange={(e) => setBusinessNumber(formatBusinessNumber(e.target.value))}
-                  placeholder="000-00-00000"
-                  maxLength={12}
-                />
+                <div className="flex gap-1.5">
+                  <Input
+                    className={`${inputCls} flex-1 min-w-0`}
+                    value={businessNumber}
+                    onChange={(e) => {
+                      setBusinessNumber(formatBusinessNumber(e.target.value));
+                      setNtsResult(null);
+                    }}
+                    placeholder="000-00-00000"
+                    maxLength={12}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-2 shrink-0"
+                    onClick={handleVerifyNts}
+                    disabled={verifyStatus.isPending || businessNumber.replace(/\D/g, '').length !== 10}
+                    title="국세청에서 사업자 상태 확인"
+                  >
+                    {verifyStatus.isPending ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Search className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+                {ntsValid && (
+                  <div className="flex items-center gap-1.5">
+                    <NtsStatusBadge status={ntsResult.status} statusText={ntsResult.statusText} />
+                    {ntsResult.taxType && (
+                      <span className="text-[11px] text-gray-500">{ntsResult.taxType}</span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">
@@ -309,36 +502,6 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 </div>
               </div>
             </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-[14px] font-normal text-gray-600">
-                사업자등록증 첨부 <span className="text-red-500">*</span>
-              </Label>
-              <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-[14px] cursor-pointer">
-                  {uploadCert.isPending ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileUp className="h-4 w-4" />
-                  )}
-                  파일 선택
-                  <input
-                    type="file"
-                    accept={ACCEPTED}
-                    className="hidden"
-                    onChange={handleFileChange}
-                    disabled={uploadCert.isPending}
-                  />
-                </label>
-                {certFileName && (
-                  <span className="inline-flex items-center gap-1 text-[13px] text-green-700">
-                    <Paperclip className="h-3.5 w-3.5" />
-                    {certFileName}
-                  </span>
-                )}
-              </div>
-              <p className="text-[12px] text-gray-400">PDF, JPG, PNG / 최대 10MB</p>
-            </div>
           </div>
         )}
 
@@ -350,7 +513,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
             <Button
               className="bg-[#E4007F] hover:bg-[#C5006D] text-white"
               onClick={handleSubmit}
-              disabled={submitUpgrade.isPending || uploadCert.isPending}
+              disabled={submitUpgrade.isPending || isOcrRunning}
             >
               {submitUpgrade.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
               신청하기
