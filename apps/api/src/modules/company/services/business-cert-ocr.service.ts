@@ -207,31 +207,51 @@ export class BusinessCertOcrService {
         }
       }
 
-      // 업태 — 종목 앞까지 or 줄 끝까지 (greedy)
-      if (!result.businessType) {
-        const m = line.match(/업\s*태\s*[:：]?\s*(.+?)(?=\s+종\s*목)/) ||
-                  line.match(/업\s*태\s*[:：]?\s*(.+)$/);
-        if (m && m[1].trim()) {
-          const val = this.cleanValue(m[1]);
-          // Reject if we only captured the 종목 header (table has labels on one row, values on next)
-          if (val && !/^종\s*목/.test(val)) result.businessType = val;
-        }
-        // Table header row fallback: "업태 종목" labels only, values on next line
-        if (!result.businessType && /업\s*태/.test(line)) {
-          const next = lines[i + 1];
-          if (next && !this.looksLikeKeywordLine(next)) {
-            // collapseKoreanSpaces 적용 후 split — "제 조 디지탈인쇄" → ["제조", "디지탈인쇄"]
-            const collapsed = this.collapseKoreanSpaces(next.trim());
-            const parts = collapsed.split(/\s+/);
+      // 업태 + 종목 — 사업자등록증 테이블 레이아웃 인식 (머지 셀 대응)
+      // CLOVA OCR 에서 업태 레이블이 머지 셀 y-중심에 찍히면 첫 번째 데이터 행이 레이블 위에 위치한다.
+      // → 레이블 줄의 바로 위 줄(i-1)을 먼저 확인하고, 없으면 아래 줄(i+1) 확인.
+      if (!result.businessType && /업\s*태/.test(line)) {
+        // 1순위: 콜론 구분 형식 "업태: 제조"
+        const colMatch = line.match(/업\s*태\s*[:：]\s*([가-힣]{2,8})/);
+        if (colMatch) {
+          result.businessType = this.cleanValue(colMatch[1]);
+        } else {
+          const prevLine = i > 0 ? lines[i - 1] : null;
+          const nextLine = i < lines.length - 1 ? lines[i + 1] : null;
+          const prevIsData =
+            prevLine != null &&
+            !this.looksLikeKeywordLine(prevLine) &&
+            /[가-힣]{2,}/.test(prevLine);
+          const nextIsData =
+            nextLine != null &&
+            !this.looksLikeKeywordLine(nextLine) &&
+            /[가-힣]{2,}/.test(nextLine);
+
+          // 2순위: 위 줄이 데이터 행이면 우선 사용 (머지 셀 레이블이 아래에 있는 경우)
+          // 3순위: 아래 줄이 데이터 행 (일반 헤더 뒤 첫 번째 데이터 행)
+          const dataLine = prevIsData ? prevLine! : nextIsData ? nextLine! : null;
+          if (dataLine) {
+            const collapsed = this.collapseKoreanSpaces(dataLine.trim());
+            const parts = collapsed.split(/\s+/).filter((p) => p.length >= 2);
             if (parts[0]) result.businessType = this.cleanValue(parts[0]);
-            if (!result.businessCategory && parts[1]) {
+            if (!result.businessCategory && parts[1])
               result.businessCategory = this.cleanValue(parts[1]);
+          } else {
+            // 4순위: 같은 줄 값 (마지막 수단)
+            const m =
+              line.match(/업\s*태\s*[:：]?\s*(.+?)(?=\s+종\s*목)/) ||
+              line.match(/업\s*태\s*[:：]?\s*(.+)$/);
+            if (m) {
+              const val = this.cleanValue(m[1]);
+              if (val && !/^종\s*목/.test(val)) {
+                result.businessType = val.split(/\s+/)[0];
+              }
             }
           }
         }
       }
 
-      // 종목 — 캡처값에서 첫 번째 의미있는 한글 단어만 추출
+      // 종목 — 업태 블록에서 이미 설정되지 않은 경우 독립 추출
       if (!result.businessCategory) {
         const m = line.match(/종\s*목\s*[:：]?\s*(.+)$/);
         if (m && m[1].trim()) {
@@ -287,14 +307,18 @@ export class BusinessCertOcrService {
       if (pcMatch) result.postalCode = pcMatch[1];
     }
 
-    // 업태 fullText fallback: "업태 [값] 종목" 구간에서 값 추출
+    // 업태 fullText fallback
     if (!result.businessType) {
-      // 업태 ← 종목 사이의 한글 시퀀스 (라자 매치)
-      const m = fullText.match(/업\s*태\s*((?:[가-힣]+\s?)*?)(?=종\s*목)/);
-      if (m && m[1].trim()) {
-        const first = this.collapseKoreanSpaces(m[1].trim()).split(/\s+/)[0];
-        if (first && first.length >= 2) result.businessType = first;
-      }
+      // Pattern A: "업태 종목 FIRST" — 헤더 바로 뒤에 첫 번째 데이터 값이 오는 경우
+      const mA = fullText.match(/업\s*태\s+종\s*목\s+([가-힣]{2,8})/);
+      // Pattern B: "업태 ... 종목" 사이의 첫 번째 한글 단어 (lazy)
+      const mB = fullText.match(/업\s*태\s+((?:[가-힣]+\s?)*?)(?=종\s*목)/);
+      const vA = mA?.[1];
+      const vB = mB?.[1]
+        ? this.collapseKoreanSpaces(mB[1].trim()).split(/\s+/).filter((s) => s.length >= 2)[0]
+        : undefined;
+      const best = vA || vB;
+      if (best && best.length >= 2) result.businessType = best;
     }
     // 종목 fullText fallback: "종목" 직후 연속 한글 단어(2~12자)
     if (!result.businessCategory) {
