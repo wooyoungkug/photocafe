@@ -37,6 +37,16 @@ function formatPhone(value: string): string {
 
 const RELATION_OPTIONS = ['배우자', '부모', '자녀', '형제/자매', '친척', '지인', '직장동료', '기타'];
 
+const SIGNUP_PURPOSE_OPTIONS = [
+  '본식앨범 제작',
+  '리허설앨범 제작',
+  '졸업앨범 제작',
+  '액자 제작',
+  '인디고출력의뢰',
+  '잉크젯출력의뢰',
+  '기타',
+];
+
 function isFakeProviderEmail(email: string, oauthProvider: string | null): boolean {
   if (!oauthProvider) return false;
   if (/^kakao_\d+@kakao\.com$/i.test(email)) return true;
@@ -92,6 +102,7 @@ export default function OnboardingPage() {
     acquisitionChannel: '',
     acquisitionChannelNote: '',
     contactEmail: '',
+    signupPurpose: '',
   });
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
@@ -181,6 +192,7 @@ export default function OnboardingPage() {
       acquisitionChannel: (status.profile as any).acquisitionChannel ?? '',
       acquisitionChannelNote: (status.profile as any).acquisitionChannelNote ?? '',
       contactEmail: status.profile.contactEmail ?? '',
+      signupPurpose: (status.profile as any).signupPurpose ?? '',
     });
   }, [status]);
 
@@ -388,6 +400,46 @@ export default function OnboardingPage() {
                     maxLength={200}
                   />
                 )}
+              </div>
+
+              {/* 가입목적 */}
+              <div className="space-y-2">
+                <Label className="text-[14px] text-black font-normal">
+                  가입목적 <span className="text-gray-400 text-[12px] font-normal">(복수 선택 가능)</span>
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SIGNUP_PURPOSE_OPTIONS.map((opt) => {
+                    const selected = form.signupPurpose
+                      ? form.signupPurpose.split(',').map((s) => s.trim()).includes(opt)
+                      : false;
+                    return (
+                      <label
+                        key={opt}
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md border cursor-pointer text-[14px] transition-colors ${
+                          selected
+                            ? 'bg-primary/10 border-primary text-primary font-medium'
+                            : 'border-gray-200 hover:border-gray-300 text-black'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 accent-primary"
+                          checked={selected}
+                          onChange={() => {
+                            const current = form.signupPurpose
+                              ? form.signupPurpose.split(',').map((s) => s.trim()).filter(Boolean)
+                              : [];
+                            const next = selected
+                              ? current.filter((v) => v !== opt)
+                              : [...current, opt];
+                            setForm({ ...form, signupPurpose: next.join(',') });
+                          }}
+                        />
+                        {opt}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -370,6 +370,7 @@ model Client {
   updatedAt                  DateTime                       @updatedAt
   acquisitionChannel         String?
   acquisitionChannelNote     String?
+  signupPurpose              String?
   assignedManager            String?
   businessCategory           String?
   businessType               String?

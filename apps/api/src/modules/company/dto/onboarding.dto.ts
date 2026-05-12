@@ -69,6 +69,12 @@ export class SubmitOnboardingDto {
   @MaxLength(200)
   acquisitionChannelNote?: string;
 
+  @ApiPropertyOptional({ description: '가입목적 (쉼표 구분, 예: "본식앨범 제작,졸업앨범 제작")' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  signupPurpose?: string;
+
   @ApiPropertyOptional({ description: '실제 이메일 (소셜 로그인 가짜 이메일 대체용)' })
   @IsOptional()
   @IsEmail()
