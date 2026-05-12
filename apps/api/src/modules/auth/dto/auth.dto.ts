@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Length } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, IsNotEmpty, IsOptional, IsIn, IsBoolean, Length } from 'class-validator';
 
 export class RefreshTokenDto {
   @ApiPropertyOptional({ description: 'Refresh Token (쿠키 기반이면 생략 가능)' })
@@ -63,6 +63,43 @@ export class ResendVerificationDto {
   @IsString()
   @IsNotEmpty({ message: '아이디를 입력해주세요' })
   loginId: string;
+}
+
+// ========== 중복 확인 DTO ==========
+
+export class CheckDuplicateDto {
+  @ApiProperty({ example: 'mobile', description: '확인할 필드 (mobile | email)' })
+  @IsString()
+  @IsIn(['mobile', 'email'], { message: '유효하지 않은 필드입니다' })
+  field: 'mobile' | 'email';
+
+  @ApiProperty({ example: '01012345678', description: '확인할 값' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  value: string;
+}
+
+// ========== 비밀번호 재설정 DTO ==========
+
+export class ForgotPasswordDto {
+  @ApiProperty({ example: 'user@example.com', description: '아이디(loginId, 이메일 형식)' })
+  @IsString()
+  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
+  loginId: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ description: '비밀번호 재설정 토큰' })
+  @IsString()
+  @MinLength(1)
+  token: string;
+
+  @ApiProperty({ description: '새 비밀번호 (8~100자)' })
+  @IsString()
+  @MinLength(8, { message: '비밀번호는 8자 이상이어야 합니다' })
+  @MaxLength(100, { message: '비밀번호는 100자 이하여야 합니다' })
+  newPassword: string;
 }
 
 // ========== 비밀번호 변경 DTO ==========

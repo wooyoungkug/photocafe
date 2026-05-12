@@ -20,6 +20,33 @@ import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 // AddressSearch 컴포넌트 미사용 — 페이지 레벨에서 직접 Daum 위젯 구현
 import { useToast } from '@/hooks/use-toast';
+import { useCheckDuplicate } from '@/hooks/use-auth';
+
+const PROVIDER_LABEL: Record<string, string> = { naver: '네이버', kakao: '카카오', google: 'Google' };
+
+type DupHint = { maskedLoginId: string; provider?: string | null };
+
+function DuplicateWarning({ kind, hint }: { kind: '전화번호' | '이메일'; hint: DupHint }) {
+  return (
+    <div className="mt-1 rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-[13px] text-yellow-800">
+      <p>이미 가입된 {kind}입니다.</p>
+      {hint.provider ? (
+        <p>
+          기존 계정: <strong>{PROVIDER_LABEL[hint.provider] || hint.provider}</strong> 소셜 로그인으로 가입 ({hint.maskedLoginId})
+        </p>
+      ) : (
+        <p>
+          기존 계정: <strong>{hint.maskedLoginId}</strong> 아이디로 가입되어 있습니다.
+        </p>
+      )}
+      <p>
+        <a href="/login" className="underline text-blue-700">기존 계정으로 로그인하기</a>
+        {' · '}
+        <a href="/forgot-password" className="underline text-blue-700">비밀번호 찾기</a>
+      </p>
+    </div>
+  );
+}
 
 function formatPhone(value: string): string {
   const nums = value.replace(/\D/g, '');
@@ -108,7 +135,29 @@ export default function OnboardingPage() {
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [mobileDupHint, setMobileDupHint] = useState<DupHint | null>(null);
+  const [emailDupHint, setEmailDupHint] = useState<DupHint | null>(null);
+  const checkDuplicate = useCheckDuplicate();
   const embedRef = useRef<HTMLDivElement>(null);
+
+  const handleDuplicateBlur = async (field: 'mobile' | 'email', value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      if (field === 'mobile') setMobileDupHint(null);
+      else setEmailDupHint(null);
+      return;
+    }
+    try {
+      const res = await checkDuplicate.mutateAsync({ field, value: trimmed });
+      const hint = res?.exists && res.hint ? res.hint : null;
+      if (field === 'mobile') setMobileDupHint(hint);
+      else setEmailDupHint(hint);
+    } catch {
+      // 중복 확인 실패 시 경고를 표시하지 않음 (가입 흐름 방해 방지)
+      if (field === 'mobile') setMobileDupHint(null);
+      else setEmailDupHint(null);
+    }
+  };
 
   // 필드별 ref (스크롤 + 포커스용)
   const clientNameRef = useRef<HTMLInputElement>(null);
@@ -341,13 +390,15 @@ export default function OnboardingPage() {
                 <Input
                   ref={mobileRef}
                   value={form.mobile}
-                  onChange={(e) => { setForm({ ...form, mobile: formatPhone(e.target.value) }); if (fieldErrors.mobile) setFieldErrors(p => ({ ...p, mobile: '' })); }}
+                  onChange={(e) => { setForm({ ...form, mobile: formatPhone(e.target.value) }); if (fieldErrors.mobile) setFieldErrors(p => ({ ...p, mobile: '' })); if (mobileDupHint) setMobileDupHint(null); }}
+                  onBlur={(e) => handleDuplicateBlur('mobile', e.target.value)}
                   placeholder="010-1234-5678"
                   className={`text-[14px] ${fieldErrors.mobile ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                   inputMode="tel"
                   maxLength={13}
                 />
                 {fieldErrors.mobile && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.mobile}</p>}
+                {mobileDupHint && <DuplicateWarning kind="전화번호" hint={mobileDupHint} />}
               </div>
 
               {needsContactEmail && (
@@ -360,7 +411,8 @@ export default function OnboardingPage() {
                     ref={contactEmailRef}
                     type="email"
                     value={form.contactEmail}
-                    onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); }}
+                    onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); if (emailDupHint) setEmailDupHint(null); }}
+                    onBlur={(e) => handleDuplicateBlur('email', e.target.value)}
                     placeholder="실제 이메일 주소를 입력해주세요"
                     className={`text-[14px] ${fieldErrors.contactEmail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                     maxLength={200}
@@ -369,6 +421,7 @@ export default function OnboardingPage() {
                     ? <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.contactEmail}</p>
                     : <p className="text-[12px] text-gray-500">소셜 로그인으로 가입하셔서 이메일 주소 확인이 필요합니다. 입력하신 주소로 인증 메일이 발송됩니다.</p>
                   }
+                  {emailDupHint && <DuplicateWarning kind="이메일" hint={emailDupHint} />}
                 </div>
               )}
 

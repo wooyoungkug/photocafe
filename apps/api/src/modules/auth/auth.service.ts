@@ -945,6 +945,144 @@ export class AuthService {
     return { success: true };
   }
 
+  // ========== 중복 확인 (가입 단계) ==========
+
+  /** @ 앞 2자만 노출하고 나머지는 *로 마스킹. 비-이메일 문자열은 앞 2자 + *** */
+  private maskLoginId(value: string): string {
+    if (!value) return '';
+    if (value.includes('@')) {
+      const [local, domain] = value.split('@');
+      const head = local.slice(0, 2);
+      return `${head}${'*'.repeat(Math.max(local.length - head.length, 3))}@${domain}`;
+    }
+    const head = value.slice(0, 2);
+    return `${head}${'*'.repeat(Math.max(value.length - head.length, 3))}`;
+  }
+
+  async checkDuplicate(field: 'mobile' | 'email', value: string) {
+    const trimmed = (value || '').trim();
+    if (!trimmed) return { exists: false };
+
+    let client: any = null;
+    if (field === 'mobile') {
+      client = await this.prisma.client.findFirst({
+        where: { mobile: trimmed, withdrawnAt: null } as any,
+      });
+    } else {
+      client = await this.prisma.client.findFirst({
+        where: {
+          OR: [{ email: trimmed }, { contactEmail: trimmed }],
+          withdrawnAt: null,
+        } as any,
+      });
+    }
+
+    if (!client) return { exists: false };
+
+    // maskedLoginId: 매칭된 식별자(email 또는 contactEmail) 우선, 없으면 mobile/email
+    let identifier: string =
+      client.email && (field === 'mobile' || client.email === trimmed)
+        ? client.email
+        : client.contactEmail && client.contactEmail === trimmed
+          ? client.contactEmail
+          : client.email || client.contactEmail || trimmed;
+
+    return {
+      exists: true,
+      hint: {
+        maskedLoginId: this.maskLoginId(identifier),
+        provider: (client.oauthProvider as string) || null,
+      },
+    };
+  }
+
+  // ========== 비밀번호 재설정 (이메일 링크 방식) ==========
+
+  async forgotPassword(loginId: string) {
+    const id = (loginId || '').trim();
+    const masked = this.maskLoginId(id);
+    const client = await this.prisma.client.findFirst({
+      where: { email: id, withdrawnAt: null } as any,
+    });
+
+    // 존재 여부 노출 방지: 없어도 동일 응답 (단, 실제 발송 안 함)
+    if (!client) {
+      this.logger.log(`비밀번호 재설정 요청 - 존재하지 않는 아이디: ${id}`);
+      return { sent: true, maskedEmail: masked };
+    }
+
+    const token = crypto.randomBytes(32).toString('hex');
+    await this.prisma.client.update({
+      where: { id: client.id },
+      data: {
+        passwordResetToken: token,
+        passwordResetTokenExpiry: new Date(Date.now() + 60 * 60 * 1000),
+      } as any,
+    });
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3002');
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    const name = client.clientName || '회원';
+    const html = `
+      <div style="font-family: 'Apple SD Gothic Neo', sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #222;">
+        <p style="line-height: 1.6;">안녕하세요, ${name}님. Photocafe입니다.</p>
+        <p style="line-height: 1.6;">아래 버튼을 클릭하여 비밀번호를 재설정하세요. 링크는 1시간 동안 유효합니다.</p>
+        <div style="text-align: center; margin: 28px 0;">
+          <a href="${resetUrl}" style="display: inline-block; background: #E4007F; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold;">비밀번호 재설정</a>
+        </div>
+        <p style="font-size: 13px; color: #888; line-height: 1.6;">버튼이 동작하지 않으면 아래 링크를 복사해 브라우저에 붙여넣어 주세요.<br/>
+        <a href="${resetUrl}" style="color: #555;">${resetUrl}</a></p>
+        <p style="font-size: 13px; color: #888;">본인이 요청하지 않으셨다면 이 메일을 무시해 주세요.</p>
+      </div>
+    `;
+    const text = `안녕하세요, ${name}님. Photocafe입니다.\n아래 링크를 클릭하여 비밀번호를 재설정하세요. (1시간 유효)\n${resetUrl}\n본인이 요청하지 않으셨다면 이 메일을 무시해 주세요.`;
+    const to = client.email || '';
+    try {
+      const result = await this.emailService.sendEmail({
+        to,
+        subject: '[Photocafe] 비밀번호 재설정',
+        html,
+        text,
+      });
+      if (!result.success) {
+        this.logger.warn(`비밀번호 재설정 메일 발송 실패 (${to}): ${result.error}`);
+      }
+    } catch (e: any) {
+      this.logger.warn(`비밀번호 재설정 메일 발송 중 오류: ${e?.message}`);
+    }
+
+    return { sent: true, maskedEmail: masked };
+  }
+
+  async resetClientPasswordByToken(token: string, newPassword: string) {
+    if (!token || typeof token !== 'string') {
+      throw new BadRequestException('만료되었거나 잘못된 링크입니다.');
+    }
+    const client = await this.prisma.client.findFirst({
+      where: { passwordResetToken: token, withdrawnAt: null } as any,
+    });
+    if (!client) {
+      throw new BadRequestException('만료되었거나 잘못된 링크입니다.');
+    }
+    const expiry = (client as any).passwordResetTokenExpiry as Date | null;
+    if (!expiry || expiry.getTime() < Date.now()) {
+      throw new BadRequestException('만료되었거나 잘못된 링크입니다.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.client.update({
+      where: { id: client.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetTokenExpiry: null,
+        emailVerified: true,
+      } as any,
+    });
+
+    return { success: true };
+  }
+
   // ========== 이메일 인증 (코드 방식 - DEPRECATED, 사용 안 함) ==========
 
   /** @deprecated 가입폼 내 6자리 코드 인증 방식. 링크 인증(sendVerificationEmail/verifyEmailToken)으로 대체됨. */

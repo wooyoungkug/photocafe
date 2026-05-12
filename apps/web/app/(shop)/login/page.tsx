@@ -486,6 +486,11 @@ function LoginForm() {
                   />
                 </div>
               </div>
+              <div className="text-right">
+                <Link href="/forgot-password" className="text-[13px] text-gray-500 hover:text-gray-700 underline">
+                  비밀번호를 잊으셨나요?
+                </Link>
+              </div>
               <Button
                 type="submit"
                 className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white"

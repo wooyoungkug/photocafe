@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useClientRegister, useCheckLoginId } from '@/hooks/use-auth';
+import { useClientRegister, useCheckLoginId, useCheckDuplicate } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,11 +19,38 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+const PROVIDER_LABEL: Record<string, string> = { naver: '네이버', kakao: '카카오', google: 'Google' };
+
+type DupHint = { maskedLoginId: string; provider?: string | null };
+
+function DuplicateWarning({ kind, hint }: { kind: '전화번호' | '이메일'; hint: DupHint }) {
+  return (
+    <div className="mt-1 rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-[13px] text-yellow-800">
+      <p>이미 가입된 {kind}입니다.</p>
+      {hint.provider ? (
+        <p>
+          기존 계정: <strong>{PROVIDER_LABEL[hint.provider] || hint.provider}</strong> 소셜 로그인으로 가입 ({hint.maskedLoginId})
+        </p>
+      ) : (
+        <p>
+          기존 계정: <strong>{hint.maskedLoginId}</strong> 아이디로 가입되어 있습니다.
+        </p>
+      )}
+      <p>
+        <a href="/login" className="underline text-blue-700">기존 계정으로 로그인하기</a>
+        {' · '}
+        <a href="/forgot-password" className="underline text-blue-700">비밀번호 찾기</a>
+      </p>
+    </div>
+  );
+}
+
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const register = useClientRegister();
   const checkLoginId = useCheckLoginId();
+  const checkDuplicate = useCheckDuplicate();
 
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
@@ -36,6 +63,26 @@ function RegisterForm() {
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
   const [socialConfirmProvider, setSocialConfirmProvider] = useState<string | null>(null);
+  const [phoneDupHint, setPhoneDupHint] = useState<DupHint | null>(null);
+  const [emailDupHint, setEmailDupHint] = useState<DupHint | null>(null);
+
+  const handleDuplicateBlur = async (field: 'mobile' | 'email', value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      if (field === 'mobile') setPhoneDupHint(null);
+      else setEmailDupHint(null);
+      return;
+    }
+    try {
+      const res = await checkDuplicate.mutateAsync({ field, value: trimmed });
+      const hint = res?.exists && res.hint ? res.hint : null;
+      if (field === 'mobile') setPhoneDupHint(hint);
+      else setEmailDupHint(hint);
+    } catch {
+      if (field === 'mobile') setPhoneDupHint(null);
+      else setEmailDupHint(null);
+    }
+  };
 
   // 이미 가입된 회원 감지 상태
   const [alreadyRegistered, setAlreadyRegistered] = useState(false);
@@ -254,11 +301,13 @@ function RegisterForm() {
                   type="email"
                   placeholder="이메일 입력"
                   value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
+                  onChange={(e) => { setContactEmail(e.target.value); if (emailDupHint) setEmailDupHint(null); }}
+                  onBlur={(e) => handleDuplicateBlur('email', e.target.value)}
                   className="pl-10 h-11"
                   autoComplete="email"
                 />
               </div>
+              {emailDupHint && <DuplicateWarning kind="이메일" hint={emailDupHint} />}
             </div>
 
             {/* 전화번호 (선택) */}
@@ -273,12 +322,14 @@ function RegisterForm() {
                   type="tel"
                   placeholder="01012345678"
                   value={phone}
-                  onChange={(e) => setPhone(formatPhoneNumber(e.target.value))}
+                  onChange={(e) => { setPhone(formatPhoneNumber(e.target.value)); if (phoneDupHint) setPhoneDupHint(null); }}
+                  onBlur={(e) => handleDuplicateBlur('mobile', e.target.value)}
                   className="pl-10 h-11"
                   autoComplete="tel"
                   maxLength={11}
                 />
               </div>
+              {phoneDupHint && <DuplicateWarning kind="전화번호" hint={phoneDupHint} />}
             </div>
 
             {/* 이메일 수신 고지 + 동의 */}

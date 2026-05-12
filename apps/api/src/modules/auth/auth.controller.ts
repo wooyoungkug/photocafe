@@ -34,6 +34,9 @@ import {
   VerifyEmailDto,
   ChangePasswordDto,
   ResendVerificationDto,
+  CheckDuplicateDto,
+  ForgotPasswordDto,
+  ResetPasswordDto,
 } from './dto/auth.dto';
 import { StaffOnlyGuard } from '@/common/guards/staff-only.guard';
 import { EmploymentService } from '../employment/employment.service';
@@ -473,6 +476,30 @@ export class AuthController {
   @ApiOperation({ summary: '이메일 인증 메일 재발송' })
   async resendVerification(@Body() dto: ResendVerificationDto) {
     return this.authService.resendVerificationEmail(dto.loginId);
+  }
+
+  @Public()
+  @Post('client/check-duplicate')
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({ summary: '전화번호/이메일 중복 확인 (가입 단계, 마스킹 힌트 반환)' })
+  async checkDuplicate(@Body() dto: CheckDuplicateDto) {
+    return this.authService.checkDuplicate(dto.field, dto.value);
+  }
+
+  @Public()
+  @Post('client/forgot-password')
+  @Throttle({ default: { ttl: 60000, limit: 1 } })
+  @ApiOperation({ summary: '비밀번호 재설정 메일 발송 (이메일 링크 방식)' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.loginId);
+  }
+
+  @Public()
+  @Post('client/reset-password')
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @ApiOperation({ summary: '비밀번호 재설정 (메일 링크의 토큰으로 새 비밀번호 설정)' })
+  async resetPasswordByToken(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetClientPasswordByToken(dto.token, dto.newPassword);
   }
 
   /** @deprecated 가입폼 내 6자리 코드 인증. 링크 인증(client/verify-email GET, client/resend-verification)으로 대체됨. */

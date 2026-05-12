@@ -88,6 +88,40 @@ export function useCheckLoginId() {
   });
 }
 
+interface DuplicateHint {
+  maskedLoginId: string;
+  provider?: string | null;
+}
+
+interface CheckDuplicateResponse {
+  exists: boolean;
+  hint?: DuplicateHint;
+}
+
+/** 휴대전화/이메일 중복 확인 (가입 힌트 포함) */
+export function useCheckDuplicate() {
+  return useMutation({
+    mutationFn: (data: { field: 'mobile' | 'email'; value: string }) =>
+      api.post<CheckDuplicateResponse>('/auth/client/check-duplicate', data),
+  });
+}
+
+/** 비밀번호 찾기 — 재설정 링크 이메일 발송 */
+export function useForgotPassword() {
+  return useMutation({
+    mutationFn: (data: { loginId: string }) =>
+      api.post<{ sent: boolean; maskedEmail: string }>('/auth/client/forgot-password', data),
+  });
+}
+
+/** 비밀번호 재설정 (토큰 + 새 비밀번호) */
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: (data: { token: string; newPassword: string }) =>
+      api.post<{ success: boolean }>('/auth/client/reset-password', data),
+  });
+}
+
 export function useClientRegister() {
   const router = useRouter();
 

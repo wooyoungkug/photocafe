@@ -430,6 +430,8 @@ model Client {
   emailVerified              Boolean                        @default(false)
   emailVerifyToken           String?                        @unique
   emailVerifyTokenExpiry     DateTime?
+  passwordResetToken         String?                        @unique
+  passwordResetTokenExpiry   DateTime?
   businessUpgradeStatus      String?
   businessUpgradeAt          DateTime?
   businessRegCertPath        String?
