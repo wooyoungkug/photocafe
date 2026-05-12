@@ -10,8 +10,13 @@ const cspDirectives = [
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'self'",
-  "img-src 'self' data: blob: https:",
-  "font-src 'self' data: https:",
+  // 개발: localhost API 이미지 허용, 운영: https만
+  isDev
+    ? "img-src 'self' data: blob: https: http://localhost:*"
+    : "img-src 'self' data: blob: https:",
+  isDev
+    ? "font-src 'self' data: https: http://localhost:*"
+    : "font-src 'self' data: https:",
   "style-src 'self' 'unsafe-inline' https:",
   // unsafe-eval: Next.js 번들링 요구사항; unsafe-inline: 인라인 이벤트 핸들러
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https:",
@@ -22,8 +27,10 @@ const cspDirectives = [
   "worker-src 'self' blob:",
   "media-src 'self' blob: https:",
   "form-action 'self'",
-  // Daum(Kakao) 우편번호 서비스 iframe 허용
-  "frame-src 'self' https://*.daum.net https://*.daumcdn.net https://*.kakao.com https://*.kakaocdn.net",
+  // Daum(Kakao) 우편번호: 개발(HTTP)에서도 허용 — 위젯이 origin protocol을 따라가므로 http://도 필요
+  isDev
+    ? "frame-src 'self' https://*.daum.net https://*.daumcdn.net https://*.kakao.com https://*.kakaocdn.net http://*.daum.net http://*.kakao.com"
+    : "frame-src 'self' https://*.daum.net https://*.daumcdn.net https://*.kakao.com https://*.kakaocdn.net",
 ].join("; ");
 
 const nextConfig: NextConfig = {
