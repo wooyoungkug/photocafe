@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -27,6 +27,7 @@ import {
   HelpCircle,
   CalendarDays,
   UserCheck,
+  MapPin,
 } from 'lucide-react';
 import {
   useSubmitBusinessUpgrade,
@@ -130,6 +131,55 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // 카카오(Daum) 주소 위젯
+  const [addressOpen, setAddressOpen] = useState(false);
+  const embedRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if ((window as any).daum?.Postcode) return;
+    const existing = document.querySelector('script[src*="postcode.v2.js"]');
+    if (existing) return;
+    const s = document.createElement('script');
+    s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    s.async = true;
+    document.head.appendChild(s);
+  }, []);
+
+  useEffect(() => {
+    if (!addressOpen || !embedRef.current) return;
+    const doEmbed = () => {
+      if (!(window as any).daum?.Postcode || !embedRef.current) return;
+      embedRef.current.innerHTML = '';
+      new (window as any).daum.Postcode({
+        width: '100%',
+        height: '100%',
+        oncomplete: (data: any) => {
+          const addr = data.roadAddress || data.jibunAddress;
+          setPostalCode(data.zonecode);
+          setAddress(addr);
+          clearOcrField('address');
+          clearOcrField('postalCode');
+          setAddressOpen(false);
+        },
+      }).embed(embedRef.current, { autoClose: false });
+    };
+    if ((window as any).daum?.Postcode) {
+      doEmbed();
+    } else {
+      const script = document.querySelector('script[src*="postcode.v2.js"]') as HTMLScriptElement | null;
+      if (script) {
+        script.addEventListener('load', doEmbed, { once: true });
+      } else {
+        const s = document.createElement('script');
+        s.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+        s.async = true;
+        s.addEventListener('load', doEmbed, { once: true });
+        document.head.appendChild(s);
+      }
+    }
+  }, [addressOpen]);
+
   // NTS 상태
   const [ntsResult, setNtsResult] = useState<{ status: NtsStatus; statusText: string; taxType?: string } | null>(null);
   const [ntsVerifiedFor, setNtsVerifiedFor] = useState<string>('');
@@ -165,6 +215,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setOcrFields(new Set());
     setOpenDate(null);
     setManagerConfirmPending(false);
+    setAddressOpen(false);
     analyzeCert.reset();
     verifyStatus.reset();
   };
@@ -266,6 +317,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
         businessCategory: businessCategory.trim() || undefined,
         taxInvoiceEmail: taxInvoiceEmail.trim(),
         address: address.trim() || undefined,
+        addressDetail: addressDetail.trim() || undefined,
         practicalManagerName: (overrides?.practicalName ?? practicalManagerName).trim() || undefined,
         practicalManagerPhone: (overrides?.practicalPhone ?? practicalManagerPhone).trim() || undefined,
         approvalManagerName: (overrides?.approvalName ?? approvalManagerName).trim() || undefined,
@@ -548,13 +600,56 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               />
             </div>
 
+            {/* 사업장 주소 — 카카오 주소 검색 */}
             <div className="space-y-1.5">
-              <Label className="text-[14px] font-normal text-gray-600">사업장 주소</Label>
+              <Label className="text-[14px] font-normal text-gray-600 flex items-center gap-1">
+                <MapPin className="h-3.5 w-3.5" />
+                사업장 주소
+              </Label>
+              <div className="grid grid-cols-[100px_1fr_auto] gap-2">
+                <Input
+                  value={postalCode}
+                  placeholder="우편번호"
+                  readOnly
+                  onClick={() => setAddressOpen(true)}
+                  className={`h-9 text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400 ${ocrFields.has('postalCode') ? 'bg-blue-50 border-blue-300 text-blue-900' : ''}`}
+                />
+                <Input
+                  value={address}
+                  placeholder="클릭하거나 검색 버튼을 누르세요"
+                  readOnly
+                  onClick={() => setAddressOpen(true)}
+                  className={`h-9 text-[14px] bg-gray-50 cursor-pointer hover:border-gray-400 ${ocrFields.has('address') ? 'bg-blue-50 border-blue-300 text-blue-900' : ''}`}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3 text-[13px] shrink-0"
+                  onClick={() => setAddressOpen((v) => !v)}
+                >
+                  <Search className="h-3.5 w-3.5 mr-1" />
+                  검색
+                </Button>
+              </div>
+              {addressOpen && (
+                <div className="border rounded-md overflow-hidden relative mt-1">
+                  <button
+                    type="button"
+                    title="닫기"
+                    onClick={() => setAddressOpen(false)}
+                    className="absolute top-1 right-1 z-10 bg-white rounded-full p-0.5 shadow hover:bg-gray-100"
+                  >
+                    <XCircle className="h-4 w-4 text-gray-400" />
+                  </button>
+                  <div ref={embedRef} className="h-[380px]" />
+                </div>
+              )}
               <Input
-                className={`text-[14px] font-normal ${ocrFields.has('address') ? 'bg-blue-50 border-blue-300 text-blue-900' : ''}`}
-                value={address}
-                onChange={(e) => { clearOcrField('address'); setAddress(e.target.value); }}
-                placeholder="예: 경기도 성남시 중원구 둔촌대로 560, 311호"
+                value={addressDetail}
+                onChange={(e) => setAddressDetail(e.target.value)}
+                placeholder="상세주소 (동·호수 등)"
+                className="h-9 text-[14px]"
               />
             </div>
 
