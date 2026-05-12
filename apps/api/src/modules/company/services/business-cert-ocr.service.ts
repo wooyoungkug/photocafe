@@ -237,15 +237,27 @@ export class BusinessCertOcrService {
 
       // 사업장 소재지 / 소재지 (다음 줄까지 이어질 수 있음) — 스페이스 삽입 변형 허용
       if (!result.address) {
-        const m = line.match(/(?:사\s*업\s*장\s*소\s*재\s*지|사\s*업\s*장\s*주\s*소|소\s*재\s*지)\s*[:：]?\s*(.+)$/);
+        const addrKeyword = /(?:사\s*업\s*장\s*소\s*재\s*지|사\s*업\s*장\s*주\s*소|소\s*재\s*지)/;
+        const m = line.match(new RegExp(addrKeyword.source + String.raw`\s*[:：]?\s*(.+)$`));
         if (m && m[1].trim()) {
+          // 레이블+값이 같은 줄
           let addr = this.cleanValue(m[1]);
-          // 다음 줄이 주소 연속(키워드 없음 + 한글 포함)이면 이어붙임
           const next = lines[i + 1];
           if (next && !this.looksLikeKeywordLine(next) && /[가-힣]/.test(next) && addr.length < 60) {
             addr = `${addr} ${this.cleanValue(next)}`.trim();
           }
           result.address = addr;
+        } else if (addrKeyword.test(line)) {
+          // 레이블만 있는 줄 → 값은 다음 줄에 있음 (OCR이 줄을 분리한 경우)
+          const next = lines[i + 1];
+          if (next && !this.looksLikeKeywordLine(next) && /[가-힣]/.test(next)) {
+            let addr = this.cleanValue(next);
+            const next2 = lines[i + 2];
+            if (next2 && !this.looksLikeKeywordLine(next2) && /[가-힣]/.test(next2) && addr.length < 60) {
+              addr = `${addr} ${this.cleanValue(next2)}`.trim();
+            }
+            result.address = addr;
+          }
         }
       }
     }
@@ -269,6 +281,11 @@ export class BusinessCertOcrService {
       const pcMatch = fullText.match(/\((\d{5})\)/) || fullText.match(/\b(\d{5})\b(?=.{0,40}(?:[시도]|구|동|로|길))/);
       if (pcMatch) result.postalCode = pcMatch[1];
     }
+
+    // 업태/종목: OCR이 글자 사이에 공백 삽입한 경우 정리 ("제 조" → "제조")
+    if (result.businessType) result.businessType = this.collapseKoreanSpaces(result.businessType);
+    if (result.businessCategory) result.businessCategory = this.collapseKoreanSpaces(result.businessCategory);
+    if (result.companyName) result.companyName = this.collapseKoreanSpaces(result.companyName);
 
     return result;
   }
@@ -318,6 +335,18 @@ export class BusinessCertOcrService {
     }
     // 이름이 5자 초과면 앞 2~4자만 (한국 이름 최대 4자)
     return name.length > 5 ? name.slice(0, 4) : name;
+  }
+
+  /** OCR이 단어 내 글자 사이에 삽입한 공백 제거 ("제 조" → "제조", "도 소 매" → "도소매") */
+  private collapseKoreanSpaces(text: string): string {
+    let s = text;
+    // 한글 글자 사이 공백을 반복 제거 (3글자 이상 단어도 처리)
+    let prev = '';
+    while (prev !== s) {
+      prev = s;
+      s = s.replace(/([가-힣]) ([가-힣])/g, '$1$2');
+    }
+    return s;
   }
 
   /** 값 앞뒤 잡음(콜론, 괄호 라벨, 과도한 공백) 정리 */
