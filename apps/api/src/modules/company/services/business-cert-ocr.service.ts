@@ -66,8 +66,8 @@ export class BusinessCertOcrService {
   // ==================== A. 사업자등록증 OCR ====================
 
   async analyzeCert(uploadKey: string): Promise<AnalyzeCertResultDto> {
-    const secretKey = this.getEnv('NAVER_OCR_SECRET_KEY');
-    const invokeUrl = this.getEnv('NAVER_OCR_INVOKE_URL');
+    const secretKey = this.getEnv('CLOVA_OCR_SECRET_KEY');
+    const invokeUrl = this.getEnv('CLOVA_OCR_INVOKE_URL');
     if (!secretKey || !invokeUrl) {
       throw new ServiceUnavailableException('OCR 서비스가 설정되지 않았습니다');
     }
