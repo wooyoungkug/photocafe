@@ -21,13 +21,16 @@ import {
 
 const PROVIDER_LABEL: Record<string, string> = { naver: '네이버', kakao: '카카오', google: 'Google' };
 
-type DupHint = { maskedLoginId: string; provider?: string | null };
+type DupHint = { maskedLoginId: string; provider?: string | null; createdAt?: string | null };
 
 function DuplicateWarning({ kind, hint }: { kind: '전화번호' | '이메일'; hint: DupHint }) {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
   const loginHref = hint.provider
     ? `${apiUrl}/auth/${hint.provider}-login`
     : '/login';
+  const joinedDate = hint.createdAt
+    ? new Date(hint.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
+    : null;
 
   return (
     <div className="mt-1 rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-[13px] text-yellow-800">
@@ -35,10 +38,12 @@ function DuplicateWarning({ kind, hint }: { kind: '전화번호' | '이메일'; 
       {hint.provider ? (
         <p>
           기존 계정: <strong>{PROVIDER_LABEL[hint.provider] || hint.provider}</strong> 소셜 로그인으로 가입 ({hint.maskedLoginId})
+          {joinedDate && <span className="text-yellow-600"> · 가입일 {joinedDate}</span>}
         </p>
       ) : (
         <p>
           기존 계정: <strong>{hint.maskedLoginId}</strong> 아이디로 가입되어 있습니다.
+          {joinedDate && <span className="text-yellow-600"> · 가입일 {joinedDate}</span>}
         </p>
       )}
       <p>

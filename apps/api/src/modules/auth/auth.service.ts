@@ -992,6 +992,7 @@ export class AuthService {
       hint: {
         maskedLoginId: this.maskLoginId(identifier),
         provider: (client.oauthProvider as string) || null,
+        createdAt: (client.createdAt as Date)?.toISOString() ?? null,
       },
     };
   }
