@@ -68,10 +68,10 @@ export function ShopHeader() {
             {!isLoginPage && (
               <Link href="/" className="flex items-center">
                 <Image
-                  src="/images/photocafe_logo_v3.png"
+                  src="/images/photocafe_가로.png"
                   alt="Photocafe"
-                  width={362}
-                  height={97}
+                  width={2363}
+                  height={626}
                   className="h-9 md:h-11 w-auto object-contain"
                   priority
                 />
@@ -209,11 +209,11 @@ export function ShopHeader() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
               <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
                 <Image
-                  src="/images/photocafe_logo_v3.png"
+                  src="/images/photocafe_정방.png"
                   alt="Photocafe"
-                  width={362}
-                  height={97}
-                  className="h-9 w-auto object-contain"
+                  width={1066}
+                  height={1004}
+                  className="h-12 w-auto object-contain"
                 />
               </Link>
             </div>

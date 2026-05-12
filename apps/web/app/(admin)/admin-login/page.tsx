@@ -74,12 +74,12 @@ export default function AdminLoginPage() {
         <CardHeader className="space-y-1 text-center">
           <div className="mx-auto mb-4 flex justify-center">
             <Image
-              src="/images/photocafe_logo_v3.png"
+              src="/images/photocafe_정방.png"
               alt="PhotoCafe"
-              width={220}
-              height={66}
+              width={1066}
+              height={1004}
               priority
-              className="h-[66px] w-auto"
+              className="h-[100px] w-auto"
             />
           </div>
           <CardTitle className="text-2xl text-white">관리자 로그인</CardTitle>

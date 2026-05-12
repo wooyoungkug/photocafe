@@ -178,10 +178,10 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
             <>
               <Link href="/dashboard" className="hidden lg:flex shrink-0 items-center gap-2">
                 <Image
-                  src="/images/photocafe_logo_v3.png"
+                  src="/images/photocafe_가로.png"
                   alt="Photocafe"
-                  width={182}
-                  height={47}
+                  width={2363}
+                  height={626}
                   priority
                   className="h-[42px] w-auto"
                 />
