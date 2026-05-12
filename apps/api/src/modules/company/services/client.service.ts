@@ -799,14 +799,11 @@ export class ClientService {
         });
       }
 
-      // 모든 필수 필드 채워졌는지 확인 → profileCompletedAt 설정
+      // 필수 필드 채워졌는지 확인 → profileCompletedAt 설정 (담당자 연락처는 선택)
       const requiredFilled =
         !!updated.clientName?.trim() &&
         !!updated.mobile?.trim() &&
         !!updated.address?.trim() &&
-        !!updated.emergencyContactName?.trim() &&
-        !!updated.emergencyContactPhone?.trim() &&
-        !!updated.emergencyContactRelation?.trim() &&
         (primaryEmploymentId ? !!data.department?.trim() : true);
 
       if (requiredFilled && !updated.profileCompletedAt) {
