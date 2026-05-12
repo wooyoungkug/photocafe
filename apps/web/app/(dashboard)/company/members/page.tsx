@@ -370,7 +370,7 @@ function MembersPageContent() {
         phone: member.phone || '',
         mobile: member.mobile || '',
         email: member.email || '',
-        contactEmail: (member as any).contactEmail || '',
+        ...(((member as any).contactEmail !== undefined) && { contactEmail: (member as any).contactEmail || '' }),
         postalCode: member.postalCode || '',
         address: member.address || '',
         addressDetail: member.addressDetail || '',
