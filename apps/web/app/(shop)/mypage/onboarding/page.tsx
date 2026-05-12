@@ -179,14 +179,11 @@ export default function OnboardingPage() {
     e.preventDefault();
     setError('');
 
-    // 필수 필드 검증
+    // 필수 필드 검증 (비상연락처는 선택)
     const required: Array<[keyof typeof form, string]> = [
       ['clientName', '이름/상호명'],
       ['mobile', '휴대전화'],
       ['address', '주소'],
-      ['emergencyContactName', '비상연락처 이름'],
-      ['emergencyContactPhone', '비상연락처 전화'],
-      ['emergencyContactRelation', '비상연락처와의 관계'],
     ];
     if (status?.employment) required.push(['department', '부서']);
 
@@ -355,42 +352,41 @@ export default function OnboardingPage() {
             </CardContent>
           </Card>
 
-          {/* 3. 비상연락처 */}
-          <Card>
-            <CardHeader className="pb-3">
+          {/* 3. 비상연락처 (선택) */}
+          <Card className="border-dashed">
+            <CardHeader className="pb-2">
               <CardTitle className="text-[18px] text-black font-bold flex items-center gap-1.5">
                 <Heart className="h-5 w-5 text-primary" />
-                비상연락처
+                담당자 연락처
+                <span className="text-[13px] font-normal text-gray-400 ml-1">(선택)</span>
               </CardTitle>
-              <CardDescription className="text-[14px] text-black font-normal">
-                긴급상황 발생 시 연락드릴 가족이나 지인의 연락처입니다.
+              <CardDescription className="text-[14px] text-black font-normal leading-relaxed">
+                촬영작가·편집작가 섭외 시 업무 조율에 활용됩니다.<br />
+                <span className="text-gray-500 text-[13px]">
+                  입력하시면 빠른 일정 조율과 원활한 커뮤니케이션에 도움이 됩니다. 언제든지 마이페이지에서 수정할 수 있습니다.
+                </span>
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[14px] text-black font-normal">
-                    이름 <span className="text-red-500">*</span>
-                  </Label>
+                  <Label className="text-[14px] text-black font-normal">이름</Label>
                   <Input
                     value={form.emergencyContactName}
                     onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })}
-                    placeholder="홍길동"
+                    placeholder="담당자 이름 (예: 김미영)"
                     className="text-[14px]"
                     maxLength={50}
-                    required
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[14px] text-black font-normal">
-                    관계 <span className="text-red-500">*</span>
-                  </Label>
+                  <Label className="text-[14px] text-black font-normal">관계</Label>
                   <Select
                     value={form.emergencyContactRelation}
                     onValueChange={(v) => setForm({ ...form, emergencyContactRelation: v })}
                   >
                     <SelectTrigger className="text-[14px]">
-                      <SelectValue placeholder="관계 선택" />
+                      <SelectValue placeholder="관계 선택 (예: 직장동료)" />
                     </SelectTrigger>
                     <SelectContent>
                       {RELATION_OPTIONS.map((rel) => (
@@ -403,21 +399,21 @@ export default function OnboardingPage() {
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal">
-                  전화번호 <span className="text-red-500">*</span>
-                </Label>
+                <Label className="text-[14px] text-black font-normal">연락처</Label>
                 <Input
                   value={form.emergencyContactPhone}
                   onChange={(e) =>
                     setForm({ ...form, emergencyContactPhone: formatPhone(e.target.value) })
                   }
-                  placeholder="010-1234-5678"
+                  placeholder="010-0000-0000"
                   className="text-[14px]"
                   inputMode="tel"
                   maxLength={13}
-                  required
                 />
               </div>
+              <p className="text-[12px] text-gray-400">
+                📌 입력하신 연락처는 작가 섭외 및 촬영 일정 조율 목적으로만 활용되며, 외부에 공개되지 않습니다.
+              </p>
             </CardContent>
           </Card>
 
