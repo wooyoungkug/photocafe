@@ -106,6 +106,7 @@ export interface AnalyzeCertResult {
   representative?: string;
   businessType?: string;
   businessCategory?: string;
+  taxInvoiceEmail?: string;
   postalCode?: string;
   address?: string;
   companyName?: string;

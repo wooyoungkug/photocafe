@@ -111,6 +111,9 @@ export class AnalyzeCertResultDto {
   @ApiPropertyOptional({ example: '서울특별시 강남구 ...', description: '사업장 소재지' })
   address?: string;
 
+  @ApiPropertyOptional({ example: 'tax@example.com', description: '세금계산서 수신 이메일 (OCR 추출)' })
+  taxInvoiceEmail?: string;
+
   @ApiPropertyOptional({ example: '주식회사 포토카페', description: '상호' })
   companyName?: string;
 

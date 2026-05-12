@@ -207,11 +207,26 @@ export class BusinessCertOcrService {
         }
       }
 
-      // 업태 — 종목 앞까지 or 줄 끝까지 (greedy, 공백 제한 없이)
+      // 업태 — 종목 앞까지 or 줄 끝까지 (greedy)
       if (!result.businessType) {
         const m = line.match(/업\s*태\s*[:：]?\s*(.+?)(?=\s+종\s*목)/) ||
                   line.match(/업\s*태\s*[:：]?\s*(.+)$/);
-        if (m && m[1].trim()) result.businessType = this.cleanValue(m[1]);
+        if (m && m[1].trim()) {
+          const val = this.cleanValue(m[1]);
+          // Reject if we only captured the 종목 header (table has labels on one row, values on next)
+          if (val && !/^종\s*목/.test(val)) result.businessType = val;
+        }
+        // Table header row fallback: "업태 종목" labels only, values on next line
+        if (!result.businessType && /업\s*태/.test(line)) {
+          const next = lines[i + 1];
+          if (next && !this.looksLikeKeywordLine(next)) {
+            const parts = next.trim().split(/\s{2,}/);
+            if (parts[0]) result.businessType = this.cleanValue(parts[0]);
+            if (!result.businessCategory && parts[1]) {
+              result.businessCategory = this.cleanValue(parts[1]);
+            }
+          }
+        }
       }
 
       // 종목
@@ -220,9 +235,9 @@ export class BusinessCertOcrService {
         if (m && m[1].trim()) result.businessCategory = this.cleanValue(m[1]);
       }
 
-      // 사업장 소재지 / 소재지 (다음 줄까지 이어질 수 있음)
+      // 사업장 소재지 / 소재지 (다음 줄까지 이어질 수 있음) — 스페이스 삽입 변형 허용
       if (!result.address) {
-        const m = line.match(/(?:사업장\s*소재지|사업장\s*주소|소\s*재\s*지)\s*[:：]?\s*(.+)$/);
+        const m = line.match(/(?:사\s*업\s*장\s*소\s*재\s*지|사\s*업\s*장\s*주\s*소|소\s*재\s*지)\s*[:：]?\s*(.+)$/);
         if (m && m[1].trim()) {
           let addr = this.cleanValue(m[1]);
           // 다음 줄이 주소 연속(키워드 없음 + 한글 포함)이면 이어붙임
@@ -235,12 +250,18 @@ export class BusinessCertOcrService {
       }
     }
 
-    // 대표자 fullText fallback — 최대 4자(한국 이름 범위)만 캡처
+    // 대표자 fullText fallback — 최대 3자(한국 이름 범위)만 캡처해 '개업' 등 다음 키워드 혼입 방지
     if (!result.representative) {
-      const m = fullText.match(/대\s*표\s*자\s*[:：\s]\s*((?:[가-힣]\s*){2,4})/);
+      const m = fullText.match(/대\s*표\s*자\s*[:：\s]\s*((?:[가-힣]\s*){2,3})/);
       if (m && m[1].trim()) {
         result.representative = this.extractName(m[1]);
       }
+    }
+
+    // 세금계산서 이메일: 문서에 기재된 이메일 주소 추출
+    if (!result.taxInvoiceEmail) {
+      const emailMatch = fullText.match(/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/);
+      if (emailMatch) result.taxInvoiceEmail = emailMatch[1];
     }
 
     // 우편번호: 5자리(신주소) 또는 6자리(구주소) — 주소 라인 근처에서 우선 추출

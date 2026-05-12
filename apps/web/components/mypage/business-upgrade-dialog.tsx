@@ -213,6 +213,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
       if (ocr.representative && !representative) { setRepresentative(ocr.representative); filled.add('representative'); }
       if (ocr.businessType && !businessType) { setBusinessType(ocr.businessType); filled.add('businessType'); }
       if (ocr.businessCategory && !businessCategory) { setBusinessCategory(ocr.businessCategory); filled.add('businessCategory'); }
+      if (ocr.taxInvoiceEmail && !taxInvoiceEmail) { setTaxInvoiceEmail(ocr.taxInvoiceEmail); filled.add('taxInvoiceEmail'); }
       if (ocr.address && !address) { setAddress(ocr.address); filled.add('address'); }
       if (ocr.postalCode && !postalCode) { setPostalCode(ocr.postalCode); filled.add('postalCode'); }
       if (ocr.openDate) setOpenDate(ocr.openDate);
