@@ -236,6 +236,15 @@ export class BusinessCertOcrService {
       }
     }
 
+    // 대표자 fullText fallback — 라인 묶음 실패 시 전체 토큰 스트림에서 재시도
+    if (!result.representative) {
+      // 구분자가 콜론·공백 모두 허용, 글자 사이 공백 허용
+      const m = fullText.match(/대\s*표\s*자\s*[:：\s]\s*((?:[가-힣]\s*){2,15})/);
+      if (m && m[1].trim()) {
+        result.representative = m[1].replace(/\s+/g, '').trim();
+      }
+    }
+
     // 우편번호: 5자리(신주소) 또는 6자리(구주소) — 주소 라인 근처에서 우선 추출
     if (!result.postalCode) {
       const pcMatch = fullText.match(/\((\d{5})\)/) || fullText.match(/\b(\d{5})\b(?=.{0,40}(?:[시도]|구|동|로|길))/);
@@ -260,7 +269,7 @@ export class BusinessCertOcrService {
     }
     const sorted = [...tokens].sort((a, b) => a.y - b.y);
     const lines: string[][] = [];
-    const threshold = 12; // px
+    const threshold = 20; // px — 글자 간격이 넓은 공문서 대응
     let currentY = -Infinity;
     for (const t of sorted) {
       if (Math.abs(t.y - currentY) > threshold || lines.length === 0) {
