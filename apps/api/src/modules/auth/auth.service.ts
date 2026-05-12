@@ -866,11 +866,12 @@ export class AuthService {
     return /^kakao_\d+@kakao\.com$/i.test(email) || /^naver_[a-z0-9]+@naver\.com$/i.test(email);
   }
 
-  /** OAuth 신규 가입자에 대해: 실제 contactEmail 있으면 토큰 발급+메일 발송, 없으면(가짜 이메일 포함) emailVerified=true로 통과 */
-  private async issueEmailVerification(clientId: string): Promise<void> {
+  /** OAuth 신규 가입자에 대해: 실제 contactEmail 있으면 토큰 발급+메일 발송, 없으면(가짜 이메일 포함) emailVerified=true로 통과.
+   *  반환값: true = 여전히 인증 대기 중(실제 메일 발송됨), false = 인증 완료(가짜 이메일 자동 통과 또는 이미 인증) */
+  private async issueEmailVerification(clientId: string): Promise<boolean> {
     const client = await this.prisma.client.findUnique({ where: { id: clientId } });
-    if (!client) return;
-    if ((client as any).emailVerified) return;
+    if (!client) return false;
+    if ((client as any).emailVerified) return false;
     // contactEmail(사용자가 직접 입력한 실제 이메일)이 없거나, email이 소셜 로그인 가짜 이메일이면 인증 우회
     const verifyTarget = client.contactEmail || client.email;
     if (!verifyTarget || this.isFakeProviderEmail(verifyTarget)) {
@@ -878,7 +879,7 @@ export class AuthService {
         where: { id: clientId },
         data: { emailVerified: true } as any,
       });
-      return;
+      return false; // 자동 통과 → 인증 대기 불필요
     }
     const token = crypto.randomBytes(32).toString('hex');
     const updated = await this.prisma.client.update({
@@ -889,11 +890,12 @@ export class AuthService {
       } as any,
     });
     await this.sendVerificationEmail(updated);
+    return true; // 실제 메일 발송됨 → 인증 대기 필요
   }
 
-  /** 컨트롤러 외부에서 호출 가능한 래퍼: emailVerified=false 인 클라이언트에 인증 토큰/메일 보장 */
-  async ensureEmailVerificationIssued(clientId: string): Promise<void> {
-    await this.issueEmailVerification(clientId);
+  /** 컨트롤러 외부에서 호출 가능한 래퍼. 반환값: true = 인증 메일 발송됨(대기 필요), false = 자동 통과/이미 인증 */
+  async ensureEmailVerificationIssued(clientId: string): Promise<boolean> {
+    return this.issueEmailVerification(clientId);
   }
 
   async verifyEmailToken(token: string) {

@@ -371,10 +371,14 @@ export class AuthController {
       );
     }
 
-    // 이메일 링크 인증 미완료: 토큰 발급/로그인하지 않고 인증 대기 페이지로 리다이렉트
+    // 이메일 링크 인증 미완료: 토큰 발급 후 결과에 따라 처리
     if (!client.emailVerified) {
-      await this.authService.ensureEmailVerificationIssued(client.id);
-      return res.redirect(`${frontendUrl}/verify-email?pending=1&provider=${client.oauthProvider ?? ''}`);
+      const needsVerification = await this.authService.ensureEmailVerificationIssued(client.id);
+      if (needsVerification) {
+        // 실제 이메일 발송됨 → 인증 대기 페이지로 이동
+        return res.redirect(`${frontendUrl}/verify-email?pending=1&provider=${client.oauthProvider ?? ''}`);
+      }
+      // 가짜 소셜 이메일 자동 통과 → 아래 정상 로그인 계속 진행
     }
 
     const inviteToken = req?.cookies?.invite_token;
