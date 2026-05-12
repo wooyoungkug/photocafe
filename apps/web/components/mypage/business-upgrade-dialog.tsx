@@ -27,6 +27,7 @@ import {
   AlertTriangle,
   HelpCircle,
   CalendarDays,
+  UserCheck,
 } from 'lucide-react';
 import {
   useSubmitBusinessUpgrade,
@@ -35,6 +36,7 @@ import {
   useVerifyBusinessStatus,
   type NtsStatus,
 } from '@/hooks/use-business-upgrade';
+import { useAuthStore } from '@/stores/auth-store';
 
 function formatBusinessNumber(value: string): string {
   const nums = value.replace(/\D/g, '').slice(0, 10);
@@ -95,6 +97,7 @@ interface Props {
 
 export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [open, setOpen] = useState(false);
+  const { user } = useAuthStore();
 
   const uploadCert = useUploadBusinessCert();
   const analyzeCert = useAnalyzeBusinessCert();
@@ -127,8 +130,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   // OCR 자동인식으로 채워진 필드 추적
   const [ocrFilled, setOcrFilled] = useState(false);
   const [ocrFields, setOcrFields] = useState<Set<string>>(new Set());
-  // 개업연월일 (OCR에서만 추출, 읽기전용 표시)
   const [openDate, setOpenDate] = useState<string | null>(null);
+
+  // 담당자 자동기재 확인 단계
+  const [managerConfirmPending, setManagerConfirmPending] = useState(false);
 
   const resetForm = () => {
     setBusinessNumber('');
@@ -152,6 +157,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setOcrFilled(false);
     setOcrFields(new Set());
     setOpenDate(null);
+    setManagerConfirmPending(false);
     analyzeCert.reset();
     verifyStatus.reset();
   };
@@ -161,7 +167,6 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     if (!next) resetForm();
   };
 
-  // OCR로 채워진 필드를 사용자가 직접 수정하면 파란색 표시 제거
   const clearOcrField = (name: string) => {
     setOcrFields((prev) => {
       const next = new Set(prev);
@@ -170,23 +175,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     });
   };
 
-  /**
-   * 입력 필드의 스타일 클래스를 반환한다.
-   * - OCR 자동입력: 파란색 배경 (확인 권장)
-   * - 빈 필수 항목: 노란 점선 테두리 (입력 유도)
-   * - 빈 선택 항목: 일반
-   * - 사용자 직접 입력: 일반
-   */
   const fieldCls = (name: string, value: string, required = false) => {
     const base = 'h-9 text-[14px] font-normal';
-    if (ocrFields.has(name)) {
-      // OCR 자동입력 — 파란색
-      return `${base} bg-blue-50 border-blue-300 text-blue-900 focus:border-blue-400`;
-    }
-    if (required && !value.trim()) {
-      // 빈 필수 항목 — 노란 점선
-      return `${base} border-dashed border-amber-400 bg-amber-50/40 placeholder:text-amber-600`;
-    }
+    if (ocrFields.has(name)) return `${base} bg-blue-50 border-blue-300 text-blue-900 focus:border-blue-400`;
+    if (required && !value.trim()) return `${base} border-dashed border-amber-400 bg-amber-50/40 placeholder:text-amber-600`;
     return base;
   };
 
@@ -196,16 +188,9 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     if (!file) return;
     setError(null);
     const ext = file.name.toLowerCase().match(/\.(pdf|jpe?g|png)$/);
-    if (!ext) {
-      setError('PDF, JPG, PNG 파일만 첨부할 수 있습니다.');
-      return;
-    }
-    if (file.size > MAX_SIZE) {
-      setError('파일 크기는 10MB 이하여야 합니다.');
-      return;
-    }
+    if (!ext) { setError('PDF, JPG, PNG 파일만 첨부할 수 있습니다.'); return; }
+    if (file.size > MAX_SIZE) { setError('파일 크기는 10MB 이하여야 합니다.'); return; }
 
-    // 1) 파일 업로드
     let uploadKey: string;
     try {
       const res = await uploadCert.mutateAsync(file);
@@ -219,65 +204,33 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
       return;
     }
 
-    // 2) OCR 자동 인식 (업로드 직후 자동 실행)
     setOcrFilled(false);
     setOcrFields(new Set());
     try {
       const ocr = await analyzeCert.mutateAsync(uploadKey);
       const filled = new Set<string>();
-      if (ocr.businessNumber && !businessNumber) {
-        setBusinessNumber(formatBusinessNumber(ocr.businessNumber.replace(/\D/g, '')));
-        filled.add('businessNumber');
-      }
-      if (ocr.representative && !representative) {
-        setRepresentative(ocr.representative);
-        filled.add('representative');
-      }
-      if (ocr.businessType && !businessType) {
-        setBusinessType(ocr.businessType);
-        filled.add('businessType');
-      }
-      if (ocr.businessCategory && !businessCategory) {
-        setBusinessCategory(ocr.businessCategory);
-        filled.add('businessCategory');
-      }
-      if (ocr.address && !address) {
-        setAddress(ocr.address);
-        filled.add('address');
-      }
-      if (ocr.postalCode && !postalCode) {
-        setPostalCode(ocr.postalCode);
-        filled.add('postalCode');
-      }
-      // 개업연월일 (표시용, 폼 제출에는 미포함)
+      if (ocr.businessNumber && !businessNumber) { setBusinessNumber(formatBusinessNumber(ocr.businessNumber.replace(/\D/g, ''))); filled.add('businessNumber'); }
+      if (ocr.representative && !representative) { setRepresentative(ocr.representative); filled.add('representative'); }
+      if (ocr.businessType && !businessType) { setBusinessType(ocr.businessType); filled.add('businessType'); }
+      if (ocr.businessCategory && !businessCategory) { setBusinessCategory(ocr.businessCategory); filled.add('businessCategory'); }
+      if (ocr.address && !address) { setAddress(ocr.address); filled.add('address'); }
+      if (ocr.postalCode && !postalCode) { setPostalCode(ocr.postalCode); filled.add('postalCode'); }
       if (ocr.openDate) setOpenDate(ocr.openDate);
+      if (filled.size > 0) { setOcrFields(filled); setOcrFilled(true); }
 
-      if (filled.size > 0) {
-        setOcrFields(filled);
-        setOcrFilled(true);
-      }
-
-      // OCR로 사업자번호가 인식됐으면 국세청 상태 자동 조회
       if (ocr.businessNumber) {
         try {
           const nts = await verifyStatus.mutateAsync(ocr.businessNumber);
           setNtsResult(nts);
           setNtsVerifiedFor(formatBusinessNumber(ocr.businessNumber.replace(/\D/g, '')));
-        } catch {
-          // NTS 미설정이거나 조회 실패 시 무시 (수동 확인 버튼으로 재시도 가능)
-        }
+        } catch { /* NTS 미설정 무시 */ }
       }
-    } catch {
-      // OCR 실패는 사용자 입력으로 대체 — 에러 표시 없음 (서비스 미설정 가능)
-    }
+    } catch { /* OCR 실패 무시 */ }
   };
 
   const handleVerifyNts = async () => {
     const bno = businessNumber.replace(/\D/g, '');
-    if (bno.length !== 10) {
-      setError('사업자등록번호 10자리를 먼저 입력해 주세요.');
-      return;
-    }
+    if (bno.length !== 10) { setError('사업자등록번호 10자리를 먼저 입력해 주세요.'); return; }
     setError(null);
     try {
       const result = await verifyStatus.mutateAsync(businessNumber);
@@ -285,60 +238,96 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
       setNtsVerifiedFor(businessNumber);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
-      if (msg.includes('503') || msg.includes('설정되지')) {
-        setError('국세청 연동이 아직 설정되지 않았습니다. 관리자에게 문의하세요.');
-      } else {
-        setError(msg || '국세청 조회에 실패했습니다.');
-      }
+      setError(msg.includes('503') || msg.includes('설정되지')
+        ? '국세청 연동이 아직 설정되지 않았습니다.'
+        : msg || '국세청 조회에 실패했습니다.');
     }
   };
 
-  const handleSubmit = async () => {
+  // 실제 제출 실행 (담당자 자동기재 후 또는 이미 입력된 경우)
+  const doSubmit = async (overrides?: {
+    practicalName?: string; practicalPhone?: string;
+    approvalName?: string; approvalPhone?: string;
+  }) => {
     setError(null);
-    if (!businessNumber.trim() || businessNumber.replace(/\D/g, '').length !== 10) {
-      setError('사업자등록번호 10자리를 정확히 입력해 주세요.');
-      return;
-    }
-    if (!representative.trim()) {
-      setError('대표자명을 입력해 주세요.');
-      return;
-    }
-    if (!certUploadKey) {
-      setError('사업자등록증 파일을 첨부해 주세요.');
-      return;
-    }
     try {
       await submitUpgrade.mutateAsync({
         businessNumber: businessNumber.trim(),
         representative: representative.trim(),
         businessType: businessType.trim() || undefined,
         businessCategory: businessCategory.trim() || undefined,
-        taxInvoiceEmail: taxInvoiceEmail.trim() || undefined,
+        taxInvoiceEmail: taxInvoiceEmail.trim(),
         postalCode: postalCode || undefined,
         address: address || undefined,
         addressDetail: addressDetail.trim() || undefined,
-        practicalManagerName: practicalManagerName.trim() || undefined,
-        practicalManagerPhone: practicalManagerPhone.trim() || undefined,
-        approvalManagerName: approvalManagerName.trim() || undefined,
-        approvalManagerPhone: approvalManagerPhone.trim() || undefined,
-        certUploadKey,
+        practicalManagerName: (overrides?.practicalName ?? practicalManagerName).trim() || undefined,
+        practicalManagerPhone: (overrides?.practicalPhone ?? practicalManagerPhone).trim() || undefined,
+        approvalManagerName: (overrides?.approvalName ?? approvalManagerName).trim() || undefined,
+        approvalManagerPhone: (overrides?.approvalPhone ?? approvalManagerPhone).trim() || undefined,
+        certUploadKey: certUploadKey!,
       });
       setDone(true);
       onSubmitted?.();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '신청에 실패했습니다.';
-      if (message.includes('409') || message.includes('대기')) {
-        setError('이미 승인 대기 중인 신청이 있습니다.');
-      } else if (message.includes('400') || message.includes('사업자')) {
-        setError('이미 사업자 회원입니다.');
-      } else {
-        setError(message);
-      }
+      if (message.includes('409') || message.includes('대기')) setError('이미 승인 대기 중인 신청이 있습니다.');
+      else if (message.includes('400') || message.includes('사업자')) setError('이미 사업자 회원입니다.');
+      else setError(message);
     }
   };
 
+  const handleSubmit = async () => {
+    setError(null);
+    setManagerConfirmPending(false);
+
+    if (!businessNumber.trim() || businessNumber.replace(/\D/g, '').length !== 10) {
+      setError('사업자등록번호 10자리를 정확히 입력해 주세요.'); return;
+    }
+    if (!representative.trim()) {
+      setError('대표자명을 입력해 주세요.'); return;
+    }
+    if (!taxInvoiceEmail.trim()) {
+      setError('세금계산서 수신 이메일을 입력해 주세요.'); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(taxInvoiceEmail.trim())) {
+      setError('올바른 이메일 주소를 입력해 주세요.'); return;
+    }
+    if (!certUploadKey) {
+      setError('사업자등록증 파일을 첨부해 주세요.'); return;
+    }
+
+    // 담당자 또는 상세주소 공란 확인
+    const managersEmpty = !practicalManagerName.trim() && !approvalManagerName.trim();
+    if (managersEmpty) {
+      setManagerConfirmPending(true);
+      return;
+    }
+
+    await doSubmit();
+  };
+
+  // 대표자 정보로 담당자 자동기재 후 제출
+  const handleAutoFillAndSubmit = async () => {
+    const repName = representative.trim();
+    const repPhone = user?.mobile?.trim() || '';
+    const pName = practicalManagerName.trim() || repName;
+    const pPhone = practicalManagerPhone.trim() || repPhone;
+    const aName = approvalManagerName.trim() || repName;
+    const aPhone = approvalManagerPhone.trim() || repPhone;
+    setPracticalManagerName(pName);
+    setPracticalManagerPhone(pPhone);
+    setApprovalManagerName(aName);
+    setApprovalManagerPhone(aPhone);
+    setManagerConfirmPending(false);
+    await doSubmit({ practicalName: pName, practicalPhone: pPhone, approvalName: aName, approvalPhone: aPhone });
+  };
+
+  const handleSkipAutoFill = async () => {
+    setManagerConfirmPending(false);
+    await doSubmit();
+  };
+
   const isOcrRunning = uploadCert.isPending || analyzeCert.isPending;
-  // NTS 상태가 바뀐 사업자번호면 결과 초기화
   const ntsValid = ntsResult && ntsVerifiedFor === businessNumber;
 
   return (
@@ -368,7 +357,43 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               </div>
             )}
 
-            {/* 범례 — OCR 인식 후에만 표시 */}
+            {/* 담당자 자동기재 확인 배너 */}
+            {managerConfirmPending && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
+                <div className="flex items-start gap-2">
+                  <UserCheck className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="text-[13px] text-blue-800">
+                    담당자 정보가 입력되지 않았습니다.<br />
+                    <strong>{representative || '대표자'}</strong>
+                    {user?.mobile ? ` (${user.mobile})` : ''} 정보로 실무·결재담당자를 자동 기재할까요?
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="text-[13px] h-8"
+                    onClick={handleSkipAutoFill}
+                    disabled={submitUpgrade.isPending}
+                  >
+                    공란으로 진행
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="text-[13px] h-8 bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={handleAutoFillAndSubmit}
+                    disabled={submitUpgrade.isPending}
+                  >
+                    {submitUpgrade.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : null}
+                    예, 자동으로 기재
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* 범례 */}
             {ocrFilled && (
               <div className="flex items-center gap-3 text-[12px] text-gray-500 px-1">
                 <span className="flex items-center gap-1">
@@ -382,52 +407,37 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               </div>
             )}
 
-            {/* 사업자등록증 첨부 — 폼 최상단으로 이동 (업로드 즉시 OCR 자동 인식) */}
+            {/* 사업자등록증 첨부 */}
             <div className="space-y-1.5">
               <Label className="text-[14px] font-normal text-gray-600">
                 사업자등록증 첨부 <span className="text-red-500">*</span>
               </Label>
               <div className="flex items-center gap-2 flex-wrap">
                 <label className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-[14px] cursor-pointer">
-                  {isOcrRunning ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <FileUp className="h-4 w-4" />
-                  )}
+                  {isOcrRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
                   파일 선택
-                  <input
-                    type="file"
-                    accept={ACCEPTED}
-                    className="hidden"
-                    onChange={handleFileChange}
-                    disabled={isOcrRunning}
-                  />
+                  <input type="file" accept={ACCEPTED} className="hidden" onChange={handleFileChange} disabled={isOcrRunning} />
                 </label>
                 {certFileName && (
                   <span className="inline-flex items-center gap-1 text-[13px] text-green-700">
-                    <Paperclip className="h-3.5 w-3.5" />
-                    {certFileName}
+                    <Paperclip className="h-3.5 w-3.5" />{certFileName}
                   </span>
                 )}
               </div>
-              {/* OCR 상태 표시 */}
               {analyzeCert.isPending && (
                 <p className="text-[12px] text-blue-600 flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5 animate-pulse" />
-                  사업자등록증 정보를 자동 인식 중입니다...
+                  <Sparkles className="h-3.5 w-3.5 animate-pulse" />사업자등록증 정보를 자동 인식 중입니다...
                 </p>
               )}
               {ocrFilled && !analyzeCert.isPending && (
                 <p className="text-[12px] text-green-600 flex items-center gap-1">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  정보를 자동으로 채웠습니다. 내용을 확인하고 수정해 주세요.
+                  <Sparkles className="h-3.5 w-3.5" />정보를 자동으로 채웠습니다. 내용을 확인하고 수정해 주세요.
                 </p>
               )}
               <p className="text-[12px] text-gray-400">PDF, JPG, PNG / 최대 10MB</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {/* 사업자등록번호 + 국세청 확인 */}
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">
                   사업자등록번호 <span className="text-red-500">*</span>
@@ -436,53 +446,36 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <Input
                     className={`${fieldCls('businessNumber', businessNumber, true)} flex-1 min-w-0`}
                     value={businessNumber}
-                    onChange={(e) => {
-                      clearOcrField('businessNumber');
-                      setBusinessNumber(formatBusinessNumber(e.target.value));
-                      setNtsResult(null);
-                    }}
+                    onChange={(e) => { clearOcrField('businessNumber'); setBusinessNumber(formatBusinessNumber(e.target.value)); setNtsResult(null); }}
                     placeholder="000-00-00000"
                     maxLength={12}
                   />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-2 shrink-0"
+                  <Button type="button" variant="outline" size="sm" className="h-9 px-2 shrink-0"
                     onClick={handleVerifyNts}
                     disabled={verifyStatus.isPending || businessNumber.replace(/\D/g, '').length !== 10}
                     title="국세청에서 사업자 상태 확인"
                   >
-                    {verifyStatus.isPending ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Search className="h-3.5 w-3.5" />
-                    )}
+                    {verifyStatus.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                   </Button>
                 </div>
-                {/* 국세청 상태 + 개업연월일 */}
                 {(ntsValid || openDate) && (
                   <div className="flex items-center gap-2 flex-wrap">
                     {ntsValid && (
                       <>
                         <NtsStatusBadge status={ntsResult.status} statusText={ntsResult.statusText} />
-                        {ntsResult.taxType && (
-                          <span className="text-[11px] text-gray-500">{ntsResult.taxType}</span>
-                        )}
+                        {ntsResult.taxType && <span className="text-[11px] text-gray-500">{ntsResult.taxType}</span>}
                       </>
                     )}
                     {openDate && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-gray-500">
-                        <CalendarDays className="h-3 w-3" />
-                        개업 {openDate}
+                        <CalendarDays className="h-3 w-3" />개업 {openDate}
                       </span>
                     )}
                   </div>
                 )}
                 {verifyStatus.isPending && (
                   <p className="text-[11px] text-blue-500 flex items-center gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                    국세청 조회 중...
+                    <Loader2 className="h-3 w-3 animate-spin" />국세청 조회 중...
                   </p>
                 )}
               </div>
@@ -520,11 +513,14 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               </div>
             </div>
 
+            {/* 세금계산서 이메일 — 필수 */}
             <div className="space-y-1">
-              <Label className="text-[14px] font-normal text-gray-600">세금계산서 수신 이메일 (선택)</Label>
+              <Label className="text-[14px] font-normal text-gray-600">
+                세금계산서 수신 이메일 <span className="text-red-500">*</span>
+              </Label>
               <Input
                 type="email"
-                className={fieldCls('taxInvoiceEmail', taxInvoiceEmail)}
+                className={fieldCls('taxInvoiceEmail', taxInvoiceEmail, true)}
                 value={taxInvoiceEmail}
                 onChange={(e) => setTaxInvoiceEmail(e.target.value)}
                 placeholder="tax@example.com"
@@ -549,7 +545,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
             />
 
             <div className="space-y-2 pt-1">
-              <p className="text-[13px] font-medium text-gray-700">담당자 정보 (선택)</p>
+              <p className="text-[13px] font-medium text-gray-700">담당자 정보 (선택 — 미입력 시 대표자 정보로 자동 기재)</p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 이름</Label>
@@ -557,7 +553,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                     className={fieldCls('practicalManagerName', practicalManagerName)}
                     value={practicalManagerName}
                     onChange={(e) => setPracticalManagerName(e.target.value)}
-                    placeholder="이름"
+                    placeholder={representative || '이름'}
                   />
                 </div>
                 <div className="space-y-1">
@@ -566,7 +562,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                     className={fieldCls('practicalManagerPhone', practicalManagerPhone)}
                     value={practicalManagerPhone}
                     onChange={(e) => setPracticalManagerPhone(formatPhone(e.target.value))}
-                    placeholder="010-0000-0000"
+                    placeholder={user?.mobile || '010-0000-0000'}
                     inputMode="numeric"
                   />
                 </div>
@@ -578,7 +574,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                     className={fieldCls('approvalManagerName', approvalManagerName)}
                     value={approvalManagerName}
                     onChange={(e) => setApprovalManagerName(e.target.value)}
-                    placeholder="이름"
+                    placeholder={representative || '이름'}
                   />
                 </div>
                 <div className="space-y-1">
@@ -587,7 +583,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                     className={fieldCls('approvalManagerPhone', approvalManagerPhone)}
                     value={approvalManagerPhone}
                     onChange={(e) => setApprovalManagerPhone(formatPhone(e.target.value))}
-                    placeholder="010-0000-0000"
+                    placeholder={user?.mobile || '010-0000-0000'}
                     inputMode="numeric"
                   />
                 </div>
@@ -604,7 +600,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
             <Button
               className="bg-[#E4007F] hover:bg-[#C5006D] text-white"
               onClick={handleSubmit}
-              disabled={submitUpgrade.isPending || isOcrRunning}
+              disabled={submitUpgrade.isPending || isOcrRunning || managerConfirmPending}
             >
               {submitUpgrade.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
               신청하기
