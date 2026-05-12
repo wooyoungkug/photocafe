@@ -13,7 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AddressSearch } from '@/components/address-search';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import { AlertCircle, CheckCircle2, FileUp, Loader2, Paperclip } from 'lucide-react';
 import {
   useSubmitBusinessUpgrade,
@@ -63,7 +63,6 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [postalCode, setPostalCode] = useState('');
   const [address, setAddress] = useState('');
   const [addressDetail, setAddressDetail] = useState('');
-  const [addressEmbedOpen, setAddressEmbedOpen] = useState(false);
 
   const [practicalManagerName, setPracticalManagerName] = useState('');
   const [practicalManagerPhone, setPracticalManagerPhone] = useState('');
@@ -84,7 +83,6 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setPostalCode('');
     setAddress('');
     setAddressDetail('');
-    setAddressEmbedOpen(false);
     setPracticalManagerName('');
     setPracticalManagerPhone('');
     setApprovalManagerName('');
@@ -256,30 +254,15 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-[14px] font-normal text-gray-600">사업장 주소 (선택)</Label>
-              <AddressSearch
-                inline
-                isOpen={addressEmbedOpen}
-                onOpenChange={setAddressEmbedOpen}
-                size="sm"
-                className="h-9 text-[14px]"
-                onComplete={(data) => {
-                  setPostalCode(data.postalCode);
-                  setAddress(data.address);
-                }}
-              />
-              <div className="grid grid-cols-[110px_1fr] gap-2">
-                <Input className={inputCls} value={postalCode} readOnly placeholder="우편번호" />
-                <Input className={inputCls} value={address} readOnly placeholder="주소 검색을 이용하세요" />
-              </div>
-              <Input
-                className={inputCls}
-                value={addressDetail}
-                onChange={(e) => setAddressDetail(e.target.value)}
-                placeholder="상세주소 (선택)"
-              />
-            </div>
+            <DaumAddressFields
+              label="사업장 주소 (선택)"
+              postalCode={postalCode}
+              address={address}
+              addressDetail={addressDetail}
+              onComplete={(data) => { setPostalCode(data.postalCode); setAddress(data.address); }}
+              onAddressDetailChange={setAddressDetail}
+              detailPlaceholder="상세주소 (선택)"
+            />
 
             <div className="space-y-2 pt-1">
               <p className="text-[13px] font-medium text-gray-700">담당자 정보 (선택)</p>

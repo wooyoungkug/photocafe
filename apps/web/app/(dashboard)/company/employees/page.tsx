@@ -56,7 +56,7 @@ import { useImpersonateStaff } from '@/hooks/use-auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { Staff, CreateStaffRequest, AuditLog, CATEGORY_PERMISSIONS } from '@/lib/types/staff';
 import { DEFAULT_NAV_DATA, getPermissionEntries } from '@/lib/navigation';
-import { AddressSearch } from '@/components/address-search';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import { DepartmentSelect } from '@/components/department-select';
 import {
   Plus,
@@ -948,34 +948,16 @@ export default function EmployeesPage() {
 
               {/* 주소 입력 */}
               <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-2">
-                  <Label className="text-base font-semibold">주소</Label>
-                  <AddressSearch onComplete={handleAddressComplete} size="sm" />
-                </div>
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="postalCode">우편번호</Label>
-                    <Input
-                      id="postalCode"
-                      value={formData.postalCode}
-                      readOnly
-                      className="bg-muted"
-                    />
-                  </div>
-                  <div className="col-span-3 space-y-2">
-                    <Label htmlFor="address">주소</Label>
-                    <Input id="address" value={formData.address} readOnly className="bg-muted" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="addressDetail">상세주소</Label>
-                  <Input
-                    id="addressDetail"
-                    value={formData.addressDetail}
-                    onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
-                    placeholder="(참고주소)"
-                  />
-                </div>
+                <Label className="text-base font-semibold">주소</Label>
+                <DaumAddressFields
+                  showLabel={false}
+                  postalCode={formData.postalCode || ''}
+                  address={formData.address || ''}
+                  addressDetail={formData.addressDetail || ''}
+                  detailPlaceholder="(참고주소)"
+                  onComplete={handleAddressComplete}
+                  onAddressDetailChange={(v) => setFormData({ ...formData, addressDetail: v })}
+                />
               </div>
 
               {/* 입사일 */}

@@ -21,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { useAuthStore } from '@/stores/auth-store';
 import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AddressSearch } from '@/components/address-search';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Badge } from '@/components/ui/badge';
 import { BusinessUpgradeDialog } from '@/components/mypage/business-upgrade-dialog';
@@ -105,7 +105,6 @@ export default function ProfilePage() {
   const [withdrawConfirmOpen, setWithdrawConfirmOpen] = useState(false);
   const [withdrawConfirmText, setWithdrawConfirmText] = useState('');
   const [isApartmentAddress, setIsApartmentAddress] = useState(false);
-  const [addressEmbedOpen, setAddressEmbedOpen] = useState(false);
 
   const { data: profile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ['profile', user?.id],
@@ -164,7 +163,6 @@ export default function ProfilePage() {
       if (data) updateUser(data);
       setIsEditMode(false);
       setIsApartmentAddress(false);
-      setAddressEmbedOpen(false);
       queryClient.invalidateQueries({ queryKey: ['profile', user?.id] });
       setTimeout(() => setSuccess(''), 3000);
     },
@@ -288,7 +286,6 @@ export default function ProfilePage() {
     }
     setIsEditMode(false);
     setIsApartmentAddress(false);
-    setAddressEmbedOpen(false);
     setError('');
     setSuccess('');
   };
@@ -387,7 +384,7 @@ export default function ProfilePage() {
             </div>
             {!isEditMode && (
               <Button
-                onClick={() => { setIsEditMode(true); if (!isEmployee) setAddressEmbedOpen(true); }}
+                onClick={() => { setIsEditMode(true); }}
                 variant="outline" size="sm" className="h-7 text-[14px] px-3"
               >
                 <Edit className="h-3 w-3 mr-1" />
@@ -555,63 +552,48 @@ export default function ProfilePage() {
               <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">
                 주소 정보 <span className="text-red-500">*</span>
               </h3>
-              {isEditMode && (
-                <AddressSearch
-                  inline={true}
-                  isOpen={addressEmbedOpen}
-                  onOpenChange={setAddressEmbedOpen}
-                  size="sm"
-                  className="h-8 text-[14px]"
-                  onComplete={(data) => {
-                    const needsDetail = data.isApartment || (!!data.buildingCode && !!data.buildingName);
-                    setIsApartmentAddress(needsDetail);
-                    setProfileData({
-                      ...profileData,
-                      postalCode: data.postalCode,
-                      address: data.address,
-                      addressDetail: needsDetail ? '' : profileData.addressDetail,
-                    });
-                  }}
-                />
+              {isEditMode ? (
+                <>
+                  <DaumAddressFields
+                    showLabel={false}
+                    postalCode={profileData.postalCode}
+                    address={profileData.address}
+                    addressDetail={profileData.addressDetail}
+                    detailPlaceholder={isApartmentAddress ? '동, 호수를 입력하세요 (예: 101동 1502호)' : '상세주소를 입력하세요'}
+                    onComplete={(data) => {
+                      const needsDetail = !!data.isApartment;
+                      setIsApartmentAddress(needsDetail);
+                      setProfileData({
+                        ...profileData,
+                        postalCode: data.postalCode,
+                        address: data.address,
+                        addressDetail: needsDetail ? '' : profileData.addressDetail,
+                      });
+                    }}
+                    onAddressDetailChange={(v) => setProfileData({ ...profileData, addressDetail: v })}
+                  />
+                  {isApartmentAddress && (
+                    <p className="text-[12px] text-orange-500">아파트·연립주택은 동, 호수 입력이 필수입니다.</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-x-4 gap-y-3">
+                    <div className="space-y-1">
+                      <Label className="text-[14px] font-normal text-gray-600">우편번호</Label>
+                      <FieldValue value={profile?.postalCode || ''} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[14px] font-normal text-gray-600">주소</Label>
+                      <FieldValue value={profile?.address || ''} />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[14px] font-normal text-gray-600">상세주소</Label>
+                    <FieldValue value={profile?.addressDetail || ''} />
+                  </div>
+                </>
               )}
-              <div className="grid grid-cols-1 md:grid-cols-[120px_1fr] gap-x-4 gap-y-3">
-                <div className="space-y-1">
-                  <Label htmlFor="postalCode" className="text-[14px] font-normal text-gray-600">우편번호</Label>
-                  {isEditMode ? (
-                    <Input id="postalCode" className={`${inputCls} cursor-pointer hover:border-gray-400`} value={profileData.postalCode} readOnly
-                      placeholder="클릭하여 검색" onClick={() => setAddressEmbedOpen(true)} />
-                  ) : (
-                    <FieldValue value={profile?.postalCode || ''} />
-                  )}
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor="address" className="text-[14px] font-normal text-gray-600">주소</Label>
-                  {isEditMode ? (
-                    <Input id="address" className={`${inputCls} cursor-pointer hover:border-gray-400`} value={profileData.address} readOnly
-                      placeholder="클릭하여 검색" onClick={() => setAddressEmbedOpen(true)} />
-                  ) : (
-                    <FieldValue value={profile?.address || ''} />
-                  )}
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="addressDetail" className="text-[14px] font-normal text-gray-600">
-                  상세주소
-                  {isEditMode && isApartmentAddress && <span className="text-red-500 ml-1">*</span>}
-                </Label>
-                {isEditMode ? (
-                  <>
-                    <Input id="addressDetail" className={inputCls} value={profileData.addressDetail}
-                      onChange={(e) => setProfileData({ ...profileData, addressDetail: e.target.value })}
-                      placeholder={isApartmentAddress ? '동, 호수를 입력하세요 (예: 101동 1502호)' : '상세주소를 입력하세요'} />
-                    {isApartmentAddress && (
-                      <p className="text-[12px] text-orange-500">아파트·연립주택은 동, 호수 입력이 필수입니다.</p>
-                    )}
-                  </>
-                ) : (
-                  <FieldValue value={profile?.addressDetail || ''} />
-                )}
-              </div>
             </div>}
 
             {!isEmployee && <Separator />}

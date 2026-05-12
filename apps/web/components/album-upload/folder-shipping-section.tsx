@@ -14,7 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Truck, Building2, MapPin, Package } from 'lucide-react';
-import { AddressSearchInput } from '@/components/address-search-input';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import {
   type FolderShippingInfo,
   type SenderType,
@@ -507,26 +507,16 @@ function DirectCustomerForm({
       {/* Row 2: 주소 검색 */}
       <div className="space-y-1.5">
         <Label className="text-xs text-gray-500">주소 <span className="text-red-500">*</span></Label>
-        <AddressSearchInput
-          value={directAddress}
-          onChange={(val) => onAddressComplete({ postalCode: directPostalCode, address: val })}
-          onSelect={({ address, postalCode }) => {
-            onAddressComplete({ postalCode, address });
-          }}
-          placeholder="주소 또는 건물명 검색"
-          className={`h-8 text-sm ${!directAddress.trim() ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
+        <DaumAddressFields
+          showLabel={false}
+          showDetail={!!directAddress}
+          postalCode={directPostalCode}
+          address={directAddress}
+          addressDetail={directAddressDetail}
+          detailPlaceholder="상세주소 (동/호수/층 등)"
+          onComplete={({ address, postalCode }) => onAddressComplete({ postalCode, address })}
+          onAddressDetailChange={setDirectAddressDetail}
         />
-
-        {/* 상세주소: 주소 선택 후 표시 */}
-        {directAddress && (
-          <Input
-            placeholder="상세주소 (동/호수/층 등)"
-            value={directAddressDetail}
-            onChange={(e) => setDirectAddressDetail(e.target.value)}
-            className="h-8 text-sm"
-            autoFocus
-          />
-        )}
       </div>
 
       {/* 미입력 경고 - 인라인 간결 표시 */}

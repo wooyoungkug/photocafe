@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Truck, Loader2, ArrowRight, CreditCard, Building2, AlertCircle } from 'lucide-react';
-import { AddressSearchInput } from '@/components/address-search-input';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import {
   Dialog,
   DialogContent,
@@ -303,32 +303,26 @@ export function ShippingEditWithFeeDialog({
               </div>
               <div className="space-y-1">
                 <Label className="text-[12px]">주소 *</Label>
-                <AddressSearchInput
-                  value={form.address}
-                  onChange={(val) => set('address', val)}
-                  onSelect={({ postalCode, address, isApartment: apt }) => {
+                <DaumAddressFields
+                  showLabel={false}
+                  postalCode={form.postalCode}
+                  address={form.address}
+                  addressDetail={form.addressDetail}
+                  detailPlaceholder="상세주소 (건물명, 층수, 동호수 등) *"
+                  onComplete={({ postalCode, address, isApartment: apt }) => {
                     set('postalCode', postalCode);
                     set('address', address);
                     set('addressDetail', '');
-                    setIsApartment(apt);
+                    setIsApartment(!!apt);
                   }}
-                  placeholder="주소 또는 건물명 검색"
-                  className="h-8 text-[12px]"
+                  onAddressDetailChange={(v) => set('addressDetail', v)}
                 />
-                <div className="space-y-1">
-                  <Input
-                    value={form.addressDetail}
-                    onChange={(e) => set('addressDetail', e.target.value)}
-                    placeholder="상세주소 (건물명, 층수, 동호수 등) *"
-                    className={`h-8 text-[12px] ${!form.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
-                  />
-                  {!form.addressDetail.trim() && (
-                    <p className="flex items-center gap-1 text-[11px] text-red-500">
-                      <AlertCircle className="h-3 w-3" />
-                      상세주소를 입력해주세요
-                    </p>
-                  )}
-                </div>
+                {!form.addressDetail.trim() && (
+                  <p className="flex items-center gap-1 text-[11px] text-red-500">
+                    <AlertCircle className="h-3 w-3" />
+                    상세주소를 입력해주세요
+                  </p>
+                )}
               </div>
             </div>
 

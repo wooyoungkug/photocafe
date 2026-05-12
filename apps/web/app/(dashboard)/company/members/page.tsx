@@ -54,7 +54,7 @@ import { useClientConsultations } from '@/hooks/use-consultations';
 import { useStaffList } from '@/hooks/use-staff';
 import { Client, CreateClientDto } from '@/lib/types/client';
 import { CONSULTATION_CATEGORY_COLORS, CONSULTATION_STATUS_CONFIG } from '@/lib/types/consultation';
-import { AddressSearch } from '@/components/address-search';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import {
   Plus,
   Search,
@@ -1302,47 +1302,19 @@ function MembersPageContent() {
 
               {/* 주소 정보 섹션 */}
               <div className="p-5 border rounded-xl bg-gradient-to-r from-green-50/70 to-transparent">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-green-700 flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    주소 정보
-                  </h3>
-                  <AddressSearch onComplete={handleAddressComplete} size="sm" />
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="postalCode" className="text-sm font-medium">우편번호</Label>
-                    <Input
-                      id="postalCode"
-                      value={formData.postalCode}
-                      onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
-                      placeholder="12345"
-                      readOnly
-                      className="bg-slate-50"
-                    />
-                  </div>
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="address" className="text-sm font-medium">주소</Label>
-                    <Input
-                      id="address"
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="주소 검색 버튼을 눌러주세요"
-                      readOnly
-                      className="bg-slate-50"
-                    />
-                  </div>
-                  <div className="col-span-3 space-y-2">
-                    <Label htmlFor="addressDetail" className="text-sm font-medium">상세주소</Label>
-                    <Input
-                      id="addressDetail"
-                      value={formData.addressDetail}
-                      onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
-                      placeholder="상세주소를 입력하세요 (예: 101동 202호)"
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
+                <h3 className="font-semibold text-green-700 flex items-center gap-2 mb-4">
+                  <MapPin className="h-4 w-4" />
+                  주소 정보
+                </h3>
+                <DaumAddressFields
+                  showLabel={false}
+                  postalCode={formData.postalCode || ''}
+                  address={formData.address || ''}
+                  addressDetail={formData.addressDetail || ''}
+                  detailPlaceholder="상세주소를 입력하세요 (예: 101동 202호)"
+                  onComplete={handleAddressComplete}
+                  onAddressDetailChange={(v) => setFormData({ ...formData, addressDetail: v })}
+                />
               </div>
 
               {/* 담당자 정보 섹션 */}

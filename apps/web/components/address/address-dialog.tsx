@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { PhoneInput } from '@/components/ui/phone-input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { AddressSearchInput } from '@/components/address-search-input';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import { Save, X, AlertCircle } from 'lucide-react';
 import type { ClientAddress, CreateClientAddressDto } from '@/types/address';
 
@@ -121,47 +121,30 @@ export function AddressDialog({ open, onOpenChange, address, onSave, isPending }
           </div>
 
           {/* Address Search */}
-          <div className="space-y-2">
-            <Label>
-              주소 <span className="text-red-500">*</span>
-            </Label>
-            <AddressSearchInput
-              value={formData.address}
-              onChange={(val) => setFormData({ ...formData, address: val })}
-              onSelect={(data) => {
-                setFormData({
-                  ...formData,
-                  postalCode: data.postalCode,
-                  address: data.address,
-                  addressDetail: '',
-                });
-                setIsApartment(data.isApartment);
-              }}
-              placeholder="주소 또는 건물명 검색"
-            />
-          </div>
-
-          {/* Address Detail */}
-          <div className="space-y-2">
-            <Label htmlFor="addressDetail">
-              {isApartment ? '동/호수' : '상세주소'}
-              {isApartment && <span className="text-red-500"> *</span>}
-            </Label>
-            <Input
-              id="addressDetail"
-              value={formData.addressDetail}
-              onChange={(e) => setFormData({ ...formData, addressDetail: e.target.value })}
-              placeholder={isApartment ? '동호수 입력 (필수)' : '상세주소를 입력하세요'}
-              maxLength={255}
-              className={isApartment && !(formData.addressDetail ?? '').trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}
-            />
-            {isApartment && !(formData.addressDetail ?? '').trim() && (
-              <p className="flex items-center gap-1 text-[12px] text-red-500">
-                <AlertCircle className="h-3 w-3" />
-                아파트/연립은 동호수 입력이 필수입니다
-              </p>
-            )}
-          </div>
+          <DaumAddressFields
+            label="주소"
+            required
+            postalCode={formData.postalCode}
+            address={formData.address}
+            addressDetail={formData.addressDetail || ''}
+            detailPlaceholder={isApartment ? '동호수 입력 (필수)' : '상세주소를 입력하세요'}
+            onComplete={(data) => {
+              setFormData({
+                ...formData,
+                postalCode: data.postalCode,
+                address: data.address,
+                addressDetail: '',
+              });
+              setIsApartment(!!data.isApartment);
+            }}
+            onAddressDetailChange={(v) => setFormData({ ...formData, addressDetail: v })}
+          />
+          {isApartment && !(formData.addressDetail ?? '').trim() && (
+            <p className="flex items-center gap-1 text-[12px] text-red-500">
+              <AlertCircle className="h-3 w-3" />
+              아파트/연립은 동호수 입력이 필수입니다
+            </p>
+          )}
 
           {/* Is Default */}
           <div className="flex items-center space-x-2">

@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AddressSearchInput } from '@/components/address-search-input';
+import { DaumAddressFields } from '@/components/daum-address-fields';
 import { useUpdateShipping } from '@/hooks/use-orders';
 import { toast } from '@/hooks/use-toast';
 
@@ -169,32 +169,26 @@ export function CustomerShippingEditDialog({ open, onOpenChange, orderId, orderN
 
           <div className="space-y-1">
             <Label className="text-[11px]">배송지 주소 *</Label>
-            <AddressSearchInput
-              value={form.address}
-              onChange={(val) => set('address', val)}
-              onSelect={({ postalCode, address, isApartment: apt }) => {
+            <DaumAddressFields
+              showLabel={false}
+              postalCode={form.postalCode}
+              address={form.address}
+              addressDetail={form.addressDetail}
+              detailPlaceholder={isApartment ? '동호수 입력 (필수)' : '상세주소 (건물명, 층수 등)'}
+              onComplete={({ postalCode, address, isApartment: apt }) => {
                 set('postalCode', postalCode);
                 set('address', address);
                 set('addressDetail', '');
-                setIsApartment(apt);
+                setIsApartment(!!apt);
               }}
-              placeholder="주소 또는 건물명 검색"
-              className="h-8 text-[11px]"
+              onAddressDetailChange={(v) => set('addressDetail', v)}
             />
-            <div className="space-y-1">
-              <Input
-                value={form.addressDetail}
-                onChange={(e) => set('addressDetail', e.target.value)}
-                placeholder={isApartment ? '동호수 입력 (필수)' : '상세주소 (건물명, 층수 등)'}
-                className={`h-8 text-[11px] ${isApartment && !form.addressDetail.trim() ? 'border-red-400 focus-visible:ring-red-400' : ''}`}
-              />
-              {isApartment && !form.addressDetail.trim() && (
-                <p className="flex items-center gap-1 text-[10px] text-red-500">
-                  <AlertCircle className="h-3 w-3" />
-                  아파트/연립은 동호수 입력이 필수입니다
-                </p>
-              )}
-            </div>
+            {isApartment && !form.addressDetail.trim() && (
+              <p className="flex items-center gap-1 text-[10px] text-red-500">
+                <AlertCircle className="h-3 w-3" />
+                아파트/연립은 동호수 입력이 필수입니다
+              </p>
+            )}
           </div>
 
           <div className="space-y-1">
