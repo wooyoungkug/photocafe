@@ -1,4 +1,5 @@
 import { IsString, IsOptional, IsEmail, MaxLength, MinLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SubmitOnboardingDto {
@@ -82,6 +83,7 @@ export class SubmitOnboardingDto {
   signupPurposeNote?: string;
 
   @ApiPropertyOptional({ description: '실제 이메일 (소셜 로그인 가짜 이메일 대체용)' })
+  @Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? undefined : value))
   @IsOptional()
   @IsEmail()
   @MaxLength(200)

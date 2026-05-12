@@ -207,7 +207,11 @@ export default function OnboardingPage() {
 
   const submit = useMutation({
     mutationFn: async (payload: typeof form) => {
-      return api.patch('/clients/me/onboarding', payload);
+      // 빈 문자열 optional 필드는 전송 제외 (API @IsEmail 등 검증 오류 방지)
+      const body = Object.fromEntries(
+        Object.entries(payload).filter(([, v]) => v !== ''),
+      );
+      return api.patch('/clients/me/onboarding', body);
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['profile-status'] });
