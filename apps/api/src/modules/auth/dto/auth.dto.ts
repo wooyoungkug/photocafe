@@ -116,15 +116,6 @@ export class StaffLoginDto {
   password: string;
 }
 
-// ========== 직원 소셜 로그인 DTO ==========
-
-// 직원 회사 이메일 등록
-export class StaffRegisterCompanyEmailDto {
-  @ApiProperty({ example: 'admin@photomi.co.kr', description: '회사 대표 이메일' })
-  @IsEmail({}, { message: '올바른 이메일 형식이 아닙니다' })
-  companyEmail: string;
-}
-
 // 직원 승인
 export class ApproveStaffDto {
   @ApiProperty({ example: 'employee', description: '부여할 역할 (admin | employee)' })

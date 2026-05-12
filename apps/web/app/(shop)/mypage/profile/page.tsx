@@ -23,6 +23,10 @@ import { api } from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AddressSearch } from '@/components/address-search';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
+import { Badge } from '@/components/ui/badge';
+import { BusinessUpgradeDialog } from '@/components/mypage/business-upgrade-dialog';
+import { useBusinessUpgradeStatus } from '@/hooks/use-business-upgrade';
+import { Building } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -610,7 +614,10 @@ export default function ProfilePage() {
               </div>
             </div>}
 
-            {!isEmployee && isBusiness && <Separator />}
+            {!isEmployee && <Separator />}
+
+            {/* 사업자 회원 전환 안내 - 개인회원만 (직원·사업자회원은 비표시) */}
+            {!isEmployee && !isBusiness && <BusinessUpgradeSection />}
 
             {/* 사업자 정보 - 직원·개인회원은 비표시 */}
             {!isEmployee && isBusiness && <div className="space-y-3">
@@ -1016,6 +1023,77 @@ export default function ProfilePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// 사업자 회원 전환 신청 섹션 (개인회원에게만 노출)
+function BusinessUpgradeSection() {
+  const { data: status, isLoading } = useBusinessUpgradeStatus();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">사업자 회원 전환</h3>
+        <div className="h-9 bg-gray-100 rounded animate-pulse" />
+      </div>
+    );
+  }
+
+  const st = status?.status ?? 'none';
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-[14px] font-medium text-gray-500 tracking-wide flex items-center gap-2">
+        <Building className="h-3.5 w-3.5" />
+        사업자 회원 전환
+      </h3>
+
+      {st === 'none' && (
+        <div className="rounded-md border border-blue-100 bg-blue-50 p-3 space-y-2">
+          <p className="text-[14px] text-blue-800 font-normal">
+            세금계산서 발행이 필요하시면 사업자 회원으로 전환하세요.
+          </p>
+          <BusinessUpgradeDialog>
+            <Button size="sm" className="h-8 text-[13px] bg-[#E4007F] hover:bg-[#C5006D] text-white">
+              사업자 회원 전환 신청
+            </Button>
+          </BusinessUpgradeDialog>
+        </div>
+      )}
+
+      {st === 'pending' && (
+        <div className="rounded-md border border-yellow-200 bg-yellow-50 p-3 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Badge className="bg-yellow-500 hover:bg-yellow-500 text-white text-[12px]">사업자 전환 승인 대기 중</Badge>
+            {status?.submittedAt && (
+              <span className="text-[13px] text-yellow-700">
+                신청일: {new Date(status.submittedAt).toLocaleDateString('ko-KR')}
+              </span>
+            )}
+          </div>
+          <p className="text-[13px] text-yellow-700">관리자 검토 후 승인됩니다.</p>
+        </div>
+      )}
+
+      {st === 'rejected' && (
+        <div className="rounded-md border border-red-200 bg-red-50 p-3 space-y-2">
+          <p className="text-[14px] text-red-800 font-normal">
+            신청이 반려되었습니다{status?.rejectReason ? `: ${status.rejectReason}` : '.'}
+          </p>
+          <BusinessUpgradeDialog>
+            <Button size="sm" variant="outline" className="h-8 text-[13px] border-red-300 text-red-600 hover:bg-red-50">
+              다시 신청
+            </Button>
+          </BusinessUpgradeDialog>
+        </div>
+      )}
+
+      {st === 'approved' && (
+        <div className="rounded-md border border-green-200 bg-green-50 p-3">
+          <p className="text-[14px] text-green-800 font-normal">사업자 회원 전환이 승인되었습니다.</p>
+        </div>
+      )}
     </div>
   );
 }

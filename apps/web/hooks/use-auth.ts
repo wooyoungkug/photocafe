@@ -29,14 +29,51 @@ interface ClientRegisterRequest {
   password: string;
   name: string;
   contactEmail: string;
-  verificationId?: string;
+  emailConsent: boolean;
   phone?: string;
+}
+
+/** 이메일 미인증 사용자 로그인 시도 시 던지는 에러 (페이지에서 catch) */
+export class EmailNotVerifiedError extends Error {
+  email?: string;
+  constructor(message: string, email?: string) {
+    super(message);
+    this.name = 'EmailNotVerifiedError';
+    this.email = email;
+  }
 }
 
 export function useClientLogin() {
   return useMutation({
-    mutationFn: (data: ClientLoginRequest) =>
-      api.post<ClientLoginResponse>('/auth/client/login', data),
+    mutationFn: async (data: ClientLoginRequest) => {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+      // fetch 기반 api 클라이언트는 응답 body(code)를 노출하지 않으므로
+      // 이메일 미인증(403, EMAIL_NOT_VERIFIED) 분기를 위해 raw fetch 사용
+      const authContext = 'client';
+      const res = await fetch(`${apiUrl}/auth/client/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Auth-Context': authContext },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}));
+        if (body?.code === 'EMAIL_NOT_VERIFIED') {
+          throw new EmailNotVerifiedError(body?.message || '이메일 인증이 완료되지 않았습니다.', body?.email);
+        }
+        throw new Error(body?.message || '로그인 권한이 없습니다.');
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: '로그인에 실패했습니다.' }));
+        const message = Array.isArray(body.message) ? body.message.join(', ') : (body.message || `HTTP error ${res.status}`);
+        throw new Error(message);
+      }
+
+      const text = await res.text();
+      return (text ? JSON.parse(text) : undefined) as ClientLoginResponse;
+    },
   });
 }
 
@@ -54,22 +91,24 @@ export function useClientRegister() {
     mutationFn: (data: ClientRegisterRequest) =>
       api.post<{ success: boolean; message: string }>('/auth/client/register', data),
     onSuccess: () => {
-      router.push('/login?registered=true');
+      router.push('/login?registered=true&checkEmail=1');
     },
   });
 }
 
-export function useSendEmailVerification() {
+/** 이메일 인증 메일 재발송 (rate limit 1회/분 → 429 가능) */
+export function useResendVerification() {
   return useMutation({
-    mutationFn: (email: string) =>
-      api.post<{ success: boolean; message: string }>('/auth/client/send-email-verification', { email }),
+    mutationFn: (loginId: string) =>
+      api.post<{ success: boolean; alreadyVerified?: boolean }>('/auth/client/resend-verification', { loginId }),
   });
 }
 
-export function useVerifyEmail() {
+/** 이메일 인증 링크(token) 처리 */
+export function useVerifyEmailToken() {
   return useMutation({
-    mutationFn: (data: { email: string; code: string }) =>
-      api.post<{ verified: boolean; verificationId: string }>('/auth/client/verify-email', data),
+    mutationFn: (token: string) =>
+      api.get<{ success: boolean; email?: string }>('/auth/client/verify-email', { token }),
   });
 }
 

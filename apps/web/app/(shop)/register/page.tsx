@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { AlertCircle, CheckCircle2, Loader2, User, Lock, UserPlus, Phone, Mail, LogIn } from 'lucide-react';
 import {
   Dialog,
@@ -30,6 +31,7 @@ function RegisterForm() {
   const [name, setName] = useState('');
   const [contactEmail, setContactEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [emailConsent, setEmailConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loginIdChecked, setLoginIdChecked] = useState(false);
   const [loginIdAvailable, setLoginIdAvailable] = useState<boolean | null>(null);
@@ -113,12 +115,18 @@ function RegisterForm() {
       return;
     }
 
+    if (!emailConsent) {
+      setError('이메일 수신 동의가 필요합니다.');
+      return;
+    }
+
     try {
       await register.mutateAsync({
         loginId,
         password,
         name,
         contactEmail,
+        emailConsent,
         phone: phone || undefined,
       });
     } catch (err: unknown) {
@@ -273,10 +281,28 @@ function RegisterForm() {
               </div>
             </div>
 
+            {/* 이메일 수신 고지 + 동의 */}
+            <div className="mt-2 rounded-md bg-gray-50 border border-gray-200 p-3 space-y-2">
+              <p className="text-[13px] text-gray-600 leading-relaxed">
+                가입 후 입력하신 이메일로 ① 이메일 인증 메일 ② 주문·배송 알림 ③ 서비스 공지가 발송됩니다.
+              </p>
+              <label htmlFor="emailConsent" className="flex items-start gap-2 cursor-pointer">
+                <Checkbox
+                  id="emailConsent"
+                  checked={emailConsent}
+                  onCheckedChange={(checked) => setEmailConsent(!!checked)}
+                  className="mt-0.5"
+                />
+                <span className="text-[14px] text-black font-normal">
+                  위 이메일 수신에 동의합니다 <span className="text-red-500">(필수)</span>
+                </span>
+              </label>
+            </div>
+
             <Button
               type="submit"
               className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white mt-2"
-              disabled={register.isPending}
+              disabled={register.isPending || !emailConsent}
             >
               {register.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

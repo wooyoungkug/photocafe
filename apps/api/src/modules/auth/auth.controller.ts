@@ -27,7 +27,6 @@ import {
   ClientLoginDto,
   ClientRegisterDto,
   StaffLoginDto,
-  StaffRegisterCompanyEmailDto,
   ApproveStaffDto,
   ChangeStaffRoleDto,
   SelectContextDto,
@@ -512,81 +511,6 @@ export class AuthController {
     const userType: 'staff' | 'client' = authContext === 'staff' ? 'staff' : 'client';
     this.clearAuthCookies(res, userType);
     return { success: true };
-  }
-
-  // ========== 직원 소셜 로그인 ==========
-
-  @Public()
-  @Get('staff/naver')
-  @UseGuards(AuthGuard('staff-naver'))
-  @ApiOperation({ summary: '직원 네이버 소셜 로그인' })
-  async staffNaverAuth() { }
-
-  @Public()
-  @Get('staff/naver/callback')
-  @UseGuards(AuthGuard('staff-naver'))
-  @ApiOperation({ summary: '직원 네이버 소셜 로그인 콜백' })
-  async staffNaverCallback(@Request() req: any, @Res() res: Response) {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const result = await this.authService.loginStaffOAuth(req.user);
-    if (result.status === 'pending') {
-      return res.redirect(`${frontendUrl}/auth/staff/pending?staffId=${req.user.id}`);
-    }
-    const code = this.authService.generateOAuthCode(result as any);
-    return res.redirect(`${frontendUrl}/auth/staff/callback?code=${code}`);
-  }
-
-  @Public()
-  @Get('staff/kakao')
-  @UseGuards(AuthGuard('staff-kakao'))
-  @ApiOperation({ summary: '직원 카카오 소셜 로그인' })
-  async staffKakaoAuth() { }
-
-  @Public()
-  @Get('staff/kakao/callback')
-  @UseGuards(AuthGuard('staff-kakao'))
-  @ApiOperation({ summary: '직원 카카오 소셜 로그인 콜백' })
-  async staffKakaoCallback(@Request() req: any, @Res() res: Response) {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const result = await this.authService.loginStaffOAuth(req.user);
-    if (result.status === 'pending') {
-      return res.redirect(`${frontendUrl}/auth/staff/pending?staffId=${req.user.id}`);
-    }
-    const code = this.authService.generateOAuthCode(result as any);
-    return res.redirect(`${frontendUrl}/auth/staff/callback?code=${code}`);
-  }
-
-  @Public()
-  @Get('staff/google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: '직원 구글 소셜 로그인' })
-  async staffGoogleAuth() { }
-
-  @Public()
-  @Get('staff/google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: '직원 구글 소셜 로그인 콜백' })
-  async staffGoogleCallback(@Request() req: any, @Res() res: Response) {
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3002';
-    const result = await this.authService.loginStaffOAuth(req.user);
-    if (result.status === 'pending') {
-      return res.redirect(`${frontendUrl}/auth/staff/pending?staffId=${req.user.id}`);
-    }
-    const code = this.authService.generateOAuthCode(result as any);
-    return res.redirect(`${frontendUrl}/auth/staff/callback?code=${code}`);
-  }
-
-  @Public()
-  @Post('staff/register')
-  @ApiOperation({ summary: '직원 회사 이메일 등록 (소셜 로그인 후)' })
-  async staffRegisterCompanyEmail(
-    @Body() dto: StaffRegisterCompanyEmailDto,
-    @Body('staffId') staffId: string,
-  ) {
-    if (!staffId) {
-      throw new UnauthorizedException('직원 ID가 필요합니다');
-    }
-    return this.authService.registerStaffCompanyEmail(staffId, dto.companyEmail);
   }
 
   // ========== 직원 관리 (SUPER_ADMIN) ==========

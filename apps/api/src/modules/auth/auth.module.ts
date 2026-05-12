@@ -7,9 +7,6 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { NaverStrategy } from './strategies/naver.strategy';
 import { KakaoStrategy } from './strategies/kakao.strategy';
-import { StaffNaverStrategy } from './strategies/staff-naver.strategy';
-import { StaffKakaoStrategy } from './strategies/staff-kakao.strategy';
-import { GoogleStrategy } from './strategies/google.strategy';
 import { CustomerGoogleStrategy } from './strategies/customer-google.strategy';
 import { EmploymentModule } from '../employment/employment.module';
 
@@ -41,9 +38,6 @@ import { EmploymentModule } from '../employment/employment.module';
     JwtStrategy,
     NaverStrategy,
     KakaoStrategy,
-    StaffNaverStrategy,
-    StaffKakaoStrategy,
-    GoogleStrategy,
     CustomerGoogleStrategy,
   ],
   exports: [AuthService],

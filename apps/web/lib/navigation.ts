@@ -95,6 +95,7 @@ export const NAVIGATION: NavItem[] = [
       { name: "직원관리", href: "/company/employees" },
       { name: "부서/팀관리", href: "/company/departments" },
       { name: "회원관리", href: "/company/members" },
+      { name: "사업자전환신청", href: "/company/members/business-upgrades" },
       { name: "회원그룹", href: "/company/member-groups" },
     ],
   },

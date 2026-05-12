@@ -33,6 +33,15 @@ function AuthCallbackContent() {
         const needsContext = searchParams.get('needsContext');
         const tempToken = searchParams.get('tempToken');
         const oauthCode = searchParams.get('code');
+        const errorParam = searchParams.get('error');
+
+        // 방어적 처리: 백엔드가 미인증 시 보통 /verify-email?pending=1 로 직접 리다이렉트하지만
+        // 혹시 ?error=EMAIL_NOT_VERIFIED 로 콜백되는 경우 인증 안내 페이지로 보냄
+        if (errorParam === 'EMAIL_NOT_VERIFIED') {
+            const provider = searchParams.get('provider');
+            router.replace(`/verify-email?pending=1${provider ? `&provider=${provider}` : ''}`);
+            return;
+        }
 
         // 시나리오 2: OAuth 로그인 후 컨텍스트 선택 필요
         if (needsContext === 'true' && tempToken) {

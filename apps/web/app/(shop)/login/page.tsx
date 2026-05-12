@@ -6,12 +6,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth-store';
-import { useClientLogin } from '@/hooks/use-auth';
+import { useClientLogin, useResendVerification, EmailNotVerifiedError } from '@/hooks/use-auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Lock } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, User, Building2, UserPlus, Lock, MailWarning, CheckCircle2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -42,6 +42,7 @@ function LoginForm() {
 
   const { setAuth } = useAuthStore();
   const clientLogin = useClientLogin();
+  const resendVerification = useResendVerification();
 
   const [phase, setPhase] = useState<LoginPhase>('social');
   const [isLoading, setIsLoading] = useState(false);
@@ -49,7 +50,12 @@ function LoginForm() {
   const [notRegistered, setNotRegistered] = useState(false);
   const [notRegisteredProvider, setNotRegisteredProvider] = useState<string | null>(null);
   const [justRegistered, setJustRegistered] = useState(false);
+  const [checkEmailNotice, setCheckEmailNotice] = useState(false);
   const [showRegisterConfirm, setShowRegisterConfirm] = useState(false);
+
+  // 이메일 미인증 상태
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [resendResult, setResendResult] = useState<{ type: 'ok' | 'error'; text: string } | null>(null);
 
   // ID/password login state
   const [loginId, setLoginId] = useState('');
@@ -64,6 +70,8 @@ function LoginForm() {
   const handleIdLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setEmailNotVerified(false);
+    setResendResult(null);
 
     if (!loginId || !password) {
       setError('아이디와 비밀번호를 입력해주세요.');
@@ -90,15 +98,47 @@ function LoginForm() {
         router.push(redirectTo);
       }
     } catch (err: unknown) {
+      if (err instanceof EmailNotVerifiedError) {
+        setEmailNotVerified(true);
+        return;
+      }
       const errorMessage = err instanceof Error ? err.message : '로그인에 실패했습니다.';
       setError(errorMessage);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!loginId.trim()) {
+      setResendResult({ type: 'error', text: '아이디를 입력해 주세요.' });
+      return;
+    }
+    setResendResult(null);
+    try {
+      const res = await resendVerification.mutateAsync(loginId.trim());
+      if (res?.alreadyVerified) {
+        setResendResult({ type: 'ok', text: '이미 인증이 완료되었습니다. 다시 로그인해 주세요.' });
+        setEmailNotVerified(false);
+      } else {
+        setResendResult({ type: 'ok', text: '재발송했습니다. 메일함을 확인해 주세요.' });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '재발송에 실패했습니다.';
+      if (message.includes('429') || message.toLowerCase().includes('too many')) {
+        setResendResult({ type: 'error', text: '잠시 후 다시 시도해 주세요. (1분에 1회만 가능)' });
+      } else {
+        setResendResult({ type: 'error', text: message || '재발송에 실패했습니다.' });
+      }
     }
   };
 
   // URL 에러 파라미터 감지 (미가입, 이메일 중복 등)
   useEffect(() => {
     if (searchParams.get('registered') === 'true') {
-      setJustRegistered(true);
+      if (searchParams.get('checkEmail') === '1') {
+        setCheckEmailNotice(true);
+      } else {
+        setJustRegistered(true);
+      }
     }
     const errorParam = searchParams.get('error');
     if (errorParam === 'NOT_REGISTERED') {
@@ -298,6 +338,46 @@ function LoginForm() {
             <p className="text-[13px] text-green-700 mt-1">
               아이디와 비밀번호로 로그인해주세요.
             </p>
+          </div>
+        )}
+
+        {checkEmailNotice && (
+          <div className="p-4 rounded-md bg-blue-50 border border-blue-200 text-center">
+            <CheckCircle2 className="h-5 w-5 text-blue-600 mx-auto" />
+            <p className="text-[14px] text-blue-800 font-medium mt-2">
+              회원가입이 완료되었습니다!
+            </p>
+            <p className="text-[13px] text-blue-700 mt-1 leading-relaxed">
+              입력하신 이메일로 보낸 인증 링크를 클릭한 뒤 로그인해 주세요.
+            </p>
+          </div>
+        )}
+
+        {emailNotVerified && (
+          <div className="p-4 rounded-md bg-amber-50 border border-amber-200">
+            <div className="flex items-start gap-2">
+              <MailWarning className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-[14px] text-amber-800 font-medium">이메일 인증이 완료되지 않았습니다.</p>
+                <p className="text-[13px] text-amber-700 mt-1 leading-relaxed">
+                  가입 시 받은 인증 메일의 링크를 클릭해 주세요.
+                </p>
+                <Button
+                  size="sm"
+                  className="mt-3 bg-amber-600 hover:bg-amber-700 text-white"
+                  onClick={handleResendVerification}
+                  disabled={resendVerification.isPending}
+                >
+                  {resendVerification.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1.5" /> : null}
+                  인증 메일 재발송
+                </Button>
+                {resendResult && (
+                  <p className={`text-[13px] mt-2 ${resendResult.type === 'ok' ? 'text-green-600' : 'text-red-600'}`}>
+                    {resendResult.text}
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
