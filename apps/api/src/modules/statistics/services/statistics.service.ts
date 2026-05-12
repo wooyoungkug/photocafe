@@ -29,6 +29,9 @@ export class StatisticsService {
     const orderScope = staffScopeId ? { client: { assignedManager: staffScopeId } } : {};
     const clientScope = staffScopeId ? { assignedManager: staffScopeId } : {};
 
+    const thisWeek = new Date(today);
+    thisWeek.setDate(today.getDate() - today.getDay()); // 이번 주 월요일 기준
+
     const [
       todayOrders,
       monthOrders,
@@ -37,6 +40,10 @@ export class StatisticsService {
       inProductionOrders,
       totalClients,
       activeClients,
+      todayNewClients,
+      weekNewClients,
+      monthNewClients,
+      recentNewClients,
     ] = await Promise.all([
       // 오늘 주문 건수 및 매출
       this.prisma.order.aggregate({
@@ -69,8 +76,7 @@ export class StatisticsService {
       }),
       // 전체 거래처
       this.prisma.client.count({ where: clientScope }),
-      // 활성 거래처 (최근 30일 주문): orders.some EXISTS 대신 COUNT(DISTINCT) Raw SQL
-      // → 1M+ orders 에서 EXISTS 서브쿼리 전체 스캔 방지
+      // 활성 거래처 (최근 30일 주문)
       staffScopeId
         ? this.prisma.$queryRaw<[{ count: bigint }]>`
             SELECT COUNT(DISTINCT o."clientId")::int AS count
@@ -84,6 +90,28 @@ export class StatisticsService {
             FROM orders
             WHERE "orderedAt" >= NOW() - INTERVAL '30 days'`
             .then(rows => Number(rows[0]?.count ?? 0)),
+      // 오늘 신규가입
+      this.prisma.client.count({ where: { ...clientScope, createdAt: { gte: today } } }),
+      // 이번 주 신규가입
+      this.prisma.client.count({ where: { ...clientScope, createdAt: { gte: thisWeek } } }),
+      // 이번 달 신규가입
+      this.prisma.client.count({ where: { ...clientScope, createdAt: { gte: thisMonth } } }),
+      // 최근 신규가입 10명
+      this.prisma.client.findMany({
+        where: clientScope,
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          clientCode: true,
+          clientName: true,
+          email: true,
+          mobile: true,
+          memberType: true,
+          oauthProvider: true,
+          createdAt: true,
+        },
+      }),
     ]);
 
     const monthGrowth =
@@ -114,6 +142,12 @@ export class StatisticsService {
       clients: {
         total: totalClients,
         active: activeClients,
+      },
+      newClients: {
+        today: todayNewClients,
+        week: weekNewClients,
+        month: monthNewClients,
+        recent: recentNewClients,
       },
     };
   }

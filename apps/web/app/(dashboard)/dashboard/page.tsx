@@ -1,10 +1,35 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useDashboardSummary } from "@/hooks/use-statistics";
+import {
+  useBusinessUpgradeRequests,
+  useProcessBusinessUpgrade,
+  useClientBusinessCertUrl,
+  type BusinessUpgradeRequest,
+} from "@/hooks/use-admin-business-upgrade";
 import {
   ShoppingCart,
   Factory,
@@ -18,12 +43,233 @@ import {
   AlertCircle,
   Sparkles,
   RefreshCw,
+  Building2,
+  Check,
+  X,
+  FileText,
+  ExternalLink,
+  ArrowRight,
 } from "lucide-react";
 
 export default function DashboardPage() {
   return <DashboardContent />;
 }
 
+const MEMBER_TYPE_LABEL: Record<string, string> = {
+  individual: '개인',
+  business: '사업자',
+};
+const OAUTH_LABEL: Record<string, string> = {
+  naver: '네이버',
+  kakao: '카카오',
+  google: '구글',
+};
+
+function NewMembersSection({ summary }: { summary: any }) {
+  const newClients = summary?.newClients;
+  if (!newClients) return null;
+  const recent: any[] = newClients.recent ?? [];
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-indigo-50 to-white border-b pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-slate-800 text-sm sm:text-base">
+            <Users className="h-4 w-4 text-indigo-500" />
+            신규회원 가입현황
+          </CardTitle>
+          <a href="/company/members" className="flex items-center gap-1 text-[12px] text-slate-500 hover:text-slate-800 transition-colors">
+            전체보기 <ArrowRight className="h-3 w-3" />
+          </a>
+        </div>
+        {/* 요약 배지 */}
+        <div className="flex items-center gap-3 mt-2">
+          <span className="text-[12px] text-slate-500">오늘 <strong className="text-indigo-600">{newClients.today}명</strong></span>
+          <span className="text-slate-300">|</span>
+          <span className="text-[12px] text-slate-500">이번 주 <strong className="text-indigo-600">{newClients.week}명</strong></span>
+          <span className="text-slate-300">|</span>
+          <span className="text-[12px] text-slate-500">이번 달 <strong className="text-indigo-600">{newClients.month}명</strong></span>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {recent.length === 0 ? (
+          <div className="py-8 text-center text-[14px] text-slate-400">
+            <Users className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+            최근 신규가입 회원이 없습니다.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-[13px]">회원명</TableHead>
+                <TableHead className="text-[13px]">아이디/이메일</TableHead>
+                <TableHead className="text-[13px]">연락처</TableHead>
+                <TableHead className="text-[13px]">구분</TableHead>
+                <TableHead className="text-[13px]">가입경로</TableHead>
+                <TableHead className="text-[13px]">가입일시</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recent.map((c: any) => (
+                <TableRow key={c.id}>
+                  <TableCell className="text-[14px] font-medium">{c.clientName || '-'}</TableCell>
+                  <TableCell className="text-[13px] text-slate-500">{c.email || '-'}</TableCell>
+                  <TableCell className="text-[13px]">{c.mobile || '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-[11px]">
+                      {MEMBER_TYPE_LABEL[c.memberType] ?? c.memberType ?? '-'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-[13px]">
+                    {c.oauthProvider ? (
+                      <span className="text-indigo-600">{OAUTH_LABEL[c.oauthProvider] ?? c.oauthProvider}</span>
+                    ) : '직접가입'}
+                  </TableCell>
+                  <TableCell className="text-[13px] text-slate-500">
+                    {c.createdAt ? new Date(c.createdAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function BusinessUpgradeSection() {
+  const { data: requests, isLoading } = useBusinessUpgradeRequests('pending');
+  const processUpgrade = useProcessBusinessUpgrade();
+  const certUrl = useClientBusinessCertUrl();
+  const [rejectTarget, setRejectTarget] = useState<BusinessUpgradeRequest | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const list = requests ?? [];
+
+  const handleApprove = async (id: string) => {
+    setActionError(null);
+    try {
+      await processUpgrade.mutateAsync({ id, action: 'approve' });
+    } catch {
+      setActionError('승인 처리에 실패했습니다.');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectTarget) return;
+    setActionError(null);
+    try {
+      await processUpgrade.mutateAsync({ id: rejectTarget.id, action: 'reject', rejectReason: rejectReason.trim() || undefined });
+      setRejectTarget(null);
+      setRejectReason('');
+    } catch {
+      setActionError('반려 처리에 실패했습니다.');
+    }
+  };
+
+  const handleViewCert = async (id: string) => {
+    try {
+      const res = await certUrl.mutateAsync(id);
+      window.open(res.url, '_blank', 'noopener');
+    } catch {
+      setActionError('등록증을 불러오지 못했습니다.');
+    }
+  };
+
+  if (isLoading) return null;
+  if (list.length === 0) return null;
+
+  return (
+    <>
+      <Card className="border-0 shadow-md overflow-hidden">
+        <CardHeader className="bg-gradient-to-r from-amber-50 to-white border-b pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-slate-800 text-sm sm:text-base">
+              <Building2 className="h-4 w-4 text-amber-500" />
+              사업자 전환 신청
+              <Badge className="bg-amber-500 hover:bg-amber-500 text-white text-[11px] px-1.5 py-0">
+                {list.length}건
+              </Badge>
+            </CardTitle>
+            <a href="/company/members/business-upgrades" className="flex items-center gap-1 text-[12px] text-slate-500 hover:text-slate-800 transition-colors">
+              전체보기 <ArrowRight className="h-3 w-3" />
+            </a>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {actionError && (
+            <div className="flex items-center gap-2 px-4 py-2 text-[13px] text-red-800 bg-red-50 border-b border-red-200">
+              <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+              <span>{actionError}</span>
+            </div>
+          )}
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-[13px]">회원명</TableHead>
+                <TableHead className="text-[13px]">사업자등록번호</TableHead>
+                <TableHead className="text-[13px]">대표자</TableHead>
+                <TableHead className="text-[13px]">신청일</TableHead>
+                <TableHead className="text-[13px]">등록증</TableHead>
+                <TableHead className="text-[13px] text-right">처리</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.map((req) => (
+                <TableRow key={req.id}>
+                  <TableCell className="text-[14px] font-medium">{req.clientName || '-'}</TableCell>
+                  <TableCell className="text-[14px]">{req.businessNumber || '-'}</TableCell>
+                  <TableCell className="text-[14px]">{req.representative || '-'}</TableCell>
+                  <TableCell className="text-[14px]">
+                    {req.submittedAt ? new Date(req.submittedAt).toLocaleDateString('ko-KR') : '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Button variant="outline" size="sm" className="h-7 text-[12px]"
+                      onClick={() => handleViewCert(req.id)} disabled={certUrl.isPending}>
+                      <FileText className="h-3 w-3 mr-1" />보기
+                      <ExternalLink className="h-3 w-3 ml-1" />
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <Button size="sm" className="h-7 text-[12px] bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => handleApprove(req.id)} disabled={processUpgrade.isPending}>
+                        <Check className="h-3 w-3 mr-1" />승인
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-[12px] border-red-300 text-red-600 hover:bg-red-50"
+                        onClick={() => { setRejectTarget(req); setRejectReason(''); }} disabled={processUpgrade.isPending}>
+                        <X className="h-3 w-3 mr-1" />반려
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog open={!!rejectTarget} onOpenChange={(open) => !open && setRejectTarget(null)}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">신청 반려</DialogTitle>
+            <DialogDescription className="text-[14px] text-black font-normal">
+              {rejectTarget?.clientName ? `${rejectTarget.clientName} 회원의 ` : ''}사업자 전환 신청을 반려합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="반려 사유 (예: 사업자등록증 식별 불가)" className="text-[14px] min-h-[80px]" />
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setRejectTarget(null)} disabled={processUpgrade.isPending}>취소</Button>
+            <Button variant="destructive" onClick={handleReject} disabled={processUpgrade.isPending}>반려</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
 
 function DashboardContent() {
   const { data: summary, isPending, isError, error, refetch, isFetching } = useDashboardSummary();
@@ -229,6 +475,12 @@ function DashboardContent() {
           </Card>
         ))}
       </div>
+
+      {/* 신규회원 가입현황 */}
+      <NewMembersSection summary={summary} />
+
+      {/* 사업자 전환 신청 대기 */}
+      <BusinessUpgradeSection />
 
       {/* 최근 활동 */}
       <div className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-2">
