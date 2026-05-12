@@ -60,32 +60,40 @@ function formatPhone(value: string): string {
 const ACCEPTED = '.pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png';
 const MAX_SIZE = 10 * 1024 * 1024;
 
-function NtsStatusBadge({ status, statusText }: { status: NtsStatus; statusText: string }) {
+const NTS_LABEL: Record<NtsStatus, string> = {
+  active: '국세청 확인 완료 · 정상 사업자',
+  suspended: '국세청 확인 · 현재 휴업 중',
+  closed: '국세청 확인 · 폐업 처리됨',
+  unknown: '국세청 조회 결과 없음',
+};
+
+function NtsStatusBadge({ status }: { status: NtsStatus }) {
+  const label = NTS_LABEL[status];
   if (status === 'active')
     return (
       <Badge className="bg-green-100 text-green-800 border-green-200 font-normal text-[12px]">
         <CheckCircle2 className="h-3 w-3 mr-1" />
-        {statusText}
+        {label}
       </Badge>
     );
   if (status === 'suspended')
     return (
       <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 font-normal text-[12px]">
         <AlertTriangle className="h-3 w-3 mr-1" />
-        {statusText}
+        {label}
       </Badge>
     );
   if (status === 'closed')
     return (
       <Badge className="bg-red-100 text-red-800 border-red-200 font-normal text-[12px]">
         <XCircle className="h-3 w-3 mr-1" />
-        {statusText}
+        {label}
       </Badge>
     );
   return (
     <Badge className="bg-gray-100 text-gray-600 border-gray-200 font-normal text-[12px]">
       <HelpCircle className="h-3 w-3 mr-1" />
-      {statusText}
+      {label}
     </Badge>
   );
 }
@@ -466,7 +474,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   <div className="flex items-center gap-2 flex-wrap">
                     {ntsValid && (
                       <>
-                        <NtsStatusBadge status={ntsResult.status} statusText={ntsResult.statusText} />
+                        <NtsStatusBadge status={ntsResult.status} />
                         {ntsResult.taxType && <span className="text-[11px] text-gray-500">{ntsResult.taxType}</span>}
                       </>
                     )}
