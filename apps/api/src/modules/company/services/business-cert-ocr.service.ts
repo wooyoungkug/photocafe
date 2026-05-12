@@ -221,10 +221,12 @@ export class BusinessCertOcrService {
           const prevIsData =
             prevLine != null &&
             !this.looksLikeKeywordLine(prevLine) &&
+            !this.looksLikeAddressFragment(prevLine) &&
             /[가-힣]{2,}/.test(prevLine);
           const nextIsData =
             nextLine != null &&
             !this.looksLikeKeywordLine(nextLine) &&
+            !this.looksLikeAddressFragment(nextLine) &&
             /[가-힣]{2,}/.test(nextLine);
 
           // 2순위: 위 줄이 데이터 행이면 우선 사용 (머지 셀 레이블이 아래에 있는 경우)
@@ -232,7 +234,8 @@ export class BusinessCertOcrService {
           const dataLine = prevIsData ? prevLine! : nextIsData ? nextLine! : null;
           if (dataLine) {
             const collapsed = this.collapseKoreanSpaces(dataLine.trim());
-            const parts = collapsed.split(/\s+/).filter((p) => p.length >= 2);
+            // 순수 한글 2~8자 단어만 유효 업태/종목 후보로 인정
+            const parts = collapsed.split(/\s+/).filter((p) => this.isValidBusinessWord(p));
             if (parts[0]) result.businessType = this.cleanValue(parts[0]);
             if (!result.businessCategory && parts[1])
               result.businessCategory = this.cleanValue(parts[1]);
@@ -256,7 +259,8 @@ export class BusinessCertOcrService {
         const m = line.match(/종\s*목\s*[:：]?\s*(.+)$/);
         if (m && m[1].trim()) {
           const collapsed = this.collapseKoreanSpaces(this.cleanValue(m[1]));
-          result.businessCategory = collapsed.split(/\s+/)[0];
+          const firstWord = collapsed.split(/\s+/).find((w) => this.isValidBusinessWord(w));
+          if (firstWord) result.businessCategory = firstWord;
         }
       }
 
@@ -326,8 +330,13 @@ export class BusinessCertOcrService {
       if (m) result.businessCategory = m[1];
     }
 
-    // 업태/종목 garbage 값 제거 (노이즈 포함 시 초기화)
-    const isNoise = (v?: string) => !v || v.length > 20 || /[:：\d]/.test(v) || /사업의|사업장|소재지/.test(v);
+    // 업태/종목 garbage 값 제거 — 순수 한글 2~12자이고 주소·특수문자 없어야 유효
+    const isNoise = (v?: string) =>
+      !v ||
+      v.replace(/\s/g, '').length > 12 ||
+      /[:：\d]/.test(v) ||
+      /사업의|사업장|소재지|아파트|형공장|빌딩|타워|센터/.test(v) ||
+      !/^[가-힣\s]+$/.test(v);
     if (isNoise(result.businessType)) delete result.businessType;
     if (isNoise(result.businessCategory)) delete result.businessCategory;
 
@@ -374,6 +383,21 @@ export class BusinessCertOcrService {
 
   private looksLikeKeywordLine(line: string): boolean {
     return /상\s*호|법\s*인\s*명|대\s*표\s*자|성\s*명|업\s*태|종\s*목|개\s*업|등\s*록\s*번\s*호|소\s*재\s*지|사업장/.test(line);
+  }
+
+  /** 주소 연속행 패턴 감지 — 업태/종목 데이터 후보에서 제외하기 위함 */
+  private looksLikeAddressFragment(line: string): boolean {
+    // 아파트·빌딩·공장 이름, 동·호수, 긴 문자열(주소는 보통 길다)
+    if (/아파트|형공장|빌딩|타워|센터|오피스텔|플라자|산업단지|공단/.test(line)) return true;
+    if (/\d+\s*호|\d+\s*동/.test(line)) return true;
+    // 공백 제거 후 12자 초과면 주소 행으로 간주
+    if (line.replace(/\s/g, '').length > 12) return true;
+    return false;
+  }
+
+  /** 업태·종목 데이터 단어인지 검증 — 순수 한글 2~8자여야 유효 */
+  private isValidBusinessWord(word: string): boolean {
+    return /^[가-힣]{2,8}$/.test(word.replace(/\s/g, ''));
   }
 
   /**
