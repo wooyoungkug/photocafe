@@ -30,6 +30,10 @@ export interface SubmitBusinessUpgradeBody {
   postalCode?: string;
   address?: string;
   addressDetail?: string;
+  contactPerson?: string;
+  contactPhone?: string;
+  paymentContactName?: string;
+  paymentContactPhone?: string;
   certUploadKey: string;
 }
 

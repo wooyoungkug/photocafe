@@ -47,6 +47,26 @@ export class BusinessUpgradeRequestDto {
   @IsString()
   @IsNotEmpty({ message: '사업자등록증 파일을 업로드해주세요' })
   certUploadKey: string;
+
+  @ApiPropertyOptional({ example: '김철수', description: '실무담당자 이름' })
+  @IsOptional()
+  @IsString()
+  contactPerson?: string;
+
+  @ApiPropertyOptional({ example: '010-1234-5678', description: '실무담당자 연락처' })
+  @IsOptional()
+  @IsString()
+  contactPhone?: string;
+
+  @ApiPropertyOptional({ example: '이영희', description: '결재담당자 이름' })
+  @IsOptional()
+  @IsString()
+  paymentContactName?: string;
+
+  @ApiPropertyOptional({ example: '010-9876-5432', description: '결재담당자 연락처' })
+  @IsOptional()
+  @IsString()
+  paymentContactPhone?: string;
 }
 
 /** 관리자: 사업자 회원 전환 신청 승인/반려 */

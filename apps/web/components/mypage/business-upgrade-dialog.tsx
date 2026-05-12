@@ -53,6 +53,11 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [addressDetail, setAddressDetail] = useState('');
   const [addressEmbedOpen, setAddressEmbedOpen] = useState(false);
 
+  const [contactPerson, setContactPerson] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [paymentContactName, setPaymentContactName] = useState('');
+  const [paymentContactPhone, setPaymentContactPhone] = useState('');
+
   const [certUploadKey, setCertUploadKey] = useState<string | null>(null);
   const [certFileName, setCertFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +73,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setAddress('');
     setAddressDetail('');
     setAddressEmbedOpen(false);
+    setContactPerson('');
+    setContactPhone('');
+    setPaymentContactName('');
+    setPaymentContactPhone('');
     setCertUploadKey(null);
     setCertFileName(null);
     setError(null);
@@ -128,6 +137,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
         postalCode: postalCode || undefined,
         address: address || undefined,
         addressDetail: addressDetail.trim() || undefined,
+        contactPerson: contactPerson.trim() || undefined,
+        contactPhone: contactPhone.trim() || undefined,
+        paymentContactName: paymentContactName.trim() || undefined,
+        paymentContactPhone: paymentContactPhone.trim() || undefined,
         certUploadKey,
       });
       setDone(true);
@@ -254,6 +267,50 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 onChange={(e) => setAddressDetail(e.target.value)}
                 placeholder="상세주소 (선택)"
               />
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <p className="text-[13px] font-medium text-gray-700">담당자 정보 (선택)</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[14px] font-normal text-gray-600">실무담당자 이름</Label>
+                  <Input
+                    className={inputCls}
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    placeholder="이름"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[14px] font-normal text-gray-600">실무담당자 연락처</Label>
+                  <Input
+                    className={inputCls}
+                    value={contactPhone}
+                    onChange={(e) => setContactPhone(e.target.value)}
+                    placeholder="010-0000-0000"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[14px] font-normal text-gray-600">결재담당자 이름</Label>
+                  <Input
+                    className={inputCls}
+                    value={paymentContactName}
+                    onChange={(e) => setPaymentContactName(e.target.value)}
+                    placeholder="이름"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[14px] font-normal text-gray-600">결재담당자 연락처</Label>
+                  <Input
+                    className={inputCls}
+                    value={paymentContactPhone}
+                    onChange={(e) => setPaymentContactPhone(e.target.value)}
+                    placeholder="010-0000-0000"
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1.5">
