@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -235,48 +235,6 @@ export const DEFAULT_NAVIGATION: NavItem[] = [
     ],
   },
 ];
-
-// ---------------------------------------------------------------------------
-// Helper: user initials
-// ---------------------------------------------------------------------------
-
-function getUserInitials(name?: string, email?: string): string {
-  if (name && name.length > 0) {
-    // Korean names: take last 2 characters (usually given name)
-    if (/[\uAC00-\uD7AF]/.test(name)) {
-      return name.length >= 2 ? name.slice(-2) : name;
-    }
-    // Non-Korean names: take first two capital letters
-    const parts = name.split(/\s+/);
-    return parts
-      .map((p) => p[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  }
-  if (email) return email.slice(0, 2).toUpperCase();
-  return "U";
-}
-
-function getRoleBadge(role?: string): { label: string; className: string } {
-  switch (role) {
-    case "admin":
-      return {
-        label: "관리자",
-        className: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
-      };
-    case "staff":
-      return {
-        label: "스태프",
-        className: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
-      };
-    default:
-      return {
-        label: "사용자",
-        className: "bg-slate-500/20 text-slate-300 border-slate-500/30",
-      };
-  }
-}
 
 // ---------------------------------------------------------------------------
 // Sub-component: StatusDot
@@ -802,6 +760,10 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
           </div>
         )}
 
+        {/* Copyright */}
+        <p className="text-[10px] text-slate-700 text-center select-none">
+          &copy; 2026 Photocafe Inc.
+        </p>
       </div>
     </div>
   );

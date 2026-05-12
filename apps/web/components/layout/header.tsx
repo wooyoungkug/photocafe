@@ -319,7 +319,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
           {/* Divider */}
           <div className="hidden sm:block h-6 w-px bg-slate-200/80 mx-1" />
 
-          {/* User dropdown — top 모드(사이드바 없음)이거나 모바일일 때만 표시 */}
+          {/* User dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
