@@ -181,8 +181,8 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!status) return;
     setForm({
-      clientName: status.profile.clientName ?? '',
-      mobile: status.profile.mobile ?? '',
+      clientName: status.profile.clientName || user?.name || '',
+      mobile: status.profile.mobile || user?.mobile || '',
       postalCode: status.profile.postalCode ?? '',
       address: status.profile.address ?? '',
       addressDetail: status.profile.addressDetail ?? '',
