@@ -50,7 +50,7 @@ export interface Client {
   freeShippingThreshold?: number;
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
-  paymentCondition?: '주문시결제' | '당월말' | '익월말' | '2개월여신';
+  paymentCondition?: '주문시결제' | '당월말' | '익월말';
   creditPaymentDay?: number;
   duplicateCheckMonths?: number;
   fileRetentionDays?: number;
@@ -106,7 +106,7 @@ export interface CreateClientDto {
   freeShippingThreshold?: number;
   creditGrade?: 'A' | 'B' | 'C' | 'D';
   paymentTerms?: number;
-  paymentCondition?: '주문시결제' | '당월말' | '익월말' | '2개월여신';
+  paymentCondition?: '주문시결제' | '당월말' | '익월말';
   creditPaymentDay?: number;
   assignedManager?: string | null;
   practicalManagerName?: string;

@@ -378,7 +378,7 @@ function MembersPageContent() {
         memberType: member.memberType || 'individual',
         creditGrade: member.creditGrade || 'B',
         paymentTerms: member.paymentTerms || 30,
-        paymentCondition: (member.paymentCondition as '주문시결제' | '당월말' | '익월말' | '2개월여신') || '주문시결제',
+        paymentCondition: (member.paymentCondition as '주문시결제' | '당월말' | '익월말') || '주문시결제',
         creditPaymentDay: member.creditPaymentDay,
         gender: member.gender || '',
         birthday: member.birthday || '',
@@ -1491,7 +1491,7 @@ function MembersPageContent() {
                     <Label htmlFor="paymentCondition" className="text-sm font-medium">결제조건</Label>
                     <Select
                       value={formData.paymentCondition || '주문시결제'}
-                      onValueChange={(v) => setFormData({ ...formData, paymentCondition: v as '주문시결제' | '당월말' | '익월말' | '2개월여신' })}
+                      onValueChange={(v) => setFormData({ ...formData, paymentCondition: v as '주문시결제' | '당월말' | '익월말' })}
                     >
                       <SelectTrigger className="bg-white">
                         <SelectValue />
@@ -1500,7 +1500,6 @@ function MembersPageContent() {
                         <SelectItem value="주문시결제">주문시결제</SelectItem>
                         <SelectItem value="당월말">당월말</SelectItem>
                         <SelectItem value="익월말">익월말</SelectItem>
-                        <SelectItem value="2개월여신">2개월여신</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
