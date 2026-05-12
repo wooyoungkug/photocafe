@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, User, Phone, MapPin, Heart, Briefcase, Save, AlertCircle } from 'lucide-react';
+import { Loader2, User, MapPin, Heart, Briefcase, Save, AlertCircle, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,13 @@ function formatPhone(value: string): string {
 
 const RELATION_OPTIONS = ['배우자', '부모', '자녀', '형제/자매', '친척', '지인', '직장동료', '기타'];
 
+function isFakeProviderEmail(email: string, oauthProvider: string | null): boolean {
+  if (!oauthProvider) return false;
+  if (/^kakao_\d+@kakao\.com$/i.test(email)) return true;
+  if (/^naver_[a-z0-9]+@naver\.com$/i.test(email)) return true;
+  return false;
+}
+
 interface ProfileStatusResponse {
   clientId: string;
   profileCompletedAt: string | null;
@@ -50,6 +57,9 @@ interface ProfileStatusResponse {
     emergencyContactName: string;
     emergencyContactPhone: string;
     emergencyContactRelation: string;
+    email: string;
+    contactEmail: string;
+    oauthProvider: string | null;
   };
   employment: null | {
     employmentId: string;
@@ -81,6 +91,7 @@ export default function OnboardingPage() {
     department: '',
     acquisitionChannel: '',
     acquisitionChannelNote: '',
+    contactEmail: '',
   });
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
@@ -153,6 +164,7 @@ export default function OnboardingPage() {
       department: status.employment?.department ?? '',
       acquisitionChannel: (status.profile as any).acquisitionChannel ?? '',
       acquisitionChannelNote: (status.profile as any).acquisitionChannelNote ?? '',
+      contactEmail: status.profile.contactEmail ?? '',
     });
   }, [status]);
 
@@ -179,6 +191,8 @@ export default function OnboardingPage() {
     },
   });
 
+  const needsContactEmail = !!status && isFakeProviderEmail(status.profile.email, status.profile.oauthProvider);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -195,6 +209,17 @@ export default function OnboardingPage() {
     for (const [key, label] of required) {
       if (!form[key]?.trim()) {
         setError(`${label}을(를) 입력해주세요.`);
+        return;
+      }
+    }
+
+    if (needsContactEmail) {
+      if (!form.contactEmail.trim()) {
+        setError('이메일 주소를 입력해주세요.');
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contactEmail.trim())) {
+        setError('올바른 이메일 형식을 입력해주세요.');
         return;
       }
     }
@@ -285,6 +310,26 @@ export default function OnboardingPage() {
                   required
                 />
               </div>
+
+              {needsContactEmail && (
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] text-black font-normal flex items-center gap-1.5">
+                    <Mail className="h-4 w-4 text-primary" />
+                    이메일 주소 <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    type="email"
+                    value={form.contactEmail}
+                    onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
+                    placeholder="실제 이메일 주소를 입력해주세요"
+                    className="text-[14px]"
+                    maxLength={200}
+                  />
+                  <p className="text-[12px] text-gray-500">
+                    소셜 로그인으로 가입하셔서 이메일 주소 확인이 필요합니다. 입력하신 주소로 인증 메일이 발송됩니다.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">

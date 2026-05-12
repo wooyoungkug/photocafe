@@ -1,11 +1,16 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { EmailService } from '@/common/email/email.service';
 import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class ClientService {
-  constructor(private prisma: PrismaService) { }
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) { }
 
   /**
    * staff 직원의 memberViewScope/salesViewScope 조회
@@ -641,6 +646,9 @@ export class ClientService {
         emergencyContactPhone: true,
         emergencyContactRelation: true,
         profileCompletedAt: true,
+        email: true,
+        contactEmail: true,
+        oauthProvider: true,
       },
     } as any) as any;
     if (!client) {
@@ -703,6 +711,9 @@ export class ClientService {
         emergencyContactName: client.emergencyContactName ?? '',
         emergencyContactPhone: client.emergencyContactPhone ?? '',
         emergencyContactRelation: client.emergencyContactRelation ?? '',
+        email: client.email ?? '',
+        contactEmail: client.contactEmail ?? '',
+        oauthProvider: client.oauthProvider ?? null,
       },
       employment: primaryEmployment
         ? {
@@ -738,6 +749,7 @@ export class ClientService {
       department?: string;
       acquisitionChannel?: string;
       acquisitionChannelNote?: string;
+      contactEmail?: string;
     },
   ) {
     const existing = await this.prisma.client.findUnique({
@@ -763,9 +775,9 @@ export class ClientService {
       primaryEmploymentId = primary?.id ?? null;
     }
 
+    const clientUpdate: any = {};
+
     return this.prisma.$transaction(async (tx) => {
-      // Client 기본 + 비상연락처 갱신
-      const clientUpdate: any = {};
       if (data.clientName !== undefined) clientUpdate.clientName = data.clientName.trim();
       if (data.mobile !== undefined) clientUpdate.mobile = data.mobile.trim() || null;
       if (data.postalCode !== undefined) clientUpdate.postalCode = data.postalCode.trim() || null;
@@ -781,6 +793,8 @@ export class ClientService {
         clientUpdate.acquisitionChannel = data.acquisitionChannel.trim() || null;
       if (data.acquisitionChannelNote !== undefined)
         clientUpdate.acquisitionChannelNote = data.acquisitionChannelNote.trim() || null;
+      if (data.contactEmail !== undefined && data.contactEmail.trim())
+        clientUpdate.contactEmail = data.contactEmail.trim().toLowerCase();
 
       const updated = await tx.client.update({
         where: { id: clientId },
@@ -821,7 +835,45 @@ export class ClientService {
         });
       }
 
-      return { ok: true, profileCompletedAt: requiredFilled ? new Date() : updated.profileCompletedAt };
+      return { ok: true, profileCompletedAt: requiredFilled ? new Date() : updated.profileCompletedAt, contactEmailSet: !!clientUpdate.contactEmail };
+    }).then(async (result) => {
+      // contactEmail 새로 입력된 경우 → emailVerified=false 로 재설정 + 인증 메일 발송
+      if (result.contactEmailSet) {
+        await this.sendContactEmailVerification(clientId, clientUpdate.contactEmail);
+      }
+      return result;
     });
+  }
+
+  private async sendContactEmailVerification(clientId: string, email: string): Promise<void> {
+    try {
+      const token = crypto.randomBytes(32).toString('hex');
+      await this.prisma.client.update({
+        where: { id: clientId },
+        data: {
+          emailVerified: false,
+          emailVerifyToken: token,
+          emailVerifyTokenExpiry: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        } as any,
+      });
+      const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+      const link = `${baseUrl}/verify-email?token=${token}`;
+      const html = `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #222;">
+          <h2 style="margin: 0 0 16px;">이메일 인증을 완료해 주세요</h2>
+          <p>아래 버튼을 눌러 이메일 인증을 완료해 주세요. (24시간 유효)</p>
+          <a href="${link}" style="display:inline-block;margin:16px 0;padding:12px 24px;background:#7c3aed;color:#fff;border-radius:6px;text-decoration:none;font-weight:bold;">이메일 인증하기</a>
+          <p style="font-size:12px;color:#888;">버튼이 작동하지 않으면 아래 링크를 복사하세요:<br/>${link}</p>
+        </div>
+      `;
+      await this.emailService.sendEmail({
+        to: email,
+        subject: '[Photocafe] 이메일 인증을 완료해 주세요',
+        html,
+        text: `Photocafe 이메일 인증 링크 (24시간 유효): ${link}`,
+      });
+    } catch (e: any) {
+      // 메일 발송 실패해도 저장은 유지
+    }
   }
 }

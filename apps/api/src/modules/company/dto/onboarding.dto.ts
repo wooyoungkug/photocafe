@@ -1,4 +1,4 @@
-import { IsString, IsOptional, MaxLength, MinLength } from 'class-validator';
+import { IsString, IsOptional, IsEmail, MaxLength, MinLength } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class SubmitOnboardingDto {
@@ -68,4 +68,10 @@ export class SubmitOnboardingDto {
   @IsString()
   @MaxLength(200)
   acquisitionChannelNote?: string;
+
+  @ApiPropertyOptional({ description: '실제 이메일 (소셜 로그인 가짜 이메일 대체용)' })
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(200)
+  contactEmail?: string;
 }
