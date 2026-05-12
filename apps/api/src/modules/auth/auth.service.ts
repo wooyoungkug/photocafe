@@ -826,8 +826,8 @@ export class AuthService {
         });
       }
       const to = client.contactEmail || client.email;
-      if (!to) {
-        this.logger.warn(`이메일 인증 메일 발송 스킵: client ${client.id}에 이메일이 없습니다`);
+      if (!to || this.isFakeProviderEmail(to)) {
+        this.logger.warn(`이메일 인증 메일 발송 스킵: client ${client.id}에 실제 이메일이 없습니다 (to=${to})`);
         return;
       }
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
@@ -861,13 +861,19 @@ export class AuthService {
     }
   }
 
-  /** OAuth 신규 가입자에 대해: 이메일 있으면 토큰 발급+메일 발송(emailVerified=false), 이메일 없으면 emailVerified=true로 통과 */
+  /** 소셜 로그인이 자동 생성한 가짜 이메일 패턴 감지 (kakao_XXXX@kakao.com, naver_XXXX@naver.com 등) */
+  private isFakeProviderEmail(email: string): boolean {
+    return /^kakao_\d+@kakao\.com$/i.test(email) || /^naver_[a-z0-9]+@naver\.com$/i.test(email);
+  }
+
+  /** OAuth 신규 가입자에 대해: 실제 contactEmail 있으면 토큰 발급+메일 발송, 없으면(가짜 이메일 포함) emailVerified=true로 통과 */
   private async issueEmailVerification(clientId: string): Promise<void> {
     const client = await this.prisma.client.findUnique({ where: { id: clientId } });
     if (!client) return;
     if ((client as any).emailVerified) return;
-    if (!client.email) {
-      // 이메일 없는 소셜 계정은 링크 인증이 불가하므로 통과 처리
+    // contactEmail(사용자가 직접 입력한 실제 이메일)이 없거나, email이 소셜 로그인 가짜 이메일이면 인증 우회
+    const verifyTarget = client.contactEmail || client.email;
+    if (!verifyTarget || this.isFakeProviderEmail(verifyTarget)) {
       await this.prisma.client.update({
         where: { id: clientId },
         data: { emailVerified: true } as any,
