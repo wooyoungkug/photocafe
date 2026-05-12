@@ -294,6 +294,17 @@ export default function OnboardingPage() {
     e.preventDefault();
     setError('');
 
+    if (mobileDupHint) {
+      setFieldErrors((p) => ({ ...p, mobile: '이미 가입된 전화번호입니다. 위 안내를 확인해 주세요.' }));
+      scrollToField(mobileRef as React.RefObject<HTMLElement>);
+      return;
+    }
+    if (emailDupHint) {
+      setFieldErrors((p) => ({ ...p, contactEmail: '이미 가입된 이메일입니다. 위 안내를 확인해 주세요.' }));
+      scrollToField(contactEmailRef as React.RefObject<HTMLElement>);
+      return;
+    }
+
     const errs: Record<string, string> = {};
 
     if (!form.clientName?.trim()) errs.clientName = '이름/상호명을 입력해주세요.';
@@ -724,7 +735,7 @@ export default function OnboardingPage() {
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button
               type="submit"
-              disabled={submit.isPending}
+              disabled={submit.isPending || !!mobileDupHint || !!emailDupHint}
               className="text-[14px] min-w-[140px]"
             >
               {submit.isPending ? (

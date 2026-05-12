@@ -151,6 +151,15 @@ function RegisterForm() {
     e.preventDefault();
     setError(null);
 
+    if (emailDupHint) {
+      setError('이미 가입된 이메일입니다. 위 안내를 확인해 주세요.');
+      return;
+    }
+    if (phoneDupHint) {
+      setError('이미 가입된 전화번호입니다. 위 안내를 확인해 주세요.');
+      return;
+    }
+
     if (!loginId || !password || !name || !contactEmail) {
       setError('필수 항목을 모두 입력해주세요.');
       return;
@@ -367,7 +376,7 @@ function RegisterForm() {
             <Button
               type="submit"
               className="w-full h-11 bg-[#E4007F] hover:bg-[#C5006D] text-white mt-2"
-              disabled={register.isPending || !emailConsent}
+              disabled={register.isPending || !emailConsent || !!phoneDupHint || !!emailDupHint}
             >
               {register.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
