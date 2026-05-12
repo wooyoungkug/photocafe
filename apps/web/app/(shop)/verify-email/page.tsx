@@ -16,9 +16,19 @@ const PROVIDER_LABEL: Record<string, string> = {
   google: 'Google',
 };
 
-function ResendBox() {
+function maskEmail(email: string): string {
+  const at = email.indexOf('@');
+  if (at < 0) return email;
+  const local = email.slice(0, at);
+  const domain = email.slice(at);
+  const visible = local.slice(0, Math.min(2, local.length));
+  const stars = '*'.repeat(Math.max(1, local.length - visible.length));
+  return `${visible}${stars}${domain}`;
+}
+
+function ResendBox({ initialLoginId = '' }: { initialLoginId?: string }) {
   const resend = useResendVerification();
-  const [loginId, setLoginId] = useState('');
+  const [loginId, setLoginId] = useState(initialLoginId);
   const [resendMsg, setResendMsg] = useState<{ type: 'ok' | 'error' | 'verified'; text: string } | null>(null);
 
   const handleResend = async () => {
@@ -84,6 +94,7 @@ function VerifyEmailContent() {
   const token = searchParams.get('token');
   const pending = searchParams.get('pending');
   const provider = searchParams.get('provider');
+  const emailParam = searchParams.get('email') ?? '';
 
   const verifyToken = useVerifyEmailToken();
   const [tokenState, setTokenState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -178,10 +189,16 @@ function VerifyEmailContent() {
                 <p className="text-[16px] text-black font-medium">이메일 인증이 필요합니다</p>
                 <p className="text-[14px] text-gray-600 font-normal leading-relaxed">
                   {providerLabel ? `${providerLabel} 계정으로 가입되었습니다. ` : ''}
-                  입력하신 이메일로 인증 링크를 보냈습니다. 메일함을 확인해 인증을 완료한 뒤 다시 로그인해 주세요.
+                  인증 링크를 보냈습니다. 메일함을 확인해 인증을 완료한 뒤 다시 로그인해 주세요.
                 </p>
+                {emailParam && (
+                  <div className="flex items-center gap-2 rounded-md bg-blue-50 border border-blue-200 px-4 py-2">
+                    <Mail className="h-4 w-4 text-blue-500 shrink-0" />
+                    <span className="text-[14px] text-blue-800 font-medium">{maskEmail(emailParam)}</span>
+                  </div>
+                )}
               </div>
-              <ResendBox />
+              <ResendBox initialLoginId={emailParam} />
               <Link href="/login">
                 <Button variant="outline" className="w-full h-11">
                   로그인 페이지로

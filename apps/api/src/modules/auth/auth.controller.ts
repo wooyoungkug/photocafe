@@ -376,7 +376,8 @@ export class AuthController {
       const needsVerification = await this.authService.ensureEmailVerificationIssued(client.id);
       if (needsVerification) {
         // 실제 이메일 발송됨 → 인증 대기 페이지로 이동
-        return res.redirect(`${frontendUrl}/verify-email?pending=1&provider=${client.oauthProvider ?? ''}`);
+        const emailParam = client.email ? `&email=${encodeURIComponent(client.email)}` : '';
+        return res.redirect(`${frontendUrl}/verify-email?pending=1&provider=${client.oauthProvider ?? ''}${emailParam}`);
       }
       // 가짜 소셜 이메일 자동 통과 → 아래 정상 로그인 계속 진행
     }
