@@ -123,8 +123,9 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [ntsResult, setNtsResult] = useState<{ status: NtsStatus; statusText: string; taxType?: string } | null>(null);
   const [ntsVerifiedFor, setNtsVerifiedFor] = useState<string>('');
 
-  // OCR 자동인식 결과 안내
+  // OCR 자동인식으로 채워진 필드 추적
   const [ocrFilled, setOcrFilled] = useState(false);
+  const [ocrFields, setOcrFields] = useState<Set<string>>(new Set());
 
   const resetForm = () => {
     setBusinessNumber('');
@@ -146,6 +147,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     setNtsResult(null);
     setNtsVerifiedFor('');
     setOcrFilled(false);
+    setOcrFields(new Set());
     analyzeCert.reset();
     verifyStatus.reset();
   };
@@ -153,6 +155,35 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (!next) resetForm();
+  };
+
+  // OCR로 채워진 필드를 사용자가 직접 수정하면 파란색 표시 제거
+  const clearOcrField = (name: string) => {
+    setOcrFields((prev) => {
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  };
+
+  /**
+   * 입력 필드의 스타일 클래스를 반환한다.
+   * - OCR 자동입력: 파란색 배경 (확인 권장)
+   * - 빈 필수 항목: 노란 점선 테두리 (입력 유도)
+   * - 빈 선택 항목: 일반
+   * - 사용자 직접 입력: 일반
+   */
+  const fieldCls = (name: string, value: string, required = false) => {
+    const base = 'h-9 text-[14px] font-normal';
+    if (ocrFields.has(name)) {
+      // OCR 자동입력 — 파란색
+      return `${base} bg-blue-50 border-blue-300 text-blue-900 focus:border-blue-400`;
+    }
+    if (required && !value.trim()) {
+      // 빈 필수 항목 — 노란 점선
+      return `${base} border-dashed border-amber-400 bg-amber-50/40 placeholder:text-amber-600`;
+    }
+    return base;
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,34 +217,38 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
 
     // 2) OCR 자동 인식 (업로드 직후 자동 실행)
     setOcrFilled(false);
+    setOcrFields(new Set());
     try {
       const ocr = await analyzeCert.mutateAsync(uploadKey);
-      let filled = false;
+      const filled = new Set<string>();
       if (ocr.businessNumber && !businessNumber) {
         setBusinessNumber(formatBusinessNumber(ocr.businessNumber.replace(/\D/g, '')));
-        filled = true;
+        filled.add('businessNumber');
       }
       if (ocr.representative && !representative) {
         setRepresentative(ocr.representative);
-        filled = true;
+        filled.add('representative');
       }
       if (ocr.businessType && !businessType) {
         setBusinessType(ocr.businessType);
-        filled = true;
+        filled.add('businessType');
       }
       if (ocr.businessCategory && !businessCategory) {
         setBusinessCategory(ocr.businessCategory);
-        filled = true;
+        filled.add('businessCategory');
       }
       if (ocr.address && !address) {
         setAddress(ocr.address);
-        filled = true;
+        filled.add('address');
       }
       if (ocr.postalCode && !postalCode) {
         setPostalCode(ocr.postalCode);
-        filled = true;
+        filled.add('postalCode');
       }
-      if (filled) setOcrFilled(true);
+      if (filled.size > 0) {
+        setOcrFields(filled);
+        setOcrFilled(true);
+      }
     } catch {
       // OCR 실패는 사용자 입력으로 대체 — 에러 표시 없음 (서비스 미설정 가능)
     }
@@ -284,7 +319,6 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     }
   };
 
-  const inputCls = 'h-9 text-[14px] font-normal';
   const isOcrRunning = uploadCert.isPending || analyzeCert.isPending;
   // NTS 상태가 바뀐 사업자번호면 결과 초기화
   const ntsValid = ntsResult && ntsVerifiedFor === businessNumber;
@@ -313,6 +347,20 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               <div className="flex items-start gap-2 p-3 text-[13px] text-red-800 bg-red-50 border border-red-200 rounded-md">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
                 <span>{error}</span>
+              </div>
+            )}
+
+            {/* 범례 — OCR 인식 후에만 표시 */}
+            {ocrFilled && (
+              <div className="flex items-center gap-3 text-[12px] text-gray-500 px-1">
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-blue-100 border border-blue-300" />
+                  자동 인식된 항목 (내용 확인 권장)
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-amber-50 border border-dashed border-amber-400" />
+                  직접 입력 필요
+                </span>
               </div>
             )}
 
@@ -368,9 +416,10 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 </Label>
                 <div className="flex gap-1.5">
                   <Input
-                    className={`${inputCls} flex-1 min-w-0`}
+                    className={`${fieldCls('businessNumber', businessNumber, true)} flex-1 min-w-0`}
                     value={businessNumber}
                     onChange={(e) => {
+                      clearOcrField('businessNumber');
                       setBusinessNumber(formatBusinessNumber(e.target.value));
                       setNtsResult(null);
                     }}
@@ -407,9 +456,9 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   대표자명 <span className="text-red-500">*</span>
                 </Label>
                 <Input
-                  className={inputCls}
+                  className={fieldCls('representative', representative, true)}
                   value={representative}
-                  onChange={(e) => setRepresentative(e.target.value)}
+                  onChange={(e) => { clearOcrField('representative'); setRepresentative(e.target.value); }}
                   placeholder="대표자명"
                 />
               </div>
@@ -419,18 +468,18 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">업태 (선택)</Label>
                 <Input
-                  className={inputCls}
+                  className={fieldCls('businessType', businessType)}
                   value={businessType}
-                  onChange={(e) => setBusinessType(e.target.value)}
+                  onChange={(e) => { clearOcrField('businessType'); setBusinessType(e.target.value); }}
                   placeholder="예: 서비스업"
                 />
               </div>
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">종목 (선택)</Label>
                 <Input
-                  className={inputCls}
+                  className={fieldCls('businessCategory', businessCategory)}
                   value={businessCategory}
-                  onChange={(e) => setBusinessCategory(e.target.value)}
+                  onChange={(e) => { clearOcrField('businessCategory'); setBusinessCategory(e.target.value); }}
                   placeholder="예: 사진촬영업"
                 />
               </div>
@@ -440,7 +489,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               <Label className="text-[14px] font-normal text-gray-600">세금계산서 수신 이메일 (선택)</Label>
               <Input
                 type="email"
-                className={inputCls}
+                className={fieldCls('taxInvoiceEmail', taxInvoiceEmail)}
                 value={taxInvoiceEmail}
                 onChange={(e) => setTaxInvoiceEmail(e.target.value)}
                 placeholder="tax@example.com"
@@ -452,8 +501,15 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
               postalCode={postalCode}
               address={address}
               addressDetail={addressDetail}
-              onComplete={(data) => { setPostalCode(data.postalCode); setAddress(data.address); }}
+              onComplete={(data) => {
+                clearOcrField('postalCode');
+                clearOcrField('address');
+                setPostalCode(data.postalCode);
+                setAddress(data.address);
+              }}
               onAddressDetailChange={setAddressDetail}
+              postalCodeClassName={ocrFields.has('postalCode') ? 'bg-blue-50 border-blue-300 text-blue-900' : undefined}
+              addressClassName={ocrFields.has('address') ? 'bg-blue-50 border-blue-300 text-blue-900' : undefined}
               detailPlaceholder="상세주소 (선택)"
             />
 
@@ -463,7 +519,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 이름</Label>
                   <Input
-                    className={inputCls}
+                    className={fieldCls('practicalManagerName', practicalManagerName)}
                     value={practicalManagerName}
                     onChange={(e) => setPracticalManagerName(e.target.value)}
                     placeholder="이름"
@@ -472,7 +528,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">실무담당자 연락처</Label>
                   <Input
-                    className={inputCls}
+                    className={fieldCls('practicalManagerPhone', practicalManagerPhone)}
                     value={practicalManagerPhone}
                     onChange={(e) => setPracticalManagerPhone(formatPhone(e.target.value))}
                     placeholder="010-0000-0000"
@@ -484,7 +540,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">결재담당자 이름</Label>
                   <Input
-                    className={inputCls}
+                    className={fieldCls('approvalManagerName', approvalManagerName)}
                     value={approvalManagerName}
                     onChange={(e) => setApprovalManagerName(e.target.value)}
                     placeholder="이름"
@@ -493,7 +549,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 <div className="space-y-1">
                   <Label className="text-[14px] font-normal text-gray-600">결재담당자 연락처</Label>
                   <Input
-                    className={inputCls}
+                    className={fieldCls('approvalManagerPhone', approvalManagerPhone)}
                     value={approvalManagerPhone}
                     onChange={(e) => setApprovalManagerPhone(formatPhone(e.target.value))}
                     placeholder="010-0000-0000"
