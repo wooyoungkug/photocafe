@@ -252,6 +252,53 @@ export class RecruitmentBidService {
   }
 
   /**
+   * 내가 응찰한 목록 조회 (응찰자 본인)
+   */
+  async findMyBids(bidderId: string) {
+    return this.prisma.recruitmentBid.findMany({
+      where: { bidderId },
+      include: {
+        recruitment: {
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            shootingDate: true,
+            shootingTime: true,
+            venueName: true,
+            budget: true,
+            shootingType: true,
+          },
+        },
+      },
+      orderBy: { bidAt: 'desc' },
+    });
+  }
+
+  /**
+   * 내 응찰 취소 (pending 상태만 가능)
+   */
+  async cancelMyBid(recruitmentId: string, bidderId: string) {
+    const bid = await this.prisma.recruitmentBid.findUnique({
+      where: { recruitmentId_bidderId: { recruitmentId, bidderId } },
+    });
+
+    if (!bid) {
+      throw new NotFoundException('응찰 정보를 찾을 수 없습니다.');
+    }
+
+    if (bid.status !== RECRUITMENT_BID_STATUS.PENDING) {
+      throw new BadRequestException('대기 상태의 응찰만 취소할 수 있습니다.');
+    }
+
+    await this.prisma.recruitmentBid.delete({ where: { id: bid.id } });
+
+    this.logger.log(`응찰 취소: ${recruitmentId}, 작가: ${bidderId}`);
+
+    return { success: true };
+  }
+
+  /**
    * 작가 확정
    */
   async selectBid(

@@ -138,11 +138,32 @@ export interface RecruitmentQueryParams {
   page?: number;
   limit?: number;
   sort?: 'latest' | 'deadline' | 'budget_high' | 'budget_low';
+  region?: string;
 }
 
 export interface CreateBidInput {
   message?: string;
   proposedBudget?: number;
+}
+
+export interface MyRecruitmentBid {
+  id: string;
+  recruitmentId: string;
+  bidderId: string;
+  message?: string;
+  proposedBudget?: number;
+  status: RecruitmentBidStatus;
+  bidAt: string;
+  recruitment: {
+    id: string;
+    title: string;
+    status: RecruitmentStatus;
+    shootingDate: string;
+    shootingTime?: string;
+    venueName: string;
+    budget?: number;
+    shootingType: ShootingType;
+  };
 }
 
 export interface PhotographerProfile {

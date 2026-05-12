@@ -17,6 +17,10 @@ import {
   Lock,
   Globe,
   ArrowRight,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,8 +33,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRecruitments } from '@/hooks/use-recruitment';
+import { useMyRecruitmentBids, useCancelMyBid } from '@/hooks/use-recruitment-bid';
+import { useToast } from '@/hooks/use-toast';
 import {
   SHOOTING_TYPE_LABELS,
   RECRUITMENT_STATUS_LABELS,
@@ -41,6 +54,7 @@ import type {
   RecruitmentStatus,
   ShootingType,
   RecruitmentQueryParams,
+  MyRecruitmentBid,
 } from '@/lib/types/recruitment';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -98,6 +112,7 @@ function StatusDashboard({
         const isActive = activeStatus === item.key;
         return (
           <button
+            type="button"
             key={item.key}
             onClick={() => onSelect(item.key)}
             className={cn(
@@ -272,8 +287,129 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   );
 }
 
+// 응찰 상태 아이콘
+const BID_STATUS_ICON: Record<string, React.ReactNode> = {
+  pending: <Clock className="h-3 w-3" />,
+  selected: <CheckCircle2 className="h-3 w-3" />,
+  rejected: <XCircle className="h-3 w-3" />,
+};
+const BID_STATUS_LABEL: Record<string, string> = {
+  pending: '응찰중',
+  selected: '확정',
+  rejected: '거절',
+};
+const BID_STATUS_STYLE: Record<string, string> = {
+  pending: 'bg-pink-100 text-pink-700 border-pink-200',
+  selected: 'bg-purple-100 text-purple-700 border-purple-200',
+  rejected: 'bg-gray-100 text-gray-500 border-gray-200',
+};
+
+// ==================== 내 응찰 상세/취소 다이얼로그 ====================
+function MyBidDialog({
+  bid,
+  open,
+  onClose,
+}: {
+  bid: MyRecruitmentBid;
+  open: boolean;
+  onClose: () => void;
+}) {
+  const { toast } = useToast();
+  const cancelMyBid = useCancelMyBid();
+
+  const handleCancel = async () => {
+    if (!confirm('응찰을 취소하시겠습니까?')) return;
+    try {
+      await cancelMyBid.mutateAsync({ recruitmentId: bid.recruitmentId });
+      toast({ title: '응찰이 취소되었습니다.' });
+      onClose();
+    } catch {
+      toast({ title: '취소 실패', description: '잠시 후 다시 시도해주세요.', variant: 'destructive' });
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-[16px] font-bold">내 응찰 정보</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 py-1">
+          {/* 상태 */}
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-gray-500 w-16 shrink-0">상태</span>
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border',
+              BID_STATUS_STYLE[bid.status],
+            )}>
+              {BID_STATUS_ICON[bid.status]}
+              {BID_STATUS_LABEL[bid.status]}
+            </span>
+          </div>
+
+          {/* 응찰일시 */}
+          <div className="flex items-center gap-2">
+            <span className="text-[12px] text-gray-500 w-16 shrink-0">응찰일시</span>
+            <span className="text-[13px] text-black">
+              {format(new Date(bid.bidAt), 'MM.dd (EEE) HH:mm', { locale: ko })}
+            </span>
+          </div>
+
+          {/* 희망 보수 */}
+          {bid.proposedBudget != null && (
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] text-gray-500 w-16 shrink-0">희망 보수</span>
+              <span className="text-[13px] text-black font-bold">
+                {Number(bid.proposedBudget).toLocaleString()}원
+              </span>
+            </div>
+          )}
+
+          {/* 메시지 */}
+          {bid.message && (
+            <div className="flex gap-2">
+              <span className="text-[12px] text-gray-500 w-16 shrink-0 pt-0.5">메시지</span>
+              <p className="text-[13px] text-black leading-relaxed flex-1">{bid.message}</p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" size="sm" onClick={onClose} className="text-[13px]">
+            닫기
+          </Button>
+          {bid.status === 'pending' && (
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleCancel}
+              disabled={cancelMyBid.isPending}
+              className="text-[13px]"
+            >
+              {cancelMyBid.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+              )}
+              응찰 취소
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ==================== 공개 촬영파트너 리스트 행 ====================
-function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
+function PublicRecruitmentRow({
+  recruitment,
+  myBid,
+}: {
+  recruitment: Recruitment;
+  myBid?: MyRecruitmentBid;
+}) {
+  const [bidDialogOpen, setBidDialogOpen] = useState(false);
   const shootingDate = new Date(recruitment.shootingDate);
   const daysLeft = Math.ceil(
     (shootingDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
@@ -282,8 +418,8 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
   const endTime = calcEndTime(recruitment.shootingTime, recruitment.duration);
 
   return (
-    <Link href={`/mypage/recruitment/${recruitment.id}`}>
-      <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b last:border-b-0 cursor-pointer">
+    <>
+      <div className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b last:border-b-0">
         {/* 상태 */}
         <div className="shrink-0 w-[80px]">
           <Badge className="bg-green-100 text-green-700 text-[11px]">공개모집</Badge>
@@ -302,8 +438,8 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
           ) : null}
         </div>
 
-        {/* 제목 + 촬영유형 */}
-        <div className="flex-1 min-w-0">
+        {/* 제목 + 촬영유형 (클릭 시 상세 페이지 이동) */}
+        <Link href={`/mypage/recruitment/${recruitment.id}`} className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-[14px] text-black font-normal truncate">
               {recruitment.title}
@@ -327,7 +463,7 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
               </span>
             )}
           </div>
-        </div>
+        </Link>
 
         {/* 촬영일 */}
         <div className="shrink-0 w-[130px] hidden sm:flex flex-col gap-0.5">
@@ -364,17 +500,41 @@ function PublicRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
           </span>
         </div>
 
-        {/* 응찰수 */}
-        <div className="shrink-0 w-[50px] flex items-center gap-1">
-          <Users className="h-3.5 w-3.5 text-gray-400" />
-          <span className="text-[12px] text-gray-500">
-            {recruitment._count?.bids ?? 0}
-          </span>
+        {/* 응찰 */}
+        <div className="shrink-0 w-[50px] flex items-center">
+          {myBid ? (
+            <button
+              type="button"
+              onClick={() => setBidDialogOpen(true)}
+              className={cn(
+                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border cursor-pointer hover:opacity-80 transition-opacity',
+                BID_STATUS_STYLE[myBid.status],
+              )}
+            >
+              {BID_STATUS_ICON[myBid.status]}
+              {BID_STATUS_LABEL[myBid.status]}
+            </button>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5 text-gray-400" />
+              <span className="text-[12px] text-gray-500">
+                {recruitment._count?.bids ?? 0}
+              </span>
+            </div>
+          )}
         </div>
 
         <ArrowRight className="h-3.5 w-3.5 text-gray-300 shrink-0" />
       </div>
-    </Link>
+
+      {myBid && (
+        <MyBidDialog
+          bid={myBid}
+          open={bidDialogOpen}
+          onClose={() => setBidDialogOpen(false)}
+        />
+      )}
+    </>
   );
 }
 
@@ -390,6 +550,7 @@ export default function RecruitmentListPage() {
   const [activeTab, setActiveTab] = useState<'my' | 'public'>(canManageRecruitment ? 'my' : 'public');
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | 'all'>('all');
   const [shootingTypeFilter, setShootingTypeFilter] = useState<string>('all');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('latest');
   const [page, setPage] = useState(1);
 
@@ -400,6 +561,7 @@ export default function RecruitmentListPage() {
           clientId: user?.clientId || '',
           shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
           sort: sortBy as RecruitmentQueryParams['sort'],
+          region: regionFilter !== 'all' ? regionFilter : undefined,
           limit: 100,
         }
       : undefined,
@@ -430,6 +592,14 @@ export default function RecruitmentListPage() {
   );
   const myTotalPages = Math.ceil(filteredMyRecruitments.length / ITEMS_PER_PAGE);
 
+  // ── 내 응찰 목록 (공개 탭에서 응찰중 표시용)
+  const { data: myBids } = useMyRecruitmentBids(!!user?.clientId);
+  const myBidMap = useMemo(() => {
+    const map: Record<string, MyRecruitmentBid> = {};
+    myBids?.forEach((b) => { map[b.recruitmentId] = b; });
+    return map;
+  }, [myBids]);
+
   // ── 공개 촬영파트너: 서버사이드 페이징 유지
   const { data: publicResponse, isLoading: publicLoading } = useRecruitments(
     activeTab === 'public'
@@ -437,6 +607,7 @@ export default function RecruitmentListPage() {
           publicOnly: 'true',
           shootingType: shootingTypeFilter !== 'all' ? (shootingTypeFilter as ShootingType) : undefined,
           sort: sortBy as RecruitmentQueryParams['sort'],
+          region: regionFilter !== 'all' ? regionFilter : undefined,
           page,
           limit: 12,
         }
@@ -453,6 +624,7 @@ export default function RecruitmentListPage() {
   const handleTabChange = (value: string) => {
     setActiveTab(value as 'my' | 'public');
     setStatusFilter('all');
+    setRegionFilter('all');
     setPage(1);
   };
 
@@ -515,6 +687,34 @@ export default function RecruitmentListPage() {
                       {label}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+              <Select
+                value={regionFilter}
+                onValueChange={(v) => { setRegionFilter(v); setPage(1); }}
+              >
+                <SelectTrigger className="text-[12px] h-8 w-[120px]">
+                  <SelectValue placeholder="지역 전체" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">지역 전체</SelectItem>
+                  <SelectItem value="서울">서울</SelectItem>
+                  <SelectItem value="경기">경기</SelectItem>
+                  <SelectItem value="인천">인천</SelectItem>
+                  <SelectItem value="부산">부산</SelectItem>
+                  <SelectItem value="대구">대구</SelectItem>
+                  <SelectItem value="광주">광주</SelectItem>
+                  <SelectItem value="대전">대전</SelectItem>
+                  <SelectItem value="울산">울산</SelectItem>
+                  <SelectItem value="세종">세종</SelectItem>
+                  <SelectItem value="강원">강원</SelectItem>
+                  <SelectItem value="충북">충북</SelectItem>
+                  <SelectItem value="충남">충남</SelectItem>
+                  <SelectItem value="전북">전북</SelectItem>
+                  <SelectItem value="전남">전남</SelectItem>
+                  <SelectItem value="경북">경북</SelectItem>
+                  <SelectItem value="경남">경남</SelectItem>
+                  <SelectItem value="제주">제주</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -610,7 +810,7 @@ export default function RecruitmentListPage() {
                 <div className="w-[14px]"></div>
               </div>
               {recruitments.map((r) => (
-                <PublicRecruitmentRow key={r.id} recruitment={r} />
+                <PublicRecruitmentRow key={r.id} recruitment={r} myBid={myBidMap[r.id]} />
               ))}
             </Card>
           ) : (

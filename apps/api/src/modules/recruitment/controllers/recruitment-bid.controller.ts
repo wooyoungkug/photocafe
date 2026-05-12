@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Request,
@@ -46,10 +47,22 @@ export class RecruitmentBidController {
     return this.bidService.createBid(id, req.user.clientId, dto);
   }
 
+  @Get('my-bids')
+  @ApiOperation({ summary: '내가 응찰한 목록 (응찰자 본인)' })
+  async findMyBids(@Request() req: any) {
+    return this.bidService.findMyBids(req.user.clientId);
+  }
+
   @Get(':id/bids')
   @ApiOperation({ summary: '응찰자 목록' })
   async findBids(@Param('id') id: string) {
     return this.bidService.findBids(id);
+  }
+
+  @Delete(':id/bids/my')
+  @ApiOperation({ summary: '내 응찰 취소 (pending 상태만 가능)' })
+  async cancelMyBid(@Param('id') id: string, @Request() req: any) {
+    return this.bidService.cancelMyBid(id, req.user.clientId);
   }
 
   @Post(':id/bids/:bidId/select')

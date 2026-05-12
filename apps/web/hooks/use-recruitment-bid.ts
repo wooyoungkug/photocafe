@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { RecruitmentBid, CreateBidInput } from '@/lib/types/recruitment';
+import type { RecruitmentBid, MyRecruitmentBid, CreateBidInput } from '@/lib/types/recruitment';
 
 const RECRUITMENT_KEY = 'recruitments';
 
@@ -56,6 +56,25 @@ export function useRejectBid() {
     }) =>
       api.post(`/recruitments/${recruitmentId}/bids/${bidId}/reject`, { reason }),
     onSuccess: (_, variables) => {
+      qc.invalidateQueries({ queryKey: [RECRUITMENT_KEY] });
+    },
+  });
+}
+
+export function useMyRecruitmentBids(enabled = true) {
+  return useQuery({
+    queryKey: [RECRUITMENT_KEY, 'my-bids'],
+    queryFn: () => api.get<MyRecruitmentBid[]>('/recruitments/my-bids'),
+    enabled,
+  });
+}
+
+export function useCancelMyBid() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ recruitmentId }: { recruitmentId: string }) =>
+      api.delete(`/recruitments/${recruitmentId}/bids/my`),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: [RECRUITMENT_KEY] });
     },
   });
