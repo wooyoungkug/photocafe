@@ -27,6 +27,11 @@ const PROVIDER_LABEL: Record<string, string> = { naver: '네이버', kakao: '카
 type DupHint = { maskedLoginId: string; provider?: string | null };
 
 function DuplicateWarning({ kind, hint }: { kind: '전화번호' | '이메일'; hint: DupHint }) {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
+  const loginHref = hint.provider
+    ? `${apiUrl}/auth/${hint.provider}-login`
+    : '/login';
+
   return (
     <div className="mt-1 rounded-md bg-yellow-50 border border-yellow-200 px-3 py-2 text-[13px] text-yellow-800">
       <p>이미 가입된 {kind}입니다.</p>
@@ -40,9 +45,13 @@ function DuplicateWarning({ kind, hint }: { kind: '전화번호' | '이메일'; 
         </p>
       )}
       <p>
-        <a href="/login" className="underline text-blue-700">기존 계정으로 로그인하기</a>
-        {' · '}
-        <a href="/forgot-password" className="underline text-blue-700">비밀번호 찾기</a>
+        <a href={loginHref} className="underline text-blue-700">기존 계정으로 로그인하기</a>
+        {!hint.provider && (
+          <>
+            {' · '}
+            <a href="/forgot-password" className="underline text-blue-700">비밀번호 찾기</a>
+          </>
+        )}
       </p>
     </div>
   );
