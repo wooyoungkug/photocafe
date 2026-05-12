@@ -650,6 +650,7 @@ export class ClientService {
         contactEmail: true,
         oauthProvider: true,
         signupPurpose: true,
+        signupPurposeNote: true,
       },
     } as any) as any;
     if (!client) {
@@ -716,6 +717,7 @@ export class ClientService {
         contactEmail: client.contactEmail ?? '',
         oauthProvider: client.oauthProvider ?? null,
         signupPurpose: client.signupPurpose ?? '',
+        signupPurposeNote: client.signupPurposeNote ?? '',
       },
       employment: primaryEmployment
         ? {
@@ -752,6 +754,7 @@ export class ClientService {
       acquisitionChannel?: string;
       acquisitionChannelNote?: string;
       signupPurpose?: string;
+      signupPurposeNote?: string;
       contactEmail?: string;
     },
   ) {
@@ -798,6 +801,8 @@ export class ClientService {
         clientUpdate.acquisitionChannelNote = data.acquisitionChannelNote.trim() || null;
       if (data.signupPurpose !== undefined)
         clientUpdate.signupPurpose = data.signupPurpose.trim() || null;
+      if (data.signupPurposeNote !== undefined)
+        clientUpdate.signupPurposeNote = data.signupPurposeNote.trim() || null;
       if (data.contactEmail !== undefined && data.contactEmail.trim())
         clientUpdate.contactEmail = data.contactEmail.trim().toLowerCase();
 

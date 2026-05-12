@@ -75,6 +75,12 @@ export class SubmitOnboardingDto {
   @MaxLength(500)
   signupPurpose?: string;
 
+  @ApiPropertyOptional({ description: '가입목적 기타 설명' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  signupPurposeNote?: string;
+
   @ApiPropertyOptional({ description: '실제 이메일 (소셜 로그인 가짜 이메일 대체용)' })
   @IsOptional()
   @IsEmail()

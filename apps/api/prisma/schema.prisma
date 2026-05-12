@@ -371,6 +371,7 @@ model Client {
   acquisitionChannel         String?
   acquisitionChannelNote     String?
   signupPurpose              String?
+  signupPurposeNote          String?
   assignedManager            String?
   businessCategory           String?
   businessType               String?

@@ -103,6 +103,7 @@ export default function OnboardingPage() {
     acquisitionChannelNote: '',
     contactEmail: '',
     signupPurpose: '',
+    signupPurposeNote: '',
   });
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
@@ -193,6 +194,7 @@ export default function OnboardingPage() {
       acquisitionChannelNote: (status.profile as any).acquisitionChannelNote ?? '',
       contactEmail: status.profile.contactEmail ?? '',
       signupPurpose: (status.profile as any).signupPurpose ?? '',
+      signupPurposeNote: (status.profile as any).signupPurposeNote ?? '',
     });
   }, [status]);
 
@@ -432,7 +434,11 @@ export default function OnboardingPage() {
                             const next = selected
                               ? current.filter((v) => v !== opt)
                               : [...current, opt];
-                            setForm({ ...form, signupPurpose: next.join(',') });
+                            setForm({
+                              ...form,
+                              signupPurpose: next.join(','),
+                              signupPurposeNote: next.includes('기타') ? form.signupPurposeNote : '',
+                            });
                           }}
                         />
                         {opt}
@@ -440,6 +446,16 @@ export default function OnboardingPage() {
                     );
                   })}
                 </div>
+                {form.signupPurpose.split(',').map((s) => s.trim()).includes('기타') && (
+                  <Input
+                    value={form.signupPurposeNote}
+                    onChange={(e) => setForm({ ...form, signupPurposeNote: e.target.value })}
+                    placeholder="기타 가입목적을 입력해주세요"
+                    className="text-[14px]"
+                    maxLength={200}
+                    autoFocus
+                  />
+                )}
               </div>
             </CardContent>
           </Card>
