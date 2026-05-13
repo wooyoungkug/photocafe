@@ -47,11 +47,7 @@ export class RecruitmentBidController {
     return this.bidService.createBid(id, req.user.clientId, dto);
   }
 
-  @Get('my-bids')
-  @ApiOperation({ summary: '내가 응찰한 목록 (응찰자 본인)' })
-  async findMyBids(@Request() req: any) {
-    return this.bidService.findMyBids(req.user.clientId);
-  }
+  // 'GET /recruitments/my-bids' 는 RecruitmentController 에서 처리 (라우트 우선순위 때문)
 
   @Get(':id/bids')
   @ApiOperation({ summary: '응찰자 목록' })
