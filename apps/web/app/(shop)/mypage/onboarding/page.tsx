@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, User, MapPin, Heart, Briefcase, Save, AlertCircle, Mail } from 'lucide-react';
+import { Loader2, User, MapPin, Heart, Briefcase, Save, AlertCircle, Mail, Lock, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -147,6 +147,9 @@ export default function OnboardingPage() {
     signupPurpose: '',
     signupPurposeNote: '',
   });
+  // 소셜 로그인에서 넘어온 값은 잠금 표시 — '수정' 버튼으로 해제
+  const [nameLocked, setNameLocked] = useState(true);
+  const [mobileLocked, setMobileLocked] = useState(true);
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -244,9 +247,14 @@ export default function OnboardingPage() {
   // 초기값 세팅
   useEffect(() => {
     if (!status) return;
+    const seededName = status.profile.clientName || user?.name || '';
+    const seededMobile = status.profile.mobile || user?.mobile || '';
+    // 소셜에서 넘어온 값이 있으면 잠금 상태로 시작
+    setNameLocked(!!seededName);
+    setMobileLocked(!!seededMobile);
     setForm({
-      clientName: status.profile.clientName || user?.name || '',
-      mobile: status.profile.mobile || user?.mobile || '',
+      clientName: seededName,
+      mobile: seededMobile,
       postalCode: status.profile.postalCode ?? '',
       address: status.profile.address ?? '',
       addressDetail: status.profile.addressDetail ?? '',
@@ -395,34 +403,68 @@ export default function OnboardingPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal">
+                <Label className="text-[14px] text-black font-normal flex items-center gap-2">
                   이름/상호명 <span className="text-red-500">*</span>
+                  {nameLocked && form.clientName && (
+                    <span className="inline-flex items-center gap-1 text-[12px] font-normal text-gray-400">
+                      <Lock className="h-3 w-3" /> 소셜 계정 정보
+                    </span>
+                  )}
                 </Label>
-                <Input
-                  ref={clientNameRef}
-                  value={form.clientName}
-                  onChange={(e) => { setForm({ ...form, clientName: e.target.value }); if (fieldErrors.clientName) setFieldErrors(p => ({ ...p, clientName: '' })); }}
-                  placeholder="홍길동 또는 (주)홍길동스튜디오"
-                  className={`text-[14px] ${fieldErrors.clientName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
-                  maxLength={100}
-                />
+                <div className="relative">
+                  <Input
+                    ref={clientNameRef}
+                    value={form.clientName}
+                    onChange={(e) => { setForm({ ...form, clientName: e.target.value }); if (fieldErrors.clientName) setFieldErrors(p => ({ ...p, clientName: '' })); }}
+                    readOnly={nameLocked && !!form.clientName}
+                    placeholder="홍길동 또는 (주)홍길동스튜디오"
+                    className={`text-[14px] ${nameLocked && form.clientName ? 'bg-gray-50 text-gray-600 pr-16 cursor-default' : ''} ${fieldErrors.clientName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                    maxLength={100}
+                  />
+                  {nameLocked && form.clientName && (
+                    <button
+                      type="button"
+                      onClick={() => { setNameLocked(false); setTimeout(() => clientNameRef.current?.focus(), 0); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+                    >
+                      <Pencil className="h-3 w-3" /> 수정
+                    </button>
+                  )}
+                </div>
                 {fieldErrors.clientName && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.clientName}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal">
+                <Label className="text-[14px] text-black font-normal flex items-center gap-2">
                   휴대전화 <span className="text-red-500">*</span>
+                  {mobileLocked && form.mobile && (
+                    <span className="inline-flex items-center gap-1 text-[12px] font-normal text-gray-400">
+                      <Lock className="h-3 w-3" /> 소셜 계정 정보
+                    </span>
+                  )}
                 </Label>
-                <Input
-                  ref={mobileRef}
-                  value={form.mobile}
-                  onChange={(e) => { setForm({ ...form, mobile: formatPhone(e.target.value) }); if (fieldErrors.mobile) setFieldErrors(p => ({ ...p, mobile: '' })); if (mobileDupHint) setMobileDupHint(null); }}
-                  onBlur={(e) => handleDuplicateBlur('mobile', e.target.value)}
-                  placeholder="010-1234-5678"
-                  className={`text-[14px] ${fieldErrors.mobile ? 'border-red-500 ring-1 ring-red-400' : ''}`}
-                  inputMode="tel"
-                  maxLength={13}
-                />
+                <div className="relative">
+                  <Input
+                    ref={mobileRef}
+                    value={form.mobile}
+                    onChange={(e) => { setForm({ ...form, mobile: formatPhone(e.target.value) }); if (fieldErrors.mobile) setFieldErrors(p => ({ ...p, mobile: '' })); if (mobileDupHint) setMobileDupHint(null); }}
+                    onBlur={(e) => { if (!(mobileLocked && form.mobile)) handleDuplicateBlur('mobile', e.target.value); }}
+                    readOnly={mobileLocked && !!form.mobile}
+                    placeholder="010-1234-5678"
+                    className={`text-[14px] ${mobileLocked && form.mobile ? 'bg-gray-50 text-gray-600 pr-16 cursor-default' : ''} ${fieldErrors.mobile ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                    inputMode="tel"
+                    maxLength={13}
+                  />
+                  {mobileLocked && form.mobile && (
+                    <button
+                      type="button"
+                      onClick={() => { setMobileLocked(false); setTimeout(() => mobileRef.current?.focus(), 0); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+                    >
+                      <Pencil className="h-3 w-3" /> 수정
+                    </button>
+                  )}
+                </div>
                 {fieldErrors.mobile && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.mobile}</p>}
                 {mobileDupHint && <DuplicateWarning kind="전화번호" hint={mobileDupHint} />}
               </div>
