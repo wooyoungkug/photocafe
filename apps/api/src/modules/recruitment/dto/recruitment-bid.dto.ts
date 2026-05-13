@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, Min } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsIn, Min } from 'class-validator';
 
 export class CreateRecruitmentBidDto {
   @IsOptional()
@@ -9,6 +9,10 @@ export class CreateRecruitmentBidDto {
   @IsInt()
   @Min(0)
   proposedBudget?: number;
+
+  @IsOptional()
+  @IsIn(['solo', 'duo'])
+  crewSize?: string;
 }
 
 export class SelectBidDto {

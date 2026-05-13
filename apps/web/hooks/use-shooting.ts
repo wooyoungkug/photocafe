@@ -62,6 +62,9 @@ export interface Shooting {
     id: string;
     title?: string;
     budget?: number;
+    budgetSolo?: number;
+    budgetDuo?: number;
+    crewSizes?: string[];
     description?: string;
     requirements?: string;
     privateDeadlineHours?: number;
@@ -106,6 +109,9 @@ export interface CreateShootingDto {
   recruitmentClientId?: string;
   recruitmentTitle?: string;
   recruitmentBudget?: number;
+  recruitmentBudgetSolo?: number;
+  recruitmentBudgetDuo?: number;
+  recruitmentCrewSizes?: string[];
   recruitmentDescription?: string;
   recruitmentRequirements?: string;
   recruitmentPrivateDeadlineHours?: number;

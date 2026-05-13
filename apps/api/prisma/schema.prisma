@@ -3372,6 +3372,9 @@ model Recruitment {
   latitude             Float?
   longitude            Float?
   budget               Int?
+  budgetSolo           Int?
+  budgetDuo            Int?
+  crewSizes            String[]                     @default([])
   description          String?
   requirements         String?
   customerName         String?
@@ -3404,6 +3407,7 @@ model RecruitmentBid {
   bidderId       String
   message        String?
   proposedBudget Int?
+  crewSize       String?
   status         String      @default("pending")
   bidAt          DateTime    @default(now())
   bidder         Client      @relation("RecruitmentBidder", fields: [bidderId], references: [id])

@@ -10,6 +10,8 @@ import {
   Min,
   Max,
   IsEmail,
+  IsArray,
+  ArrayUnique,
 } from 'class-validator';
 import { Type, Transform } from 'class-transformer';
 
@@ -107,12 +109,37 @@ export class CreateShootingDto {
   @IsString()
   recruitmentTitle?: string;
 
-  @ApiPropertyOptional({ description: '보수 (원)' })
+  @ApiPropertyOptional({ description: '보수 (원) — 단일 옵션 (레거시 호환)' })
   @IsOptional()
   @IsInt()
   @Min(0)
   @Type(() => Number)
   recruitmentBudget?: number;
+
+  @ApiPropertyOptional({
+    description: '모집 인원 옵션 (solo / duo 중 1개 이상)',
+    enum: ['solo', 'duo'],
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['solo', 'duo'], { each: true })
+  @ArrayUnique()
+  recruitmentCrewSizes?: string[];
+
+  @ApiPropertyOptional({ description: '1인 촬영 보수 (원)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentBudgetSolo?: number;
+
+  @ApiPropertyOptional({ description: '2인 촬영 보수 (원)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentBudgetDuo?: number;
 
   @ApiPropertyOptional({ description: '구인 상세설명' })
   @IsOptional()
@@ -231,12 +258,37 @@ export class UpdateShootingDto {
   @IsString()
   recruitmentTitle?: string;
 
-  @ApiPropertyOptional({ description: '보수 (원)' })
+  @ApiPropertyOptional({ description: '보수 (원) — 단일 옵션 (레거시 호환)' })
   @IsOptional()
   @IsInt()
   @Min(0)
   @Type(() => Number)
   recruitmentBudget?: number;
+
+  @ApiPropertyOptional({
+    description: '모집 인원 옵션 (solo / duo 중 1개 이상)',
+    enum: ['solo', 'duo'],
+    isArray: true,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsIn(['solo', 'duo'], { each: true })
+  @ArrayUnique()
+  recruitmentCrewSizes?: string[];
+
+  @ApiPropertyOptional({ description: '1인 촬영 보수 (원)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentBudgetSolo?: number;
+
+  @ApiPropertyOptional({ description: '2인 촬영 보수 (원)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Type(() => Number)
+  recruitmentBudgetDuo?: number;
 
   @ApiPropertyOptional({ description: '구인 상세설명' })
   @IsOptional()

@@ -55,8 +55,9 @@ import {
   RECRUITMENT_STATUS_LABELS,
   URGENCY_LABELS,
   URGENCY_COLORS,
+  CREW_SIZE_LABELS,
 } from '@/lib/types/recruitment';
-import type { RecruitmentBid } from '@/lib/types/recruitment';
+import type { RecruitmentBid, RecruitmentCrewSize } from '@/lib/types/recruitment';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -119,6 +120,7 @@ export default function RecruitmentDetailPage() {
   // 응찰 폼
   const [bidMessage, setBidMessage] = useState('');
   const [bidBudget, setBidBudget] = useState('');
+  const [bidCrewSize, setBidCrewSize] = useState<RecruitmentCrewSize | ''>('');
 
   // 거절 다이얼로그
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; bidId: string; bidderName: string }>({
@@ -193,12 +195,28 @@ export default function RecruitmentDetailPage() {
 
   // 응찰 제출
   const handleSubmitBid = async () => {
+    const allowedSizes = (recruitment?.crewSizes ?? []) as RecruitmentCrewSize[];
+    let crewSize: RecruitmentCrewSize | undefined;
+    if (allowedSizes.length === 1) {
+      crewSize = allowedSizes[0];
+    } else if (allowedSizes.length > 1) {
+      if (!bidCrewSize) {
+        toast({
+          title: '옵션 선택 필요',
+          description: '1인/2인 촬영 중 응찰할 옵션을 선택해주세요.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      crewSize = bidCrewSize;
+    }
     try {
       await createBidMutation.mutateAsync({
         recruitmentId: id,
         data: {
           message: bidMessage || undefined,
           proposedBudget: bidBudget ? Number(bidBudget) : undefined,
+          crewSize,
         },
       });
       toast({
@@ -207,6 +225,7 @@ export default function RecruitmentDetailPage() {
       });
       setBidMessage('');
       setBidBudget('');
+      setBidCrewSize('');
     } catch (error: any) {
       toast({
         title: '응찰 실패',
@@ -377,17 +396,49 @@ export default function RecruitmentDetailPage() {
                 )}
               </div>
             </div>
-            {recruitment.budget != null && recruitment.budget > 0 && (
-              <div className="flex items-start gap-2">
-                <Wallet className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-[12px] text-gray-500">보수</p>
-                  <p className="text-[14px] text-black font-bold">
-                    {Number(recruitment.budget).toLocaleString()}원
-                  </p>
-                </div>
-              </div>
-            )}
+            {(() => {
+              const sizes = (recruitment.crewSizes ?? []) as RecruitmentCrewSize[];
+              const hasSplit =
+                sizes.length > 0 &&
+                ((sizes.includes('solo') && recruitment.budgetSolo != null) ||
+                  (sizes.includes('duo') && recruitment.budgetDuo != null));
+              if (hasSplit) {
+                return (
+                  <div className="flex items-start gap-2">
+                    <Wallet className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+                    <div className="space-y-0.5">
+                      <p className="text-[12px] text-gray-500">보수</p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                        {sizes.includes('solo') && recruitment.budgetSolo != null && (
+                          <p className="text-[14px] text-black font-bold">
+                            1인 {Number(recruitment.budgetSolo).toLocaleString()}원
+                          </p>
+                        )}
+                        {sizes.includes('duo') && recruitment.budgetDuo != null && (
+                          <p className="text-[14px] text-black font-bold">
+                            2인 {Number(recruitment.budgetDuo).toLocaleString()}원
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              if (recruitment.budget != null && recruitment.budget > 0) {
+                return (
+                  <div className="flex items-start gap-2">
+                    <Wallet className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[12px] text-gray-500">보수</p>
+                      <p className="text-[14px] text-black font-bold">
+                        {Number(recruitment.budget).toLocaleString()}원
+                      </p>
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })()}
             {recruitment.customerName && (
               <div className="flex items-start gap-2">
                 <User className="h-4 w-4 text-gray-400 mt-0.5 shrink-0" />
@@ -733,6 +784,14 @@ export default function RecruitmentDetailPage() {
                       {BID_STATUS_STYLES[myBid.status].label}
                     </Badge>
                   </div>
+                  {myBid.crewSize && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] text-gray-500">인원</p>
+                      <Badge className="text-[11px] bg-red-50 text-red-700 border border-red-200">
+                        {CREW_SIZE_LABELS[myBid.crewSize]}
+                      </Badge>
+                    </div>
+                  )}
                   {myBid.proposedBudget != null && (
                     <div className="flex items-center gap-2">
                       <p className="text-[12px] text-gray-500">제안 금액</p>
@@ -758,6 +817,57 @@ export default function RecruitmentDetailPage() {
             ) : (
               // 응찰 폼
               <div className="space-y-4">
+                {(() => {
+                  const sizes = (recruitment.crewSizes ?? []) as RecruitmentCrewSize[];
+                  if (sizes.length === 0) return null;
+                  return (
+                    <div className="space-y-1.5">
+                      <Label className="text-[13px] font-medium">촬영 인원 선택</Label>
+                      {sizes.length === 1 ? (
+                        <div className="flex items-center gap-2 p-2.5 rounded-lg border bg-gray-50">
+                          <Badge className="bg-red-50 text-red-700 border-red-200 text-[12px]">
+                            {CREW_SIZE_LABELS[sizes[0]]}
+                          </Badge>
+                          <span className="text-[12px] text-gray-500">
+                            보수 {(sizes[0] === 'solo'
+                              ? recruitment.budgetSolo
+                              : recruitment.budgetDuo
+                            )?.toLocaleString() ?? '-'}
+                            원
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {sizes.map((s) => {
+                            const isSelected = bidCrewSize === s;
+                            const budget =
+                              s === 'solo' ? recruitment.budgetSolo : recruitment.budgetDuo;
+                            return (
+                              <button
+                                key={s}
+                                type="button"
+                                onClick={() => setBidCrewSize(s)}
+                                className={cn(
+                                  'flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-colors',
+                                  isSelected
+                                    ? 'border-red-600 bg-red-50'
+                                    : 'border-gray-200 hover:border-gray-300',
+                                )}
+                              >
+                                <span className="text-[13px] font-medium text-black">
+                                  {CREW_SIZE_LABELS[s]}
+                                </span>
+                                <span className="text-[12px] text-gray-500">
+                                  보수 {budget?.toLocaleString() ?? '-'}원
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="space-y-1.5">
                   <Label className="text-[13px] font-medium">메시지</Label>
                   <Textarea
@@ -917,13 +1027,18 @@ function BidCard({
             <User className="h-4 w-4 text-gray-500" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-[14px] text-black font-bold truncate">
                 {bid.bidder?.clientName || '알 수 없음'}
               </p>
               <Badge className={cn('text-[10px] shrink-0', statusStyle.className)}>
                 {statusStyle.label}
               </Badge>
+              {bid.crewSize && (
+                <Badge className="text-[10px] shrink-0 bg-red-50 text-red-700 border border-red-200">
+                  {CREW_SIZE_LABELS[bid.crewSize]}
+                </Badge>
+              )}
             </div>
             <div className="flex items-center gap-3 mt-0.5">
               {bid.bidder?.phone && (

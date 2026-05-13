@@ -7,6 +7,8 @@ import {
   Min,
   Max,
   IsIn,
+  IsArray,
+  ArrayUnique,
 } from 'class-validator';
 
 const SHOOTING_TYPES = [
@@ -57,6 +59,22 @@ export class CreateRecruitmentDto {
   @IsInt()
   @Min(0)
   budget?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(['solo', 'duo'], { each: true })
+  @ArrayUnique()
+  crewSizes?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  budgetSolo?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  budgetDuo?: number;
 
   @IsOptional()
   @IsString()
@@ -124,6 +142,22 @@ export class UpdateRecruitmentDto {
   @IsOptional()
   @IsInt()
   budget?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(['solo', 'duo'], { each: true })
+  @ArrayUnique()
+  crewSizes?: string[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  budgetSolo?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  budgetDuo?: number;
 
   @IsOptional()
   @IsString()

@@ -53,7 +53,12 @@ const shootingFormSchema = z.object({
   notes: z.string().optional(),
   // 구인 연동
   recruitmentTitle: z.string().optional(),
-  recruitmentBudget: z.coerce.number().min(0).optional(),
+  recruitmentEnableSolo: z.boolean().optional(),
+  recruitmentEnableDuo: z.boolean().optional(),
+  recruitmentBudgetSolo: z
+    .preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0).optional()),
+  recruitmentBudgetDuo: z
+    .preprocess((v) => (v === '' || v === null ? undefined : v), z.coerce.number().min(0).optional()),
   recruitmentDescription: z.string().optional(),
   recruitmentRequirements: z.string().optional(),
   recruitmentPrivateDeadlineHours: z.number().optional(),
@@ -205,7 +210,18 @@ export function ShootingForm({
       customerEmail: defaultValues?.customerEmail || '',
       notes: defaultValues?.notes || '',
       recruitmentTitle: defaultValues?.linkedRecruitment?.title || '',
-      recruitmentBudget: defaultValues?.linkedRecruitment?.budget ?? undefined,
+      recruitmentEnableSolo:
+        defaultValues?.linkedRecruitment?.crewSizes?.includes('solo') ??
+        ((defaultValues?.linkedRecruitment?.budgetSolo ?? undefined) !== undefined ||
+          defaultValues?.linkedRecruitment?.budget != null),
+      recruitmentEnableDuo:
+        defaultValues?.linkedRecruitment?.crewSizes?.includes('duo') ??
+        ((defaultValues?.linkedRecruitment?.budgetDuo ?? undefined) !== undefined),
+      recruitmentBudgetSolo:
+        defaultValues?.linkedRecruitment?.budgetSolo ??
+        defaultValues?.linkedRecruitment?.budget ??
+        undefined,
+      recruitmentBudgetDuo: defaultValues?.linkedRecruitment?.budgetDuo ?? undefined,
       recruitmentDescription: defaultValues?.linkedRecruitment?.description || '',
       recruitmentRequirements: defaultValues?.linkedRecruitment?.requirements || '',
       recruitmentPrivateDeadlineHours: defaultValues?.linkedRecruitment?.privateDeadlineHours ?? 24,
@@ -280,10 +296,22 @@ export function ShootingForm({
 
     // 구인 연동
     if (enableRecruitment) {
+      const crewSizes: string[] = [];
+      if (values.recruitmentEnableSolo) crewSizes.push('solo');
+      if (values.recruitmentEnableDuo) crewSizes.push('duo');
+
       dto.enableRecruitment = true;
       dto.recruitmentClientId = user?.clientId || undefined;
       dto.recruitmentTitle = values.recruitmentTitle || undefined;
-      dto.recruitmentBudget = values.recruitmentBudget || undefined;
+      dto.recruitmentCrewSizes = crewSizes;
+      dto.recruitmentBudgetSolo = values.recruitmentEnableSolo
+        ? values.recruitmentBudgetSolo || undefined
+        : undefined;
+      dto.recruitmentBudgetDuo = values.recruitmentEnableDuo
+        ? values.recruitmentBudgetDuo || undefined
+        : undefined;
+      // 레거시 budget 호환: solo가 있으면 solo 금액을 기본 budget으로
+      dto.recruitmentBudget = dto.recruitmentBudgetSolo ?? dto.recruitmentBudgetDuo ?? undefined;
       dto.recruitmentDescription = values.recruitmentDescription || undefined;
       dto.recruitmentRequirements = values.recruitmentRequirements || undefined;
       dto.recruitmentPrivateDeadlineHours = values.recruitmentPrivateDeadlineHours ?? 24;
@@ -559,15 +587,73 @@ export function ShootingForm({
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal">보수 (원)</Label>
-                <Input
-                  type="number"
-                  {...register('recruitmentBudget')}
-                  placeholder={averageBudgetInfo ? `평균 ${averageBudgetInfo.formatted}원` : '보수 금액'}
-                  min={0}
-                  className="text-[14px]"
-                />
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[14px] text-black font-normal">모집 인원 옵션</Label>
+                  <p className="text-[12px] text-gray-500">
+                    1인/2인 둘 다 선택하면 응찰자가 본인 옵션을 선택해 응찰합니다
+                  </p>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <label
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-[13px] ${
+                        watch('recruitmentEnableSolo')
+                          ? 'border-red-600 bg-red-50 text-red-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        {...register('recruitmentEnableSolo')}
+                        className="h-4 w-4"
+                      />
+                      1인 촬영
+                    </label>
+                    <label
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer text-[13px] ${
+                        watch('recruitmentEnableDuo')
+                          ? 'border-red-600 bg-red-50 text-red-700'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        {...register('recruitmentEnableDuo')}
+                        className="h-4 w-4"
+                      />
+                      2인 촬영
+                    </label>
+                  </div>
+                  {!watch('recruitmentEnableSolo') && !watch('recruitmentEnableDuo') && (
+                    <p className="text-[12px] text-red-600">최소 한 가지 옵션을 선택해주세요</p>
+                  )}
+                </div>
+
+                {watch('recruitmentEnableSolo') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] text-black font-normal">1인 촬영 보수 (원)</Label>
+                    <Input
+                      type="number"
+                      {...register('recruitmentBudgetSolo')}
+                      placeholder={averageBudgetInfo ? `평균 ${averageBudgetInfo.formatted}원` : '1인 보수 금액'}
+                      min={0}
+                      className="text-[14px]"
+                    />
+                  </div>
+                )}
+
+                {watch('recruitmentEnableDuo') && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[14px] text-black font-normal">2인 촬영 보수 (원)</Label>
+                    <Input
+                      type="number"
+                      {...register('recruitmentBudgetDuo')}
+                      placeholder="2인 보수 금액"
+                      min={0}
+                      className="text-[14px]"
+                    />
+                  </div>
+                )}
+
                 {averageBudgetInfo && (
                   <p className="text-[12px] text-gray-500 flex items-center gap-1">
                     <Info className="h-3 w-3" />

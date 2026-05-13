@@ -12,6 +12,13 @@ export type UrgencyLevel = 'normal' | 'urgent' | 'emergency';
 
 export type RecruitmentBidStatus = 'pending' | 'selected' | 'rejected';
 
+export type RecruitmentCrewSize = 'solo' | 'duo';
+
+export const CREW_SIZE_LABELS: Record<RecruitmentCrewSize, string> = {
+  solo: '1인 촬영',
+  duo: '2인 촬영',
+};
+
 // 공용 상수에서 import & re-export
 import type { ShootingType } from '@/lib/constants/shooting-types';
 export type { ShootingType };
@@ -51,6 +58,9 @@ export interface Recruitment {
   latitude?: number;
   longitude?: number;
   budget?: number;
+  budgetSolo?: number;
+  budgetDuo?: number;
+  crewSizes?: RecruitmentCrewSize[];
   description?: string;
   requirements?: string;
   customerName?: string;
@@ -81,6 +91,7 @@ export interface RecruitmentBid {
   bidderId: string;
   message?: string;
   proposedBudget?: number;
+  crewSize?: RecruitmentCrewSize;
   status: RecruitmentBidStatus;
   bidAt: string;
   bidder: {
@@ -144,6 +155,7 @@ export interface RecruitmentQueryParams {
 export interface CreateBidInput {
   message?: string;
   proposedBudget?: number;
+  crewSize?: RecruitmentCrewSize;
 }
 
 export interface MyRecruitmentBid {
@@ -152,6 +164,7 @@ export interface MyRecruitmentBid {
   bidderId: string;
   message?: string;
   proposedBudget?: number;
+  crewSize?: RecruitmentCrewSize;
   status: RecruitmentBidStatus;
   bidAt: string;
   recruitment: {
@@ -162,6 +175,9 @@ export interface MyRecruitmentBid {
     shootingTime?: string;
     venueName: string;
     budget?: number;
+    budgetSolo?: number;
+    budgetDuo?: number;
+    crewSizes?: RecruitmentCrewSize[];
     shootingType: ShootingType;
   };
 }

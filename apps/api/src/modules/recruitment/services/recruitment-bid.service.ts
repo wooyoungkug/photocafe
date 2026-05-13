@@ -183,6 +183,23 @@ export class RecruitmentBidService {
       throw new BadRequestException('촬영일이 지난 구인에는 응찰할 수 없습니다.');
     }
 
+    // 인원 옵션 검증
+    const allowedSizes = recruitment.crewSizes ?? [];
+    let crewSize = dto.crewSize;
+    if (allowedSizes.length > 0) {
+      if (crewSize) {
+        if (!allowedSizes.includes(crewSize)) {
+          throw new BadRequestException(
+            '선택한 촬영 인원 옵션이 모집 조건에 포함되지 않습니다.',
+          );
+        }
+      } else if (allowedSizes.length === 1) {
+        crewSize = allowedSizes[0];
+      } else {
+        throw new BadRequestException('촬영 인원 옵션(1인/2인)을 선택해주세요.');
+      }
+    }
+
     // Advisory lock + 트랜잭션
     return this.prisma.$transaction(async (tx) => {
       // Advisory lock (recruitmentId 기반 해시)
@@ -216,6 +233,7 @@ export class RecruitmentBidService {
           bidderId,
           message: dto.message,
           proposedBudget: dto.proposedBudget,
+          crewSize,
         },
         include: {
           bidder: { select: { clientName: true } },

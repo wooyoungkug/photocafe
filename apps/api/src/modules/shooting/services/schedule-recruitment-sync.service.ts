@@ -130,6 +130,9 @@ export class ScheduleRecruitmentSyncService {
       clientId: string;
       title?: string;
       budget?: number;
+      budgetSolo?: number;
+      budgetDuo?: number;
+      crewSizes?: string[];
       description?: string;
       requirements?: string;
       privateDeadlineHours?: number;
@@ -186,6 +189,9 @@ export class ScheduleRecruitmentSyncService {
           latitude: shooting.latitude,
           longitude: shooting.longitude,
           budget: options.budget,
+          budgetSolo: options.budgetSolo,
+          budgetDuo: options.budgetDuo,
+          crewSizes: options.crewSizes ?? [],
           description: options.description,
           requirements: options.requirements,
           customerName: shooting.clientName,
@@ -321,6 +327,12 @@ export class ScheduleRecruitmentSyncService {
           recruitmentUpdate.title = updatedFields.recruitmentTitle;
         if (updatedFields.recruitmentBudget !== undefined)
           recruitmentUpdate.budget = updatedFields.recruitmentBudget;
+        if (updatedFields.recruitmentBudgetSolo !== undefined)
+          recruitmentUpdate.budgetSolo = updatedFields.recruitmentBudgetSolo;
+        if (updatedFields.recruitmentBudgetDuo !== undefined)
+          recruitmentUpdate.budgetDuo = updatedFields.recruitmentBudgetDuo;
+        if (updatedFields.recruitmentCrewSizes !== undefined)
+          recruitmentUpdate.crewSizes = updatedFields.recruitmentCrewSizes;
         if (updatedFields.recruitmentDescription !== undefined && updatedFields.recruitmentDescription !== '')
           recruitmentUpdate.description = updatedFields.recruitmentDescription;
         if (updatedFields.recruitmentRequirements !== undefined && updatedFields.recruitmentRequirements !== '')
