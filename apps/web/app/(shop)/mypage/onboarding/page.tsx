@@ -541,23 +541,6 @@ export default function OnboardingPage() {
                 )}
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal flex items-center gap-1">
-                  <Mail className="h-3.5 w-3.5" />
-                  연락용 이메일
-                </Label>
-                <Input
-                  type="email"
-                  value={form.contactEmail}
-                  onChange={(e) => setForm({ ...form, contactEmail: e.target.value })}
-                  placeholder="알림·CS 안내를 받을 이메일 (선택)"
-                  className="text-[14px]"
-                  maxLength={255}
-                />
-                <p className="text-[12px] text-gray-500">
-                  주문 알림·CS 안내에 사용됩니다. 소셜 로그인 이메일이 없는 경우 입력해주세요.
-                </p>
-              </div>
             </CardContent>
           </Card>
 
