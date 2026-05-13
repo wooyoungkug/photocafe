@@ -15,6 +15,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RecruitmentService } from '../services/recruitment.service';
 import { RecruitmentNotificationService } from '../services/recruitment-notification.service';
+import { RecruitmentBidService } from '../services/recruitment-bid.service';
 import {
   CreateRecruitmentDto,
   UpdateRecruitmentDto,
@@ -29,6 +30,7 @@ export class RecruitmentController {
   constructor(
     private readonly recruitmentService: RecruitmentService,
     private readonly notificationService: RecruitmentNotificationService,
+    private readonly bidService: RecruitmentBidService,
   ) {}
 
   @Post()
@@ -53,6 +55,13 @@ export class RecruitmentController {
   @ApiOperation({ summary: '촬영유형별 평균 예산 조회' })
   async getAverageBudget() {
     return this.recruitmentService.getAverageBudgetByType();
+  }
+
+  // ⚠️ '/recruitments/:id' 보다 먼저 선언해야 'my-bids' 가 :id 로 잡히지 않음
+  @Get('my-bids')
+  @ApiOperation({ summary: '내가 응찰한 구인 목록 (응찰자 본인)' })
+  async findMyBids(@Request() req: any) {
+    return this.bidService.findMyBids(req.user.clientId);
   }
 
   @Get(':id')
