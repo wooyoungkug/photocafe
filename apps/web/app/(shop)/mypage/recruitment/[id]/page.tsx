@@ -718,37 +718,42 @@ export default function RecruitmentDetailPage() {
                 </p>
               </div>
             ) : myBid ? (
-              // 이미 응찰한 경우: 상태 표시
-              <div className="p-4 bg-gray-50 rounded-lg border">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[13px] font-medium text-gray-700">응찰자</p>
-                  <p className="text-[13px] text-black font-medium">
-                    {myBid.bidder?.clientName || '-'}
-                  </p>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[13px] font-medium text-gray-700">응찰 상태</p>
-                  <Badge className={cn('text-[11px]', BID_STATUS_STYLES[myBid.status].className)}>
-                    {BID_STATUS_STYLES[myBid.status].label}
-                  </Badge>
-                </div>
-                {myBid.proposedBudget != null && (
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-[12px] text-gray-500">제안 금액</p>
-                    <p className="text-[14px] text-black font-medium">
-                      {Number(myBid.proposedBudget).toLocaleString()}원
+              // 이미 응찰한 경우: 1행으로 요약 표시
+              <div className="p-3 bg-gray-50 rounded-lg border">
+                <div className="flex items-center flex-wrap gap-x-6 gap-y-2">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[12px] text-gray-500">응찰자</p>
+                    <p className="text-[13px] text-black font-medium">
+                      {myBid.bidder?.clientName || '-'}
                     </p>
                   </div>
-                )}
+                  <div className="flex items-center gap-2">
+                    <p className="text-[12px] text-gray-500">상태</p>
+                    <Badge className={cn('text-[11px]', BID_STATUS_STYLES[myBid.status].className)}>
+                      {BID_STATUS_STYLES[myBid.status].label}
+                    </Badge>
+                  </div>
+                  {myBid.proposedBudget != null && (
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] text-gray-500">제안 금액</p>
+                      <p className="text-[13px] text-black font-medium">
+                        {Number(myBid.proposedBudget).toLocaleString()}원
+                      </p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 ml-auto">
+                    <p className="text-[12px] text-gray-500">응찰일</p>
+                    <p className="text-[12px] text-gray-600">
+                      {format(new Date(myBid.bidAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                    </p>
+                  </div>
+                </div>
                 {myBid.message && (
-                  <div className="mt-2">
+                  <div className="mt-3 pt-3 border-t border-gray-200">
                     <p className="text-[12px] text-gray-500 mb-1">메시지</p>
                     <p className="text-[13px] text-gray-700 whitespace-pre-wrap">{myBid.message}</p>
                   </div>
                 )}
-                <p className="text-[11px] text-gray-400 mt-2">
-                  응찰일: {format(new Date(myBid.bidAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
-                </p>
               </div>
             ) : (
               // 응찰 폼
