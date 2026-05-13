@@ -12,10 +12,23 @@ import { useTranslations, useLocale } from 'next-intl';
 import { getLocalizedName } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 
-// linkUrl이 설정된 카테고리는 해당 URL로 이동, 없으면 카테고리 페이지
+// 이미지관리 하위 메뉴는 카테고리 상품목록이 아니라 이미지 도구 페이지로 자동 연결
+const IMAGE_TOOL_HREF_BY_NAME: Record<string, string> = {
+  '이미지보정': '/image-management/enhancement',
+  '이미지복원': '/image-management/enhancement',
+  '앨범편집도구': '/image-management/album-tools',
+  '앨범편집': '/image-management/album-tools',
+  '유틸리티': '/image-management/utilities',
+};
+
+// linkUrl이 설정된 카테고리는 해당 URL로 이동, 이미지 도구 카테고리는 도구 페이지, 그 외는 카테고리 페이지
 function getCategoryHref(category: Category): string {
   if (category.linkUrl) {
     return category.linkUrl;
+  }
+  const key = (category.name || '').replace(/\s+/g, '');
+  if (IMAGE_TOOL_HREF_BY_NAME[key]) {
+    return IMAGE_TOOL_HREF_BY_NAME[key];
   }
   return `/category/${category.id}`;
 }
