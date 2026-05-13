@@ -103,7 +103,7 @@ function CategoryPageContent() {
       <section className="relative bg-neutral-900 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
-        <div className="relative container mx-auto px-4 py-12 md:py-16 text-center">
+        <div className="relative container mx-auto px-4 py-5 md:py-6 text-center">
           {categoryLoading && !isAllProducts ? (
             <>
               <Skeleton className="h-4 w-32 mx-auto mb-4 bg-white/10" />
@@ -455,7 +455,7 @@ function CategoryPageSkeleton() {
         </div>
       </div>
       <div className="bg-neutral-900">
-        <div className="container mx-auto px-4 py-12 md:py-16 text-center">
+        <div className="container mx-auto px-4 py-5 md:py-6 text-center">
           <Skeleton className="h-4 w-32 mx-auto mb-4 bg-white/10" />
           <Skeleton className="h-10 w-64 mx-auto mb-2 bg-white/10" />
           <Skeleton className="h-4 w-96 mx-auto bg-white/10" />
