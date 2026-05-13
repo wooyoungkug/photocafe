@@ -401,6 +401,84 @@ function MyBidDialog({
   );
 }
 
+// ==================== 내 응찰 리스트 행 ====================
+function MyBidRow({ bid }: { bid: MyRecruitmentBid }) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const r = bid.recruitment;
+  const shootingDate = new Date(r.shootingDate);
+
+  return (
+    <>
+      <div
+        onClick={() => setDialogOpen(true)}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors border-b last:border-b-0 cursor-pointer"
+      >
+        {/* 응찰 상태 */}
+        <div className="shrink-0 w-[70px]">
+          <span className={cn(
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] border',
+            BID_STATUS_STYLE[bid.status],
+          )}>
+            {BID_STATUS_ICON[bid.status]}
+            {BID_STATUS_LABEL[bid.status]}
+          </span>
+        </div>
+
+        {/* 공고 상태 */}
+        <div className="shrink-0 w-[90px] hidden sm:block">
+          <Badge className={cn('text-[11px]', STATUS_BADGE_STYLES[r.status])}>
+            {RECRUITMENT_STATUS_LABELS[r.status]}
+          </Badge>
+        </div>
+
+        {/* 제목 + 촬영유형 */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] text-black font-normal truncate">{r.title}</span>
+            <Badge variant="outline" className="text-[11px] shrink-0">
+              {SHOOTING_TYPE_LABELS[r.shootingType]}
+            </Badge>
+          </div>
+        </div>
+
+        {/* 촬영일 */}
+        <div className="shrink-0 w-[120px] hidden sm:flex items-center gap-1.5">
+          <Calendar className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+          <span className="text-[13px] text-gray-600">
+            {format(shootingDate, 'MM.dd (EEE)', { locale: ko })}
+            {r.shootingTime && ` ${r.shootingTime.substring(0, 5)}`}
+          </span>
+        </div>
+
+        {/* 장소 */}
+        <div className="shrink-0 w-[120px] hidden md:flex items-center gap-1.5">
+          <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+          <span className="text-[13px] text-gray-600 truncate">{r.venueName}</span>
+        </div>
+
+        {/* 보수 */}
+        <div className="shrink-0 w-[110px] hidden lg:flex items-center gap-1.5">
+          <Wallet className="h-3.5 w-3.5 text-gray-400" />
+          <span className="text-[13px] text-gray-600 whitespace-nowrap">
+            {r.budget ? `${Number(r.budget).toLocaleString()}원` : '-'}
+          </span>
+        </div>
+
+        {/* 응찰일 */}
+        <div className="shrink-0 w-[100px] hidden sm:block">
+          <span className="text-[12px] text-gray-400">
+            {format(new Date(bid.bidAt), 'MM.dd HH:mm')} 응찰
+          </span>
+        </div>
+
+        <ArrowRight className="h-3.5 w-3.5 text-gray-300 shrink-0" />
+      </div>
+
+      <MyBidDialog bid={bid} open={dialogOpen} onClose={() => setDialogOpen(false)} />
+    </>
+  );
+}
+
 // ==================== 공개 촬영파트너 리스트 행 ====================
 function PublicRecruitmentRow({
   recruitment,
@@ -547,7 +625,7 @@ export default function RecruitmentListPage() {
   const isStaff = user?.role === 'admin' || user?.role === 'staff';
   const canManageRecruitment = isStaff || !!user?.clientId;
 
-  const [activeTab, setActiveTab] = useState<'my' | 'public'>(canManageRecruitment ? 'my' : 'public');
+  const [activeTab, setActiveTab] = useState<'my' | 'public' | 'bids'>(canManageRecruitment ? 'my' : 'public');
   const [statusFilter, setStatusFilter] = useState<RecruitmentStatus | 'all'>('all');
   const [shootingTypeFilter, setShootingTypeFilter] = useState<string>('all');
   const [regionFilter, setRegionFilter] = useState<string>('all');
@@ -592,8 +670,8 @@ export default function RecruitmentListPage() {
   );
   const myTotalPages = Math.ceil(filteredMyRecruitments.length / ITEMS_PER_PAGE);
 
-  // ── 내 응찰 목록 (공개 탭에서 응찰중 표시용)
-  const { data: myBids } = useMyRecruitmentBids(!!user?.clientId);
+  // ── 내 응찰 목록 (공개 탭 응찰중 표시 + "내 응찰" 탭)
+  const { data: myBids, isLoading: bidsLoading } = useMyRecruitmentBids(!!user?.clientId);
   const myBidMap = useMemo(() => {
     const map: Record<string, MyRecruitmentBid> = {};
     myBids?.forEach((b) => { map[b.recruitmentId] = b; });
@@ -622,7 +700,7 @@ export default function RecruitmentListPage() {
     : publicResponse?.meta;
 
   const handleTabChange = (value: string) => {
-    setActiveTab(value as 'my' | 'public');
+    setActiveTab(value as 'my' | 'public' | 'bids');
     setStatusFilter('all');
     setRegionFilter('all');
     setPage(1);
@@ -653,6 +731,15 @@ export default function RecruitmentListPage() {
               <Globe className="h-3.5 w-3.5 mr-1" />
               공개 촬영파트너
             </TabsTrigger>
+            {!!user?.clientId && (
+              <TabsTrigger value="bids" className="text-[13px] rounded-md px-4">
+                <Briefcase className="h-3.5 w-3.5 mr-1" />
+                내 응찰
+                {myBids && myBids.length > 0 && (
+                  <span className="ml-1.5 tabular-nums text-[11px] text-gray-400">{myBids.length}</span>
+                )}
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* 구인 등록 버튼 (내 구인 탭) */}
@@ -668,7 +755,8 @@ export default function RecruitmentListPage() {
           )}
         </div>
 
-        {/* 필터 */}
+        {/* 필터 — "내 응찰" 탭에서는 숨김 */}
+        {activeTab !== 'bids' && (
         <Card className="mt-3">
           <CardContent className="py-2.5">
             <div className="flex items-center gap-3 flex-wrap">
@@ -733,6 +821,7 @@ export default function RecruitmentListPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* ==================== 내 구인 목록 (리스트 형태) ==================== */}
         {canManageRecruitment && (
@@ -823,6 +912,42 @@ export default function RecruitmentListPage() {
             </Card>
           )}
         </TabsContent>
+
+        {/* ==================== 내 응찰 목록 ==================== */}
+        {!!user?.clientId && (
+          <TabsContent value="bids">
+            {bidsLoading ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              </div>
+            ) : myBids && myBids.length > 0 ? (
+              <Card className="mt-3 overflow-hidden">
+                {/* 리스트 헤더 */}
+                <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-b text-[12px] text-gray-500 font-medium">
+                  <div className="w-[70px]">응찰</div>
+                  <div className="w-[90px] hidden sm:block">공고상태</div>
+                  <div className="flex-1">제목</div>
+                  <div className="w-[120px] hidden sm:block">촬영일</div>
+                  <div className="w-[120px] hidden md:block">장소</div>
+                  <div className="w-[110px] hidden lg:block">보수</div>
+                  <div className="w-[100px] hidden sm:block">응찰일</div>
+                  <div className="w-[14px]"></div>
+                </div>
+                {myBids.map((b) => (
+                  <MyBidRow key={b.id} bid={b} />
+                ))}
+              </Card>
+            ) : (
+              <Card className="mt-3">
+                <CardContent className="py-12 text-center">
+                  <Briefcase className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-[16px] font-medium text-gray-900 mb-2">응찰한 구인이 없습니다</h3>
+                  <p className="text-[13px] text-gray-500">공개 촬영파트너에서 마음에 드는 구인에 응찰해보세요</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        )}
       </Tabs>
 
       {/* 페이지네이션 */}
