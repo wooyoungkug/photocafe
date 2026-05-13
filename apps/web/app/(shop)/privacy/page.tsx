@@ -103,9 +103,50 @@ export default function PrivacyPolicyPage() {
             <p className="mt-2">회사는 위탁계약 체결 시 개인정보가 안전하게 관리될 수 있도록 필요한 사항을 규정하고 관리·감독합니다.</p>
           </section>
 
-          {/* 6 */}
+          {/* 6 — 국외이전 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제6조 (정보주체의 권리·의무 및 행사 방법)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제6조 (개인정보의 국외이전)</h2>
+            <p>
+              회사는 서비스 제공을 위해 다음과 같이 이용자의 개인정보를 국외에 이전·보관합니다. 이전되는 개인정보는 암호화 등 안전조치를 적용하여 처리됩니다.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-[13px] border border-neutral-200">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    <th className="border border-neutral-200 px-3 py-2 text-left font-medium">이전받는 자</th>
+                    <th className="border border-neutral-200 px-3 py-2 text-left font-medium">이전 국가</th>
+                    <th className="border border-neutral-200 px-3 py-2 text-left font-medium">이전 항목</th>
+                    <th className="border border-neutral-200 px-3 py-2 text-left font-medium">이전 목적</th>
+                    <th className="border border-neutral-200 px-3 py-2 text-left font-medium">이용 기간</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td className="border border-neutral-200 px-3 py-2">Railway Corp.</td>
+                    <td className="border border-neutral-200 px-3 py-2">미국 (오리건)</td>
+                    <td className="border border-neutral-200 px-3 py-2">회원 이름, 이메일, 휴대전화번호, 주문·결제 정보, 업로드 이미지 메타데이터</td>
+                    <td className="border border-neutral-200 px-3 py-2">애플리케이션·데이터베이스 호스팅</td>
+                    <td className="border border-neutral-200 px-3 py-2">회원 탈퇴 시까지 (관련 법령에 따른 보존 기간 적용)</td>
+                  </tr>
+                  <tr>
+                    <td className="border border-neutral-200 px-3 py-2">Backblaze, Inc.</td>
+                    <td className="border border-neutral-200 px-3 py-2">미국 (버지니아)</td>
+                    <td className="border border-neutral-200 px-3 py-2">업로드 이미지 파일, 데이터베이스 백업본 (암호화)</td>
+                    <td className="border border-neutral-200 px-3 py-2">이미지 파일 저장 및 데이터 백업</td>
+                    <td className="border border-neutral-200 px-3 py-2">회원 탈퇴 시까지 (관련 법령에 따른 보존 기간 적용)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <ul className="list-disc pl-5 mt-3 space-y-1">
+              <li>이전 일시 및 방법 : 서비스 이용·가입·주문 시점에 인터넷 회선을 통해 암호화(HTTPS, TLS)되어 이전됩니다.</li>
+              <li>이용자는 본 국외이전에 동의하지 않을 권리가 있습니다. 다만, 국외이전이 서비스 제공에 필수적인 인프라이므로 동의를 거부하실 경우 회원가입 및 서비스 이용이 제한될 수 있습니다.</li>
+            </ul>
+          </section>
+
+          {/* 7 */}
+          <section>
+            <h2 className="text-[18px] font-bold mb-3">제7조 (정보주체의 권리·의무 및 행사 방법)</h2>
             <p>
               이용자는 언제든지 본인의 개인정보를 조회·수정할 수 있으며, 회원 탈퇴를 통해 개인정보 이용에 대한 동의를 철회할 수 있습니다.
               개인정보 조회·수정은 마이페이지 또는 개인정보 보호책임자에게 서면·전화·이메일로 연락하시면 지체 없이 조치하겠습니다.
@@ -115,7 +156,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 7 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제7조 (개인정보의 파기 절차 및 방법)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제8조 (개인정보의 파기 절차 및 방법)</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>파기 절차 : 보유 기간이 경과하거나 처리 목적이 달성된 개인정보는 내부 방침에 따라 안전하게 파기합니다.</li>
               <li>파기 방법 : 전자적 파일은 복구·재생이 불가능한 방법으로 영구 삭제하며, 출력물은 분쇄 또는 소각합니다.</li>
@@ -124,7 +165,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 8 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제8조 (개인정보의 안전성 확보 조치)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제9조 (개인정보의 안전성 확보 조치)</h2>
             <ul className="list-disc pl-5 space-y-1">
               <li>관리적 조치 : 내부관리계획 수립·시행, 취급 직원 최소화 및 교육</li>
               <li>기술적 조치 : 접근권한 관리, 비밀번호 등 중요 정보의 암호화, 접속기록 보관, 보안 프로그램 운영</li>
@@ -134,7 +175,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 9 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제9조 (쿠키 등 자동 수집 장치의 설치·운영 및 거부)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제10조 (쿠키 등 자동 수집 장치의 설치·운영 및 거부)</h2>
             <p>
               회사는 로그인 유지, 이용 통계 분석 등을 위해 쿠키(cookie)를 사용합니다. 이용자는 웹브라우저 설정을 통해 쿠키 저장을 거부할 수 있으나,
               이 경우 로그인 등 일부 서비스 이용에 제한이 있을 수 있습니다.
@@ -143,7 +184,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 10 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제10조 (개인정보 보호책임자)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제11조 (개인정보 보호책임자)</h2>
             <p>회사는 개인정보 처리에 관한 업무를 총괄하고 이용자의 불만 처리 및 피해 구제를 위해 아래와 같이 개인정보 보호책임자를 지정하고 있습니다.</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>개인정보 보호책임자 : {privacyOfficer}</li>
@@ -156,7 +197,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 11 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제11조 (권익침해 구제 방법)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제12조 (권익침해 구제 방법)</h2>
             <p>개인정보 침해에 대한 신고·상담이 필요한 경우 아래 기관에 문의하실 수 있습니다.</p>
             <ul className="list-disc pl-5 mt-2 space-y-1">
               <li>개인정보침해 신고센터 (한국인터넷진흥원) : (국번 없이) 118 / privacy.kisa.or.kr</li>
@@ -168,7 +209,7 @@ export default function PrivacyPolicyPage() {
 
           {/* 12 */}
           <section>
-            <h2 className="text-[18px] font-bold mb-3">제12조 (개인정보처리방침의 변경)</h2>
+            <h2 className="text-[18px] font-bold mb-3">제13조 (개인정보처리방침의 변경)</h2>
             <p>
               이 개인정보처리방침은 법령·정책 또는 보안 기술의 변경에 따라 내용이 추가·삭제·수정될 수 있으며, 변경 시 시행일 7일 전부터 홈페이지를 통해 공지합니다.
             </p>
