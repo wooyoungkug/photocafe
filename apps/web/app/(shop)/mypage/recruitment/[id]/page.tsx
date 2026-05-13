@@ -22,6 +22,9 @@ import {
   Phone,
   Mail,
   Link2,
+  Award,
+  TrendingUp,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -92,6 +95,47 @@ const DEADLINE_OPTIONS = [
   { value: 12, label: '12시간' },
   { value: 24, label: '24시간' },
   { value: 48, label: '48시간' },
+];
+
+// 응찰 메시지 빠른입력 프리셋 (그룹별)
+const BID_PRESETS: { group: string; items: { label: string; text: string }[] }[] = [
+  {
+    group: '경력',
+    items: [
+      { label: '경력 3년+', text: '본식/스냅 촬영 경력 3년 이상입니다.' },
+      { label: '경력 5년+', text: '결혼/리허설 촬영 경력 5년 이상의 베테랑입니다.' },
+      { label: '경력 10년+', text: '10년 이상 다수의 본식 촬영을 진행해온 전문가입니다.' },
+      { label: '본식 100건+', text: '본식 100건 이상 촬영 경험이 있습니다.' },
+    ],
+  },
+  {
+    group: '장비',
+    items: [
+      { label: '풀프레임 보유', text: '풀프레임 미러리스 및 단렌즈 다수 보유.' },
+      { label: '4K 동영상', text: '4K 동영상 촬영 가능합니다.' },
+      { label: '드론 보유', text: '드론 촬영 가능합니다 (옥외/허가 구역).' },
+      { label: '조명 장비', text: '실내 보조 조명 장비 지참합니다.' },
+      { label: '백업 장비', text: '바디 2대 + 예비 렌즈 백업 장비 항시 지참.' },
+    ],
+  },
+  {
+    group: '스타일',
+    items: [
+      { label: '자연광 위주', text: '자연광 위주의 따뜻한 분위기로 촬영합니다.' },
+      { label: '감성 스냅', text: '감성적인 스냅 스타일로 자연스럽게 담아드립니다.' },
+      { label: '클래식 정통', text: '클래식한 정통 본식 컷 위주로 촬영합니다.' },
+      { label: '다큐멘터리', text: '다큐멘터리 스타일로 현장감 있게 촬영합니다.' },
+    ],
+  },
+  {
+    group: '서비스',
+    items: [
+      { label: '당일 미리보기', text: '촬영 당일 셀렉 미리보기 30컷 제공 가능합니다.' },
+      { label: '빠른 보정 (2주)', text: '보정본 2주 이내 납품 가능합니다.' },
+      { label: '원본 전체 제공', text: '원본 전체 + 보정본 제공 가능합니다.' },
+      { label: '재촬영 보장', text: '결과물 미흡 시 재촬영을 보장해드립니다.' },
+    ],
+  },
 ];
 
 export default function RecruitmentDetailPage() {
@@ -869,11 +913,77 @@ export default function RecruitmentDetailPage() {
                   );
                 })()}
                 <div className="space-y-1.5">
-                  <Label className="text-[13px] font-medium">메시지</Label>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-[13px] font-medium">자기소개 메시지</Label>
+                    {bidMessage && (
+                      <button
+                        type="button"
+                        onClick={() => setBidMessage('')}
+                        className="text-[11px] text-gray-400 hover:text-gray-600"
+                      >
+                        지우기
+                      </button>
+                    )}
+                  </div>
+
+                  {/* 빠른입력 프리셋 (숨고 스타일) */}
+                  <div className="rounded-lg border bg-gradient-to-br from-gray-50 to-white p-2.5 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="h-3.5 w-3.5 text-fuchsia-500" />
+                      <p className="text-[11px] font-bold text-gray-700">
+                        빠른 자기소개 — 태그를 클릭하면 자동 입력됩니다
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      {BID_PRESETS.map((group) => (
+                        <div key={group.group} className="flex items-start gap-2">
+                          <span className="text-[10px] font-bold text-gray-400 shrink-0 w-10 pt-1">
+                            {group.group}
+                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {group.items.map((p) => {
+                              const alreadyIncluded = bidMessage.includes(p.text);
+                              return (
+                                <button
+                                  key={p.label}
+                                  type="button"
+                                  onClick={() => {
+                                    if (alreadyIncluded) {
+                                      const removed = bidMessage
+                                        .split('\n')
+                                        .filter((line) => line.trim() !== p.text.trim())
+                                        .join('\n')
+                                        .trim();
+                                      setBidMessage(removed);
+                                    } else {
+                                      const newText = bidMessage
+                                        ? `${bidMessage}\n${p.text}`
+                                        : p.text;
+                                      setBidMessage(newText);
+                                    }
+                                  }}
+                                  className={cn(
+                                    'text-[11px] px-2 py-0.5 rounded-full border transition-colors',
+                                    alreadyIncluded
+                                      ? 'bg-red-600 text-white border-red-600'
+                                      : 'bg-white text-gray-700 border-gray-200 hover:border-red-400 hover:text-red-600',
+                                  )}
+                                >
+                                  {alreadyIncluded ? '✓ ' : '+ '}
+                                  {p.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <Textarea
                     value={bidMessage}
                     onChange={(e) => setBidMessage(e.target.value)}
-                    placeholder="자기소개 및 촬영 경력 등을 입력해주세요"
+                    placeholder="태그를 클릭하거나 직접 입력해주세요"
                     rows={4}
                     className="text-[14px] resize-none"
                   />
@@ -1007,7 +1117,7 @@ export default function RecruitmentDetailPage() {
   );
 }
 
-// 응찰자 카드 컴포넌트
+// 응찰자 카드 컴포넌트 (숨고 스타일)
 function BidCard({
   bid,
   onSelect,
@@ -1018,17 +1128,54 @@ function BidCard({
   onReject: () => void;
 }) {
   const statusStyle = BID_STATUS_STYLES[bid.status];
+  const stats = bid.bidderStats;
+  const selectedCount = stats?.selectedCount ?? 0;
+  const totalBids = stats?.totalBids ?? 0;
+
+  // 신뢰도 등급 산정 (선택 횟수 기준)
+  const tier = (() => {
+    if (selectedCount >= 30) return { label: '플래티넘', cls: 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white', icon: '★' };
+    if (selectedCount >= 10) return { label: '골드', cls: 'bg-gradient-to-r from-amber-400 to-orange-500 text-white', icon: '★' };
+    if (selectedCount >= 3) return { label: '실버', cls: 'bg-gradient-to-r from-slate-400 to-slate-500 text-white', icon: '★' };
+    if (selectedCount >= 1) return { label: '브론즈', cls: 'bg-gradient-to-r from-orange-300 to-orange-400 text-white', icon: '★' };
+    return null;
+  })();
 
   return (
-    <div className="p-4 border rounded-lg">
+    <div className="p-4 border rounded-xl hover:border-gray-300 hover:shadow-sm transition-all bg-white">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
-            <User className="h-4 w-4 text-gray-500" />
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          {/* 프로필 이미지 */}
+          <div className="relative h-12 w-12 shrink-0">
+            {bid.bidder?.profileImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bid.bidder.profileImage}
+                alt={bid.bidder.clientName}
+                className="h-12 w-12 rounded-full object-cover border"
+              />
+            ) : (
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                <User className="h-5 w-5 text-gray-400" />
+              </div>
+            )}
+            {tier && (
+              <div
+                className={cn(
+                  'absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow',
+                  tier.cls,
+                )}
+                title={`${tier.label} 등급`}
+              >
+                {tier.icon}
+              </div>
+            )}
           </div>
-          <div className="min-w-0">
+
+          <div className="min-w-0 flex-1">
+            {/* 이름 + 상태 + 인원 */}
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-[14px] text-black font-bold truncate">
+              <p className="text-[15px] text-black font-bold truncate">
                 {bid.bidder?.clientName || '알 수 없음'}
               </p>
               <Badge className={cn('text-[10px] shrink-0', statusStyle.className)}>
@@ -1039,13 +1186,53 @@ function BidCard({
                   {CREW_SIZE_LABELS[bid.crewSize]}
                 </Badge>
               )}
-            </div>
-            <div className="flex items-center gap-3 mt-0.5">
-              {bid.bidder?.phone && (
-                <span className="text-[11px] text-gray-500">{bid.bidder.phone}</span>
+              {tier && (
+                <span className={cn('text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0', tier.cls)}>
+                  {tier.label}
+                </span>
               )}
+            </div>
+
+            {/* 신뢰도 통계 (숨고 스타일) */}
+            {stats && (
+              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                <div className="flex items-center gap-1 text-[12px]">
+                  <Award className="h-3.5 w-3.5 text-amber-500" />
+                  <span className="text-gray-500">선택</span>
+                  <span className="text-black font-bold">{selectedCount}</span>
+                  <span className="text-gray-500">회</span>
+                </div>
+                <div className="flex items-center gap-1 text-[12px]">
+                  <TrendingUp className="h-3.5 w-3.5 text-blue-500" />
+                  <span className="text-gray-500">응찰</span>
+                  <span className="text-black font-bold">{totalBids}</span>
+                  <span className="text-gray-500">회</span>
+                </div>
+                {totalBids > 0 && (
+                  <div className="flex items-center gap-1 text-[12px]">
+                    <Sparkles className="h-3.5 w-3.5 text-fuchsia-500" />
+                    <span className="text-gray-500">채택률</span>
+                    <span className="text-black font-bold">
+                      {Math.round((selectedCount / totalBids) * 100)}%
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 연락처 */}
+            <div className="flex items-center gap-3 mt-1.5">
               {bid.bidder?.mobile && (
-                <span className="text-[11px] text-gray-500">{bid.bidder.mobile}</span>
+                <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  {bid.bidder.mobile}
+                </span>
+              )}
+              {bid.bidder?.phone && !bid.bidder?.mobile && (
+                <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                  <Phone className="h-3 w-3" />
+                  {bid.bidder.phone}
+                </span>
               )}
             </div>
           </div>
@@ -1076,19 +1263,26 @@ function BidCard({
       </div>
 
       {/* 제안금액 + 메시지 */}
-      <div className="mt-2 ml-12">
-        {bid.proposedBudget != null && (
-          <p className="text-[13px] text-blue-700 font-medium">
-            제안 금액: {Number(bid.proposedBudget).toLocaleString()}원
-          </p>
-        )}
-        {bid.message && (
-          <p className="text-[13px] text-gray-600 mt-1 whitespace-pre-wrap">{bid.message}</p>
-        )}
-        <p className="text-[11px] text-gray-400 mt-1">
-          {format(new Date(bid.bidAt), 'MM.dd HH:mm', { locale: ko })}
-        </p>
-      </div>
+      {(bid.proposedBudget != null || bid.message) && (
+        <div className="mt-3 pt-3 border-t border-gray-100 ml-15 pl-1">
+          {bid.proposedBudget != null && (
+            <div className="flex items-center gap-2 mb-1">
+              <Wallet className="h-3.5 w-3.5 text-emerald-600" />
+              <p className="text-[13px] text-emerald-700 font-bold">
+                제안 금액 {Number(bid.proposedBudget).toLocaleString()}원
+              </p>
+            </div>
+          )}
+          {bid.message && (
+            <p className="text-[13px] text-gray-700 whitespace-pre-wrap leading-relaxed">
+              {bid.message}
+            </p>
+          )}
+        </div>
+      )}
+      <p className="text-[11px] text-gray-400 mt-2 text-right">
+        {format(new Date(bid.bidAt), 'MM.dd HH:mm', { locale: ko })}
+      </p>
     </div>
   );
 }

@@ -249,10 +249,10 @@ export class RecruitmentBidService {
   }
 
   /**
-   * 응찰자 목록 조회
+   * 응찰자 목록 조회 (각 응찰자별 누적 응찰 통계 포함)
    */
   async findBids(recruitmentId: string) {
-    return this.prisma.recruitmentBid.findMany({
+    const bids = await this.prisma.recruitmentBid.findMany({
       where: { recruitmentId },
       include: {
         bidder: {
@@ -267,6 +267,43 @@ export class RecruitmentBidService {
       },
       orderBy: { bidAt: 'asc' },
     });
+
+    if (bids.length === 0) return bids;
+
+    // 누적 응찰 통계 1회 쿼리로 일괄 조회 (N+1 방지)
+    const bidderIds = Array.from(new Set(bids.map((b) => b.bidderId)));
+    const aggregates = await this.prisma.recruitmentBid.groupBy({
+      by: ['bidderId', 'status'],
+      where: { bidderId: { in: bidderIds } },
+      _count: { id: true },
+    });
+
+    const statsMap = new Map<
+      string,
+      { totalBids: number; selectedCount: number; pendingCount: number }
+    >();
+    for (const id of bidderIds) {
+      statsMap.set(id, { totalBids: 0, selectedCount: 0, pendingCount: 0 });
+    }
+    for (const row of aggregates) {
+      const s = statsMap.get(row.bidderId);
+      if (!s) continue;
+      s.totalBids += row._count.id;
+      if (row.status === RECRUITMENT_BID_STATUS.SELECTED) {
+        s.selectedCount += row._count.id;
+      } else if (row.status === RECRUITMENT_BID_STATUS.PENDING) {
+        s.pendingCount += row._count.id;
+      }
+    }
+
+    return bids.map((b) => ({
+      ...b,
+      bidderStats: statsMap.get(b.bidderId) ?? {
+        totalBids: 0,
+        selectedCount: 0,
+        pendingCount: 0,
+      },
+    }));
   }
 
   /**

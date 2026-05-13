@@ -101,6 +101,12 @@ export interface RecruitmentBid {
     mobile?: string;
     email?: string;
   };
+  /** 응찰자의 누적 응찰 통계 (모든 구인에서 집계) */
+  bidderStats?: {
+    totalBids: number;
+    selectedCount: number;
+    pendingCount: number;
+  };
 }
 
 export interface CreateRecruitmentInput {
