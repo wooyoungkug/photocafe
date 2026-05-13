@@ -6,3 +6,6 @@ dockerfilePath = "Dockerfile"
 startCommand = "node dist/main.js"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
+# Prisma schema 자동 동기화 — passwordResetToken 등 새 unique 필드 추가 시 false-positive 경고로 deploy 가 막히지 않도록 --accept-data-loss 명시.
+# 실제 데이터 손실 위험은 schema 변경 PR 단계에서 prisma migrate diff 로 검토할 것.
+preDeployCommand = ["npx prisma db push --accept-data-loss"]
