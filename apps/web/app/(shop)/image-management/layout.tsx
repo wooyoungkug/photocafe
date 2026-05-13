@@ -17,44 +17,42 @@ export default function ImageManagementLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const isIndex = pathname === '/image-management';
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Top Nav */}
-      <header className="bg-white border-b border-neutral-200 sticky top-0 z-50">
-        <div className="max-w-[1100px] mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <Link
-              href="/image-management"
-              className={cn(
-                'text-sm font-semibold transition-colors',
-                pathname === '/image-management'
-                  ? 'text-neutral-900'
-                  : 'text-neutral-500 hover:text-neutral-900',
-              )}
-            >
-              이미지 도구
-            </Link>
-          </div>
-          <nav className="flex items-center gap-1">
-            {navItems.map((item) => (
+      {/* Top Nav — 인덱스 페이지에서는 하단 카드와 중복되므로 숨김 */}
+      {!isIndex && (
+        <header className="bg-white border-b border-neutral-200 sticky top-0 z-50">
+          <div className="max-w-[1100px] mx-auto px-4 h-14 flex items-center justify-between">
+            <div className="flex items-center gap-6">
               <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                  pathname.startsWith(item.href)
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
-                )}
+                href="/image-management"
+                className="text-sm font-semibold text-neutral-500 hover:text-neutral-900 transition-colors"
               >
-                <item.icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{item.label}</span>
+                이미지 도구
               </Link>
-            ))}
-          </nav>
-        </div>
-      </header>
+            </div>
+            <nav className="flex items-center gap-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                    pathname.startsWith(item.href)
+                      ? "bg-neutral-900 text-white"
+                      : "text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100"
+                  )}
+                >
+                  <item.icon className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{item.label}</span>
+                </Link>
+              ))}
+            </nav>
+          </div>
+        </header>
+      )}
 
       {/* Content */}
       <main className="max-w-[1100px] mx-auto px-4 py-8">
