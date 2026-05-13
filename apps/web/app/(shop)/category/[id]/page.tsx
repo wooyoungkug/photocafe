@@ -2,7 +2,6 @@
 
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import DOMPurify from 'isomorphic-dompurify';
 import { ChevronRight, Grid3X3, List, ShoppingCart } from 'lucide-react';
 import { useState, Suspense } from 'react';
 import { useCategory } from '@/hooks/use-categories';
@@ -98,33 +97,6 @@ function CategoryPageContent() {
           )}
         </div>
       </div>
-
-      {/* Category Header — 슬림 띠 */}
-      <section className="relative bg-neutral-900 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml,%3Csvg%20width%3D%2240%22%20height%3D%2240%22%20viewBox%3D%220%200%2040%2040%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22%23ffffff%22%20fill-opacity%3D%221%22%20fill-rule%3D%22evenodd%22%3E%3Cpath%20d%3D%22M0%2040L40%200H20L0%2020M40%2040V20L20%2040%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')]" />
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
-        <div className="relative container mx-auto px-4 h-11 md:h-12 flex items-center gap-3">
-          {categoryLoading && !isAllProducts ? (
-            <Skeleton className="h-5 w-40 bg-white/10" />
-          ) : (
-            <>
-              <h1 className="shop-heading text-base md:text-lg font-light tracking-tight whitespace-nowrap">
-                {isAllProducts ? '전체 상품' : getLocalizedName(category, locale)}
-              </h1>
-              {isAllProducts ? (
-                <span className="hidden sm:inline text-neutral-500 text-xs truncate">
-                  모든 상품을 한눈에 확인하세요
-                </span>
-              ) : category?.htmlContent && (
-                <span
-                  className="hidden sm:inline text-neutral-500 text-xs truncate [&_*]:inline [&_*]:!m-0"
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(category.htmlContent) }}
-                />
-              )}
-            </>
-          )}
-        </div>
-      </section>
 
       {/* Sub Categories */}
       {!isAllProducts && !categoryLoading && hasChildren && (
@@ -444,11 +416,6 @@ function CategoryPageSkeleton() {
       <div className="border-b border-neutral-200">
         <div className="container mx-auto px-4 py-3">
           <Skeleton className="h-4 w-48" />
-        </div>
-      </div>
-      <div className="bg-neutral-900">
-        <div className="container mx-auto px-4 h-11 md:h-12 flex items-center">
-          <Skeleton className="h-5 w-40 bg-white/10" />
         </div>
       </div>
       <div className="container mx-auto px-4 py-10">
