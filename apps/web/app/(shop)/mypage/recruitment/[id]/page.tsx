@@ -721,6 +721,12 @@ export default function RecruitmentDetailPage() {
               // 이미 응찰한 경우: 상태 표시
               <div className="p-4 bg-gray-50 rounded-lg border">
                 <div className="flex items-center justify-between mb-2">
+                  <p className="text-[13px] font-medium text-gray-700">응찰자</p>
+                  <p className="text-[13px] text-black font-medium">
+                    {myBid.bidder?.clientName || '-'}
+                  </p>
+                </div>
+                <div className="flex items-center justify-between mb-2">
                   <p className="text-[13px] font-medium text-gray-700">응찰 상태</p>
                   <Badge className={cn('text-[11px]', BID_STATUS_STYLES[myBid.status].className)}>
                     {BID_STATUS_STYLES[myBid.status].label}
