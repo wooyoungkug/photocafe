@@ -1184,11 +1184,11 @@ function BidCard({
 
   // 신뢰도 등급 산정 (선택 횟수 기준)
   const tier = (() => {
-    if (selectedCount >= 30) return { label: '플래티넘', cls: 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white', icon: '★' };
-    if (selectedCount >= 10) return { label: '골드', cls: 'bg-gradient-to-r from-amber-400 to-orange-500 text-white', icon: '★' };
-    if (selectedCount >= 3) return { label: '실버', cls: 'bg-gradient-to-r from-slate-400 to-slate-500 text-white', icon: '★' };
-    if (selectedCount >= 1) return { label: '브론즈', cls: 'bg-gradient-to-r from-orange-300 to-orange-400 text-white', icon: '★' };
-    return null;
+    if (selectedCount >= 30) return { label: '플래티넘 작가', cls: 'bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white', hasStar: true };
+    if (selectedCount >= 10) return { label: '골드 작가', cls: 'bg-gradient-to-r from-amber-400 to-orange-500 text-white', hasStar: true };
+    if (selectedCount >= 3) return { label: '실버 작가', cls: 'bg-gradient-to-r from-slate-400 to-slate-500 text-white', hasStar: true };
+    if (selectedCount >= 1) return { label: '브론즈 작가', cls: 'bg-gradient-to-r from-orange-300 to-orange-400 text-white', hasStar: true };
+    return { label: '신규 작가', cls: 'bg-gray-100 text-gray-600', hasStar: false };
   })();
 
   return (
@@ -1209,7 +1209,7 @@ function BidCard({
                 <User className="h-5 w-5 text-gray-400" />
               </div>
             )}
-            {tier && (
+            {tier?.hasStar && (
               <div
                 className={cn(
                   'absolute -bottom-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-bold shadow',
@@ -1217,7 +1217,7 @@ function BidCard({
                 )}
                 title={`${tier.label} 등급`}
               >
-                {tier.icon}
+                ★
               </div>
             )}
           </div>
@@ -1258,13 +1258,11 @@ function BidCard({
                   <span className="text-black font-bold">{totalBids}</span>
                   <span className="text-gray-500">회</span>
                 </div>
-                {likedCount > 0 && (
-                  <div className="flex items-center gap-1 text-[12px]">
-                    <Heart className="h-3.5 w-3.5 text-pink-500 fill-pink-500" />
-                    <span className="text-gray-500">좋아요</span>
-                    <span className="text-black font-bold">{likedCount}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-1 text-[12px]">
+                  <Heart className="h-3.5 w-3.5 text-pink-500 fill-pink-500" />
+                  <span className="text-gray-500">좋아요</span>
+                  <span className="text-black font-bold">{likedCount}</span>
+                </div>
                 {totalBids > 0 && (
                   <div className="flex items-center gap-1 text-[12px]">
                     <Sparkles className="h-3.5 w-3.5 text-fuchsia-500" />
