@@ -9,6 +9,7 @@ import {
   Sparkles,
   Trophy,
   Loader2,
+  XCircle,
 } from 'lucide-react';
 import { useMyBidderStats } from '@/hooks/use-recruitment-bid';
 import { cn } from '@/lib/utils';
@@ -107,7 +108,7 @@ export function MyBidderStatsCard({ enabled = true }: { enabled?: boolean }) {
 
       {/* 통계 */}
       <CardContent className="p-4">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           <StatItem
             icon={<Award className="h-4 w-4 text-amber-500" />}
             label="선택된 횟수"
@@ -135,6 +136,20 @@ export function MyBidderStatsCard({ enabled = true }: { enabled?: boolean }) {
             value={data.likedCount}
             suffix="개"
             tone="pink"
+          />
+          <StatItem
+            icon={<XCircle className="h-4 w-4 text-red-400" />}
+            label="거절"
+            value={data.rejectedCount}
+            suffix="회"
+            tone="red"
+          />
+          <StatItem
+            icon={<XCircle className="h-4 w-4 text-gray-400" />}
+            label="응찰 취소"
+            value={data.cancelledCount}
+            suffix="회"
+            tone="gray"
           />
         </div>
 
@@ -202,13 +217,15 @@ function StatItem({
   label: string;
   value: number;
   suffix: string;
-  tone: 'amber' | 'blue' | 'fuchsia' | 'pink';
+  tone: 'amber' | 'blue' | 'fuchsia' | 'pink' | 'red' | 'gray';
 }) {
   const toneClass = {
     amber: 'bg-amber-50',
     blue: 'bg-blue-50',
     fuchsia: 'bg-fuchsia-50',
     pink: 'bg-pink-50',
+    red: 'bg-red-50',
+    gray: 'bg-gray-50',
   }[tone];
 
   return (

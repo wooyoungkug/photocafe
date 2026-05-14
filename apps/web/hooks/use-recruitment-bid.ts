@@ -74,6 +74,7 @@ export interface MyBidderStats {
   selectedCount: number;
   pendingCount: number;
   rejectedCount: number;
+  cancelledCount: number;
   likedCount: number;
   completedReviewsCount: number;
   avgRating: number | null;

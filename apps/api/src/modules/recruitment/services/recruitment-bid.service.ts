@@ -417,14 +417,19 @@ export class RecruitmentBidService {
     let selectedCount = 0;
     let pendingCount = 0;
     let rejectedCount = 0;
+    let cancelledCount = 0;
     for (const row of bidAggregates) {
-      totalBids += row._count.id;
       if (row.status === RECRUITMENT_BID_STATUS.SELECTED) {
         selectedCount = row._count.id;
+        totalBids += row._count.id;
       } else if (row.status === RECRUITMENT_BID_STATUS.PENDING) {
         pendingCount = row._count.id;
+        totalBids += row._count.id;
       } else if (row.status === RECRUITMENT_BID_STATUS.REJECTED) {
         rejectedCount = row._count.id;
+        totalBids += row._count.id;
+      } else if (row.status === RECRUITMENT_BID_STATUS.CANCELLED) {
+        cancelledCount = row._count.id;
       }
     }
 
@@ -446,6 +451,7 @@ export class RecruitmentBidService {
       selectedCount,
       pendingCount,
       rejectedCount,
+      cancelledCount,
       likedCount: likedAggregate,
       completedReviewsCount,
       avgRating: ratingAgg._avg.rating ?? null,
