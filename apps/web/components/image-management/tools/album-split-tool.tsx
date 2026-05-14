@@ -16,6 +16,10 @@ import {
   clearFolderHandle,
   queryHandlePermission,
   requestHandlePermission,
+  addFolderHandleToCache,
+  findFolderForFile,
+  getAllFolderHandles,
+  clearAllFolderHandles,
 } from '@/lib/image-tools/folder-handle-store';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
@@ -242,7 +246,7 @@ export function AlbumSplitTool() {
           }
         }
 
-        // 캐시된 폴더가 있으면 권한만 재요청 → 다이얼로그 없이 즉시 사용
+        // 캐시된 폴더가 있으면 권한만 재요청 → 다이얼로그 없이 즉시 사용 (최근 사용 폴더 우선)
         let dirHandle: FileSystemDirectoryHandle | null = null;
         if (!directoryHandle) {
           const cached = await getFolderHandle(STORAGE_KEY);
@@ -262,6 +266,7 @@ export function AlbumSplitTool() {
           dirHandle = await (window as any).showDirectoryPicker(options);
           setDirectoryHandle(dirHandle);
           await saveFolderHandle(STORAGE_KEY, dirHandle!);
+          await addFolderHandleToCache(dirHandle!);
         }
 
         // 폴더 내 이미지 파일 목록 (출력 결과물 제외)
@@ -300,38 +305,49 @@ export function AlbumSplitTool() {
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
     if (file && isJpegOrPng(file)) {
-      // 드래그 & 드롭에서도 파일 핸들 저장 시도
+      // 드래그된 파일 핸들 캡쳐
       const item = e.dataTransfer.items[0];
+      let droppedFileHandle: FileSystemFileHandle | null = null;
       if (item && 'getAsFileSystemHandle' in item) {
         try {
           const handle = await (item as any).getAsFileSystemHandle();
           if (handle?.kind === 'file') {
-            sourceFileHandleRef.current = handle as FileSystemFileHandle;
+            droppedFileHandle = handle as FileSystemFileHandle;
+            sourceFileHandleRef.current = droppedFileHandle;
           }
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
 
-      // 폴더 핸들 확보 (캐시 우선, 없으면 즉시 폴더 피커 — drop의 사용자 제스처 활용)
-      if (!directoryHandle) {
-        let folderObtained: FileSystemDirectoryHandle | null = null;
-        const cached = await getFolderHandle(STORAGE_KEY);
-        if (cached) {
-          const perm = await requestHandlePermission(cached);
-          if (perm === 'granted') folderObtained = cached;
-        }
-        if (!folderObtained && 'showDirectoryPicker' in window) {
-          try {
-            const options: any = { mode: 'readwrite' };
-            if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
-            folderObtained = await (window as any).showDirectoryPicker(options);
-            if (folderObtained) await saveFolderHandle(STORAGE_KEY, folderObtained);
-            toast.success(`저장 폴더 등록: ${folderObtained?.name} — 다음부터 다이얼로그 없이 자동 저장됩니다.`);
-          } catch {
-            toast.info('폴더를 선택하지 않아 저장 시 다이얼로그가 표시됩니다.', { duration: 5000 });
+      // 저장 폴더 결정: 캐시된 폴더 중 이 파일을 포함하는 폴더 자동 검색
+      let saveFolder: FileSystemDirectoryHandle | null = null;
+      if (droppedFileHandle) {
+        const matched = await findFolderForFile(droppedFileHandle);
+        if (matched) {
+          const perm = await requestHandlePermission(matched);
+          if (perm === 'granted') {
+            saveFolder = matched;
+            toast.success(`자동 매칭: ${matched.name} (저장 폴더)`);
           }
         }
-        if (folderObtained) setDirectoryHandle(folderObtained);
       }
+
+      // 매칭 폴더 없음 → 폴더 피커 1회 (소스 파일 위치에서 열림)
+      if (!saveFolder && 'showDirectoryPicker' in window) {
+        try {
+          const options: any = { mode: 'readwrite' };
+          if (droppedFileHandle) options.startIn = droppedFileHandle;
+          saveFolder = await (window as any).showDirectoryPicker(options);
+          if (saveFolder) {
+            await addFolderHandleToCache(saveFolder);
+            await saveFolderHandle(STORAGE_KEY, saveFolder); // 최근 사용도 갱신
+            toast.success(`저장 폴더 등록: ${saveFolder.name} — 이 폴더의 파일은 다음부터 자동 저장됩니다.`);
+          }
+        } catch {
+          toast.info('폴더를 선택하지 않아 저장 시 다이얼로그가 표시됩니다.', { duration: 5000 });
+        }
+      }
+
+      if (saveFolder) setDirectoryHandle(saveFolder);
 
       loadImage(file);
     } else {
@@ -655,6 +671,14 @@ export function AlbumSplitTool() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // 캐시된 폴더 개수 표시용
+  const [cachedFolderCount, setCachedFolderCount] = useState(0);
+  const refreshFolderCount = useCallback(async () => {
+    const all = await getAllFolderHandles();
+    setCachedFolderCount(all.length);
+  }, []);
+  useEffect(() => { refreshFolderCount(); }, [refreshFolderCount, directoryHandle]);
+
   return (
     <div className="space-y-4">
       {/* Usage Guide */}
@@ -720,12 +744,17 @@ export function AlbumSplitTool() {
         <CardContent className="p-6">
           {/* 저장 폴더 / 옵션 */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm flex-wrap">
               <FolderOpen className="h-4 w-4 text-blue-600" />
-              <span className="font-semibold text-blue-800">저장 폴더:</span>
+              <span className="font-semibold text-blue-800">현재 폴더:</span>
               <span className="text-slate-700">
-                {directoryHandle ? directoryHandle.name : '선택 안 됨 (업로드 시 자동 요청)'}
+                {directoryHandle ? directoryHandle.name : '없음 (업로드 시 자동 요청)'}
               </span>
+              {cachedFolderCount > 0 && (
+                <span className="text-xs text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded">
+                  기억된 폴더 {cachedFolderCount}개
+                </span>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
@@ -743,6 +772,8 @@ export function AlbumSplitTool() {
                     const handle = await (window as any).showDirectoryPicker(options);
                     setDirectoryHandle(handle);
                     await saveFolderHandle(STORAGE_KEY, handle);
+                    await addFolderHandleToCache(handle);
+                    await refreshFolderCount();
                     const files = await scanFolderFiles(handle);
                     if (files.length > 0) {
                       setFolderFiles(files);
@@ -751,13 +782,13 @@ export function AlbumSplitTool() {
                       setFolderFiles([]);
                       setCurrentFileIndex(0);
                     }
-                    toast.success(`저장 폴더 변경: ${handle.name}`);
+                    toast.success(`폴더 추가: ${handle.name}`);
                   } catch { /* 사용자 취소 */ }
                 }}
               >
-                {directoryHandle ? '변경' : '선택'}
+                {directoryHandle ? '폴더 추가' : '폴더 선택'}
               </Button>
-              {directoryHandle && (
+              {(directoryHandle || cachedFolderCount > 0) && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -768,10 +799,12 @@ export function AlbumSplitTool() {
                     setFolderFiles([]);
                     setCurrentFileIndex(0);
                     await clearFolderHandle(STORAGE_KEY);
-                    toast.info('저장 폴더 기억을 지웠습니다.');
+                    await clearAllFolderHandles();
+                    await refreshFolderCount();
+                    toast.info('기억된 모든 폴더를 지웠습니다.');
                   }}
                 >
-                  해제
+                  전체 해제
                 </Button>
               )}
             </div>
