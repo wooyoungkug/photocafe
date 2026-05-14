@@ -83,16 +83,41 @@ function LoginForm() {
   const [password, setPassword] = useState('');
 
   // 대리로그인이 아닌 일반 로그인 화면에서는 항상 공란으로 시작 (브라우저 자동완성 방지)
+  // readOnly 를 켰다가 사용자가 포커스 시 해제 — Chrome/Edge 자동완성 회피용
+  const [isImpersonating, setIsImpersonating] = useState(false);
+  const [readOnlyGuard, setReadOnlyGuard] = useState(true);
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const isImpersonating =
+    const impersonating =
       !!sessionStorage.getItem('impersonate-session') ||
       !!sessionStorage.getItem('owner-session');
-    if (!isImpersonating) {
-      setLoginId('');
-      setPassword('');
+    setIsImpersonating(impersonating);
+    if (!impersonating) {
+      // 브라우저 자동완성이 끼어든 직후를 노려 강제 초기화 (여러 시점 반복)
+      const clear = () => {
+        setLoginId('');
+        setPassword('');
+      };
+      clear();
+      // 일부 브라우저는 마운트 직후에 비동기로 채워넣음 → 다음 tick + 약간 뒤에도 한 번 더
+      const t1 = setTimeout(clear, 0);
+      const t2 = setTimeout(clear, 100);
+      const t3 = setTimeout(() => {
+        clear();
+        setReadOnlyGuard(false);
+      }, 500);
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+        clearTimeout(t3);
+      };
+    } else {
+      setReadOnlyGuard(false);
     }
   }, []);
+  const releaseReadOnly = () => {
+    if (readOnlyGuard) setReadOnlyGuard(false);
+  };
 
   // Context selection state
   const [tempToken, setTempToken] = useState<string | null>(null);
@@ -579,6 +604,13 @@ function LoginForm() {
           <>
             {/* 브라우저 자동완성 방지를 위해 form 과 input 모두 autoComplete=off 처리 */}
             <form onSubmit={handleIdLogin} className="space-y-3" autoComplete="off">
+              {/* 자동완성 디코이: 실제 input 앞에 숨겨진 username/password 두면 브라우저가 여기에 자동완성 */}
+              {!isImpersonating && (
+                <div aria-hidden="true" className="absolute -left-[9999px] -top-[9999px] h-0 overflow-hidden">
+                  <input type="text" name="username" tabIndex={-1} autoComplete="username" defaultValue="" />
+                  <input type="password" name="password" tabIndex={-1} autoComplete="current-password" defaultValue="" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
                 <div className="relative">
@@ -589,9 +621,14 @@ function LoginForm() {
                     placeholder="아이디 입력"
                     value={loginId}
                     onChange={(e) => setLoginId(e.target.value)}
+                    onFocus={releaseReadOnly}
+                    readOnly={readOnlyGuard && !isImpersonating}
                     className="pl-10 h-11"
                     autoComplete="off"
                     name="photocafe-login-id"
+                    data-form-type="other"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
                   />
                 </div>
               </div>
@@ -605,9 +642,14 @@ function LoginForm() {
                     placeholder="비밀번호 입력"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onFocus={releaseReadOnly}
+                    readOnly={readOnlyGuard && !isImpersonating}
                     className="pl-10 h-11"
                     autoComplete="new-password"
                     name="photocafe-login-pw"
+                    data-form-type="other"
+                    data-lpignore="true"
+                    data-1p-ignore="true"
                   />
                 </div>
               </div>
