@@ -32,22 +32,29 @@ interface VenueSearchInputProps {
 let sdkLoadPromise: Promise<void> | null = null;
 
 function loadKakaoMapsSdk(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.reject();
+  if (window.kakao?.maps?.services) return Promise.resolve();
   if (sdkLoadPromise) return sdkLoadPromise;
-  if (typeof window !== 'undefined' && window.kakao?.maps?.services) {
-    sdkLoadPromise = Promise.resolve();
-    return sdkLoadPromise;
-  }
+
   sdkLoadPromise = new Promise((resolve, reject) => {
     const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-    if (!key) { reject(new Error('NEXT_PUBLIC_KAKAO_JS_KEY 미설정')); return; }
+    if (!key) {
+      sdkLoadPromise = null;
+      reject(new Error('NEXT_PUBLIC_KAKAO_JS_KEY 미설정'));
+      return;
+    }
     const script = document.createElement('script');
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
     script.onload = () => {
       window.kakao.maps.load(() => resolve());
     };
-    script.onerror = reject;
+    script.onerror = () => {
+      sdkLoadPromise = null;
+      reject(new Error('Kakao Maps SDK 로드 실패'));
+    };
     document.head.appendChild(script);
   });
+
   return sdkLoadPromise;
 }
 
@@ -63,14 +70,12 @@ export function VenueSearchInput({
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [sdkReady, setSdkReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // 컴포넌트 마운트 시 SDK 미리 로드
   useEffect(() => {
-    loadKakaoMapsSdk()
-      .then(() => setSdkReady(true))
-      .catch(() => {});
+    loadKakaoMapsSdk().catch(() => {});
   }, []);
 
   const search = useCallback((keyword: string) => {
@@ -79,31 +84,38 @@ export function VenueSearchInput({
       setIsOpen(false);
       return;
     }
-    if (!sdkReady || !window.kakao?.maps?.services) return;
-
-    const ps = new window.kakao.maps.services.Places();
-    ps.keywordSearch(
-      keyword,
-      (data: any[], status: string) => {
-        if (status === window.kakao.maps.services.Status.OK) {
-          const places: PlaceResult[] = data.map((doc) => ({
-            placeName: doc.place_name,
-            address: doc.address_name,
-            roadAddress: doc.road_address_name || undefined,
-            phone: doc.phone || undefined,
-            categoryName: doc.category_name || undefined,
-          }));
-          setResults(places);
-          setIsOpen(places.length > 0);
-        } else {
-          setResults([]);
-          setIsOpen(false);
-        }
-        setActiveIndex(-1);
-      },
-      { size: 5 },
-    );
-  }, [sdkReady]);
+    // SDK 로딩 완료까지 기다린 후 검색
+    loadKakaoMapsSdk()
+      .then(() => {
+        const ps = new window.kakao.maps.services.Places();
+        ps.keywordSearch(
+          keyword,
+          (data: any[], status: string) => {
+            if (status === window.kakao.maps.services.Status.OK) {
+              setResults(
+                data.map((doc) => ({
+                  placeName: doc.place_name,
+                  address: doc.address_name,
+                  roadAddress: doc.road_address_name || undefined,
+                  phone: doc.phone || undefined,
+                  categoryName: doc.category_name || undefined,
+                })),
+              );
+              setIsOpen(true);
+            } else {
+              setResults([]);
+              setIsOpen(false);
+            }
+            setActiveIndex(-1);
+          },
+          { size: 5 },
+        );
+      })
+      .catch(() => {
+        setResults([]);
+        setIsOpen(false);
+      });
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
