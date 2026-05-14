@@ -1171,6 +1171,7 @@ function BidCard({
   const selectedCount = stats?.selectedCount ?? 0;
   const totalBids = stats?.totalBids ?? 0;
   const rejectedCount = stats?.rejectedCount ?? 0;
+  const cancelledCount = stats?.cancelledCount ?? 0;
   const likedCount = stats?.likedCount ?? 0;
 
   const copyReviewUrl = () => {
@@ -1268,6 +1269,12 @@ function BidCard({
                   <XCircle className="h-3.5 w-3.5 text-red-400" />
                   <span className="text-gray-500">거절</span>
                   <span className="text-black font-bold">{rejectedCount}</span>
+                  <span className="text-gray-500">회</span>
+                </div>
+                <div className="flex items-center gap-1 text-[12px]">
+                  <XCircle className="h-3.5 w-3.5 text-gray-400" />
+                  <span className="text-gray-500">취소</span>
+                  <span className="text-black font-bold">{cancelledCount}</span>
                   <span className="text-gray-500">회</span>
                 </div>
                 {totalBids > 0 && (

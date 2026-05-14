@@ -16,6 +16,7 @@ export const RECRUITMENT_BID_STATUS = {
   PENDING: 'pending',
   SELECTED: 'selected',
   REJECTED: 'rejected',
+  CANCELLED: 'cancelled',
 } as const;
 
 export const URGENCY_LEVEL = {

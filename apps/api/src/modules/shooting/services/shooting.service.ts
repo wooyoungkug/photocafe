@@ -267,6 +267,9 @@ export class ShootingService {
           select: {
             id: true,
             title: true,
+            status: true,
+            recruitmentPhase: true,
+            urgencyLevel: true,
             budget: true,
             budgetSolo: true,
             budgetDuo: true,

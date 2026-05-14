@@ -61,6 +61,9 @@ export interface Shooting {
   linkedRecruitment?: {
     id: string;
     title?: string;
+    status?: string;
+    recruitmentPhase?: string;
+    urgencyLevel?: string;
     budget?: number;
     budgetSolo?: number;
     budgetDuo?: number;

@@ -211,11 +211,11 @@ export class RecruitmentBidService {
         `SELECT pg_advisory_xact_lock(${lockKey & 0x7fffffff})`,
       );
 
-      // 중복 응찰 확인
+      // 중복 응찰 확인 (취소된 경우 재응찰 허용)
       const existing = await tx.recruitmentBid.findUnique({
         where: { recruitmentId_bidderId: { recruitmentId, bidderId } },
       });
-      if (existing) {
+      if (existing && existing.status !== RECRUITMENT_BID_STATUS.CANCELLED) {
         throw new ConflictException('이미 응찰한 구인입니다.');
       }
 
@@ -227,18 +227,29 @@ export class RecruitmentBidService {
         throw new BadRequestException('최대 응찰자 수를 초과했습니다.');
       }
 
-      const bid = await tx.recruitmentBid.create({
-        data: {
-          recruitmentId,
-          bidderId,
-          message: dto.message,
-          proposedBudget: dto.proposedBudget,
-          crewSize,
-        },
-        include: {
-          bidder: { select: { clientName: true } },
-        },
-      });
+      // 취소된 이전 응찰이 있으면 재활성화, 없으면 신규 생성
+      const bid = existing
+        ? await tx.recruitmentBid.update({
+            where: { id: existing.id },
+            data: {
+              message: dto.message,
+              proposedBudget: dto.proposedBudget,
+              crewSize,
+              status: RECRUITMENT_BID_STATUS.PENDING,
+              bidAt: new Date(),
+            },
+            include: { bidder: { select: { clientName: true } } },
+          })
+        : await tx.recruitmentBid.create({
+            data: {
+              recruitmentId,
+              bidderId,
+              message: dto.message,
+              proposedBudget: dto.proposedBudget,
+              crewSize,
+            },
+            include: { bidder: { select: { clientName: true } } },
+          });
 
       this.logger.log(
         `응찰: ${recruitmentId}, 작가: ${bidderId} (${bid.bidder.clientName})`,
@@ -253,7 +264,7 @@ export class RecruitmentBidService {
    */
   async findBids(recruitmentId: string) {
     const bids = await this.prisma.recruitmentBid.findMany({
-      where: { recruitmentId },
+      where: { recruitmentId, status: { not: RECRUITMENT_BID_STATUS.CANCELLED } },
       include: {
         bidder: {
           select: {
@@ -307,6 +318,7 @@ export class RecruitmentBidService {
         selectedCount: number;
         pendingCount: number;
         rejectedCount: number;
+        cancelledCount: number;
         likedCount: number;
         tier: string;
       }
@@ -317,6 +329,7 @@ export class RecruitmentBidService {
         selectedCount: 0,
         pendingCount: 0,
         rejectedCount: 0,
+        cancelledCount: 0,
         likedCount: 0,
         tier: 'NEW',
       });
@@ -324,13 +337,17 @@ export class RecruitmentBidService {
     for (const row of bidAggregates) {
       const s = statsMap.get(row.bidderId);
       if (!s) continue;
-      s.totalBids += row._count.id;
+      if (row.status !== RECRUITMENT_BID_STATUS.CANCELLED) {
+        s.totalBids += row._count.id;
+      }
       if (row.status === RECRUITMENT_BID_STATUS.SELECTED) {
         s.selectedCount += row._count.id;
       } else if (row.status === RECRUITMENT_BID_STATUS.PENDING) {
         s.pendingCount += row._count.id;
       } else if (row.status === RECRUITMENT_BID_STATUS.REJECTED) {
         s.rejectedCount += row._count.id;
+      } else if (row.status === RECRUITMENT_BID_STATUS.CANCELLED) {
+        s.cancelledCount += row._count.id;
       }
     }
     for (const row of likedAggregates) {
@@ -355,6 +372,7 @@ export class RecruitmentBidService {
         selectedCount: 0,
         pendingCount: 0,
         rejectedCount: 0,
+        cancelledCount: 0,
         likedCount: 0,
         tier: 'NEW',
       },
@@ -479,7 +497,10 @@ export class RecruitmentBidService {
       throw new BadRequestException('대기 상태의 응찰만 취소할 수 있습니다.');
     }
 
-    await this.prisma.recruitmentBid.delete({ where: { id: bid.id } });
+    await this.prisma.recruitmentBid.update({
+      where: { id: bid.id },
+      data: { status: RECRUITMENT_BID_STATUS.CANCELLED },
+    });
 
     this.logger.log(`응찰 취소: ${recruitmentId}, 작가: ${bidderId}`);
 

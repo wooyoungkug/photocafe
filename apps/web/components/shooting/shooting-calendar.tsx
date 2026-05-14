@@ -6,6 +6,7 @@ import {
   endOfMonth,
   eachDayOfInterval,
   format,
+  parseISO,
   isSameDay,
   isSameMonth,
   addMonths,
@@ -128,7 +129,7 @@ export function ShootingCalendar({
   const shootingsByDate = useMemo(() => {
     const map = new Map<string, Shooting[]>();
     shootings.forEach((s) => {
-      const dateKey = s.shootingDate.substring(0, 10);
+      const dateKey = format(parseISO(s.shootingDate), 'yyyy-MM-dd');
       if (!map.has(dateKey)) {
         map.set(dateKey, []);
       }

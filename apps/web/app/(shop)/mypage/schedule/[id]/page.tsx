@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { format, parseISO } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import {
@@ -17,6 +18,8 @@ import {
   AlertCircle,
   Pencil,
   Trash2,
+  Briefcase,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -335,6 +338,73 @@ export default function ScheduleDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* 구인방 연동 현황 */}
+      {shooting.linkedRecruitment && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-[14px] text-black font-bold flex items-center gap-1.5">
+                <Briefcase className="h-4 w-4" />
+                구인방 연동 현황
+              </CardTitle>
+              <Link href={`/mypage/recruitment/${shooting.linkedRecruitment.id}`}>
+                <Button variant="outline" size="sm" className="text-[12px]">
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  구인방 관리
+                </Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* 상태 배지 */}
+              {shooting.linkedRecruitment.status === 'public_recruiting' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-100 text-green-700">
+                  공개 모집중
+                </span>
+              )}
+              {shooting.linkedRecruitment.status === 'private_recruiting' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-100 text-blue-700">
+                  전속 모집중
+                </span>
+              )}
+              {shooting.linkedRecruitment.status === 'filled' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-purple-100 text-purple-700">
+                  작가 확정
+                </span>
+              )}
+              {shooting.linkedRecruitment.status === 'draft' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-gray-100 text-gray-600">
+                  초안
+                </span>
+              )}
+              {shooting.linkedRecruitment.status === 'cancelled' && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-100 text-red-600">
+                  취소
+                </span>
+              )}
+              {/* 제목 */}
+              <span className="text-[13px] text-black font-normal">
+                {shooting.linkedRecruitment.title}
+              </span>
+              {/* 보수 */}
+              {(shooting.linkedRecruitment.budgetSolo || shooting.linkedRecruitment.budget) && (
+                <span className="text-[13px] text-gray-600">
+                  {(shooting.linkedRecruitment.budgetSolo || shooting.linkedRecruitment.budget)!.toLocaleString()}원
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-gray-400 mt-2">
+              {shooting.linkedRecruitment.status === 'public_recruiting'
+                ? '촬영 작가를 공개 모집 중입니다. 촬영파트너 메뉴에서 응찰 현황을 확인하세요.'
+                : shooting.linkedRecruitment.status === 'private_recruiting'
+                ? '전속 작가를 모집 중입니다. 전속 모집 마감 후 공개 모집으로 전환됩니다.'
+                : ''}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 응찰 현황 */}
       <Card>
