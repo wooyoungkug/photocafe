@@ -81,7 +81,7 @@ function RegisterForm() {
   const [emailDupHint, setEmailDupHint] = useState<DupHint | null>(null);
 
   const handleDuplicateBlur = async (field: 'mobile' | 'email', value: string) => {
-    const trimmed = value.trim();
+    const trimmed = value.trim().replace(/-/g, '');
     if (!trimmed) {
       if (field === 'mobile') setPhoneDupHint(null);
       else setEmailDupHint(null);
@@ -144,7 +144,16 @@ function RegisterForm() {
   };
 
   const formatPhoneNumber = useCallback((value: string) => {
-    return value.replace(/[^0-9]/g, '').slice(0, 11);
+    const digits = value.replace(/[^0-9]/g, '').slice(0, 11);
+    if (digits.startsWith('02')) {
+      if (digits.length <= 5) return digits.length > 2 ? `${digits.slice(0, 2)}-${digits.slice(2)}` : digits;
+      if (digits.length <= 9) return `${digits.slice(0, 2)}-${digits.slice(2, 5)}-${digits.slice(5)}`;
+      return `${digits.slice(0, 2)}-${digits.slice(2, 6)}-${digits.slice(6)}`;
+    }
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
   }, []);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -197,7 +206,7 @@ function RegisterForm() {
         name,
         contactEmail,
         emailConsent,
-        phone: phone || undefined,
+        phone: phone.replace(/-/g, '') || undefined,
       });
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '회원가입에 실패했습니다.';
@@ -343,13 +352,13 @@ function RegisterForm() {
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="01012345678"
+                  placeholder="010-1234-5678"
                   value={phone}
                   onChange={(e) => { setPhone(formatPhoneNumber(e.target.value)); if (phoneDupHint) setPhoneDupHint(null); }}
                   onBlur={(e) => handleDuplicateBlur('mobile', e.target.value)}
                   className="pl-10 h-11"
                   autoComplete="tel"
-                  maxLength={11}
+                  maxLength={13}
                 />
               </div>
               {phoneDupHint && <DuplicateWarning kind="전화번호" hint={phoneDupHint} />}
