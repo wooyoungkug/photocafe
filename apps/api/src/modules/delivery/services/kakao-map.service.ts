@@ -55,13 +55,20 @@ export class KakaoMapService {
    * 키워드로 장소 목록 검색 (자동완성용)
    */
   async searchPlaces(keyword: string, size = 5): Promise<PlaceSearchResult[]> {
-    if (!this.kakaoRestApiKey) return [];
+    if (!this.kakaoRestApiKey) {
+      this.logger.warn('searchPlaces: KAKAO_REST_API_KEY 없음');
+      return [];
+    }
     try {
       const url = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(keyword)}&size=${size}`;
       const response = await fetch(url, {
         headers: { 'Authorization': `KakaoAK ${this.kakaoRestApiKey}` },
       });
-      if (!response.ok) return [];
+      if (!response.ok) {
+        const body = await response.text().catch(() => '');
+        this.logger.error(`Kakao Local API 오류: HTTP ${response.status} — ${body}`);
+        return [];
+      }
       const data = await response.json();
       if (!data.documents?.length) return [];
       return data.documents.map((doc: any) => ({
