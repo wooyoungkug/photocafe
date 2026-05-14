@@ -58,6 +58,7 @@ import { Staff, CreateStaffRequest, AuditLog, CATEGORY_PERMISSIONS } from '@/lib
 import { DEFAULT_NAV_DATA, getPermissionEntries } from '@/lib/navigation';
 import { DaumAddressFields } from '@/components/daum-address-fields';
 import { DepartmentSelect } from '@/components/department-select';
+import { StaffBulkImportDialog } from '@/components/staff/staff-bulk-import-dialog';
 import {
   Plus,
   Search,
@@ -120,9 +121,6 @@ export default function EmployeesPage() {
 
   // Phase 9: 추가 상태
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
-  const [bulkCsvText, setBulkCsvText] = useState('');
-  const [bulkParsedRows, setBulkParsedRows] = useState<CreateStaffRequest[]>([]);
-  const [bulkParseError, setBulkParseError] = useState('');
   const [tempPasswordTarget, setTempPasswordTarget] = useState<Staff | null>(null);
   const [statusChangeTarget, setStatusChangeTarget] = useState<Staff | null>(null);
   const [statusChangeValue, setStatusChangeValue] = useState('');
@@ -1391,136 +1389,8 @@ export default function EmployeesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {/* 일괄등록 다이얼로그 */}
-      <Dialog open={bulkImportOpen} onOpenChange={(open) => {
-        setBulkImportOpen(open);
-        if (!open) { setBulkCsvText(''); setBulkParsedRows([]); setBulkParseError(''); }
-      }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Upload className="h-5 w-5" />
-              직원 일괄등록
-            </DialogTitle>
-            <DialogDescription>
-              CSV 형식으로 직원 데이터를 입력하세요. 첫 줄은 헤더입니다.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-[11px] text-black font-normal mb-1">CSV 형식 예시 (staffId, password, name은 필수):</p>
-              <pre className="text-[10px] text-gray-600 whitespace-pre-wrap">staffId,password,name,position,email,phone
-hong01,pass1234,홍길동,대리,hong@email.com,010-1234-5678
-kim01,pass1234,김철수,과장,kim@email.com,010-2345-6789</pre>
-            </div>
-
-            <Textarea
-              value={bulkCsvText}
-              onChange={(e) => setBulkCsvText(e.target.value)}
-              placeholder="CSV 데이터를 여기에 붙여넣으세요..."
-              rows={8}
-              className="font-mono text-xs"
-            />
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                try {
-                  const lines = bulkCsvText.trim().split('\n');
-                  if (lines.length < 2) { setBulkParseError('최소 2줄 이상 필요합니다 (헤더 + 데이터)'); return; }
-                  const headers = lines[0].split(',').map(h => h.trim());
-                  const requiredFields = ['staffId', 'password', 'name'];
-                  const missing = requiredFields.filter(f => !headers.includes(f));
-                  if (missing.length > 0) { setBulkParseError(`필수 필드 누락: ${missing.join(', ')}`); return; }
-                  const rows: CreateStaffRequest[] = [];
-                  for (let i = 1; i < lines.length; i++) {
-                    const vals = lines[i].split(',').map(v => v.trim());
-                    if (vals.length < headers.length) continue;
-                    const row: any = {};
-                    headers.forEach((h, idx) => { if (vals[idx]) row[h] = vals[idx]; });
-                    rows.push(row as CreateStaffRequest);
-                  }
-                  setBulkParsedRows(rows);
-                  setBulkParseError('');
-                } catch { setBulkParseError('CSV 파싱 중 오류가 발생했습니다'); }
-              }}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              CSV 파싱
-            </Button>
-
-            {bulkParseError && (
-              <div className="text-destructive text-[11px] flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" /> {bulkParseError}
-              </div>
-            )}
-
-            {bulkParsedRows.length > 0 && (
-              <div className="border rounded-lg overflow-auto max-h-60">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>#</TableHead>
-                      <TableHead>직원ID</TableHead>
-                      <TableHead>이름</TableHead>
-                      <TableHead>직책</TableHead>
-                      <TableHead>이메일</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {bulkParsedRows.map((row, i) => (
-                      <TableRow key={i}>
-                        <TableCell className="text-[11px]">{i + 1}</TableCell>
-                        <TableCell className="text-[11px] font-mono">{row.staffId}</TableCell>
-                        <TableCell className="text-[11px]">{row.name}</TableCell>
-                        <TableCell className="text-[11px]">{row.position || '-'}</TableCell>
-                        <TableCell className="text-[11px]">{row.email || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-                <div className="p-2 bg-muted text-[11px] text-black font-normal">
-                  총 {bulkParsedRows.length}건
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkImportOpen(false)}>
-              취소
-            </Button>
-            <Button
-              disabled={bulkParsedRows.length === 0 || bulkImport.isPending}
-              onClick={async () => {
-                try {
-                  const result = await bulkImport.mutateAsync(bulkParsedRows);
-                  toast({
-                    title: '일괄등록 완료',
-                    description: `${result.imported}건 등록 완료${result.errors.length > 0 ? `, ${result.errors.length}건 오류` : ''}`,
-                  });
-                  if (result.errors.length > 0) {
-                    setBulkParseError(`오류 ${result.errors.length}건: ${result.errors.map(e => `[${e.row}] ${e.message}`).join(', ')}`);
-                  } else {
-                    setBulkImportOpen(false);
-                  }
-                } catch (error) {
-                  toast({
-                    title: '오류',
-                    description: error instanceof Error ? error.message : '일괄등록 중 오류',
-                    variant: 'destructive',
-                  });
-                }
-              }}
-            >
-              {bulkImport.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              {bulkParsedRows.length}건 등록
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* 일괄등록 다이얼로그 (엑셀 + 템플릿 다운로드 + 프리뷰) */}
+      <StaffBulkImportDialog open={bulkImportOpen} onOpenChange={setBulkImportOpen} />
 
       {/* 임시 비밀번호 발급 다이얼로그 */}
       <Dialog open={!!tempPasswordTarget} onOpenChange={() => setTempPasswordTarget(null)}>

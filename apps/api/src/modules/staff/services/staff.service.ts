@@ -625,11 +625,11 @@ export class StaffService {
     // 부서/지점/팀 이름 → ID 캐시 (반복 조회 방지)
     const [allDepartments, allBranches, allTeams] = await Promise.all([
       this.prisma.department.findMany({ select: { id: true, name: true } }),
-      this.prisma.branch.findMany({ select: { id: true, name: true } }),
+      this.prisma.branch.findMany({ select: { id: true, branchName: true } }),
       this.prisma.team.findMany({ select: { id: true, name: true } }),
     ]);
     const deptMap = new Map(allDepartments.map((d) => [d.name.trim(), d.id]));
-    const branchMap = new Map(allBranches.map((b) => [b.name.trim(), b.id]));
+    const branchMap = new Map(allBranches.map((b) => [b.branchName.trim(), b.id]));
     const teamMap = new Map(allTeams.map((t) => [t.name.trim(), t.id]));
 
     for (let i = 0; i < rows.length; i++) {
