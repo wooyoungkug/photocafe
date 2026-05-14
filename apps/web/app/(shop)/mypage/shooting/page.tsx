@@ -357,7 +357,7 @@ function ShootingCalendarView({
   // Selected day shootings
   const selectedDayShootings = useMemo(() => {
     const key = format(selectedDate, 'yyyy-MM-dd');
-    return shootings.filter((s) => s.shootingDate?.substring(0, 10) === key);
+    return shootings.filter((s) => s.shootingDate && format(parseISO(s.shootingDate), 'yyyy-MM-dd') === key);
   }, [shootings, selectedDate]);
 
   return (

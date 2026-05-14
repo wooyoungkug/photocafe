@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { format, parseISO } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -177,7 +178,7 @@ export function ShootingForm({
 
   // shootingDate에서 날짜/시간 분리
   const defaultDate = defaultValues?.shootingDate
-    ? defaultValues.shootingDate.substring(0, 10)
+    ? format(parseISO(defaultValues.shootingDate), 'yyyy-MM-dd')
     : '';
   const defaultTime = defaultValues?.shootingDate
     ? (() => {

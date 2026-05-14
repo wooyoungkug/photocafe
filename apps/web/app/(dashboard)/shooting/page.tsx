@@ -4,6 +4,7 @@ import { useMemo, useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   format,
+  parseISO,
   startOfMonth,
   endOfMonth,
   eachDayOfInterval,
@@ -136,7 +137,7 @@ export default function ShootingPage() {
   // 선택된 날짜의 촬영 목록
   const selectedDateShootings = useMemo(() => {
     return shootings.filter((s) => {
-      const dateStr = s.shootingDate.substring(0, 10);
+      const dateStr = format(parseISO(s.shootingDate), 'yyyy-MM-dd');
       const selectedStr = format(selectedDate, 'yyyy-MM-dd');
       return dateStr === selectedStr;
     });
@@ -155,7 +156,7 @@ export default function ShootingPage() {
   const datesWithShootings = useMemo(() => {
     const dateSet = new Set<string>();
     shootings.forEach((s) => {
-      dateSet.add(s.shootingDate.substring(0, 10));
+      dateSet.add(format(parseISO(s.shootingDate), 'yyyy-MM-dd'));
     });
     return dateSet;
   }, [shootings]);

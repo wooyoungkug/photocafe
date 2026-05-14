@@ -203,7 +203,7 @@ export default function SchedulePage() {
   const datesWithShootings = useMemo(() => {
     const dateSet = new Set<string>();
     shootings.forEach((s) => {
-      dateSet.add(s.shootingDate.substring(0, 10));
+      dateSet.add(format(parseISO(s.shootingDate), 'yyyy-MM-dd'));
     });
     return dateSet;
   }, [shootings]);
@@ -224,7 +224,7 @@ export default function SchedulePage() {
 
   const handleShootingDrop = useCallback((shooting: Shooting, newDate: Date) => {
     // 같은 날짜로 드롭하면 무시
-    const origDateKey = shooting.shootingDate.substring(0, 10);
+    const origDateKey = format(parseISO(shooting.shootingDate), 'yyyy-MM-dd');
     const newDateKey = format(newDate, 'yyyy-MM-dd');
     if (origDateKey === newDateKey) return;
     setDropConfirm({ shooting, newDate });

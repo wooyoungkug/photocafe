@@ -86,6 +86,19 @@ export interface Shooting {
   } | null;
   createdAt: string;
   updatedAt: string;
+  bids?: {
+    id: string;
+    staffId: string;
+    bidAt: string;
+    status: string;
+    message?: string;
+    staff: {
+      id: string;
+      name: string;
+      email?: string;
+      phone?: string;
+    };
+  }[];
   _count?: {
     bids: number;
   };

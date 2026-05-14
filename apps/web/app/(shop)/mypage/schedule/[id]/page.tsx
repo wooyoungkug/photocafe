@@ -419,13 +419,45 @@ export default function ScheduleDetailPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6">
-            <User className="h-8 w-8 text-gray-200 mx-auto mb-2" />
-            <p className="text-[13px] text-gray-400">아직 응찰자가 없습니다.</p>
-            <p className="text-[12px] text-gray-400 mt-1">
-              모집 시작 후 작가들이 응찰할 수 있습니다.
-            </p>
-          </div>
+          {shooting.bids && shooting.bids.length > 0 ? (
+            <div className="space-y-2">
+              {shooting.bids.map((bid) => (
+                <div key={bid.id} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-[14px] text-black font-normal">{bid.staff.name}</p>
+                      {bid.message && (
+                        <p className="text-[12px] text-gray-500 mt-0.5">{bid.message}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium ${
+                      bid.status === 'accepted'
+                        ? 'bg-green-100 text-green-700'
+                        : bid.status === 'rejected'
+                        ? 'bg-red-100 text-red-600'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {bid.status === 'accepted' ? '확정' : bid.status === 'rejected' ? '거절' : '대기'}
+                    </span>
+                    <p className="text-[12px] text-gray-400">
+                      {format(parseISO(bid.bidAt), 'M/d HH:mm', { locale: ko })}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6">
+              <User className="h-8 w-8 text-gray-200 mx-auto mb-2" />
+              <p className="text-[13px] text-gray-400">아직 응찰자가 없습니다.</p>
+              <p className="text-[12px] text-gray-400 mt-1">
+                모집 시작 후 작가들이 응찰할 수 있습니다.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
