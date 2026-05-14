@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
@@ -10,8 +9,6 @@ import {
   ChevronDown,
   Key,
   Menu,
-  ExternalLink,
-  Store,
   X,
   ArrowLeftRight,
   PanelTop,
