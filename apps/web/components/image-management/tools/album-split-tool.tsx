@@ -527,36 +527,41 @@ export function AlbumSplitTool() {
     }
   }, []);
 
+  // 원본 파일명 기반 출력명 (덮어쓰기 방지)
+  const getOutputNames = useCallback(() => {
+    const baseName = (fileName || 'image').replace(/\.(jpe?g|png)$/i, '');
+    return { leftName: `${baseName}_첫장.jpg`, rightName: `${baseName}_막장.jpg` };
+  }, [fileName]);
+
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
-    const saveName = `첫장.jpg`;
+    const { leftName: saveName } = getOutputNames();
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, leftBlob, saveName);
-      if (ok) { toast.success(`${saveName} 저장 완료`); setSavedLeft(true); }
+      if (ok) { toast.success(`${directoryHandle.name}/${saveName} 저장 완료`); setSavedLeft(true); }
       else toast.error('저장 실패');
     } else {
       const ok = await saveWithPicker(leftBlob, saveName);
       if (ok) { toast.success(`${saveName} 저장 완료`); setSavedLeft(true); }
     }
-  }, [leftBlob, directoryHandle, saveWithPicker]);
+  }, [leftBlob, directoryHandle, saveWithPicker, getOutputNames]);
 
   const handleSaveRight = useCallback(async () => {
     if (!rightBlob) return;
-    const saveName = `막장.jpg`;
+    const { rightName: saveName } = getOutputNames();
     if (directoryHandle) {
       const ok = await saveToFolder(directoryHandle, rightBlob, saveName);
-      if (ok) { toast.success(`${saveName} 저장 완료`); setSavedRight(true); }
+      if (ok) { toast.success(`${directoryHandle.name}/${saveName} 저장 완료`); setSavedRight(true); }
       else toast.error('저장 실패');
     } else {
       const ok = await saveWithPicker(rightBlob, saveName);
       if (ok) { toast.success(`${saveName} 저장 완료`); setSavedRight(true); }
     }
-  }, [rightBlob, directoryHandle, saveWithPicker]);
+  }, [rightBlob, directoryHandle, saveWithPicker, getOutputNames]);
 
   const handleSaveBoth = useCallback(async () => {
     if (!leftBlob || !rightBlob) return;
-    const leftName = `첫장.jpg`;
-    const rightName = `막장.jpg`;
+    const { leftName, rightName } = getOutputNames();
 
     let saved = false;
     if (directoryHandle) {
@@ -578,13 +583,17 @@ export function AlbumSplitTool() {
       deleted = await doDeleteOriginal();
     }
 
+    const folderInfo = directoryHandle ? `${directoryHandle.name}/` : '';
+    console.log(`[저장 완료] ${folderInfo}${leftName}, ${rightName}`);
+
     toast.success(
       deleteOriginalOnSave
-        ? deleted ? '저장 + 원본 삭제 완료! 잠시 후 초기화됩니다.' : '저장 완료! (원본 삭제 실패) 잠시 후 초기화됩니다.'
-        : '첫장 + 막장 저장 완료! 잠시 후 초기화됩니다.',
+        ? deleted ? `${folderInfo}${leftName}, ${rightName} 저장 + 원본 삭제 완료! 잠시 후 초기화됩니다.` : `${folderInfo}${leftName}, ${rightName} 저장 완료! (원본 삭제 실패)`
+        : `${folderInfo}${leftName}, ${rightName} 저장 완료! 잠시 후 초기화됩니다.`,
+      { duration: 4000 },
     );
     setTimeout(resetTool, 1500);
-  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker, deleteOriginalOnSave, doDeleteOriginal, fileName]);
+  }, [leftBlob, rightBlob, directoryHandle, resetTool, saveWithPicker, deleteOriginalOnSave, doDeleteOriginal, fileName, getOutputNames]);
 
   // 첫장·막장 개별 저장이 모두 완료되면 자동 초기화
   useEffect(() => {
