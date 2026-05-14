@@ -307,6 +307,7 @@ export class RecruitmentBidService {
         selectedCount: number;
         pendingCount: number;
         likedCount: number;
+        tier: string;
       }
     >();
     for (const id of bidderIds) {
@@ -315,6 +316,7 @@ export class RecruitmentBidService {
         selectedCount: 0,
         pendingCount: 0,
         likedCount: 0,
+        tier: 'NEW',
       });
     }
     for (const row of bidAggregates) {
@@ -332,6 +334,14 @@ export class RecruitmentBidService {
       if (!s) continue;
       s.likedCount = row._count.id;
     }
+    // 등급 산정
+    for (const s of statsMap.values()) {
+      if (s.selectedCount >= 30) s.tier = 'PLATINUM';
+      else if (s.selectedCount >= 10) s.tier = 'GOLD';
+      else if (s.selectedCount >= 3) s.tier = 'SILVER';
+      else if (s.selectedCount >= 1) s.tier = 'BRONZE';
+      else s.tier = 'NEW';
+    }
     const reviewByBidId = new Map(reviews.map((r) => [r.bidId, r]));
 
     return bids.map((b) => ({
@@ -341,6 +351,7 @@ export class RecruitmentBidService {
         selectedCount: 0,
         pendingCount: 0,
         likedCount: 0,
+        tier: 'NEW',
       },
       review: reviewByBidId.get(b.id) ?? null,
     }));

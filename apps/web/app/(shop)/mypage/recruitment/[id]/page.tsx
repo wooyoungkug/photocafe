@@ -824,6 +824,20 @@ export default function RecruitmentDetailPage() {
                     <p className="text-[13px] text-black font-medium">
                       {myBid.bidder?.clientName || '-'}
                     </p>
+                    {myBid.bidderStats?.tier && (
+                      <Badge className={cn('text-[10px] px-1.5 py-0', {
+                        'bg-gray-100 text-gray-600': myBid.bidderStats.tier === 'NEW',
+                        'bg-orange-100 text-orange-700': myBid.bidderStats.tier === 'BRONZE',
+                        'bg-slate-100 text-slate-600': myBid.bidderStats.tier === 'SILVER',
+                        'bg-amber-100 text-amber-700': myBid.bidderStats.tier === 'GOLD',
+                        'bg-violet-100 text-violet-700': myBid.bidderStats.tier === 'PLATINUM',
+                      })}>
+                        {myBid.bidderStats.tier === 'NEW' ? '신규' :
+                         myBid.bidderStats.tier === 'BRONZE' ? '브론즈' :
+                         myBid.bidderStats.tier === 'SILVER' ? '실버' :
+                         myBid.bidderStats.tier === 'GOLD' ? '골드' : '플래티넘'} 작가
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="text-[12px] text-gray-500">상태</p>
@@ -863,13 +877,9 @@ export default function RecruitmentDetailPage() {
                           </span>
                         </>
                       )}
-                      {myBid.bidderStats.likedCount > 0 && (
-                        <>
-                          <span className="text-gray-300 mx-0.5">·</span>
-                          <span className="text-gray-400">좋아요</span>
-                          <span className="text-black font-medium">{myBid.bidderStats.likedCount}개</span>
-                        </>
-                      )}
+                      <span className="text-gray-300 mx-0.5">·</span>
+                      <span className="text-gray-400">좋아요</span>
+                      <span className="text-black font-medium">{myBid.bidderStats.likedCount}개</span>
                     </div>
                   )}
                   <div className="flex items-center gap-2 ml-auto">

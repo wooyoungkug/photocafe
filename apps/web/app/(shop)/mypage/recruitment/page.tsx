@@ -146,16 +146,21 @@ function calcEndTime(shootingTime?: string, duration?: number): string | null {
 }
 
 // 주소에서 시·구·동 수준 추출
-// "서울특별시 강남구 청담동 11-1" → "서울특별시 강남구 청담동"
-// "경기도 성남시 분당구 정자동 111" → "성남시 분당구 정자동"
-// "대구광역시 서구 내당4동" → "대구광역시 서구 내당4동"
 function extractLocationSummary(address?: string): string | null {
   if (!address) return null;
-  // 시/도 + 구/군 + 동/읍/면 전체 추출
+  // 시/도(정식 접미사) + 구/군 + 동/읍/면
   const fullMatch = address.match(
     /([가-힣]+(?:특별시|광역시|특별자치시|특별자치도|시|도))\s+([가-힣]+(?:시|구|군))\s+([가-힣0-9]+(?:동|읍|면))/
   );
   if (fullMatch) return `${fullMatch[1]} ${fullMatch[2]} ${fullMatch[3]}`;
+  // 단축 시명(서울/부산 등 2~3자) + 구/군 + 동/읍/면
+  const shortCityDongMatch = address.match(
+    /([가-힣]{2,3})\s+([가-힣]+(?:구|군))\s+([가-힣0-9]+(?:동|읍|면))/
+  );
+  if (shortCityDongMatch) return `${shortCityDongMatch[1]} ${shortCityDongMatch[2]} ${shortCityDongMatch[3]}`;
+  // 단축 시명 + 구/군 (동 없음)
+  const shortCityGuMatch = address.match(/([가-힣]{2,3})\s+([가-힣]+(?:구|군))/);
+  if (shortCityGuMatch) return `${shortCityGuMatch[1]} ${shortCityGuMatch[2]}`;
   // 구/군 + 동/읍/면
   const dongMatch = address.match(/([가-힣]+(?:구|군))\s+([가-힣0-9]+(?:동|읍|면))/);
   if (dongMatch) return `${dongMatch[1]} ${dongMatch[2]}`;
