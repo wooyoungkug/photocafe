@@ -1080,7 +1080,7 @@ export default function RecruitmentDetailPage() {
             </DialogDescription>
           </DialogHeader>
           <p className="text-[12px] text-gray-500">
-            * 확정 후에는 다른 응찰은 자동으로 거절 처리되며, 구인 상태가 "확정"으로 변경됩니다.
+            * 다른 응찰자의 응찰은 자동으로 거절처리되며, 구인 상태가 "확정"으로 변경됩니다.
           </p>
           <DialogFooter>
             <Button
