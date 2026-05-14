@@ -36,6 +36,7 @@ export function AlbumSplitTool() {
   const [savedRight, setSavedRight] = useState(false);
   const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
   const [originalDeleted, setOriginalDeleted] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
 
   // 연속 작업용: 폴더 내 파일 목록 및 현재 인덱스
   const [folderFiles, setFolderFiles] = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
@@ -532,6 +533,21 @@ export function AlbumSplitTool() {
     }
   }, [savedLeft, savedRight, resetTool]);
 
+  // 완전자동 모드: 이미지 로드 시 자동으로 분리 실행
+  const handleSplitRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    handleSplitRef.current = handleSplit;
+  }, [handleSplit]);
+
+  useEffect(() => {
+    if (autoMode && originalImage && showPreview && !processing && !showResult) {
+      const timer = setTimeout(() => {
+        handleSplitRef.current();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoMode, originalImage, showPreview, processing, showResult]);
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -601,6 +617,32 @@ export function AlbumSplitTool() {
       <div ref={uploadZoneRef}>
       <Card>
         <CardContent className="p-6">
+          {/* 자동 옵션 */}
+          <div className="mb-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="auto-mode"
+                checked={autoMode}
+                onCheckedChange={(checked) => setAutoMode(checked === true)}
+                className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
+              />
+              <Label htmlFor="auto-mode" className="text-sm font-semibold text-amber-800 cursor-pointer">
+                ⚡ 완전자동 (업로드 → 분리 → 저장 → 다음 파일까지 자동 진행)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="delete-original-top"
+                checked={deleteOriginalOnSave}
+                onCheckedChange={(checked) => setDeleteOriginalOnSave(checked === true)}
+                className="border-red-300 data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+              />
+              <Label htmlFor="delete-original-top" className="text-sm cursor-pointer text-red-600 flex items-center gap-1">
+                <Trash2 className="h-3.5 w-3.5" />
+                저장 후 원본 삭제
+              </Label>
+            </div>
+          </div>
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
