@@ -130,6 +130,9 @@ export function AlbumSplitTool() {
     // loadImage 로직 인라인 (순환 참조 방지)
     cleanup();
     setShowResult(false);
+    setShowPreview(false);
+    setShowInfo(false);
+    setOriginalImage(null);
     setLeftBlob(null);
     setRightBlob(null);
     setLeftUrl('');
@@ -535,18 +538,53 @@ export function AlbumSplitTool() {
 
   // 완전자동 모드: 이미지 로드 시 자동으로 분리 실행
   const handleSplitRef = useRef<() => void>(() => {});
+  const handleSaveBothRef = useRef<() => void>(() => {});
   useEffect(() => {
     handleSplitRef.current = handleSplit;
   }, [handleSplit]);
-
   useEffect(() => {
-    if (autoMode && originalImage && showPreview && !processing && !showResult) {
+    handleSaveBothRef.current = handleSaveBoth;
+  }, [handleSaveBoth]);
+
+  // 같은 이미지에 split 이 중복 트리거되지 않도록 가드
+  const autoSplitTriggeredForRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    if (
+      autoMode &&
+      originalImage &&
+      showPreview &&
+      !processing &&
+      !showResult &&
+      autoSplitTriggeredForRef.current !== originalImage
+    ) {
+      autoSplitTriggeredForRef.current = originalImage;
       const timer = setTimeout(() => {
         handleSplitRef.current();
       }, 400);
       return () => clearTimeout(timer);
     }
   }, [autoMode, originalImage, showPreview, processing, showResult]);
+
+  // 결과 표시 후 자동 저장 (폴더 미선택 시 saveBoth 버튼 자동 클릭)
+  // 폴더 모드는 handleSplit 내부에서 이미 자동 저장 + 다음 파일 로드를 처리
+  const autoSavedForBlobRef = useRef<Blob | null>(null);
+  useEffect(() => {
+    if (
+      autoMode &&
+      showResult &&
+      leftBlob &&
+      rightBlob &&
+      !processing &&
+      !directoryHandle &&
+      autoSavedForBlobRef.current !== leftBlob
+    ) {
+      autoSavedForBlobRef.current = leftBlob;
+      const timer = setTimeout(() => {
+        handleSaveBothRef.current();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [autoMode, showResult, leftBlob, rightBlob, processing, directoryHandle]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -623,7 +661,13 @@ export function AlbumSplitTool() {
               <Checkbox
                 id="auto-mode"
                 checked={autoMode}
-                onCheckedChange={(checked) => setAutoMode(checked === true)}
+                onCheckedChange={(checked) => {
+                  const v = checked === true;
+                  setAutoMode(v);
+                  if (v && !directoryHandle) {
+                    toast.info('완전 무인 작동을 원하면 업로드 영역을 클릭해 폴더를 선택하세요. 단일 파일은 저장 다이얼로그가 뜹니다.', { duration: 6000 });
+                  }
+                }}
                 className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
               />
               <Label htmlFor="auto-mode" className="text-sm font-semibold text-amber-800 cursor-pointer">
