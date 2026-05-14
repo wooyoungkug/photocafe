@@ -3,8 +3,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
+
+declare global {
+  interface Window {
+    kakao: any;
+  }
+}
 
 interface PlaceResult {
   placeName: string;
@@ -24,6 +29,28 @@ interface VenueSearchInputProps {
   id?: string;
 }
 
+let sdkLoadPromise: Promise<void> | null = null;
+
+function loadKakaoMapsSdk(): Promise<void> {
+  if (sdkLoadPromise) return sdkLoadPromise;
+  if (typeof window !== 'undefined' && window.kakao?.maps?.services) {
+    sdkLoadPromise = Promise.resolve();
+    return sdkLoadPromise;
+  }
+  sdkLoadPromise = new Promise((resolve, reject) => {
+    const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
+    if (!key) { reject(new Error('NEXT_PUBLIC_KAKAO_JS_KEY 미설정')); return; }
+    const script = document.createElement('script');
+    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
+    script.onload = () => {
+      window.kakao.maps.load(() => resolve());
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+  return sdkLoadPromise;
+}
+
 export function VenueSearchInput({
   value,
   onChange,
@@ -36,25 +63,47 @@ export function VenueSearchInput({
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [sdkReady, setSdkReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const search = useCallback(async (keyword: string) => {
+  useEffect(() => {
+    loadKakaoMapsSdk()
+      .then(() => setSdkReady(true))
+      .catch(() => {});
+  }, []);
+
+  const search = useCallback((keyword: string) => {
     if (keyword.trim().length < 2) {
       setResults([]);
       setIsOpen(false);
       return;
     }
-    try {
-      const data = await api.get<PlaceResult[]>('/place-search', { keyword });
-      setResults(data);
-      setIsOpen(data.length > 0);
-      setActiveIndex(-1);
-    } catch {
-      setResults([]);
-      setIsOpen(false);
-    }
-  }, []);
+    if (!sdkReady || !window.kakao?.maps?.services) return;
+
+    const ps = new window.kakao.maps.services.Places();
+    ps.keywordSearch(
+      keyword,
+      (data: any[], status: string) => {
+        if (status === window.kakao.maps.services.Status.OK) {
+          const places: PlaceResult[] = data.map((doc) => ({
+            placeName: doc.place_name,
+            address: doc.address_name,
+            roadAddress: doc.road_address_name || undefined,
+            phone: doc.phone || undefined,
+            categoryName: doc.category_name || undefined,
+          }));
+          setResults(places);
+          setIsOpen(places.length > 0);
+        } else {
+          setResults([]);
+          setIsOpen(false);
+        }
+        setActiveIndex(-1);
+      },
+      { size: 5 },
+    );
+  }, [sdkReady]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -64,7 +113,6 @@ export function VenueSearchInput({
   };
 
   const handleSelect = (place: PlaceResult) => {
-    // 지번 주소 우선 사용 (동 단위 포함) → 없으면 도로명 주소 사용
     onSelect({
       name: place.placeName,
       address: place.address || place.roadAddress || '',
@@ -89,7 +137,6 @@ export function VenueSearchInput({
     }
   };
 
-  // 외부 클릭 시 닫기
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
