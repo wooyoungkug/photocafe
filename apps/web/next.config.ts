@@ -37,6 +37,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
 
+  // 카카오 JS SDK 키 — NEXT_PUBLIC_* 환경변수가 Turbopack에서 누락되는 엣지케이스 대비 명시적 포함
+  env: {
+    NEXT_PUBLIC_KAKAO_JS_KEY:
+      process.env.NEXT_PUBLIC_KAKAO_JS_KEY || "c4515042c045c236d98ede9cb25de232",
+  },
+
   // Cache directory
   distDir: ".next",
 
