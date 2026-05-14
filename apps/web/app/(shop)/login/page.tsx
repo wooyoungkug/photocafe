@@ -82,6 +82,18 @@ function LoginForm() {
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
 
+  // 대리로그인이 아닌 일반 로그인 화면에서는 항상 공란으로 시작 (브라우저 자동완성 방지)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isImpersonating =
+      !!sessionStorage.getItem('impersonate-session') ||
+      !!sessionStorage.getItem('owner-session');
+    if (!isImpersonating) {
+      setLoginId('');
+      setPassword('');
+    }
+  }, []);
+
   // Context selection state
   const [tempToken, setTempToken] = useState<string | null>(null);
   const [contexts, setContexts] = useState<LoginContext[]>([]);
@@ -565,7 +577,8 @@ function LoginForm() {
         {/* 아이디/비밀번호 로그인 - 소셜 미가입 상태에서는 숨김 */}
         {!notRegistered && (
           <>
-            <form onSubmit={handleIdLogin} className="space-y-3">
+            {/* 브라우저 자동완성 방지를 위해 form 과 input 모두 autoComplete=off 처리 */}
+            <form onSubmit={handleIdLogin} className="space-y-3" autoComplete="off">
               <div className="space-y-1.5">
                 <Label htmlFor="loginId" className="text-[14px] text-black font-normal">아이디</Label>
                 <div className="relative">
@@ -577,7 +590,8 @@ function LoginForm() {
                     value={loginId}
                     onChange={(e) => setLoginId(e.target.value)}
                     className="pl-10 h-11"
-                    autoComplete="username"
+                    autoComplete="off"
+                    name="photocafe-login-id"
                   />
                 </div>
               </div>
@@ -592,7 +606,8 @@ function LoginForm() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 h-11"
-                    autoComplete="current-password"
+                    autoComplete="new-password"
+                    name="photocafe-login-pw"
                   />
                 </div>
               </div>
