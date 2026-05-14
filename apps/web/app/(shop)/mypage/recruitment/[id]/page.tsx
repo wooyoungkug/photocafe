@@ -847,6 +847,31 @@ export default function RecruitmentDetailPage() {
                       </p>
                     </div>
                   )}
+                  {myBid.bidderStats && (
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <span className="text-gray-400">선택</span>
+                      <span className="text-black font-medium">{myBid.bidderStats.selectedCount}회</span>
+                      <span className="text-gray-300 mx-0.5">·</span>
+                      <span className="text-gray-400">응찰</span>
+                      <span className="text-black font-medium">{myBid.bidderStats.totalBids}회</span>
+                      {myBid.bidderStats.totalBids > 0 && (
+                        <>
+                          <span className="text-gray-300 mx-0.5">·</span>
+                          <span className="text-gray-400">채택률</span>
+                          <span className="text-black font-medium">
+                            {Math.round((myBid.bidderStats.selectedCount / myBid.bidderStats.totalBids) * 100)}%
+                          </span>
+                        </>
+                      )}
+                      {myBid.bidderStats.likedCount > 0 && (
+                        <>
+                          <span className="text-gray-300 mx-0.5">·</span>
+                          <span className="text-gray-400">좋아요</span>
+                          <span className="text-black font-medium">{myBid.bidderStats.likedCount}개</span>
+                        </>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 ml-auto">
                     <p className="text-[12px] text-gray-500">응찰일</p>
                     <p className="text-[12px] text-gray-600">
