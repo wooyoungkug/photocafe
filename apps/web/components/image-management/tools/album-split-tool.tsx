@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, isJpegOrPng } from '@/lib/image-tools/file-utils';
+import { saveToFolder, isJpegOrPng, nudgeFolderRefresh } from '@/lib/image-tools/file-utils';
 import {
   saveFolderHandle,
   getFolderHandle,
@@ -437,6 +437,8 @@ export function AlbumSplitTool() {
         const ok1 = await saveToFolder(directoryHandle, leftResult.blob, leftName);
         const ok2 = await saveToFolder(directoryHandle, rightResult.blob, rightName);
         if (ok1 && ok2) {
+          // OS 탐색기 자동 새로고침 시도 (Windows)
+          await nudgeFolderRefresh(directoryHandle);
           console.log(`[저장 완료] ${directoryHandle.name}/${leftName} (${leftResult.blob.size}B), ${rightName} (${rightResult.blob.size}B)`);
 
           let deleted = false;
@@ -567,7 +569,10 @@ export function AlbumSplitTool() {
     if (directoryHandle) {
       const ok1 = await saveToFolder(directoryHandle, leftBlob, leftName);
       const ok2 = await saveToFolder(directoryHandle, rightBlob, rightName);
-      if (ok1 && ok2) saved = true;
+      if (ok1 && ok2) {
+        saved = true;
+        await nudgeFolderRefresh(directoryHandle); // OS 탐색기 새로고침 시도
+      }
       else toast.error('일부 파일 저장 실패');
     } else {
       const ok1 = await saveWithPicker(leftBlob, leftName);

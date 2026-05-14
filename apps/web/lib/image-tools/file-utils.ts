@@ -23,6 +23,26 @@ export async function saveToFolder(
   }
 }
 
+/**
+ * Windows 탐색기 새로고침 시도 — 폴더에 더미 파일 생성·삭제로 셸 알림 트리거.
+ * 100% 보장 안 되지만 일부 환경에서 자동 새로고침이 발화함.
+ */
+export async function nudgeFolderRefresh(directoryHandle: FileSystemDirectoryHandle): Promise<void> {
+  if (!directoryHandle) return;
+  const dummyName = `.refresh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.tmp`;
+  try {
+    const handle = await directoryHandle.getFileHandle(dummyName, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(new Blob(['']));
+    await writable.close();
+    // 잠시 대기 후 삭제 (즉시 삭제 시 셸 알림이 발생하지 않을 수 있음)
+    await new Promise((r) => setTimeout(r, 50));
+    await directoryHandle.removeEntry(dummyName);
+  } catch {
+    /* 무시 */
+  }
+}
+
 export function fallbackDownload(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
