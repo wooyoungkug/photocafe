@@ -405,24 +405,26 @@ function MyBidDialog({
             닫기
           </Button>
           {/* 채팅 버튼 */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setChatOpen(true)}
-            className={cn(
-              'text-[13px] relative',
-              hasUnread && 'border-red-400 text-red-600',
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5 mr-1" />
-            채팅
+          <div className="relative inline-flex">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setChatOpen(true)}
+              className={cn(
+                'text-[13px]',
+                hasUnread && 'border-red-400 text-red-600',
+              )}
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-1" />
+              채팅
+            </Button>
             {hasUnread && (
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none z-10">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
               </span>
             )}
-          </Button>
+          </div>
           {bid.status === 'pending' && (
             <Button
               variant="destructive"

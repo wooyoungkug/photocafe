@@ -414,9 +414,9 @@ model Client {
   birthday                   String?
   contactEmail               String?
   gender                     String?
-  enableRecruitment          Boolean                        @default(true)
-  enableSchedule             Boolean                        @default(true)
-  enableShooting             Boolean                        @default(true)
+  enableRecruitment          Boolean                        @default(false)
+  enableSchedule             Boolean                        @default(false)
+  enableShooting             Boolean                        @default(false)
   enableNote                 Boolean                        @default(false)
   storageQuotaGb             Int                            @default(500)
   smsNotificationStages      String[]                       @default([])

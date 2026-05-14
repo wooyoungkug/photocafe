@@ -200,6 +200,9 @@ export default function RecruitmentDetailPage() {
   // 확정된 응찰자
   const selectedBid = bids?.find((b) => b.status === 'selected');
 
+  // 비오너(응찰자) 입장에서 내 응찰 채팅 미읽음 여부
+  const myBidUnread = useChatUnread(myBid?.id ?? null, user?.clientId ?? '');
+
   // 촬영일(예식일)이 지났는지 — 날짜 단위 비교, 당일은 허용
   const isPastShootingDate = (() => {
     if (!recruitment?.shootingDate) return false;
@@ -901,18 +904,29 @@ export default function RecruitmentDetailPage() {
                         {format(new Date(myBid.bidAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
                       </p>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-[12px] h-7 px-2.5"
-                      onClick={() => {
-                        setChatBidId(myBid.id);
-                        setChatBidderName(recruitment.client?.clientName || '스튜디오');
-                      }}
-                    >
-                      <MessageSquare className="h-3.5 w-3.5 mr-1" />
-                      채팅
-                    </Button>
+                    <div className="relative inline-flex">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn(
+                          'text-[12px] h-7 px-2.5',
+                          myBidUnread && 'border-red-400 text-red-600',
+                        )}
+                        onClick={() => {
+                          setChatBidId(myBid.id);
+                          setChatBidderName(recruitment.client?.clientName || '스튜디오');
+                        }}
+                      >
+                        <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                        채팅
+                      </Button>
+                      {myBidUnread && (
+                        <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none z-10">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 {myBid.message && (
@@ -1349,24 +1363,26 @@ function BidCard({
 
         {/* 액션 버튼 */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onChat}
-            className={cn(
-              'text-[12px] h-8 px-3 relative',
-              hasUnread && 'border-red-400 text-red-600',
-            )}
-          >
-            <MessageSquare className="h-3.5 w-3.5 mr-1" />
-            채팅
+          <div className="relative inline-flex">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onChat}
+              className={cn(
+                'text-[12px] h-8 px-3',
+                hasUnread && 'border-red-400 text-red-600',
+              )}
+            >
+              <MessageSquare className="h-3.5 w-3.5 mr-1" />
+              채팅
+            </Button>
             {hasUnread && (
-              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 pointer-events-none z-10">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
               </span>
             )}
-          </Button>
+          </div>
           {bid.status === 'pending' && (
             <>
               <Button
