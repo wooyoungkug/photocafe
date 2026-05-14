@@ -150,6 +150,7 @@ export default function OnboardingPage() {
   // 소셜 로그인에서 넘어온 값은 잠금 표시 — '수정' 버튼으로 해제
   const [nameLocked, setNameLocked] = useState(true);
   const [mobileLocked, setMobileLocked] = useState(true);
+  const [emailLocked, setEmailLocked] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -254,9 +255,13 @@ export default function OnboardingPage() {
     if (!status) return;
     const seededName = status.profile.clientName || user?.name || '';
     const seededMobile = status.profile.mobile || user?.mobile || '';
+    const oauthRealEmail = status.profile.oauthProvider && !isFakeProviderEmail(status.profile.email, status.profile.oauthProvider)
+      ? status.profile.email : '';
+    const seededEmail = status.profile.contactEmail || oauthRealEmail || '';
     // 소셜에서 넘어온 값이 있으면 잠금 상태로 시작
     setNameLocked(!!seededName);
     setMobileLocked(!!seededMobile);
+    setEmailLocked(!!seededEmail && !status.profile.contactEmail); // OAuth 이메일로만 채워진 경우 잠금
     setForm({
       clientName: seededName,
       mobile: seededMobile,
@@ -269,10 +274,7 @@ export default function OnboardingPage() {
       department: status.employment?.department ?? '',
       acquisitionChannel: (status.profile as any).acquisitionChannel ?? '',
       acquisitionChannelNote: (status.profile as any).acquisitionChannelNote ?? '',
-      contactEmail: status.profile.contactEmail ||
-        (status.profile.oauthProvider && !isFakeProviderEmail(status.profile.email, status.profile.oauthProvider)
-          ? status.profile.email
-          : ''),
+      contactEmail: seededEmail,
       signupPurpose: (status.profile as any).signupPurpose ?? '',
       signupPurposeNote: (status.profile as any).signupPurposeNote ?? '',
     });
@@ -307,7 +309,7 @@ export default function OnboardingPage() {
 
   const needsContactEmail = !!status && isFakeProviderEmail(status.profile.email, status.profile.oauthProvider);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: { preventDefault(): void }) => {
     e.preventDefault();
     setError('');
 
@@ -477,27 +479,43 @@ export default function OnboardingPage() {
                 {mobileDupHint && <DuplicateWarning kind="전화번호" hint={mobileDupHint} />}
               </div>
 
-              {/* 연락 이메일 — 항상 표시. 소셜 로그인 이메일을 먼저 채워주고, 필요 시 변경 가능.
-                  가짜 이메일 패턴이 감지되면 필수, 그 외에는 선택. */}
+              {/* 연락 이메일 — 소셜 이메일 자동 채움. 가짜 패턴이면 필수 입력, 그 외 선택. */}
               <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal flex items-center gap-1.5">
+                <Label className="text-[14px] text-black font-normal flex items-center gap-2">
                   <Mail className="h-4 w-4 text-primary" />
                   {needsContactEmail ? (
                     <>이메일 주소 <span className="text-red-500">*</span></>
                   ) : (
                     <>연락 이메일 <span className="text-gray-400 text-[12px] font-normal">(선택)</span></>
                   )}
+                  {emailLocked && form.contactEmail && (
+                    <span className="inline-flex items-center gap-1 text-[12px] font-normal text-gray-400">
+                      <Lock className="h-3 w-3" /> 소셜 계정 정보
+                    </span>
+                  )}
                 </Label>
-                <Input
-                  ref={contactEmailRef}
-                  type="email"
-                  value={form.contactEmail}
-                  onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); if (emailDupHint) setEmailDupHint(null); }}
-                  onBlur={(e) => handleDuplicateBlur('email', e.target.value)}
-                  placeholder={needsContactEmail ? '실제 이메일 주소를 입력해주세요' : '주문·견적 알림을 받을 이메일 (예: hong@example.com)'}
-                  className={`text-[14px] ${fieldErrors.contactEmail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
-                  maxLength={200}
-                />
+                <div className="relative">
+                  <Input
+                    ref={contactEmailRef}
+                    type="email"
+                    value={form.contactEmail}
+                    onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); if (emailDupHint) setEmailDupHint(null); }}
+                    onBlur={(e) => { if (!(emailLocked && form.contactEmail)) handleDuplicateBlur('email', e.target.value); }}
+                    readOnly={emailLocked && !!form.contactEmail}
+                    placeholder={needsContactEmail ? '실제 이메일 주소를 입력해주세요' : '주문·견적 알림을 받을 이메일 (예: hong@example.com)'}
+                    className={`text-[14px] ${emailLocked && form.contactEmail ? 'bg-gray-50 text-gray-600 pr-16 cursor-default' : ''} ${fieldErrors.contactEmail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                    maxLength={200}
+                  />
+                  {emailLocked && form.contactEmail && (
+                    <button
+                      type="button"
+                      onClick={() => { setEmailLocked(false); setTimeout(() => contactEmailRef.current?.focus(), 0); }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
+                    >
+                      <Pencil className="h-3 w-3" /> 수정
+                    </button>
+                  )}
+                </div>
                 {fieldErrors.contactEmail ? (
                   <p className="text-[12px] text-red-500 flex items-center gap-1">
                     <AlertCircle className="h-3 w-3" />{fieldErrors.contactEmail}
@@ -506,9 +524,9 @@ export default function OnboardingPage() {
                   <p className="text-[12px] text-gray-500">
                     소셜 로그인 계정 이메일이 임시 발급된 주소로 확인됩니다. 실제 받으실 수 있는 이메일을 입력해 주세요.
                   </p>
-                ) : status?.profile.oauthProvider && !isFakeProviderEmail(status.profile.email, status.profile.oauthProvider) && form.contactEmail === status.profile.email ? (
+                ) : emailLocked && form.contactEmail ? (
                   <p className="text-[12px] text-gray-500">
-                    소셜 로그인 이메일이 자동으로 입력되었습니다. 이 이메일로 주문·견적 알림을 받으시며, 다른 이메일로 받으시려면 변경해 주세요.
+                    소셜 로그인 이메일이 자동으로 입력되었습니다. 다른 이메일로 받으시려면 수정 버튼을 누르세요.
                   </p>
                 ) : (
                   <p className="text-[12px] text-gray-500">
