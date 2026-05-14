@@ -83,6 +83,22 @@ export class CreateStaffDto {
   @IsOptional()
   teamId?: string;
 
+  // ─── 일괄등록(엑셀)용 이름 입력 — 서버에서 ID로 변환 ───
+  @ApiPropertyOptional({ description: '부서명 (일괄등록 시 ID 대신 사용 가능)' })
+  @IsString()
+  @IsOptional()
+  departmentName?: string;
+
+  @ApiPropertyOptional({ description: '지점명 (일괄등록 시 ID 대신 사용 가능)' })
+  @IsString()
+  @IsOptional()
+  branchName?: string;
+
+  @ApiPropertyOptional({ description: '팀명 (일괄등록 시 ID 대신 사용 가능)' })
+  @IsString()
+  @IsOptional()
+  teamName?: string;
+
   @ApiPropertyOptional({ description: '직책', example: '대리' })
   @IsString()
   @IsOptional()
