@@ -216,15 +216,15 @@ function MyRecruitmentRow({ recruitment }: { recruitment: Recruitment }) {
           {(recruitment.client?.clientName || recruitment.customerName) && (
             <div className="flex items-center gap-1 mt-0.5">
               {recruitment.client?.clientName && (
-                <span className="text-[12px] text-gray-400 truncate">
+                <span className="text-[12px] text-black/70 truncate">
                   {recruitment.client.clientName}
                 </span>
               )}
               {recruitment.client?.clientName && recruitment.customerName && (
-                <span className="text-[12px] text-gray-300">·</span>
+                <span className="text-[12px] text-black/40">·</span>
               )}
               {recruitment.customerName && (
-                <span className="text-[12px] text-gray-400 truncate">
+                <span className="text-[12px] text-black/70 truncate">
                   {recruitment.customerName}
                 </span>
               )}
@@ -529,15 +529,15 @@ function PublicRecruitmentRow({
           </div>
           <div className="flex items-center gap-1 mt-0.5">
             {recruitment.client?.clientName && (
-              <span className="text-[12px] text-gray-400 truncate">
+              <span className="text-[12px] text-black/70 truncate">
                 {recruitment.client.clientName}
               </span>
             )}
             {recruitment.client?.clientName && recruitment.customerName && (
-              <span className="text-[12px] text-gray-300">·</span>
+              <span className="text-[12px] text-black/40">·</span>
             )}
             {recruitment.customerName && (
-              <span className="text-[12px] text-gray-400 truncate">
+              <span className="text-[12px] text-black/70 truncate">
                 {recruitment.customerName}
               </span>
             )}
