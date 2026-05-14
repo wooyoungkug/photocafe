@@ -66,10 +66,16 @@ export function AlbumSplitTool() {
       const cached = await getFolderHandle(STORAGE_KEY);
       if (!cached || cancelled) return;
       const perm = await queryHandlePermission(cached);
-      if (perm === 'granted' && !cancelled) {
-        setDirectoryHandle(cached);
+      if (perm !== 'granted' || cancelled) return;
+      // 핸들 유효성 검증 — 폴더가 삭제·이동됐으면 entries() 가 실패
+      try {
+        const iter = (cached as any).entries();
+        await iter.next();
+        if (!cancelled) setDirectoryHandle(cached);
+      } catch {
+        // 무효 핸들 → 캐시 정리
+        await clearFolderHandle(STORAGE_KEY);
       }
-      // 'prompt' 상태는 사용자 제스처가 필요하므로 handleClickUpload 에서 처리
     })();
     return () => { cancelled = true; };
   }, []);
@@ -466,7 +472,10 @@ export function AlbumSplitTool() {
             setTimeout(() => resetTool(false), 1500);
           }
         } else {
-          toast.error('자동 저장 실패 - 수동으로 저장해주세요.');
+          // 저장 폴더 핸들이 무효 (이동/삭제됨) — 캐시 비우고 폴더 해제 → 자동 클릭 useEffect 가 saveBoth 발화
+          toast.error('저장 폴더가 더 이상 유효하지 않습니다. 저장 다이얼로그로 전환합니다.');
+          setDirectoryHandle(null);
+          await clearFolderHandle(STORAGE_KEY);
         }
       } else {
         toast.success('분리 완료! 결과를 확인하세요.');
