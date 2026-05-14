@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
-import { saveToFolder, fallbackDownload, pickDirectory, isJpegOrPng } from '@/lib/image-tools/file-utils';
+import { saveToFolder, isJpegOrPng } from '@/lib/image-tools/file-utils';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
@@ -661,11 +661,33 @@ export function AlbumSplitTool() {
               <Checkbox
                 id="auto-mode"
                 checked={autoMode}
-                onCheckedChange={(checked) => {
+                onCheckedChange={async (checked) => {
                   const v = checked === true;
-                  setAutoMode(v);
-                  if (v && !directoryHandle) {
-                    toast.info('완전 무인 작동을 원하면 업로드 영역을 클릭해 폴더를 선택하세요. 단일 파일은 저장 다이얼로그가 뜹니다.', { duration: 6000 });
+                  if (!v) {
+                    setAutoMode(false);
+                    return;
+                  }
+                  // 완전자동 ON 시 폴더가 없으면 즉시 폴더 선택을 강제 → 다이얼로그 없이 자동 저장 보장
+                  if (!directoryHandle) {
+                    if (!('showDirectoryPicker' in window)) {
+                      toast.error('이 브라우저는 폴더 자동저장을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
+                      return;
+                    }
+                    try {
+                      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+                      setDirectoryHandle(handle);
+                      const files = await scanFolderFiles(handle);
+                      if (files.length > 0) {
+                        setFolderFiles(files);
+                        setCurrentFileIndex(0);
+                      }
+                      setAutoMode(true);
+                      toast.success(`저장 폴더: ${handle.name} → 완전자동 활성화`);
+                    } catch {
+                      toast.error('폴더를 선택해야 완전자동이 작동합니다.');
+                    }
+                  } else {
+                    setAutoMode(true);
                   }
                 }}
                 className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
