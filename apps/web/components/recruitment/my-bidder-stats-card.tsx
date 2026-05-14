@@ -108,7 +108,7 @@ export function MyBidderStatsCard({ enabled = true }: { enabled?: boolean }) {
 
       {/* 통계 */}
       <CardContent className="p-4">
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <StatItem
             icon={<Award className="h-4 w-4 text-amber-500" />}
             label="선택된 횟수"
@@ -136,13 +136,6 @@ export function MyBidderStatsCard({ enabled = true }: { enabled?: boolean }) {
             value={data.likedCount}
             suffix="개"
             tone="pink"
-          />
-          <StatItem
-            icon={<XCircle className="h-4 w-4 text-red-400" />}
-            label="거절"
-            value={data.rejectedCount}
-            suffix="회"
-            tone="red"
           />
           <StatItem
             icon={<XCircle className="h-4 w-4 text-gray-400" />}
