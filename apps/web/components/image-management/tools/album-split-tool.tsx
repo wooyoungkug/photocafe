@@ -610,6 +610,25 @@ export function AlbumSplitTool() {
     }
   }, [originalImage, showPreview, processing, showResult]);
 
+  // 결과 표시 후 "첫장 + 막장 모두 저장" 버튼 자동 클릭
+  // 폴더 핸들이 있으면 handleSplit 내부에서 이미 저장하므로 여기서는 발화 안 함
+  const autoSavedForBlobRef = useRef<Blob | null>(null);
+  useEffect(() => {
+    if (
+      showResult &&
+      leftBlob &&
+      rightBlob &&
+      !processing &&
+      !directoryHandle &&
+      autoSavedForBlobRef.current !== leftBlob
+    ) {
+      autoSavedForBlobRef.current = leftBlob;
+      const timer = setTimeout(() => {
+        handleSaveBothRef.current();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [showResult, leftBlob, rightBlob, processing, directoryHandle]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
