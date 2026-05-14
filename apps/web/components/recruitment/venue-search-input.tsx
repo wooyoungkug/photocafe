@@ -5,18 +5,9 @@ import { MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-declare global {
-  interface Window {
-    kakao: any;
-  }
-}
-
 interface PlaceResult {
   placeName: string;
   address: string;
-  roadAddress?: string;
-  phone?: string;
-  categoryName?: string;
 }
 
 interface VenueSearchInputProps {
@@ -29,33 +20,32 @@ interface VenueSearchInputProps {
   id?: string;
 }
 
-let sdkLoadPromise: Promise<void> | null = null;
+function formatAddress(item: any): string {
+  const a = item.address ?? {};
+  const parts = [
+    a.city ?? a.county ?? a.state,
+    a.city_district ?? a.suburb,
+    a.road,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' ') : item.display_name;
+}
 
-function loadKakaoMapsSdk(): Promise<void> {
-  if (typeof window === 'undefined') return Promise.reject();
-  if (window.kakao?.maps?.services) return Promise.resolve();
-  if (sdkLoadPromise) return sdkLoadPromise;
-
-  sdkLoadPromise = new Promise((resolve, reject) => {
-    const key = process.env.NEXT_PUBLIC_KAKAO_JS_KEY;
-    if (!key) {
-      sdkLoadPromise = null;
-      reject(new Error('NEXT_PUBLIC_KAKAO_JS_KEY 미설정'));
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${key}&libraries=services&autoload=false`;
-    script.onload = () => {
-      window.kakao.maps.load(() => resolve());
-    };
-    script.onerror = () => {
-      sdkLoadPromise = null;
-      reject(new Error('Kakao Maps SDK 로드 실패'));
-    };
-    document.head.appendChild(script);
+async function searchNominatim(keyword: string): Promise<PlaceResult[]> {
+  const params = new URLSearchParams({
+    q: keyword,
+    countrycodes: 'kr',
+    format: 'json',
+    limit: '5',
+    addressdetails: '1',
+    'accept-language': 'ko',
   });
-
-  return sdkLoadPromise;
+  const res = await fetch(`https://nominatim.openstreetmap.org/search?${params}`);
+  if (!res.ok) return [];
+  const data: any[] = await res.json();
+  return data.map((item) => ({
+    placeName: item.name || item.display_name.split(',')[0].trim(),
+    address: formatAddress(item),
+  }));
 }
 
 export function VenueSearchInput({
@@ -73,62 +63,32 @@ export function VenueSearchInput({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // 컴포넌트 마운트 시 SDK 미리 로드
-  useEffect(() => {
-    loadKakaoMapsSdk().catch(() => {});
-  }, []);
-
-  const search = useCallback((keyword: string) => {
+  const search = useCallback(async (keyword: string) => {
     if (keyword.trim().length < 2) {
       setResults([]);
       setIsOpen(false);
       return;
     }
-    // SDK 로딩 완료까지 기다린 후 검색
-    loadKakaoMapsSdk()
-      .then(() => {
-        const ps = new window.kakao.maps.services.Places();
-        ps.keywordSearch(
-          keyword,
-          (data: any[], status: string) => {
-            if (status === window.kakao.maps.services.Status.OK) {
-              setResults(
-                data.map((doc) => ({
-                  placeName: doc.place_name,
-                  address: doc.address_name,
-                  roadAddress: doc.road_address_name || undefined,
-                  phone: doc.phone || undefined,
-                  categoryName: doc.category_name || undefined,
-                })),
-              );
-              setIsOpen(true);
-            } else {
-              setResults([]);
-              setIsOpen(false);
-            }
-            setActiveIndex(-1);
-          },
-          { size: 5 },
-        );
-      })
-      .catch(() => {
-        setResults([]);
-        setIsOpen(false);
-      });
+    try {
+      const places = await searchNominatim(keyword);
+      setResults(places);
+      setIsOpen(places.length > 0);
+    } catch {
+      setResults([]);
+      setIsOpen(false);
+    }
+    setActiveIndex(-1);
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     onChange(val);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => search(val), 300);
+    debounceRef.current = setTimeout(() => search(val), 500);
   };
 
   const handleSelect = (place: PlaceResult) => {
-    onSelect({
-      name: place.placeName,
-      address: place.address || place.roadAddress || '',
-    });
+    onSelect({ name: place.placeName, address: place.address });
     setIsOpen(false);
     setResults([]);
   };
@@ -197,21 +157,7 @@ export function VenueSearchInput({
                   <p className="text-[14px] text-black font-medium truncate">
                     {place.placeName}
                   </p>
-                  {place.roadAddress && (
-                    <p className="text-[12px] text-gray-500 truncate">
-                      {place.roadAddress}
-                    </p>
-                  )}
-                  {place.address && (
-                    <p className="text-[11px] text-gray-400 truncate">
-                      {place.address}
-                    </p>
-                  )}
-                  {place.categoryName && (
-                    <p className="text-[11px] text-gray-400 truncate">
-                      {place.categoryName}
-                    </p>
-                  )}
+                  <p className="text-[12px] text-gray-500 truncate">{place.address}</p>
                 </div>
               </div>
             </button>
