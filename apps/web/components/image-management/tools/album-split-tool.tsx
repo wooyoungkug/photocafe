@@ -674,7 +674,12 @@ export function AlbumSplitTool() {
                       return;
                     }
                     try {
-                      const handle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+                      const options: any = { mode: 'readwrite' };
+                      // 원본 파일이 이미 로드된 경우 해당 폴더에서 피커 열기
+                      if (sourceFileHandleRef.current) {
+                        options.startIn = sourceFileHandleRef.current;
+                      }
+                      const handle = await (window as any).showDirectoryPicker(options);
                       setDirectoryHandle(handle);
                       const files = await scanFolderFiles(handle);
                       if (files.length > 0) {
