@@ -596,9 +596,13 @@ export function AlbumSplitTool() {
 
   // 자동 처리: 이미지 로드 시 자동으로 분리 실행 (항상 활성)
   const handleSplitRef = useRef<() => void>(() => {});
+  const handleSaveBothRef = useRef<() => void>(() => {});
   useEffect(() => {
     handleSplitRef.current = handleSplit;
   }, [handleSplit]);
+  useEffect(() => {
+    handleSaveBothRef.current = handleSaveBoth;
+  }, [handleSaveBoth]);
 
   // 같은 이미지에 split 이 중복 트리거되지 않도록 가드
   const autoSplitTriggeredForRef = useRef<HTMLImageElement | null>(null);
@@ -617,6 +621,26 @@ export function AlbumSplitTool() {
       return () => clearTimeout(timer);
     }
   }, [originalImage, showPreview, processing, showResult]);
+
+  // 결과 표시 후 "첫장 + 막장 모두 저장" 버튼 자동 클릭
+  // 폴더 핸들이 있으면 handleSplit 내부에서 이미 저장하므로 여기서는 발화 안 함
+  const autoSavedForBlobRef = useRef<Blob | null>(null);
+  useEffect(() => {
+    if (
+      showResult &&
+      leftBlob &&
+      rightBlob &&
+      !processing &&
+      !directoryHandle &&
+      autoSavedForBlobRef.current !== leftBlob
+    ) {
+      autoSavedForBlobRef.current = leftBlob;
+      const timer = setTimeout(() => {
+        handleSaveBothRef.current();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [showResult, leftBlob, rightBlob, processing, directoryHandle]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
