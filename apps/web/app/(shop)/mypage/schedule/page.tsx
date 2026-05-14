@@ -55,7 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useHolidaysRange } from '@/hooks/use-holidays';
 import { useAuthStore } from '@/stores/auth-store';
-import { useShootings, useDeleteShooting } from '@/hooks/use-shooting';
+import { useShootings, useDeleteShooting, useUpdateShooting } from '@/hooks/use-shooting';
 import type { Shooting, ShootingType, ShootingStatus } from '@/hooks/use-shooting';
 import { SHOOTING_TYPE_LABELS, SHOOTING_STATUS_LABELS } from '@/hooks/use-shooting';
 import { ShootingCalendar } from '@/components/shooting/shooting-calendar';
@@ -120,7 +120,9 @@ export default function SchedulePage() {
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<CalendarViewMode>('month');
   const [deleteTarget, setDeleteTarget] = useState<Shooting | null>(null);
+  const [dropConfirm, setDropConfirm] = useState<{ shooting: Shooting; newDate: Date } | null>(null);
   const deleteMutation = useDeleteShooting();
+  const updateShootingMutation = useUpdateShooting();
 
   // 날짜 범위 계산 (뷰 모드에 따라 범위 확장)
   const dateRange = useMemo(() => {
@@ -218,6 +220,14 @@ export default function SchedulePage() {
     },
     [router]
   );
+
+  const handleShootingDrop = useCallback((shooting: Shooting, newDate: Date) => {
+    // 같은 날짜로 드롭하면 무시
+    const origDateKey = shooting.shootingDate.substring(0, 10);
+    const newDateKey = format(newDate, 'yyyy-MM-dd');
+    if (origDateKey === newDateKey) return;
+    setDropConfirm({ shooting, newDate });
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -520,6 +530,7 @@ export default function SchedulePage() {
                       onMonthChange={setCurrentMonth}
                       onShootingClick={handleShootingClick}
                       onDateDoubleClick={handleDateDoubleClick}
+                      onShootingDrop={handleShootingDrop}
                     />
                   </div>
                 )}
@@ -567,6 +578,73 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
+
+      {/* 드래그앤드롭 날짜이동 확인 다이얼로그 */}
+      <Dialog open={!!dropConfirm} onOpenChange={(open) => !open && setDropConfirm(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[18px] text-black font-bold">날짜 이동</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-[14px] text-black">
+              <strong>{dropConfirm?.shooting.clientName}</strong> 일정을<br />
+              <strong>
+                {dropConfirm && format(dropConfirm.newDate, 'M월 d일 (EEE)', { locale: ko })}
+              </strong>
+              로 이동하시겠습니까?
+            </p>
+            <p className="text-[12px] text-gray-500 mt-2">
+              기존:{' '}
+              {dropConfirm &&
+                format(new Date(dropConfirm.shooting.shootingDate), 'M월 d일 (EEE) HH:mm', {
+                  locale: ko,
+                })}
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDropConfirm(null)}
+              className="text-[14px]"
+            >
+              취소
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!dropConfirm) return;
+                // 기존 시간 유지, 날짜만 변경
+                const orig = new Date(dropConfirm.shooting.shootingDate);
+                const newDt = new Date(dropConfirm.newDate);
+                newDt.setHours(orig.getHours(), orig.getMinutes(), 0, 0);
+                try {
+                  await updateShootingMutation.mutateAsync({
+                    id: dropConfirm.shooting.id,
+                    data: { shootingDate: newDt.toISOString() },
+                  });
+                  toast({
+                    title: '날짜 이동 완료',
+                    description: `${dropConfirm.shooting.clientName} 일정이 이동되었습니다.`,
+                  });
+                } catch (err: any) {
+                  toast({
+                    title: '이동 실패',
+                    description: err?.message || '오류가 발생했습니다.',
+                    variant: 'destructive',
+                  });
+                }
+                setDropConfirm(null);
+              }}
+              disabled={updateShootingMutation.isPending}
+              className="text-[14px]"
+            >
+              {updateShootingMutation.isPending && (
+                <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+              )}
+              {updateShootingMutation.isPending ? '처리중...' : '이동'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* 삭제 확인 다이얼로그 */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>

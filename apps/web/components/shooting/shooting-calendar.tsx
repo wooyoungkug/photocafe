@@ -40,6 +40,7 @@ interface ShootingCalendarProps {
   onMonthChange: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
   onDateDoubleClick?: (date: Date) => void;
+  onShootingDrop?: (shooting: Shooting, newDate: Date) => void;
 }
 
 const WEEKDAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -67,6 +68,7 @@ export function ShootingCalendar({
   onMonthChange,
   onShootingClick,
   onDateDoubleClick,
+  onShootingDrop,
 }: ShootingCalendarProps) {
   const [datePickerOpen, setDatePickerOpen] = useState(false);
 
@@ -217,6 +219,7 @@ export function ShootingCalendar({
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
           onDateDoubleClick={onDateDoubleClick}
+          onShootingDrop={onShootingDrop}
         />
       )}
 
@@ -263,6 +266,7 @@ export function ShootingCalendar({
           onDateSelect={onDateSelect}
           onShootingClick={onShootingClick}
           onDateDoubleClick={onDateDoubleClick}
+          onShootingDrop={onShootingDrop}
         />
       )}
     </div>
@@ -279,6 +283,7 @@ interface MonthViewProps {
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
   onDateDoubleClick?: (date: Date) => void;
+  onShootingDrop?: (shooting: Shooting, newDate: Date) => void;
 }
 
 function MonthView({
@@ -289,7 +294,10 @@ function MonthView({
   onDateSelect,
   onShootingClick,
   onDateDoubleClick,
+  onShootingDrop,
 }: MonthViewProps) {
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const calendarDays = useMemo(() => {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
@@ -334,10 +342,37 @@ function MonthView({
               key={dateKey}
               onClick={() => onDateSelect(day)}
               onDoubleClick={() => onDateDoubleClick?.(day)}
+              onDragOver={
+                onShootingDrop
+                  ? (e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDragOverDate(dateKey);
+                    }
+                  : undefined
+              }
+              onDragLeave={onShootingDrop ? () => setDragOverDate(null) : undefined}
+              onDrop={
+                onShootingDrop
+                  ? (e) => {
+                      e.preventDefault();
+                      setDragOverDate(null);
+                      const json = e.dataTransfer.getData('shootingJson');
+                      if (!json) return;
+                      try {
+                        const s = JSON.parse(json) as Shooting;
+                        onShootingDrop?.(s, day);
+                      } catch {
+                        // ignore parse error
+                      }
+                    }
+                  : undefined
+              }
               className={cn(
                 'border-b border-r p-1 min-h-[100px] cursor-pointer transition-colors hover:bg-gray-50',
                 !isCurrentMonth && 'bg-gray-50/50',
-                isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset'
+                isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset',
+                dragOverDate === dateKey && 'bg-blue-100 ring-2 ring-blue-400 ring-inset'
               )}
             >
               {/* 날짜 숫자 + 공휴일 이름 */}
@@ -367,11 +402,28 @@ function MonthView({
                   <button
                     key={shooting.id}
                     type="button"
+                    draggable={!!onShootingDrop}
+                    onDragStart={
+                      onShootingDrop
+                        ? (e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData('shootingId', shooting.id);
+                            e.dataTransfer.setData('shootingJson', JSON.stringify(shooting));
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDraggingId(shooting.id);
+                          }
+                        : undefined
+                    }
+                    onDragEnd={onShootingDrop ? () => setDraggingId(null) : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       onShootingClick?.(shooting);
                     }}
-                    className="w-full text-left rounded px-1 py-0.5 text-[11px] truncate transition-opacity hover:opacity-80"
+                    className={cn(
+                      'w-full text-left rounded px-1 py-0.5 text-[11px] truncate transition-opacity hover:opacity-80',
+                      onShootingDrop && 'cursor-grab active:cursor-grabbing',
+                      draggingId === shooting.id && 'opacity-50'
+                    )}
                     style={{
                       backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}15`,
                       color: SHOOTING_TYPE_COLORS[shooting.shootingType],
@@ -880,6 +932,7 @@ interface TwoWeekViewProps {
   onDateSelect: (date: Date) => void;
   onShootingClick?: (shooting: Shooting) => void;
   onDateDoubleClick?: (date: Date) => void;
+  onShootingDrop?: (shooting: Shooting, newDate: Date) => void;
 }
 
 function TwoWeekView({
@@ -890,7 +943,10 @@ function TwoWeekView({
   onDateSelect,
   onShootingClick,
   onDateDoubleClick,
+  onShootingDrop,
 }: TwoWeekViewProps) {
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const twoWeekDays = useMemo(() => {
     const weekStart = startOfWeek(currentDate, { locale: ko });
     const twoWeekEnd = endOfWeek(addWeeks(currentDate, 1), { locale: ko });
@@ -932,9 +988,36 @@ function TwoWeekView({
               key={dateKey}
               onClick={() => onDateSelect(day)}
               onDoubleClick={() => onDateDoubleClick?.(day)}
+              onDragOver={
+                onShootingDrop
+                  ? (e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDragOverDate(dateKey);
+                    }
+                  : undefined
+              }
+              onDragLeave={onShootingDrop ? () => setDragOverDate(null) : undefined}
+              onDrop={
+                onShootingDrop
+                  ? (e) => {
+                      e.preventDefault();
+                      setDragOverDate(null);
+                      const json = e.dataTransfer.getData('shootingJson');
+                      if (!json) return;
+                      try {
+                        const s = JSON.parse(json) as Shooting;
+                        onShootingDrop?.(s, day);
+                      } catch {
+                        // ignore parse error
+                      }
+                    }
+                  : undefined
+              }
               className={cn(
                 'border-b border-r p-1 min-h-[120px] cursor-pointer transition-colors hover:bg-gray-50',
-                isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset'
+                isSelected && 'bg-blue-50 ring-1 ring-blue-200 ring-inset',
+                dragOverDate === dateKey && 'bg-blue-100 ring-2 ring-blue-400 ring-inset'
               )}
             >
               {/* 날짜 숫자 + 공휴일 이름 */}
@@ -963,11 +1046,28 @@ function TwoWeekView({
                   <button
                     key={shooting.id}
                     type="button"
+                    draggable={!!onShootingDrop}
+                    onDragStart={
+                      onShootingDrop
+                        ? (e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData('shootingId', shooting.id);
+                            e.dataTransfer.setData('shootingJson', JSON.stringify(shooting));
+                            e.dataTransfer.effectAllowed = 'move';
+                            setDraggingId(shooting.id);
+                          }
+                        : undefined
+                    }
+                    onDragEnd={onShootingDrop ? () => setDraggingId(null) : undefined}
                     onClick={(e) => {
                       e.stopPropagation();
                       onShootingClick?.(shooting);
                     }}
-                    className="w-full text-left rounded px-1 py-0.5 text-[11px] truncate transition-opacity hover:opacity-80"
+                    className={cn(
+                      'w-full text-left rounded px-1 py-0.5 text-[11px] truncate transition-opacity hover:opacity-80',
+                      onShootingDrop && 'cursor-grab active:cursor-grabbing',
+                      draggingId === shooting.id && 'opacity-50'
+                    )}
                     style={{
                       backgroundColor: `${SHOOTING_TYPE_COLORS[shooting.shootingType]}15`,
                       color: SHOOTING_TYPE_COLORS[shooting.shootingType],
