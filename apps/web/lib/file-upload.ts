@@ -246,6 +246,308 @@ export function uploadRepairFile(
   });
 }
 
+// ===== Presigned URL 직접 업로드 (B2 Direct Upload) =====
+
+export interface PresignedUploadRequest {
+  tempFolderId: string;
+  folderName: string;
+  sortOrder: number;
+  fileName: string;
+  contentType: string;
+  fileSize: number;
+  width: number;
+  height: number;
+  widthInch: number;
+  heightInch: number;
+  dpi: number;
+}
+
+export interface PresignedUploadResponse {
+  presignedUrl: string;
+  b2Key: string;
+  tempFileId: string;
+  fileName: string;
+  thumbnailUrl: string;
+  sortOrder: number;
+  expiresAt: string;
+}
+
+/**
+ * 서버에서 B2 presigned PUT URL 발급
+ */
+export async function requestPresignedUrl(
+  request: PresignedUploadRequest,
+  token: string | null,
+): Promise<PresignedUploadResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/v1/upload/album-file-presign`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+    });
+  } catch (err) {
+    throw new UploadError(
+      `Presigned URL 요청 네트워크 오류: ${(err as Error).message}`,
+      'network',
+      undefined,
+      true,
+    );
+  }
+
+  if (!res.ok) {
+    let bodyText = '';
+    try {
+      bodyText = await res.text();
+    } catch {
+      // ignore
+    }
+    const msg = parseErrorResponse(bodyText, res.status, res.statusText);
+    // 400은 B2 미설정 등 서버 설정 문제 → 폴백 트리거용으로 retriable=false
+    const retriable = res.status === 0 || res.status === 429 || res.status >= 500;
+    const kind = res.status >= 500 ? 'server' : res.status === 400 ? 'server' : 'client';
+    throw new UploadError(msg, kind, res.status, retriable);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    throw new UploadError('Presigned URL 응답을 파싱할 수 없습니다.', 'server', res.status, true);
+  }
+}
+
+/**
+ * B2에 파일 직접 PUT 업로드 (서버 경유 없음)
+ */
+export function uploadToB2Direct(
+  presignedUrl: string,
+  file: File,
+  contentType: string,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Upload cancelled', 'AbortError'));
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = UPLOAD_TIMEOUT_MS;
+
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        onProgress?.(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      signal?.removeEventListener('abort', onAbort);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        const msg = parseErrorResponse(xhr.responseText, xhr.status, xhr.statusText);
+        const retriable = xhr.status === 0 || xhr.status === 429 || xhr.status >= 500;
+        const kind = xhr.status >= 500 ? 'server' : 'client';
+        reject(new UploadError(`B2 직접 업로드 실패: ${msg}`, kind, xhr.status, retriable));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new UploadError('B2 직접 업로드 네트워크 오류', 'network', undefined, true));
+    });
+    xhr.addEventListener('timeout', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new UploadError('B2 직접 업로드 타임아웃', 'timeout', undefined, true));
+    });
+    xhr.addEventListener('abort', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new UploadError('업로드가 취소되었습니다.', 'abort', undefined, false));
+    });
+
+    xhr.open('PUT', presignedUrl);
+    xhr.setRequestHeader('Content-Type', contentType);
+    xhr.send(file);
+  });
+}
+
+/**
+ * 서버에 B2 업로드 완료 알림
+ */
+export async function confirmPresignedUpload(
+  params: {
+    tempFolderId: string;
+    b2Key: string;
+    fileName: string;
+    originalName: string;
+    sortOrder: number;
+    fileSize: number;
+    width: number;
+    height: number;
+    widthInch: number;
+    heightInch: number;
+    dpi: number;
+  },
+  token: string | null,
+): Promise<UploadedFileResult> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/v1/upload/album-file-confirm`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+  } catch (err) {
+    throw new UploadError(
+      `Confirm 요청 네트워크 오류: ${(err as Error).message}`,
+      'network',
+      undefined,
+      true,
+    );
+  }
+
+  if (!res.ok) {
+    let bodyText = '';
+    try {
+      bodyText = await res.text();
+    } catch {
+      // ignore
+    }
+    const msg = parseErrorResponse(bodyText, res.status, res.statusText);
+    const retriable = res.status === 0 || res.status === 429 || res.status >= 500;
+    const kind = res.status >= 500 ? 'server' : 'client';
+    throw new UploadError(`업로드 확인 실패: ${msg}`, kind, res.status, retriable);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    throw new UploadError('Confirm 응답을 파싱할 수 없습니다.', 'server', res.status, true);
+  }
+}
+
+/**
+ * 3단계 통합: presign 발급 → B2 직접 업로드 → 서버 confirm
+ * 실패 시 UploadError를 던짐
+ */
+export async function uploadAlbumFilePresigned(
+  file: File,
+  metadata: AlbumFileMetadata,
+  token: string | null,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<UploadedFileResult> {
+  if (signal?.aborted) {
+    throw new DOMException('Upload cancelled', 'AbortError');
+  }
+
+  const contentType = file.type || 'image/jpeg';
+
+  // 1단계: presigned URL 발급
+  let presigned: PresignedUploadResponse;
+  try {
+    presigned = await requestPresignedUrl(
+      {
+        tempFolderId: metadata.tempFolderId,
+        folderName: metadata.folderName,
+        sortOrder: metadata.sortOrder,
+        fileName: metadata.fileName,
+        contentType,
+        fileSize: metadata.fileSize,
+        width: metadata.width,
+        height: metadata.height,
+        widthInch: metadata.widthInch,
+        heightInch: metadata.heightInch,
+        dpi: metadata.dpi,
+      },
+      token,
+    );
+  } catch (err) {
+    if (err instanceof UploadError) {
+      // presigned URL 발급 자체가 실패하면 폴백 트리거: retriable=false 로 강제
+      if (err.kind === 'server' && err.status === 400) {
+        throw new UploadError(err.message, 'server', err.status, false);
+      }
+      throw err;
+    }
+    throw new UploadError(
+      `Presigned URL 발급 실패: ${(err as Error).message}`,
+      'server',
+      undefined,
+      false,
+    );
+  }
+
+  if (signal?.aborted) {
+    throw new DOMException('Upload cancelled', 'AbortError');
+  }
+
+  // 2단계: B2 직접 업로드
+  try {
+    await uploadToB2Direct(presigned.presignedUrl, file, contentType, onProgress, signal);
+  } catch (err) {
+    if ((err as DOMException)?.name === 'AbortError') throw err;
+    if (err instanceof UploadError) throw err;
+    throw new UploadError(
+      `B2 업로드 실패: ${(err as Error).message}`,
+      'network',
+      undefined,
+      true,
+    );
+  }
+
+  if (signal?.aborted) {
+    throw new DOMException('Upload cancelled', 'AbortError');
+  }
+
+  // 3단계: 서버 confirm
+  try {
+    const result = await confirmPresignedUpload(
+      {
+        tempFolderId: metadata.tempFolderId,
+        b2Key: presigned.b2Key,
+        fileName: presigned.fileName,
+        originalName: metadata.fileName,
+        sortOrder: metadata.sortOrder,
+        fileSize: metadata.fileSize,
+        width: metadata.width,
+        height: metadata.height,
+        widthInch: metadata.widthInch,
+        heightInch: metadata.heightInch,
+        dpi: metadata.dpi,
+      },
+      token,
+    );
+    return result;
+  } catch (err) {
+    if (err instanceof UploadError) throw err;
+    throw new UploadError(
+      `업로드 확인 실패: ${(err as Error).message}`,
+      'server',
+      undefined,
+      true,
+    );
+  }
+}
+
 /**
  * 임시 폴더 삭제
  */

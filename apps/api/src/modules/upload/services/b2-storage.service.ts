@@ -1,6 +1,12 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutBucketCorsCommand,
+} from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -89,6 +95,16 @@ export class B2StorageService implements OnModuleInit {
       this.logger.log(
         `B2: private=${this.privateBucket}, public=${this.publicBucket || '—'}; public URL base=${this.publicUrlPrefix || '—'}`,
       );
+
+      // B2_CONFIGURE_CORS=true 일 때만 부팅 시 CORS 자동 등록.
+      // 운영에서는 최초 1회만 켜고 다시 끄는 것을 권장.
+      if (this.getFirst('B2_CONFIGURE_CORS').toLowerCase() === 'true') {
+        this.configurePrivateBucketCors().catch((err) => {
+          this.logger.error(
+            `B2 CORS configuration failed: ${err?.message || err}`,
+          );
+        });
+      }
     } else {
       this.logger.log(
         'B2 object storage: off (set B2_S3_ENDPOINT, B2_KEY_ID, B2_APPLICATION_KEY, B2_PRIVATE_BUCKET — or legacy B2_ORIGINALS_*)',
@@ -166,6 +182,60 @@ export class B2StorageService implements OnModuleInit {
       }),
     );
     return key;
+  }
+
+  /**
+   * 브라우저 직접 업로드용 presigned PUT URL 발급.
+   *
+   * 흐름: 브라우저 → B2 직접 PUT (Railway 경유 안 함)
+   *
+   * - 기본 15분(900초). 업로드는 큰 파일이라 GET(5분) 정책보다 길게 허용.
+   *   상한 30분 — 그 이상 필요하면 멀티파트 업로드를 검토.
+   * - ContentType 을 서명에 포함시키므로 브라우저는 동일한 헤더로만 PUT 가능.
+   *   → 사용자가 임의 MIME 으로 바꿔치기하는 변조 방지.
+   * - bucket: 'private' (기본) / 'public' 선택. public 은 publicBucket 설정 필수.
+   *
+   * @param key 객체 키 — 호출자가 사용자별 prefix(users/{userId}/...) 강제할 것
+   * @param contentType MIME (예: 'image/jpeg', 'application/pdf')
+   * @param bucket 'private' | 'public' (기본 'private')
+   * @param expiresIn 초 단위, 기본 900(15분), 상한 1800(30분)
+   */
+  async getPresignedPutUrl(
+    key: string,
+    contentType: string,
+    bucket: 'private' | 'public' = 'private',
+    expiresIn: number = 900,
+  ): Promise<string> {
+    const s3 = this.requireClient();
+
+    // TTL 상한 가드 — 보안 정책상 30분 초과 금지
+    const MAX_EXPIRES = 1800;
+    const exp =
+      Number.isFinite(expiresIn) && expiresIn > 0
+        ? Math.min(expiresIn, MAX_EXPIRES)
+        : 900;
+
+    let targetBucket: string;
+    if (bucket === 'public') {
+      if (!this.publicBucket) {
+        throw new Error('B2_PUBLIC_BUCKET is not set');
+      }
+      targetBucket = this.publicBucket;
+    } else {
+      targetBucket = this.privateBucket;
+    }
+
+    const command = new PutObjectCommand({
+      Bucket: targetBucket,
+      Key: key,
+      ContentType: contentType,
+      // public 버킷은 1년 immutable 캐시 정책 유지
+      ...(bucket === 'public'
+        ? { CacheControl: 'public, max-age=31536000, immutable' }
+        : {}),
+    });
+
+    return getSignedUrl(s3, command, { expiresIn: exp });
   }
 
   getPublicObjectUrl(key: string): string {
@@ -275,5 +345,58 @@ export class B2StorageService implements OnModuleInit {
         // 다운로드 실패는 호출자 missing 검증에서 처리
       }
     }
+  }
+
+  /**
+   * 브라우저 직접 업로드용 CORS 규칙을 private 버킷에 등록한다.
+   *
+   * - `B2_CONFIGURE_CORS=true` 일 때 onModuleInit 에서 자동 실행
+   * - 수동으로도 호출 가능 (별도 스크립트, 관리자 endpoint 등)
+   *
+   * AllowedOrigins:
+   *   - https://photocafe.co.kr (운영)
+   *   - http://localhost:3002   (로컬 개발)
+   *   - B2_CORS_EXTRA_ORIGINS 환경변수(콤마 구분)로 추가 가능
+   *
+   * 주의: B2 CORS 는 S3 호환 API 로 설정하지만, 일부 헤더는 B2 가 무시할 수 있다.
+   *      실제 동작은 브라우저 → presigned URL PUT 으로 검증할 것.
+   */
+  async configurePrivateBucketCors(): Promise<void> {
+    const s3 = this.requireClient();
+
+    const extra = this.getFirst('B2_CORS_EXTRA_ORIGINS');
+    const origins = [
+      'https://photocafe.co.kr',
+      'http://localhost:3002',
+      ...(extra ? extra.split(',').map((s) => s.trim()).filter(Boolean) : []),
+    ];
+
+    await s3.send(
+      new PutBucketCorsCommand({
+        Bucket: this.privateBucket,
+        CORSConfiguration: {
+          CORSRules: [
+            {
+              ID: 'photocafe-browser-direct-upload',
+              AllowedOrigins: origins,
+              AllowedMethods: ['PUT'],
+              AllowedHeaders: [
+                'Content-Type',
+                'x-amz-content-sha256',
+                'x-amz-date',
+                'Authorization',
+              ],
+              // ETag 는 멀티파트 후속 처리/체크섬 검증에 필요
+              ExposeHeaders: ['ETag'],
+              MaxAgeSeconds: 3600,
+            },
+          ],
+        },
+      }),
+    );
+
+    this.logger.log(
+      `B2 CORS configured on '${this.privateBucket}' for ${origins.length} origin(s): ${origins.join(', ')}`,
+    );
   }
 }

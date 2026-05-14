@@ -1,8 +1,16 @@
 'use client';
 
 import { useCallback, useRef } from 'react';
-import { uploadAlbumFile, UploadError, type AlbumFileMetadata, type UploadedFileResult } from '@/lib/file-upload';
+import {
+  uploadAlbumFile,
+  uploadAlbumFilePresigned,
+  UploadError,
+  type AlbumFileMetadata,
+  type UploadedFileResult,
+} from '@/lib/file-upload';
 import { dataUrlToFile } from '@/lib/background-upload';
+
+const CONCURRENCY = 4; // 동시 업로드 수 (B2 직접 업로드 대응)
 import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile } from '@/stores/multi-folder-upload-store';
 import {
   addSessionFolder,
@@ -108,14 +116,17 @@ export function useImmediateUpload(productId: string) {
 
     const { accessToken } = useAuthStore.getState();
 
-    while (queueRef.current.length > 0) {
-      const item = queueRef.current[0];
-
-      // 해당 폴더의 AbortController 확인
+    // 단일 아이템 처리 함수 (재시도 포함)
+    // 반환: { item, success, lastError }
+    const processOneItem = async (item: QueueItem): Promise<{
+      item: QueueItem;
+      success: boolean;
+      lastError: UploadError | Error | null;
+      aborted: boolean;
+    }> => {
       const controller = abortControllersRef.current.get(item.folderId);
       if (!controller || controller.signal.aborted) {
-        queueRef.current.shift();
-        continue;
+        return { item, success: false, lastError: null, aborted: true };
       }
 
       let success = false;
@@ -123,17 +134,41 @@ export function useImmediateUpload(productId: string) {
       const maxRetries = 3;
 
       for (let attempt = 0; attempt < maxRetries; attempt++) {
-        if (controller.signal.aborted) break;
+        if (controller.signal.aborted) {
+          return { item, success: false, lastError, aborted: true };
+        }
 
         try {
           console.log('[ImmediateUpload] uploading file:', item.metadata.fileName, 'to folder:', item.tempFolderId);
-          const result = await uploadAlbumFile(
-            item.file,
-            item.metadata,
-            accessToken,
-            undefined,
-            controller.signal,
-          );
+
+          // Presigned 업로드 시도 → 실패 시 기존 방식으로 폴백
+          let result: UploadedFileResult;
+          try {
+            result = await uploadAlbumFilePresigned(
+              item.file,
+              item.metadata,
+              accessToken,
+              undefined,
+              controller.signal,
+            );
+          } catch (presignErr) {
+            // B2 미설정(400) 또는 CORS 실패 시 기존 방식으로 폴백
+            if (
+              presignErr instanceof UploadError &&
+              presignErr.kind === 'server' &&
+              presignErr.status === 400
+            ) {
+              result = await uploadAlbumFile(
+                item.file,
+                item.metadata,
+                accessToken,
+                undefined,
+                controller.signal,
+              );
+            } else {
+              throw presignErr;
+            }
+          }
 
           // 진행 상태 업데이트
           const progress = folderProgressRef.current.get(item.folderId);
@@ -148,7 +183,9 @@ export function useImmediateUpload(productId: string) {
         } catch (err: any) {
           lastError = err;
           console.error('[ImmediateUpload] upload error:', err?.message || err, { fileName: item.metadata.fileName, attempt });
-          if (err?.name === 'AbortError') break;
+          if (err?.name === 'AbortError') {
+            return { item, success: false, lastError, aborted: true };
+          }
           // 재시도 불가 에러면 즉시 중단
           if (err instanceof UploadError && !err.retriable) break;
           if (attempt < maxRetries - 1) {
@@ -159,90 +196,148 @@ export function useImmediateUpload(productId: string) {
         }
       }
 
-      queueRef.current.shift();
+      return { item, success, lastError, aborted: false };
+    };
 
-      if (!success && !controller.signal.aborted) {
-        // 실패한 개별 파일 기록 - 폴더 전체를 중단시키지 않고 나머지 파일 계속 처리
-        const progress = folderProgressRef.current.get(item.folderId);
-        if (progress) {
-          progress.failedFiles.push({
-            fileName: item.metadata.fileName,
-            sortOrder: item.metadata.sortOrder,
-            errorMessage: lastError?.message || '알 수 없는 오류',
-          });
-        }
-      }
+    // 폴더 완료/부분실패 체크 후 상태 업데이트
+    const checkFolderCompletion = (folderId: string) => {
+      const progress = folderProgressRef.current.get(folderId);
+      const hasMoreForFolder = queueRef.current.some(q => q.folderId === folderId);
+      if (!progress || hasMoreForFolder) return;
 
-      // 폴더 업로드 완료 체크 (남은 큐 아이템이 없을 때)
-      const progress = folderProgressRef.current.get(item.folderId);
-      const hasMoreForFolder = queueRef.current.some(q => q.folderId === item.folderId);
-
-      if (progress && !hasMoreForFolder && progress.failedFiles.length > 0) {
+      if (progress.failedFiles.length > 0) {
         // 모두 처리했으나 일부 실패 → partial
-        updateFolderUploadStatus(item.folderId, {
+        updateFolderUploadStatus(folderId, {
           immediateUploadStatus: 'partial',
           immediateUploadProgress: Math.round((progress.uploaded / progress.total) * 100),
           immediateUploadedCount: progress.uploaded,
           immediateFailedFiles: progress.failedFiles,
         });
-        updateSessionFolder(productId, item.folderId, {
+        updateSessionFolder(productId, folderId, {
           uploadStatus: 'partial',
           uploadedFileCount: progress.uploaded,
         });
-        continue;
+        return;
       }
 
-      if (progress && progress.uploaded === progress.total && progress.failedFiles.length === 0) {
-        // folder의 파일 메타데이터를 매칭하여 포함
-        const { folders } = useMultiFolderUploadStore.getState();
-        const currentFolder = folders.find(f => f.id === item.folderId);
-        const serverFiles = progress.serverFiles.map(r => {
-          const origFile = currentFolder?.files.find(f => (f.newFileName || f.fileName) === r.fileName);
+      if (progress.uploaded === progress.total && progress.failedFiles.length === 0) {
+        finalizeFolderSuccess(folderId, progress);
+      }
+    };
+
+    // 폴더 성공 마무리 처리 (메모리 해제 등)
+    function finalizeFolderSuccess(
+      folderId: string,
+      progress: { uploaded: number; total: number; serverFiles: UploadedFileResult[]; failedFiles: any[] },
+    ) {
+      // folder의 파일 메타데이터를 매칭하여 포함
+      const { folders } = useMultiFolderUploadStore.getState();
+      const currentFolder = folders.find(f => f.id === folderId);
+      const serverFiles = progress.serverFiles.map(r => {
+        const origFile = currentFolder?.files.find(f => (f.newFileName || f.fileName) === r.fileName);
+        return {
+          tempFileId: r.tempFileId,
+          fileUrl: r.fileUrl,
+          thumbnailUrl: r.thumbnailUrl,
+          sortOrder: r.sortOrder,
+          fileName: r.fileName,
+          widthPx: origFile?.widthPx || 0,
+          heightPx: origFile?.heightPx || 0,
+          widthInch: origFile?.widthInch || 0,
+          heightInch: origFile?.heightInch || 0,
+          dpi: origFile?.dpi || 0,
+          fileSize: origFile?.fileSize || r.size || 0,
+        };
+      });
+
+      updateFolderUploadStatus(folderId, {
+        immediateUploadStatus: 'completed',
+        immediateUploadProgress: 100,
+        immediateUploadedCount: progress.total,
+        immediateServerFiles: serverFiles,
+      });
+
+      updateSessionFolder(productId, folderId, {
+        uploadStatus: 'completed',
+        uploadedFileCount: progress.total,
+      });
+
+      // 업로드 완료 후 File 객체 메모리 해제
+      // 썸네일은 서버 생성이 비동기(fire-and-forget)이므로 기존 data URL 유지
+      const folder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folderId);
+      if (folder) {
+        const clearedFiles = folder.files.map(f => {
+          const serverThumbUrl = serverFiles.find(sf => sf.sortOrder === f.pageNumber)?.thumbnailUrl;
           return {
-            tempFileId: r.tempFileId,
-            fileUrl: r.fileUrl,
-            thumbnailUrl: r.thumbnailUrl,
-            sortOrder: r.sortOrder,
-            fileName: r.fileName,
-            widthPx: origFile?.widthPx || 0,
-            heightPx: origFile?.heightPx || 0,
-            widthInch: origFile?.widthInch || 0,
-            heightInch: origFile?.heightInch || 0,
-            dpi: origFile?.dpi || 0,
-            fileSize: origFile?.fileSize || r.size || 0,
+            ...f,
+            file: undefined,
+            canvasDataUrl: undefined,
+            // 기존 data URL 썸네일을 우선 유지, 없을 때만 서버 URL 사용
+            thumbnailUrl: f.thumbnailUrl || serverThumbUrl,
+            // 서버 썸네일 URL 별도 보관 (복원 시 사용)
+            serverThumbnailUrl: serverThumbUrl,
           };
         });
+        useMultiFolderUploadStore.getState().updateFolder(folderId, { files: clearedFiles });
+      }
+    }
 
-        updateFolderUploadStatus(item.folderId, {
-          immediateUploadStatus: 'completed',
-          immediateUploadProgress: 100,
-          immediateUploadedCount: progress.total,
-          immediateServerFiles: serverFiles,
-        });
-
-        updateSessionFolder(productId, item.folderId, {
-          uploadStatus: 'completed',
-          uploadedFileCount: progress.total,
-        });
-
-        // 업로드 완료 후 File 객체 메모리 해제
-        // 썸네일은 서버 생성이 비동기(fire-and-forget)이므로 기존 data URL 유지
-        const folder = useMultiFolderUploadStore.getState().folders.find(f => f.id === item.folderId);
-        if (folder) {
-          const clearedFiles = folder.files.map(f => {
-            const serverThumbUrl = serverFiles.find(sf => sf.sortOrder === f.pageNumber)?.thumbnailUrl;
-            return {
-              ...f,
-              file: undefined,
-              canvasDataUrl: undefined,
-              // 기존 data URL 썸네일을 우선 유지, 없을 때만 서버 URL 사용
-              thumbnailUrl: f.thumbnailUrl || serverThumbUrl,
-              // 서버 썸네일 URL 별도 보관 (복원 시 사용)
-              serverThumbnailUrl: serverThumbUrl,
-            };
-          });
-          useMultiFolderUploadStore.getState().updateFolder(item.folderId, { files: clearedFiles });
+    // 배치 단위 병렬 처리: 최대 CONCURRENCY 개씩 동시 실행
+    while (queueRef.current.length > 0) {
+      // 1) 배치 추출 (선두에서 최대 CONCURRENCY 개)
+      //    유효하지 않은(중단된 폴더) 아이템은 즉시 스킵
+      const batch: QueueItem[] = [];
+      while (batch.length < CONCURRENCY && queueRef.current.length > 0) {
+        const next = queueRef.current.shift()!;
+        const ctrl = abortControllersRef.current.get(next.folderId);
+        if (!ctrl || ctrl.signal.aborted) {
+          // 중단된 폴더의 잔여 아이템은 버림
+          continue;
         }
+        batch.push(next);
+      }
+
+      if (batch.length === 0) continue;
+
+      // 2) 병렬 실행
+      const results = await Promise.allSettled(batch.map(b => processOneItem(b)));
+
+      // 3) 결과 반영 (성공/실패 카운트)
+      const touchedFolderIds = new Set<string>();
+      for (let i = 0; i < results.length; i++) {
+        const r = results[i];
+        const item = batch[i];
+        touchedFolderIds.add(item.folderId);
+
+        if (r.status === 'fulfilled') {
+          const { success, lastError, aborted } = r.value;
+          if (aborted) continue;
+          if (!success) {
+            const progress = folderProgressRef.current.get(item.folderId);
+            if (progress) {
+              progress.failedFiles.push({
+                fileName: item.metadata.fileName,
+                sortOrder: item.metadata.sortOrder,
+                errorMessage: lastError?.message || '알 수 없는 오류',
+              });
+            }
+          }
+        } else {
+          // processOneItem 자체가 예외를 던진 경우 (이론상 없음)
+          const progress = folderProgressRef.current.get(item.folderId);
+          if (progress) {
+            progress.failedFiles.push({
+              fileName: item.metadata.fileName,
+              sortOrder: item.metadata.sortOrder,
+              errorMessage: (r.reason as Error)?.message || '알 수 없는 오류',
+            });
+          }
+        }
+      }
+
+      // 4) 배치 처리 후 영향받은 폴더들의 완료 여부 체크
+      for (const folderId of touchedFolderIds) {
+        checkFolderCompletion(folderId);
       }
     }
 
