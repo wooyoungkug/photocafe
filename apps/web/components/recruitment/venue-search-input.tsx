@@ -22,12 +22,29 @@ interface VenueSearchInputProps {
 
 function formatAddress(item: any): string {
   const a = item.address ?? {};
-  const parts = [
-    a.city ?? a.county ?? a.state,
-    a.city_district ?? a.suburb,
-    a.road,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(' ') : item.display_name;
+
+  const city = a.city ?? a.county ?? a.state;
+  const district = a.city_district ?? a.borough;
+  const suburb = a.suburb ?? a.quarter ?? a.neighbourhood;
+
+  // 구조화 데이터에 시+구(or 동) 둘 이상 있으면 그대로 사용
+  const structured = [city, district, suburb].filter(Boolean);
+  if (structured.length >= 2) return structured.join(' ');
+
+  // display_name에서 파싱 — "장소명, 논현2동, 강남구, 서울특별시, 대한민국" 형태
+  const segs = (item.display_name ?? '')
+    .split(',')
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+  const cityPart = segs.find((s: string) =>
+    /특별시$|광역시$|특별자치시$|특별자치도$|시$|도$/.test(s),
+  );
+  const guPart = segs.find((s: string) => /구$|군$/.test(s));
+  const dongPart = segs.find((s: string) => /동$|읍$|면$/.test(s));
+  const parsed = [cityPart, guPart, dongPart].filter(Boolean);
+  if (parsed.length > 0) return parsed.join(' ');
+
+  return structured.join(' ') || item.display_name;
 }
 
 async function searchNominatim(keyword: string): Promise<PlaceResult[]> {
