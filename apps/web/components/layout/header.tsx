@@ -173,10 +173,16 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
             </Tooltip>
           )}
 
-          {/* Top mode: Logo + TopNav (desktop only) */}
+          {/* Top mode: Logo + TopNav (desktop only) — 로고는 홈페이지 프론트로 이동 (새 탭) */}
           {isTopMode && (
             <>
-              <Link href="/dashboard" className="hidden lg:flex shrink-0 items-center gap-2">
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden lg:flex shrink-0 items-center gap-2"
+                aria-label="홈페이지로 이동 (새 탭)"
+              >
                 <Image
                   src="/images/photocafe-logo.png"
                   alt="Photocafe"
@@ -185,7 +191,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
                   priority
                   className="h-[42px] w-auto"
                 />
-              </Link>
+              </a>
               <div className="hidden lg:flex flex-1 min-w-0 ml-2">
                 <TopNav />
               </div>
@@ -253,22 +259,6 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
 
         {/* Right section */}
         <div className="flex items-center gap-1 sm:gap-1.5 lg:gap-2">
-          {/* Shop link button - desktop only */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <a
-                href="/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden lg:inline-flex items-center gap-1.5 h-8 px-3 rounded-lg text-[13px] font-medium text-indigo-600 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-100/80 transition-all duration-150 hover:shadow-sm"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span>쇼핑몰</span>
-              </a>
-            </TooltipTrigger>
-            <TooltipContent side="bottom">새 탭에서 쇼핑몰 열기</TooltipContent>
-          </Tooltip>
-
           {/* Layout toggle (desktop only) */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -377,20 +367,6 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
                 </p>
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="hidden sm:block" />
-
-              {/* Shop link in dropdown */}
-              <DropdownMenuItem asChild className="lg:hidden">
-                <a
-                  href="/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 cursor-pointer"
-                >
-                  <Store className="h-4 w-4 text-slate-500" />
-                  <span>쇼핑몰 바로가기</span>
-                  <ExternalLink className="h-3 w-3 ml-auto text-slate-400" />
-                </a>
-              </DropdownMenuItem>
 
               <DropdownMenuItem
                 onClick={() => setIsPasswordDialogOpen(true)}

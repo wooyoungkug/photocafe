@@ -578,13 +578,14 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
         "shadow-2xl shadow-black/30"
       )}
     >
-      {/* ── Logo ── */}
+      {/* ── Logo (홈페이지 프론트로 이동, 새 탭) ── */}
       <div className="flex h-[56px] items-center justify-between px-4 border-b border-white/[0.04]">
-        <Link
-          href="/dashboard"
+        <a
+          href="/"
+          target="_blank"
+          rel="noopener noreferrer"
           className="flex items-center group"
-          onClick={() => isMobile && onClose?.()}
-          aria-label="대시보드로 이동"
+          aria-label="홈페이지로 이동 (새 탭)"
         >
           <Image
             src="/images/photocafe-logo.png"
@@ -594,7 +595,7 @@ export function Sidebar({ onClose, isMobile }: SidebarProps) {
             className="h-[38px] w-auto opacity-90 group-hover:opacity-100 transition-opacity duration-300"
             priority
           />
-        </Link>
+        </a>
         {isMobile && (
           <button
             type="button"
