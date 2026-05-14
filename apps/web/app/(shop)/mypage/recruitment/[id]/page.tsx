@@ -69,6 +69,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { BidChatPanel } from '@/components/recruitment/bid-chat-panel';
+import { useChatUnread } from '@/hooks/use-recruitment-chat';
 
 // 상태 배지 스타일
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -653,6 +654,7 @@ export default function RecruitmentDetailPage() {
                       <BidCard
                         key={bid.id}
                         bid={bid}
+                        myClientId={user?.clientId ?? ''}
                         onSelect={() =>
                           setSelectDialog({
                             open: true,
@@ -892,11 +894,25 @@ export default function RecruitmentDetailPage() {
                       <span className="text-black font-medium">{myBid.bidderStats.likedCount}개</span>
                     </div>
                   )}
-                  <div className="flex items-center gap-2 ml-auto">
-                    <p className="text-[12px] text-gray-500">응찰일</p>
-                    <p className="text-[12px] text-gray-600">
-                      {format(new Date(myBid.bidAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
-                    </p>
+                  <div className="flex items-center gap-3 ml-auto">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[12px] text-gray-500">응찰일</p>
+                      <p className="text-[12px] text-gray-600">
+                        {format(new Date(myBid.bidAt), 'yyyy.MM.dd HH:mm', { locale: ko })}
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-[12px] h-7 px-2.5"
+                      onClick={() => {
+                        setChatBidId(myBid.id);
+                        setChatBidderName(recruitment.client?.clientName || '스튜디오');
+                      }}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 mr-1" />
+                      채팅
+                    </Button>
                   </div>
                 </div>
                 {myBid.message && (
@@ -1177,16 +1193,19 @@ export default function RecruitmentDetailPage() {
 // 응찰자 카드 컴포넌트 (숨고 스타일)
 function BidCard({
   bid,
+  myClientId,
   onSelect,
   onReject,
   onChat,
 }: {
   bid: RecruitmentBid;
+  myClientId: string;
   onSelect: () => void;
   onReject: () => void;
   onChat: () => void;
 }) {
   const { toast } = useToast();
+  const hasUnread = useChatUnread(bid.id, myClientId);
   const statusStyle = BID_STATUS_STYLES[bid.status];
   const stats = bid.bidderStats;
   const selectedCount = stats?.selectedCount ?? 0;
@@ -1334,10 +1353,19 @@ function BidCard({
             variant="outline"
             size="sm"
             onClick={onChat}
-            className="text-[12px] h-8 px-3"
+            className={cn(
+              'text-[12px] h-8 px-3 relative',
+              hasUnread && 'border-red-400 text-red-600',
+            )}
           >
             <MessageSquare className="h-3.5 w-3.5 mr-1" />
             채팅
+            {hasUnread && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              </span>
+            )}
           </Button>
           {bid.status === 'pending' && (
             <>

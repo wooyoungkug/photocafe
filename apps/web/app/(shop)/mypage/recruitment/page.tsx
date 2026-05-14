@@ -21,6 +21,7 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  MessageSquare,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,8 @@ import { useAuthStore } from '@/stores/auth-store';
 import { useRecruitments } from '@/hooks/use-recruitment';
 import { useMyRecruitmentBids, useCancelMyBid } from '@/hooks/use-recruitment-bid';
 import { MyBidderStatsCard } from '@/components/recruitment/my-bidder-stats-card';
+import { BidChatPanel } from '@/components/recruitment/bid-chat-panel';
+import { useChatUnread } from '@/hooks/use-recruitment-chat';
 import { useToast } from '@/hooks/use-toast';
 import {
   SHOOTING_TYPE_LABELS,
@@ -334,7 +337,10 @@ function MyBidDialog({
   onClose: () => void;
 }) {
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const cancelMyBid = useCancelMyBid();
+  const [chatOpen, setChatOpen] = useState(false);
+  const hasUnread = useChatUnread(open ? bid.id : null, user?.clientId ?? '');
 
   const handleCancel = async () => {
     if (!confirm('응찰을 취소하시겠습니까?')) return;
@@ -398,6 +404,25 @@ function MyBidDialog({
           <Button variant="outline" size="sm" onClick={onClose} className="text-[13px]">
             닫기
           </Button>
+          {/* 채팅 버튼 */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setChatOpen(true)}
+            className={cn(
+              'text-[13px] relative',
+              hasUnread && 'border-red-400 text-red-600',
+            )}
+          >
+            <MessageSquare className="h-3.5 w-3.5 mr-1" />
+            채팅
+            {hasUnread && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
+              </span>
+            )}
+          </Button>
           {bid.status === 'pending' && (
             <Button
               variant="destructive"
@@ -416,6 +441,15 @@ function MyBidDialog({
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* 채팅 슬라이드 패널 */}
+      <BidChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        bidId={bid.id}
+        bidderName={bid.recruitment?.title || '스튜디오'}
+        myClientId={user?.clientId ?? ''}
+      />
     </Dialog>
   );
 }
