@@ -311,22 +311,29 @@ export function AlbumSplitTool() {
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
 
-      // 캐시된 폴더가 있으면 권한 재요청 후 자동저장 활성화
+      // 폴더 핸들 확보 (캐시 우선, 없으면 즉시 폴더 피커 — drop의 사용자 제스처 활용)
       if (!directoryHandle) {
+        let folderObtained: FileSystemDirectoryHandle | null = null;
         const cached = await getFolderHandle(STORAGE_KEY);
         if (cached) {
           const perm = await requestHandlePermission(cached);
-          if (perm === 'granted') {
-            setDirectoryHandle(cached);
+          if (perm === 'granted') folderObtained = cached;
+        }
+        if (!folderObtained && 'showDirectoryPicker' in window) {
+          try {
+            const options: any = { mode: 'readwrite' };
+            if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
+            folderObtained = await (window as any).showDirectoryPicker(options);
+            if (folderObtained) await saveFolderHandle(STORAGE_KEY, folderObtained);
+            toast.success(`저장 폴더 등록: ${folderObtained?.name} — 다음부터 다이얼로그 없이 자동 저장됩니다.`);
+          } catch {
+            toast.info('폴더를 선택하지 않아 저장 시 다이얼로그가 표시됩니다.', { duration: 5000 });
           }
         }
+        if (folderObtained) setDirectoryHandle(folderObtained);
       }
 
       loadImage(file);
-      // 자동 저장을 위해 폴더 선택 안내 (캐시도 없을 때만)
-      if (!directoryHandle) {
-        toast.info('자동 저장하려면 "저장 폴더 선택" 버튼을 클릭하세요. 또는 클릭하여 폴더를 선택하면 연속 작업이 가능합니다.', { duration: 5000 });
-      }
     } else {
       toast.error('JPEG 또는 PNG 파일만 지원합니다.');
     }
