@@ -189,6 +189,7 @@ export default function OnboardingPage() {
   const contactEmailRef = useRef<HTMLInputElement>(null);
   const acquisitionChannelRef = useRef<HTMLDivElement>(null);
   const addressAreaRef = useRef<HTMLDivElement>(null);
+  const addressDetailRef = useRef<HTMLInputElement>(null);
   const departmentRef = useRef<HTMLDivElement>(null);
 
   const scrollToField = (ref: React.RefObject<HTMLElement | null>) => {
@@ -335,6 +336,7 @@ export default function OnboardingPage() {
     }
     if (!form.acquisitionChannel?.trim()) errs.acquisitionChannel = '가입경로를 선택해주세요.';
     if (!form.address?.trim()) errs.address = '주소를 입력해주세요.';
+    if (!form.addressDetail?.trim()) errs.addressDetail = '상세주소를 입력해주세요.';
     if (status?.employment && !form.department?.trim()) errs.department = '부서를 입력해주세요.';
 
     if (Object.keys(errs).length > 0) {
@@ -346,6 +348,7 @@ export default function OnboardingPage() {
         contactEmail: contactEmailRef as React.RefObject<HTMLElement>,
         acquisitionChannel: acquisitionChannelRef as React.RefObject<HTMLElement>,
         address: addressAreaRef as React.RefObject<HTMLElement>,
+        addressDetail: addressDetailRef as React.RefObject<HTMLElement>,
         department: departmentRef as React.RefObject<HTMLElement>,
       };
       const firstKey = Object.keys(errs)[0];
@@ -687,14 +690,18 @@ export default function OnboardingPage() {
               )}
 
               <div className="space-y-1.5">
-                <Label className="text-[14px] text-black font-normal">상세주소</Label>
+                <Label className="text-[14px] text-black font-normal">
+                  상세주소 <span className="text-red-500">*</span>
+                </Label>
                 <Input
+                  ref={addressDetailRef}
                   value={form.addressDetail}
-                  onChange={(e) => setForm({ ...form, addressDetail: e.target.value })}
+                  onChange={(e) => { setForm({ ...form, addressDetail: e.target.value }); if (fieldErrors.addressDetail) setFieldErrors(p => ({ ...p, addressDetail: '' })); }}
                   placeholder="동/호수 등"
-                  className="text-[14px]"
+                  className={`text-[14px] ${fieldErrors.addressDetail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
                   maxLength={255}
                 />
+                {fieldErrors.addressDetail && <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.addressDetail}</p>}
               </div>
             </CardContent>
           </Card>
