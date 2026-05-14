@@ -584,9 +584,13 @@ export function AlbumSplitTool() {
 
   // 자동 처리: 이미지 로드 시 자동으로 분리 실행 (항상 활성)
   const handleSplitRef = useRef<() => void>(() => {});
+  const handleSaveBothRef = useRef<() => void>(() => {});
   useEffect(() => {
     handleSplitRef.current = handleSplit;
   }, [handleSplit]);
+  useEffect(() => {
+    handleSaveBothRef.current = handleSaveBoth;
+  }, [handleSaveBoth]);
 
   // 같은 이미지에 split 이 중복 트리거되지 않도록 가드
   const autoSplitTriggeredForRef = useRef<HTMLImageElement | null>(null);

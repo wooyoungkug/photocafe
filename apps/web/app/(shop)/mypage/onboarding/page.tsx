@@ -469,29 +469,43 @@ export default function OnboardingPage() {
                 {mobileDupHint && <DuplicateWarning kind="전화번호" hint={mobileDupHint} />}
               </div>
 
-              {needsContactEmail && (
-                <div className="space-y-1.5">
-                  <Label className="text-[14px] text-black font-normal flex items-center gap-1.5">
-                    <Mail className="h-4 w-4 text-primary" />
-                    이메일 주소 <span className="text-red-500">*</span>
-                  </Label>
-                  <Input
-                    ref={contactEmailRef}
-                    type="email"
-                    value={form.contactEmail}
-                    onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); if (emailDupHint) setEmailDupHint(null); }}
-                    onBlur={(e) => handleDuplicateBlur('email', e.target.value)}
-                    placeholder="실제 이메일 주소를 입력해주세요"
-                    className={`text-[14px] ${fieldErrors.contactEmail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
-                    maxLength={200}
-                  />
-                  {fieldErrors.contactEmail
-                    ? <p className="text-[12px] text-red-500 flex items-center gap-1"><AlertCircle className="h-3 w-3" />{fieldErrors.contactEmail}</p>
-                    : <p className="text-[12px] text-gray-500">소셜 로그인으로 가입하셔서 이메일 주소 확인이 필요합니다. 입력하신 주소로 인증 메일이 발송됩니다.</p>
-                  }
-                  {emailDupHint && <DuplicateWarning kind="이메일" hint={emailDupHint} />}
-                </div>
-              )}
+              {/* 연락 이메일 — 항상 표시. 소셜 로그인 시 카카오·네이버 등이 가짜 이메일을
+                  자동 발급하는 경우가 있어 실제 연락받을 이메일을 별도로 받아둔다.
+                  가짜 패턴이 감지되면 필수, 그 외에는 선택. */}
+              <div className="space-y-1.5">
+                <Label className="text-[14px] text-black font-normal flex items-center gap-1.5">
+                  <Mail className="h-4 w-4 text-primary" />
+                  {needsContactEmail ? (
+                    <>이메일 주소 <span className="text-red-500">*</span></>
+                  ) : (
+                    <>연락 이메일 <span className="text-gray-400 text-[12px] font-normal">(선택)</span></>
+                  )}
+                </Label>
+                <Input
+                  ref={contactEmailRef}
+                  type="email"
+                  value={form.contactEmail}
+                  onChange={(e) => { setForm({ ...form, contactEmail: e.target.value }); if (fieldErrors.contactEmail) setFieldErrors(p => ({ ...p, contactEmail: '' })); if (emailDupHint) setEmailDupHint(null); }}
+                  onBlur={(e) => handleDuplicateBlur('email', e.target.value)}
+                  placeholder={needsContactEmail ? '실제 이메일 주소를 입력해주세요' : '주문·견적 알림을 받을 이메일 (예: hong@example.com)'}
+                  className={`text-[14px] ${fieldErrors.contactEmail ? 'border-red-500 ring-1 ring-red-400' : ''}`}
+                  maxLength={200}
+                />
+                {fieldErrors.contactEmail ? (
+                  <p className="text-[12px] text-red-500 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />{fieldErrors.contactEmail}
+                  </p>
+                ) : needsContactEmail ? (
+                  <p className="text-[12px] text-gray-500">
+                    소셜 로그인 계정 이메일이 임시 발급된 주소로 확인됩니다. 실제 받으실 수 있는 이메일을 입력해 주세요.
+                  </p>
+                ) : (
+                  <p className="text-[12px] text-gray-500">
+                    카카오·네이버 로그인은 임시 이메일이 저장될 수 있어, 주문·견적 등 안내를 받으실 실제 이메일을 별도로 입력해 두시면 좋습니다.
+                  </p>
+                )}
+                {emailDupHint && <DuplicateWarning kind="이메일" hint={emailDupHint} />}
+              </div>
 
               <div ref={acquisitionChannelRef} className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal">
