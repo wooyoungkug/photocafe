@@ -429,13 +429,16 @@ export function AlbumSplitTool() {
 
       // 자동 저장: directoryHandle이 있으면 즉시 저장
       if (directoryHandle) {
-        // 파일명 기반 저장 (첫장.jpg, 막장.jpg)
-        const leftName = `첫장.jpg`;
-        const rightName = `막장.jpg`;
+        // 원본 파일명 기반 저장 (예: 0203.jpg → 0203_첫장.jpg, 0203_막장.jpg)
+        const baseName = (fileName || 'image').replace(/\.(jpe?g|png)$/i, '');
+        const leftName = `${baseName}_첫장.jpg`;
+        const rightName = `${baseName}_막장.jpg`;
 
         const ok1 = await saveToFolder(directoryHandle, leftResult.blob, leftName);
         const ok2 = await saveToFolder(directoryHandle, rightResult.blob, rightName);
         if (ok1 && ok2) {
+          console.log(`[저장 완료] ${directoryHandle.name}/${leftName} (${leftResult.blob.size}B), ${rightName} (${rightResult.blob.size}B)`);
+
           let deleted = false;
           if (deleteOriginalOnSave) {
             deleted = await doDeleteOriginal();
@@ -448,9 +451,10 @@ export function AlbumSplitTool() {
           toast.success(
             deleteOriginalOnSave
               ? deleted
-                ? `자동 저장 + 원본 삭제 완료!${hasNext ? ` (${nextIndex + 1}/${folderFiles.length} 로드 중...)` : ' 모든 파일 처리 완료!'}`
-                : '자동 저장 완료! (원본 삭제 실패)'
-              : `${leftName}, ${rightName} 자동 저장 완료!${hasNext ? ` (${nextIndex + 1}/${folderFiles.length} 로드 중...)` : ' 모든 파일 처리 완료!'}`,
+                ? `${leftName}, ${rightName} 저장 + 원본 삭제 완료!${hasNext ? ` (${nextIndex + 1}/${folderFiles.length} 로드 중...)` : ' 모든 파일 처리 완료!'}`
+                : `${leftName}, ${rightName} 저장 완료! (원본 삭제 실패)`
+              : `${leftName}, ${rightName} 저장 완료!${hasNext ? ` (${nextIndex + 1}/${folderFiles.length} 로드 중...)` : ' 모든 파일 처리 완료!'}`,
+            { duration: 3500 }
           );
 
           if (hasNext) {
