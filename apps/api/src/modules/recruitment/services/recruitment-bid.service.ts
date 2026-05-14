@@ -270,22 +270,54 @@ export class RecruitmentBidService {
 
     if (bids.length === 0) return bids;
 
-    // 누적 응찰 통계 1회 쿼리로 일괄 조회 (N+1 방지)
+    // 누적 응찰 통계 + 좋아요 + 본 응찰 리뷰토큰 1~3회 쿼리로 일괄 조회 (N+1 방지)
     const bidderIds = Array.from(new Set(bids.map((b) => b.bidderId)));
-    const aggregates = await this.prisma.recruitmentBid.groupBy({
-      by: ['bidderId', 'status'],
-      where: { bidderId: { in: bidderIds } },
-      _count: { id: true },
-    });
+    const bidIds = bids.map((b) => b.id);
+
+    const [bidAggregates, likedAggregates, reviews] = await Promise.all([
+      this.prisma.recruitmentBid.groupBy({
+        by: ['bidderId', 'status'],
+        where: { bidderId: { in: bidderIds } },
+        _count: { id: true },
+      }),
+      this.prisma.bidReview.groupBy({
+        by: ['bidderId'],
+        where: { bidderId: { in: bidderIds }, isCompleted: true, liked: true },
+        _count: { id: true },
+      }),
+      this.prisma.bidReview.findMany({
+        where: { bidId: { in: bidIds } },
+        select: {
+          bidId: true,
+          reviewToken: true,
+          isCompleted: true,
+          liked: true,
+          rating: true,
+          comment: true,
+          reviewerName: true,
+          completedAt: true,
+        },
+      }),
+    ]);
 
     const statsMap = new Map<
       string,
-      { totalBids: number; selectedCount: number; pendingCount: number }
+      {
+        totalBids: number;
+        selectedCount: number;
+        pendingCount: number;
+        likedCount: number;
+      }
     >();
     for (const id of bidderIds) {
-      statsMap.set(id, { totalBids: 0, selectedCount: 0, pendingCount: 0 });
+      statsMap.set(id, {
+        totalBids: 0,
+        selectedCount: 0,
+        pendingCount: 0,
+        likedCount: 0,
+      });
     }
-    for (const row of aggregates) {
+    for (const row of bidAggregates) {
       const s = statsMap.get(row.bidderId);
       if (!s) continue;
       s.totalBids += row._count.id;
@@ -295,6 +327,12 @@ export class RecruitmentBidService {
         s.pendingCount += row._count.id;
       }
     }
+    for (const row of likedAggregates) {
+      const s = statsMap.get(row.bidderId);
+      if (!s) continue;
+      s.likedCount = row._count.id;
+    }
+    const reviewByBidId = new Map(reviews.map((r) => [r.bidId, r]));
 
     return bids.map((b) => ({
       ...b,
@@ -302,8 +340,87 @@ export class RecruitmentBidService {
         totalBids: 0,
         selectedCount: 0,
         pendingCount: 0,
+        likedCount: 0,
       },
+      review: reviewByBidId.get(b.id) ?? null,
     }));
+  }
+
+  /**
+   * 내 응찰 통계 (응찰자 본인용)
+   * - 누적 응찰 / 선택 / 좋아요 / 최근 리뷰
+   */
+  async getMyBidderStats(bidderId: string) {
+    const [bidAggregates, likedAggregate, recentReviews, completedReviewsCount] =
+      await Promise.all([
+        this.prisma.recruitmentBid.groupBy({
+          by: ['status'],
+          where: { bidderId },
+          _count: { id: true },
+        }),
+        this.prisma.bidReview.count({
+          where: { bidderId, isCompleted: true, liked: true },
+        }),
+        this.prisma.bidReview.findMany({
+          where: { bidderId, isCompleted: true },
+          orderBy: { completedAt: 'desc' },
+          take: 5,
+          select: {
+            id: true,
+            liked: true,
+            rating: true,
+            comment: true,
+            reviewerName: true,
+            completedAt: true,
+          },
+        }),
+        this.prisma.bidReview.count({
+          where: { bidderId, isCompleted: true },
+        }),
+      ]);
+
+    let totalBids = 0;
+    let selectedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
+    for (const row of bidAggregates) {
+      totalBids += row._count.id;
+      if (row.status === RECRUITMENT_BID_STATUS.SELECTED) {
+        selectedCount = row._count.id;
+      } else if (row.status === RECRUITMENT_BID_STATUS.PENDING) {
+        pendingCount = row._count.id;
+      } else if (row.status === RECRUITMENT_BID_STATUS.REJECTED) {
+        rejectedCount = row._count.id;
+      }
+    }
+
+    const ratingAgg = await this.prisma.bidReview.aggregate({
+      where: { bidderId, isCompleted: true, rating: { not: null } },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    // 등급 산정 (selectedCount 기준)
+    let tier = 'NEW';
+    if (selectedCount >= 30) tier = 'PLATINUM';
+    else if (selectedCount >= 10) tier = 'GOLD';
+    else if (selectedCount >= 3) tier = 'SILVER';
+    else if (selectedCount >= 1) tier = 'BRONZE';
+
+    return {
+      totalBids,
+      selectedCount,
+      pendingCount,
+      rejectedCount,
+      likedCount: likedAggregate,
+      completedReviewsCount,
+      avgRating: ratingAgg._avg.rating ?? null,
+      ratingCount: ratingAgg._count.rating,
+      acceptanceRate:
+        totalBids > 0 ? Math.round((selectedCount / totalBids) * 100) : 0,
+      tier,
+      recentReviews,
+    };
   }
 
   /**
@@ -383,7 +500,7 @@ export class RecruitmentBidService {
       throw new BadRequestException('대기 상태의 응찰만 확정할 수 있습니다.');
     }
 
-    // 트랜잭션: 확정 + 나머지 거절 + 상태 변경
+    // 트랜잭션: 확정 + 나머지 거절 + 상태 변경 + 리뷰 토큰 생성
     const result = await this.prisma.$transaction(async (tx) => {
       // 선택된 응찰 확정
       const selectedBid = await tx.recruitmentBid.update({
@@ -406,6 +523,20 @@ export class RecruitmentBidService {
         where: { id: recruitmentId },
         data: { status: RECRUITMENT_STATUS.FILLED },
       });
+
+      // 고객용 리뷰 토큰 자동 발급 (이미 있으면 skip)
+      const existingReview = await tx.bidReview.findUnique({
+        where: { bidId },
+      });
+      if (!existingReview) {
+        await tx.bidReview.create({
+          data: {
+            bidId,
+            recruitmentId,
+            bidderId: bid.bidderId,
+          },
+        });
+      }
 
       return { selectedBid, updatedRecruitment };
     });

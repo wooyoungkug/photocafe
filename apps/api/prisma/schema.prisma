@@ -3402,22 +3402,46 @@ model Recruitment {
 }
 
 model RecruitmentBid {
-  id             String      @id @default(cuid())
+  id             String       @id @default(cuid())
   recruitmentId  String
   bidderId       String
   message        String?
   proposedBudget Int?
   crewSize       String?
-  status         String      @default("pending")
-  bidAt          DateTime    @default(now())
-  bidder         Client      @relation("RecruitmentBidder", fields: [bidderId], references: [id])
-  recruitment    Recruitment @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  status         String       @default("pending")
+  bidAt          DateTime     @default(now())
+  bidder         Client       @relation("RecruitmentBidder", fields: [bidderId], references: [id])
+  recruitment    Recruitment  @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  review         BidReview?
 
   @@unique([recruitmentId, bidderId])
   @@index([recruitmentId])
   @@index([bidderId])
   @@index([status])
   @@map("recruitment_bids")
+}
+
+/// 응찰 작가에 대한 고객(신랑/신부) 평가 — selectBid 시 토큰 자동 발급, /review/[token] 로 익명 제출
+model BidReview {
+  id            String         @id @default(cuid())
+  bidId         String         @unique
+  recruitmentId String
+  bidderId      String
+  reviewerName  String?
+  liked         Boolean        @default(false)
+  rating        Int?
+  comment       String?
+  reviewToken   String         @unique @default(cuid())
+  isCompleted   Boolean        @default(false)
+  completedAt   DateTime?
+  createdAt     DateTime       @default(now())
+  bid           RecruitmentBid @relation(fields: [bidId], references: [id], onDelete: Cascade)
+
+  @@index([bidderId])
+  @@index([recruitmentId])
+  @@index([reviewToken])
+  @@index([isCompleted])
+  @@map("bid_reviews")
 }
 
 model PhotographerProfile {

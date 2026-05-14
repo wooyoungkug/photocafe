@@ -106,7 +106,19 @@ export interface RecruitmentBid {
     totalBids: number;
     selectedCount: number;
     pendingCount: number;
+    /** 고객(신랑/신부)이 누른 누적 좋아요 수 */
+    likedCount: number;
   };
+  /** 본 응찰에 대한 고객 리뷰 (selected 응찰만 존재) */
+  review?: {
+    reviewToken: string;
+    isCompleted: boolean;
+    liked: boolean;
+    rating: number | null;
+    comment: string | null;
+    reviewerName: string | null;
+    completedAt: string | null;
+  } | null;
 }
 
 export interface CreateRecruitmentInput {

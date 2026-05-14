@@ -5,12 +5,14 @@ import { ShootingModule } from '@/modules/shooting/shooting.module';
 import {
   RecruitmentController,
   RecruitmentBidController,
+  BidReviewController,
   PhotographerProfileController,
   RecruitmentTemplateController,
 } from './controllers';
 import {
   RecruitmentService,
   RecruitmentBidService,
+  BidReviewService,
   RecruitmentSchedulerService,
   RecruitmentNotificationService,
   RegionMatchingService,
@@ -23,12 +25,14 @@ import {
   controllers: [
     RecruitmentController,
     RecruitmentBidController,
+    BidReviewController,
     PhotographerProfileController,
     RecruitmentTemplateController,
   ],
   providers: [
     RecruitmentService,
     RecruitmentBidService,
+    BidReviewService,
     RecruitmentSchedulerService,
     RecruitmentNotificationService,
     RegionMatchingService,

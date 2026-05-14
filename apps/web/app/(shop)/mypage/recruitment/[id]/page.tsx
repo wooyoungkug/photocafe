@@ -25,6 +25,9 @@ import {
   Award,
   TrendingUp,
   Sparkles,
+  Heart,
+  Copy,
+  Star,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -1127,10 +1130,22 @@ function BidCard({
   onSelect: () => void;
   onReject: () => void;
 }) {
+  const { toast } = useToast();
   const statusStyle = BID_STATUS_STYLES[bid.status];
   const stats = bid.bidderStats;
   const selectedCount = stats?.selectedCount ?? 0;
   const totalBids = stats?.totalBids ?? 0;
+  const likedCount = stats?.likedCount ?? 0;
+
+  const copyReviewUrl = () => {
+    if (!bid.review?.reviewToken) return;
+    const url = `${window.location.origin}/bid-review/${bid.review.reviewToken}`;
+    navigator.clipboard.writeText(url);
+    toast({
+      title: '리뷰 링크 복사됨',
+      description: '신랑신부님께 이 링크를 전달해주세요',
+    });
+  };
 
   // 신뢰도 등급 산정 (선택 횟수 기준)
   const tier = (() => {
@@ -1208,6 +1223,13 @@ function BidCard({
                   <span className="text-black font-bold">{totalBids}</span>
                   <span className="text-gray-500">회</span>
                 </div>
+                {likedCount > 0 && (
+                  <div className="flex items-center gap-1 text-[12px]">
+                    <Heart className="h-3.5 w-3.5 text-pink-500 fill-pink-500" />
+                    <span className="text-gray-500">좋아요</span>
+                    <span className="text-black font-bold">{likedCount}</span>
+                  </div>
+                )}
                 {totalBids > 0 && (
                   <div className="flex items-center gap-1 text-[12px]">
                     <Sparkles className="h-3.5 w-3.5 text-fuchsia-500" />
@@ -1280,6 +1302,71 @@ function BidCard({
           )}
         </div>
       )}
+
+      {/* 선택된 응찰 - 고객 리뷰 영역 */}
+      {bid.status === 'selected' && bid.review && (
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          {bid.review.isCompleted ? (
+            // 리뷰 완료
+            <div className="p-3 rounded-lg bg-gradient-to-br from-pink-50 to-fuchsia-50 border border-pink-100">
+              <div className="flex items-start gap-2">
+                <Heart className="h-4 w-4 text-pink-500 fill-pink-500 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-[12px] font-bold text-pink-700">
+                      신랑신부 후기
+                    </p>
+                    {bid.review.rating != null && (
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <Star
+                            key={n}
+                            className={cn(
+                              'h-3 w-3',
+                              n <= (bid.review!.rating ?? 0)
+                                ? 'text-amber-400 fill-amber-400'
+                                : 'text-gray-200',
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {bid.review.reviewerName && (
+                      <span className="text-[11px] text-gray-500">
+                        — {bid.review.reviewerName}
+                      </span>
+                    )}
+                  </div>
+                  {bid.review.comment && (
+                    <p className="text-[12px] text-gray-700 mt-1 whitespace-pre-wrap">
+                      {bid.review.comment}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            // 리뷰 미완료 - URL 복사 버튼
+            <div className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-blue-50 border border-blue-100">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Heart className="h-3.5 w-3.5 text-pink-500 shrink-0" />
+                <p className="text-[12px] text-gray-700 truncate">
+                  신랑신부 리뷰 대기 중
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={copyReviewUrl}
+                className="flex items-center gap-1 text-[11px] font-medium text-blue-700 hover:text-blue-900 hover:bg-blue-100 px-2 py-1 rounded shrink-0"
+              >
+                <Copy className="h-3 w-3" />
+                리뷰 링크 복사
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       <p className="text-[11px] text-gray-400 mt-2 text-right">
         {format(new Date(bid.bidAt), 'MM.dd HH:mm', { locale: ko })}
       </p>

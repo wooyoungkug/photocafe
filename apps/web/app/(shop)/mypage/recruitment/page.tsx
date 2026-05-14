@@ -43,6 +43,7 @@ import {
 import { useAuthStore } from '@/stores/auth-store';
 import { useRecruitments } from '@/hooks/use-recruitment';
 import { useMyRecruitmentBids, useCancelMyBid } from '@/hooks/use-recruitment-bid';
+import { MyBidderStatsCard } from '@/components/recruitment/my-bidder-stats-card';
 import { useToast } from '@/hooks/use-toast';
 import {
   SHOOTING_TYPE_LABELS,
@@ -915,7 +916,10 @@ export default function RecruitmentListPage() {
 
         {/* ==================== 내 응찰 목록 ==================== */}
         {!!user?.clientId && (
-          <TabsContent value="bids">
+          <TabsContent value="bids" className="space-y-4">
+            {/* 내 응찰 통계 카드 (신뢰도 / 좋아요 / 후기) */}
+            <MyBidderStatsCard enabled={!!user?.clientId} />
+
             {bidsLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="h-8 w-8 animate-spin text-gray-400" />

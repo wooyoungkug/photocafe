@@ -69,6 +69,36 @@ export function useMyRecruitmentBids(enabled = true) {
   });
 }
 
+export interface MyBidderStats {
+  totalBids: number;
+  selectedCount: number;
+  pendingCount: number;
+  rejectedCount: number;
+  likedCount: number;
+  completedReviewsCount: number;
+  avgRating: number | null;
+  ratingCount: number;
+  acceptanceRate: number;
+  tier: 'NEW' | 'BRONZE' | 'SILVER' | 'GOLD' | 'PLATINUM';
+  recentReviews: Array<{
+    id: string;
+    liked: boolean;
+    rating: number | null;
+    comment: string | null;
+    reviewerName: string | null;
+    completedAt: string;
+  }>;
+}
+
+export function useMyBidderStats(enabled = true) {
+  return useQuery({
+    queryKey: [RECRUITMENT_KEY, 'my-stats'],
+    queryFn: () => api.get<MyBidderStats>('/recruitments/my-stats'),
+    enabled,
+    staleTime: 1000 * 60 * 2, // 2분
+  });
+}
+
 export function useCancelMyBid() {
   const qc = useQueryClient();
   return useMutation({

@@ -1,5 +1,6 @@
 export { RecruitmentService } from './recruitment.service';
 export { RecruitmentBidService } from './recruitment-bid.service';
+export { BidReviewService } from './bid-review.service';
 export { RecruitmentSchedulerService } from './recruitment-scheduler.service';
 export { RecruitmentNotificationService } from './recruitment-notification.service';
 export { RegionMatchingService } from './region-matching.service';

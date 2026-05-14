@@ -64,6 +64,12 @@ export class RecruitmentController {
     return this.bidService.findMyBids(req.user.clientId);
   }
 
+  @Get('my-stats')
+  @ApiOperation({ summary: '내 응찰 통계 + 좋아요 + 최근 리뷰 (응찰자 본인)' })
+  async getMyStats(@Request() req: any) {
+    return this.bidService.getMyBidderStats(req.user.clientId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: '구인 상세 조회' })
   async findOne(@Param('id') id: string) {
