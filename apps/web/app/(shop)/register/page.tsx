@@ -172,6 +172,17 @@ function RegisterForm() {
         }
       } catch { /* 체크 실패 시 백엔드에서 처리 */ }
     }
+    if (phone) {
+      try {
+        const res = await checkDuplicate.mutateAsync({ field: 'mobile', value: phone.replace(/-/g, '') });
+        const hint = res?.exists && res.hint ? res.hint : null;
+        setPhoneDupHint(hint);
+        if (hint) {
+          setError('이미 가입된 전화번호입니다. 위 안내를 확인해 주세요.');
+          return;
+        }
+      } catch { /* 체크 실패 시 백엔드에서 처리 */ }
+    }
 
     if (emailDupHint) {
       setError('이미 가입된 이메일입니다. 위 안내를 확인해 주세요.');

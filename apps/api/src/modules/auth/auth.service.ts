@@ -801,6 +801,16 @@ export class AuthService {
       throw new ConflictException('이미 가입된 이메일입니다. 다른 이메일을 사용하거나 기존 계정으로 로그인해 주세요.');
     }
 
+    // 전화번호 중복 확인 (입력한 경우에만)
+    if (phone) {
+      const existingPhone = await this.prisma.client.findFirst({
+        where: { mobile: phone, withdrawnAt: null } as any,
+      });
+      if (existingPhone) {
+        throw new ConflictException('이미 가입된 전화번호입니다. 다른 전화번호를 사용하거나 기존 계정으로 로그인해 주세요.');
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const clientCode = `P${Date.now().toString().slice(-8)}`;
     const token = crypto.randomBytes(32).toString('hex');
