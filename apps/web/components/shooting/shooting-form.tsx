@@ -239,13 +239,20 @@ export function ShootingForm({
 
   const watchedType = watch('shootingType');
 
-  // 제출 실패 시 첫 번째 에러 필드로 자동 스크롤
+  // 제출 실패 시 첫 번째 에러 필드로 스크롤 + 포커스
   useEffect(() => {
     if (submitCount === 0) return;
     const order = ['clientName', 'shootingType', 'shootingDate', 'venueName'];
     for (const field of order) {
       if (errors[field as keyof typeof errors]) {
-        document.getElementById(`field-${field}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const container = document.getElementById(`field-${field}`);
+        if (container) {
+          container.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          setTimeout(() => {
+            const focusable = container.querySelector<HTMLElement>('input, button[role="combobox"]');
+            focusable?.focus();
+          }, 300);
+        }
         break;
       }
     }

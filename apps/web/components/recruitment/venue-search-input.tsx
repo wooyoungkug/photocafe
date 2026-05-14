@@ -134,7 +134,7 @@ export function VenueSearchInput({
         onKeyDown={handleKeyDown}
         onFocus={() => results.length > 0 && setIsOpen(true)}
         placeholder={placeholder}
-        className={cn('text-[14px]', className)}
+        className={cn('text-[14px]', error && 'border-red-500 ring-1 ring-red-400', className)}
       />
       {error && <p className="text-[12px] text-red-500 mt-1">{error}</p>}
 
