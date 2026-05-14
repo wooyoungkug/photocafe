@@ -165,6 +165,11 @@ export default function OnboardingPage() {
       else setEmailDupHint(null);
       return;
     }
+    // 본인 소셜 이메일과 동일하면 중복 확인 생략 (자기 자신 레코드 히트 방지)
+    if (field === 'email' && status && trimmed.toLowerCase() === (status.profile.email || '').toLowerCase()) {
+      setEmailDupHint(null);
+      return;
+    }
     try {
       const res = await checkDuplicate.mutateAsync({ field, value: trimmed });
       const hint = res?.exists && res.hint ? res.hint : null;
@@ -264,7 +269,10 @@ export default function OnboardingPage() {
       department: status.employment?.department ?? '',
       acquisitionChannel: (status.profile as any).acquisitionChannel ?? '',
       acquisitionChannelNote: (status.profile as any).acquisitionChannelNote ?? '',
-      contactEmail: status.profile.contactEmail ?? '',
+      contactEmail: status.profile.contactEmail ||
+        (status.profile.oauthProvider && !isFakeProviderEmail(status.profile.email, status.profile.oauthProvider)
+          ? status.profile.email
+          : ''),
       signupPurpose: (status.profile as any).signupPurpose ?? '',
       signupPurposeNote: (status.profile as any).signupPurposeNote ?? '',
     });
@@ -469,9 +477,8 @@ export default function OnboardingPage() {
                 {mobileDupHint && <DuplicateWarning kind="전화번호" hint={mobileDupHint} />}
               </div>
 
-              {/* 연락 이메일 — 항상 표시. 소셜 로그인 시 카카오·네이버 등이 가짜 이메일을
-                  자동 발급하는 경우가 있어 실제 연락받을 이메일을 별도로 받아둔다.
-                  가짜 패턴이 감지되면 필수, 그 외에는 선택. */}
+              {/* 연락 이메일 — 항상 표시. 소셜 로그인 이메일을 먼저 채워주고, 필요 시 변경 가능.
+                  가짜 이메일 패턴이 감지되면 필수, 그 외에는 선택. */}
               <div className="space-y-1.5">
                 <Label className="text-[14px] text-black font-normal flex items-center gap-1.5">
                   <Mail className="h-4 w-4 text-primary" />
@@ -498,6 +505,10 @@ export default function OnboardingPage() {
                 ) : needsContactEmail ? (
                   <p className="text-[12px] text-gray-500">
                     소셜 로그인 계정 이메일이 임시 발급된 주소로 확인됩니다. 실제 받으실 수 있는 이메일을 입력해 주세요.
+                  </p>
+                ) : status?.profile.oauthProvider && !isFakeProviderEmail(status.profile.email, status.profile.oauthProvider) && form.contactEmail === status.profile.email ? (
+                  <p className="text-[12px] text-gray-500">
+                    소셜 로그인 이메일이 자동으로 입력되었습니다. 이 이메일로 주문·견적 알림을 받으시며, 다른 이메일로 받으시려면 변경해 주세요.
                   </p>
                 ) : (
                   <p className="text-[12px] text-gray-500">
