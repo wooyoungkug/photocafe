@@ -106,6 +106,7 @@ export interface RecruitmentBid {
     totalBids: number;
     selectedCount: number;
     pendingCount: number;
+    rejectedCount: number;
     /** 고객(신랑/신부)이 누른 누적 좋아요 수 */
     likedCount: number;
     /** 등급: NEW / BRONZE / SILVER / GOLD / PLATINUM */

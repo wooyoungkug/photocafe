@@ -306,6 +306,7 @@ export class RecruitmentBidService {
         totalBids: number;
         selectedCount: number;
         pendingCount: number;
+        rejectedCount: number;
         likedCount: number;
         tier: string;
       }
@@ -315,6 +316,7 @@ export class RecruitmentBidService {
         totalBids: 0,
         selectedCount: 0,
         pendingCount: 0,
+        rejectedCount: 0,
         likedCount: 0,
         tier: 'NEW',
       });
@@ -327,6 +329,8 @@ export class RecruitmentBidService {
         s.selectedCount += row._count.id;
       } else if (row.status === RECRUITMENT_BID_STATUS.PENDING) {
         s.pendingCount += row._count.id;
+      } else if (row.status === RECRUITMENT_BID_STATUS.REJECTED) {
+        s.rejectedCount += row._count.id;
       }
     }
     for (const row of likedAggregates) {
@@ -350,6 +354,7 @@ export class RecruitmentBidService {
         totalBids: 0,
         selectedCount: 0,
         pendingCount: 0,
+        rejectedCount: 0,
         likedCount: 0,
         tier: 'NEW',
       },

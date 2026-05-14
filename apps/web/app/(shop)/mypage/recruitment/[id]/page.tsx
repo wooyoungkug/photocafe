@@ -1170,6 +1170,7 @@ function BidCard({
   const stats = bid.bidderStats;
   const selectedCount = stats?.selectedCount ?? 0;
   const totalBids = stats?.totalBids ?? 0;
+  const rejectedCount = stats?.rejectedCount ?? 0;
   const likedCount = stats?.likedCount ?? 0;
 
   const copyReviewUrl = () => {
@@ -1262,6 +1263,12 @@ function BidCard({
                   <Heart className="h-3.5 w-3.5 text-pink-500 fill-pink-500" />
                   <span className="text-gray-500">좋아요</span>
                   <span className="text-black font-bold">{likedCount}</span>
+                </div>
+                <div className="flex items-center gap-1 text-[12px]">
+                  <XCircle className="h-3.5 w-3.5 text-red-400" />
+                  <span className="text-gray-500">거절</span>
+                  <span className="text-black font-bold">{rejectedCount}</span>
+                  <span className="text-gray-500">회</span>
                 </div>
                 {totalBids > 0 && (
                   <div className="flex items-center gap-1 text-[12px]">
