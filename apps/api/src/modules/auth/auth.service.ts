@@ -790,6 +790,17 @@ export class AuthService {
       throw new ConflictException('이미 사용 중인 아이디입니다');
     }
 
+    // 이메일(contactEmail) 중복 확인
+    const existingEmail = await this.prisma.client.findFirst({
+      where: {
+        OR: [{ email: contactEmail }, { contactEmail: contactEmail }],
+        withdrawnAt: null,
+      } as any,
+    });
+    if (existingEmail) {
+      throw new ConflictException('이미 가입된 이메일입니다. 다른 이메일을 사용하거나 기존 계정으로 로그인해 주세요.');
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
     const clientCode = `P${Date.now().toString().slice(-8)}`;
     const token = crypto.randomBytes(32).toString('hex');

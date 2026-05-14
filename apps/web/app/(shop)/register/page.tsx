@@ -160,6 +160,19 @@ function RegisterForm() {
     e.preventDefault();
     setError(null);
 
+    // blur 체크가 아직 완료되지 않았을 수 있으므로 제출 시 재확인
+    if (contactEmail) {
+      try {
+        const res = await checkDuplicate.mutateAsync({ field: 'email', value: contactEmail.trim() });
+        const hint = res?.exists && res.hint ? res.hint : null;
+        setEmailDupHint(hint);
+        if (hint) {
+          setError('이미 가입된 이메일입니다. 위 안내를 확인해 주세요.');
+          return;
+        }
+      } catch { /* 체크 실패 시 백엔드에서 처리 */ }
+    }
+
     if (emailDupHint) {
       setError('이미 가입된 이메일입니다. 위 안내를 확인해 주세요.');
       return;
