@@ -28,6 +28,7 @@ import {
   Heart,
   Copy,
   Star,
+  MessageSquare,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -67,6 +68,7 @@ import type { RecruitmentBid, RecruitmentCrewSize } from '@/lib/types/recruitmen
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { BidChatPanel } from '@/components/recruitment/bid-chat-panel';
 
 // 상태 배지 스타일
 const STATUS_BADGE_STYLES: Record<string, string> = {
@@ -183,6 +185,10 @@ export default function RecruitmentDetailPage() {
     bidId: '',
     bidderName: '',
   });
+
+  // 채팅 패널
+  const [chatBidId, setChatBidId] = useState<string | null>(null);
+  const [chatBidderName, setChatBidderName] = useState('');
 
   // 소유자 판별
   const isOwner = recruitment?.clientId === user?.clientId;
@@ -661,6 +667,10 @@ export default function RecruitmentDetailPage() {
                             bidderName: bid.bidder?.clientName || '알 수 없음',
                           })
                         }
+                        onChat={() => {
+                          setChatBidId(bid.id);
+                          setChatBidderName(bid.bidder?.clientName || '작가');
+                        }}
                       />
                     ))}
                   </div>
@@ -1104,6 +1114,15 @@ export default function RecruitmentDetailPage() {
         </DialogContent>
       </Dialog>
 
+      {/* 채팅 패널 */}
+      <BidChatPanel
+        open={!!chatBidId}
+        onClose={() => setChatBidId(null)}
+        bidId={chatBidId ?? ''}
+        bidderName={chatBidderName}
+        myClientId={user?.clientId ?? ''}
+      />
+
       {/* 거절 다이얼로그 */}
       <Dialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ ...rejectDialog, open })}>
         <DialogContent>
@@ -1160,10 +1179,12 @@ function BidCard({
   bid,
   onSelect,
   onReject,
+  onChat,
 }: {
   bid: RecruitmentBid;
   onSelect: () => void;
   onReject: () => void;
+  onChat: () => void;
 }) {
   const { toast } = useToast();
   const statusStyle = BID_STATUS_STYLES[bid.status];
@@ -1307,28 +1328,39 @@ function BidCard({
           </div>
         </div>
 
-        {/* 액션 버튼 (pending 상태일 때만) */}
-        {bid.status === 'pending' && (
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              size="sm"
-              onClick={onSelect}
-              className="text-[12px] h-8 px-3"
-            >
-              <CheckCircle className="h-3.5 w-3.5 mr-1" />
-              확정
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onReject}
-              className="text-[12px] h-8 px-3 text-red-600 border-red-200 hover:bg-red-50"
-            >
-              <XCircle className="h-3.5 w-3.5 mr-1" />
-              거절
-            </Button>
-          </div>
-        )}
+        {/* 액션 버튼 */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onChat}
+            className="text-[12px] h-8 px-3"
+          >
+            <MessageSquare className="h-3.5 w-3.5 mr-1" />
+            채팅
+          </Button>
+          {bid.status === 'pending' && (
+            <>
+              <Button
+                size="sm"
+                onClick={onSelect}
+                className="text-[12px] h-8 px-3"
+              >
+                <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                확정
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onReject}
+                className="text-[12px] h-8 px-3 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" />
+                거절
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 제안금액 + 메시지 */}

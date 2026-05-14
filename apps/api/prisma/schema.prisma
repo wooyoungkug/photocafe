@@ -3413,12 +3413,28 @@ model RecruitmentBid {
   bidder         Client       @relation("RecruitmentBidder", fields: [bidderId], references: [id])
   recruitment    Recruitment  @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
   review         BidReview?
+  messages       ChatMessage[]
 
   @@unique([recruitmentId, bidderId])
   @@index([recruitmentId])
   @@index([bidderId])
   @@index([status])
   @@map("recruitment_bids")
+}
+
+/// 구인-응찰자 간 채팅 메시지 (응찰 1건 = 채팅방 1개, bidId로 식별)
+model ChatMessage {
+  id         String         @id @default(cuid())
+  bidId      String
+  bid        RecruitmentBid @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  senderId   String // Client.id
+  senderName String
+  senderRole String // 'studio' | 'photographer'
+  content    String         @db.Text
+  createdAt  DateTime       @default(now())
+
+  @@index([bidId, createdAt])
+  @@map("chat_messages")
 }
 
 /// 응찰 작가에 대한 고객(신랑/신부) 평가 — selectBid 시 토큰 자동 발급, /review/[token] 로 익명 제출

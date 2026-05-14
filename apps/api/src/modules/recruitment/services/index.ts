@@ -6,3 +6,4 @@ export { RecruitmentNotificationService } from './recruitment-notification.servi
 export { RegionMatchingService } from './region-matching.service';
 export { PhotographerProfileService } from './photographer-profile.service';
 export { RecruitmentTemplateService } from './recruitment-template.service';
+export { ChatMessageService } from './chat-message.service';

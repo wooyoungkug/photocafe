@@ -8,6 +8,7 @@ import {
   BidReviewController,
   PhotographerProfileController,
   RecruitmentTemplateController,
+  ChatMessageController,
 } from './controllers';
 import {
   RecruitmentService,
@@ -18,6 +19,7 @@ import {
   RegionMatchingService,
   PhotographerProfileService,
   RecruitmentTemplateService,
+  ChatMessageService,
 } from './services';
 
 @Module({
@@ -28,6 +30,7 @@ import {
     BidReviewController,
     PhotographerProfileController,
     RecruitmentTemplateController,
+    ChatMessageController,
   ],
   providers: [
     RecruitmentService,
@@ -38,6 +41,7 @@ import {
     RegionMatchingService,
     PhotographerProfileService,
     RecruitmentTemplateService,
+    ChatMessageService,
   ],
   exports: [RecruitmentService, RecruitmentBidService],
 })
