@@ -613,11 +613,24 @@ export class StaffService {
 
   // ==================== 일괄 등록 ====================
 
-  async bulkImport(rows: CreateStaffDto[], performer: { id: string; name: string }) {
+  async bulkImport(
+    rows: Array<CreateStaffDto & { departmentName?: string; branchName?: string; teamName?: string }>,
+    performer: { id: string; name: string },
+  ) {
     const results: { imported: number; errors: { row: number; staffId: string; message: string }[] } = {
       imported: 0,
       errors: [],
     };
+
+    // 부서/지점/팀 이름 → ID 캐시 (반복 조회 방지)
+    const [allDepartments, allBranches, allTeams] = await Promise.all([
+      this.prisma.department.findMany({ select: { id: true, name: true } }),
+      this.prisma.branch.findMany({ select: { id: true, name: true } }),
+      this.prisma.team.findMany({ select: { id: true, name: true } }),
+    ]);
+    const deptMap = new Map(allDepartments.map((d) => [d.name.trim(), d.id]));
+    const branchMap = new Map(allBranches.map((b) => [b.name.trim(), b.id]));
+    const teamMap = new Map(allTeams.map((t) => [t.name.trim(), t.id]));
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -631,6 +644,44 @@ export class StaffService {
           continue;
         }
 
+        // 부서/지점/팀: ID 우선, 없으면 이름 조회
+        let departmentId = row.departmentId;
+        if (!departmentId && row.departmentName) {
+          departmentId = deptMap.get(row.departmentName.trim());
+          if (!departmentId) {
+            results.errors.push({
+              row: i + 1,
+              staffId: row.staffId,
+              message: `존재하지 않는 부서명: ${row.departmentName}`,
+            });
+            continue;
+          }
+        }
+        let branchId = row.branchId;
+        if (!branchId && row.branchName) {
+          branchId = branchMap.get(row.branchName.trim());
+          if (!branchId) {
+            results.errors.push({
+              row: i + 1,
+              staffId: row.staffId,
+              message: `존재하지 않는 지점명: ${row.branchName}`,
+            });
+            continue;
+          }
+        }
+        let teamId = row.teamId;
+        if (!teamId && row.teamName) {
+          teamId = teamMap.get(row.teamName.trim());
+          if (!teamId) {
+            results.errors.push({
+              row: i + 1,
+              staffId: row.staffId,
+              message: `존재하지 않는 팀명: ${row.teamName}`,
+            });
+            continue;
+          }
+        }
+
         const hashedPassword = await bcrypt.hash(row.password, 12);
 
         await this.prisma.staff.create({
@@ -642,12 +693,16 @@ export class StaffService {
             phone: row.phone,
             mobile: row.mobile,
             email: row.email,
+            postalCode: row.postalCode,
+            address: row.address,
+            addressDetail: row.addressDetail,
+            settlementGrade: row.settlementGrade,
             canLoginAsManager: row.canLoginAsManager ?? false,
             isActive: row.isActive ?? true,
             joinDate: row.joinDate ? new Date(row.joinDate) : new Date(),
-            ...(row.branchId && { branch: { connect: { id: row.branchId } } }),
-            ...(row.departmentId && { department: { connect: { id: row.departmentId } } }),
-            ...(row.teamId && { team: { connect: { id: row.teamId } } }),
+            ...(branchId && { branch: { connect: { id: branchId } } }),
+            ...(departmentId && { department: { connect: { id: departmentId } } }),
+            ...(teamId && { team: { connect: { id: teamId } } }),
           },
         });
 
