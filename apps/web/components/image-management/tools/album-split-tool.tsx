@@ -10,9 +10,18 @@ import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { extractDPIFromJPEG, canvasToJPEGWithDPI } from '@/lib/image-tools/dpi-utils';
 import { saveToFolder, isJpegOrPng } from '@/lib/image-tools/file-utils';
+import {
+  saveFolderHandle,
+  getFolderHandle,
+  clearFolderHandle,
+  queryHandlePermission,
+  requestHandlePermission,
+} from '@/lib/image-tools/folder-handle-store';
 import { ToolGuide } from './tool-guide';
 import { ToolUsageCounter } from './tool-usage-counter';
 import { formatThumbFileLabel } from '@/lib/format-thumb-file-label';
+
+const STORAGE_KEY = 'album-split-folder';
 
 // 출력 파일명 패턴 (자동저장 결과물은 목록에서 제외)
 const OUTPUT_FILE_PATTERN = /^(첫장|막장|.*_첫장|.*_막장)\.(jpe?g|png)$/i;
@@ -36,7 +45,6 @@ export function AlbumSplitTool() {
   const [savedRight, setSavedRight] = useState(false);
   const [deleteOriginalOnSave, setDeleteOriginalOnSave] = useState(false);
   const [originalDeleted, setOriginalDeleted] = useState(false);
-  const [autoMode, setAutoMode] = useState(false);
 
   // 연속 작업용: 폴더 내 파일 목록 및 현재 인덱스
   const [folderFiles, setFolderFiles] = useState<{ name: string; handle: FileSystemFileHandle }[]>([]);
@@ -50,6 +58,28 @@ export function AlbumSplitTool() {
   const resultCardRef = useRef<HTMLDivElement>(null);
   const sourceFileHandleRef = useRef<FileSystemFileHandle | null>(null);
   const sourceDirectoryHandleRef = useRef<FileSystemDirectoryHandle | null>(null);
+
+  // 마운트 시 저장된 폴더 핸들 복원 (사용자 제스처 없이도 'granted' 상태면 즉시 사용)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const cached = await getFolderHandle(STORAGE_KEY);
+      if (!cached || cancelled) return;
+      const perm = await queryHandlePermission(cached);
+      if (perm === 'granted' && !cancelled) {
+        setDirectoryHandle(cached);
+      }
+      // 'prompt' 상태는 사용자 제스처가 필요하므로 handleClickUpload 에서 처리
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // directoryHandle 이 새로 설정될 때마다 IDB 에 동기화
+  useEffect(() => {
+    if (directoryHandle) {
+      saveFolderHandle(STORAGE_KEY, directoryHandle).catch(() => {});
+    }
+  }, [directoryHandle]);
 
   const playBeep = useCallback(() => {
     try {
@@ -212,14 +242,30 @@ export function AlbumSplitTool() {
           }
         }
 
-        // 폴더 선택 → 해당 폴더에서 파일 선택 (자동 저장을 위해 폴더 권한 확보)
-        const options: any = { mode: 'readwrite' };
-        if (directoryHandle) options.startIn = directoryHandle;
-        const dirHandle = await (window as any).showDirectoryPicker(options);
-        setDirectoryHandle(dirHandle);
+        // 캐시된 폴더가 있으면 권한만 재요청 → 다이얼로그 없이 즉시 사용
+        let dirHandle: FileSystemDirectoryHandle | null = null;
+        if (!directoryHandle) {
+          const cached = await getFolderHandle(STORAGE_KEY);
+          if (cached) {
+            const perm = await requestHandlePermission(cached);
+            if (perm === 'granted') {
+              dirHandle = cached;
+              setDirectoryHandle(cached);
+            }
+          }
+        }
+
+        // 캐시가 없거나 권한 거부 시 폴더 선택 다이얼로그
+        if (!dirHandle) {
+          const options: any = { mode: 'readwrite' };
+          if (directoryHandle) options.startIn = directoryHandle;
+          dirHandle = await (window as any).showDirectoryPicker(options);
+          setDirectoryHandle(dirHandle);
+          await saveFolderHandle(STORAGE_KEY, dirHandle!);
+        }
 
         // 폴더 내 이미지 파일 목록 (출력 결과물 제외)
-        const files = await scanFolderFiles(dirHandle);
+        const files = await scanFolderFiles(dirHandle!);
         if (files.length === 0) {
           toast.error('폴더에 JPEG/PNG 파일이 없습니다.');
           return;
@@ -232,7 +278,7 @@ export function AlbumSplitTool() {
         sourceFileHandleRef.current = firstFile.handle;
         const file = await firstFile.handle.getFile();
         loadImage(file);
-        toast.success(`폴더: ${dirHandle.name} (${files.length}개 이미지) → 자동 저장 활성화`);
+        toast.success(`폴더: ${dirHandle!.name} (${files.length}개 이미지) → 자동 저장 활성화`);
       } catch { /* 사용자가 취소 */ }
     } else if ('showOpenFilePicker' in window) {
       try {
@@ -264,8 +310,20 @@ export function AlbumSplitTool() {
           }
         } catch { /* 핸들 획득 실패 - 무시 */ }
       }
+
+      // 캐시된 폴더가 있으면 권한 재요청 후 자동저장 활성화
+      if (!directoryHandle) {
+        const cached = await getFolderHandle(STORAGE_KEY);
+        if (cached) {
+          const perm = await requestHandlePermission(cached);
+          if (perm === 'granted') {
+            setDirectoryHandle(cached);
+          }
+        }
+      }
+
       loadImage(file);
-      // 자동 저장을 위해 폴더 선택 안내
+      // 자동 저장을 위해 폴더 선택 안내 (캐시도 없을 때만)
       if (!directoryHandle) {
         toast.info('자동 저장하려면 "저장 폴더 선택" 버튼을 클릭하세요. 또는 클릭하여 폴더를 선택하면 연속 작업이 가능합니다.', { duration: 5000 });
       }
@@ -536,21 +594,16 @@ export function AlbumSplitTool() {
     }
   }, [savedLeft, savedRight, resetTool]);
 
-  // 완전자동 모드: 이미지 로드 시 자동으로 분리 실행
+  // 자동 처리: 이미지 로드 시 자동으로 분리 실행 (항상 활성)
   const handleSplitRef = useRef<() => void>(() => {});
-  const handleSaveBothRef = useRef<() => void>(() => {});
   useEffect(() => {
     handleSplitRef.current = handleSplit;
   }, [handleSplit]);
-  useEffect(() => {
-    handleSaveBothRef.current = handleSaveBoth;
-  }, [handleSaveBoth]);
 
   // 같은 이미지에 split 이 중복 트리거되지 않도록 가드
   const autoSplitTriggeredForRef = useRef<HTMLImageElement | null>(null);
   useEffect(() => {
     if (
-      autoMode &&
       originalImage &&
       showPreview &&
       !processing &&
@@ -563,28 +616,7 @@ export function AlbumSplitTool() {
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [autoMode, originalImage, showPreview, processing, showResult]);
-
-  // 결과 표시 후 자동 저장 (폴더 미선택 시 saveBoth 버튼 자동 클릭)
-  // 폴더 모드는 handleSplit 내부에서 이미 자동 저장 + 다음 파일 로드를 처리
-  const autoSavedForBlobRef = useRef<Blob | null>(null);
-  useEffect(() => {
-    if (
-      autoMode &&
-      showResult &&
-      leftBlob &&
-      rightBlob &&
-      !processing &&
-      !directoryHandle &&
-      autoSavedForBlobRef.current !== leftBlob
-    ) {
-      autoSavedForBlobRef.current = leftBlob;
-      const timer = setTimeout(() => {
-        handleSaveBothRef.current();
-      }, 400);
-      return () => clearTimeout(timer);
-    }
-  }, [autoMode, showResult, leftBlob, rightBlob, processing, directoryHandle]);
+  }, [originalImage, showPreview, processing, showResult]);
 
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -655,51 +687,62 @@ export function AlbumSplitTool() {
       <div ref={uploadZoneRef}>
       <Card>
         <CardContent className="p-6">
-          {/* 자동 옵션 */}
-          <div className="mb-4 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="auto-mode"
-                checked={autoMode}
-                onCheckedChange={async (checked) => {
-                  const v = checked === true;
-                  if (!v) {
-                    setAutoMode(false);
+          {/* 저장 폴더 / 옵션 */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 text-sm">
+              <FolderOpen className="h-4 w-4 text-blue-600" />
+              <span className="font-semibold text-blue-800">저장 폴더:</span>
+              <span className="text-slate-700">
+                {directoryHandle ? directoryHandle.name : '선택 안 됨 (업로드 시 자동 요청)'}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-blue-700 hover:bg-blue-100"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!('showDirectoryPicker' in window)) {
+                    toast.error('이 브라우저는 폴더 자동저장을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
                     return;
                   }
-                  // 완전자동 ON 시 폴더가 없으면 즉시 폴더 선택을 강제 → 다이얼로그 없이 자동 저장 보장
-                  if (!directoryHandle) {
-                    if (!('showDirectoryPicker' in window)) {
-                      toast.error('이 브라우저는 폴더 자동저장을 지원하지 않습니다. Chrome 또는 Edge를 사용하세요.');
-                      return;
+                  try {
+                    const options: any = { mode: 'readwrite' };
+                    if (sourceFileHandleRef.current) options.startIn = sourceFileHandleRef.current;
+                    else if (directoryHandle) options.startIn = directoryHandle;
+                    const handle = await (window as any).showDirectoryPicker(options);
+                    setDirectoryHandle(handle);
+                    await saveFolderHandle(STORAGE_KEY, handle);
+                    const files = await scanFolderFiles(handle);
+                    if (files.length > 0) {
+                      setFolderFiles(files);
+                      setCurrentFileIndex(0);
+                    } else {
+                      setFolderFiles([]);
+                      setCurrentFileIndex(0);
                     }
-                    try {
-                      const options: any = { mode: 'readwrite' };
-                      // 원본 파일이 이미 로드된 경우 해당 폴더에서 피커 열기
-                      if (sourceFileHandleRef.current) {
-                        options.startIn = sourceFileHandleRef.current;
-                      }
-                      const handle = await (window as any).showDirectoryPicker(options);
-                      setDirectoryHandle(handle);
-                      const files = await scanFolderFiles(handle);
-                      if (files.length > 0) {
-                        setFolderFiles(files);
-                        setCurrentFileIndex(0);
-                      }
-                      setAutoMode(true);
-                      toast.success(`저장 폴더: ${handle.name} → 완전자동 활성화`);
-                    } catch {
-                      toast.error('폴더를 선택해야 완전자동이 작동합니다.');
-                    }
-                  } else {
-                    setAutoMode(true);
-                  }
+                    toast.success(`저장 폴더 변경: ${handle.name}`);
+                  } catch { /* 사용자 취소 */ }
                 }}
-                className="border-amber-400 data-[state=checked]:bg-amber-500 data-[state=checked]:border-amber-500"
-              />
-              <Label htmlFor="auto-mode" className="text-sm font-semibold text-amber-800 cursor-pointer">
-                ⚡ 완전자동 (업로드 → 분리 → 저장 → 다음 파일까지 자동 진행)
-              </Label>
+              >
+                {directoryHandle ? '변경' : '선택'}
+              </Button>
+              {directoryHandle && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-slate-500 hover:bg-slate-100"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setDirectoryHandle(null);
+                    setFolderFiles([]);
+                    setCurrentFileIndex(0);
+                    await clearFolderHandle(STORAGE_KEY);
+                    toast.info('저장 폴더 기억을 지웠습니다.');
+                  }}
+                >
+                  해제
+                </Button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
