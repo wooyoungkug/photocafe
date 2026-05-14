@@ -233,10 +233,22 @@ export function ShootingForm({
     handleSubmit,
     setValue,
     watch,
-    formState: { errors },
+    formState: { errors, submitCount },
   } = form;
 
   const watchedType = watch('shootingType');
+
+  // 제출 실패 시 첫 번째 에러 필드로 자동 스크롤
+  useEffect(() => {
+    if (submitCount === 0) return;
+    const order = ['clientName', 'shootingType', 'shootingDate', 'venueName'];
+    for (const field of order) {
+      if (errors[field as keyof typeof errors]) {
+        document.getElementById(`field-${field}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        break;
+      }
+    }
+  }, [submitCount, errors]);
 
   // 촬영유형 변경 또는 구인 연동 켤 때 상세설명/요구사항 첫 번째 프리셋 자동 채우기
   useEffect(() => {
@@ -329,14 +341,14 @@ export function ShootingForm({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* 고객명 */}
-          <div className="space-y-1.5">
+          <div id="field-clientName" className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">
               고객명 <span className="text-red-500">*</span>
             </Label>
             <Input
               {...register('clientName')}
               placeholder="예: 홍길동/김영희"
-              className="text-[14px]"
+              className={`text-[14px] ${errors.clientName ? 'border-red-500 ring-1 ring-red-400' : ''}`}
             />
             {errors.clientName && (
               <p className="text-[12px] text-red-500">{errors.clientName.message}</p>
@@ -344,7 +356,7 @@ export function ShootingForm({
           </div>
 
           {/* 촬영 유형 */}
-          <div className="space-y-1.5">
+          <div id="field-shootingType" className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">
               촬영 유형 <span className="text-red-500">*</span>
             </Label>
@@ -354,7 +366,7 @@ export function ShootingForm({
                 setValue('shootingType', val);
               }}
             >
-              <SelectTrigger className="text-[14px]">
+              <SelectTrigger className={`text-[14px] ${errors.shootingType ? 'border-red-500 ring-1 ring-red-400' : ''}`}>
                 <SelectValue placeholder="유형 선택" />
               </SelectTrigger>
               <SelectContent>
@@ -372,14 +384,14 @@ export function ShootingForm({
 
           {/* 날짜/시간/소요시간 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="space-y-1.5">
+            <div id="field-shootingDate" className="space-y-1.5">
               <Label className="text-[14px] text-black font-normal">
                 촬영일 <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="date"
                 {...register('shootingDate')}
-                className="text-[14px]"
+                className={`text-[14px] ${errors.shootingDate ? 'border-red-500 ring-1 ring-red-400' : ''}`}
               />
               {errors.shootingDate && (
                 <p className="text-[12px] text-red-500">{errors.shootingDate.message}</p>
@@ -451,7 +463,7 @@ export function ShootingForm({
           <CardTitle className="text-[18px] text-black font-bold">장소 정보</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1.5">
+          <div id="field-venueName" className="space-y-1.5">
             <Label className="text-[14px] text-black font-normal">
               장소명 <span className="text-red-500">*</span>
             </Label>
