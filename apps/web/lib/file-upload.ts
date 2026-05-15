@@ -779,18 +779,18 @@ async function abortMultipart(
 }
 
 /**
- * Multipart 적용 임계값 — 이 이상의 파일만 multipart 사용.
- * 32MB 미만은 단일 PUT 이 더 빠름 (TCP 슬로우스타트 1회로 끝남).
+ * Multipart 적용 임계값 — 이 이상의 파일은 multipart 사용.
+ * 10MB 로 낮춰 일반적인 30~50MB 인쇄 파일이 모두 병렬 청크 업로드 혜택.
  */
-export const MULTIPART_THRESHOLD = 32 * 1024 * 1024; // 32MB
+export const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10MB
 /** 한 파일 내 동시 청크 업로드 수 (Chrome 도메인당 6개 한계) */
 const PART_CONCURRENCY = 6;
 /**
- * 청크 크기 — 32MB.
- * 큰 청크일수록 TCP 슬로우스타트 후 정상 속도로 더 오래 전송 → 연결당 처리량 ↑
- * 100MB 파일 = 4 청크. 1GB 파일 = 32 청크. (S3 한도 10000 파트)
+ * 청크 크기 — 8MB.
+ * 30MB 파일 = 4 청크 → Chrome 6연결 한도 안에서 풀 병렬.
+ * 너무 크면 단일 PUT 처럼 동작해 병렬 손실. 8MB가 균형점.
  */
-const PART_SIZE = 32 * 1024 * 1024;
+const PART_SIZE = 8 * 1024 * 1024;
 
 /**
  * 큰 파일을 Multipart 로 업로드한다 (5단계).
