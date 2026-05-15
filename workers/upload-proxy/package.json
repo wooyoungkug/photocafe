@@ -1,0 +1,17 @@
+{
+  "name": "photocafe-upload-proxy",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker — 브라우저 ↔ R2 사이 업로드 프록시 (Seoul edge → R2 binding)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail",
+    "secret:put": "wrangler secret put UPLOAD_SECRET"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250515.0",
+    "typescript": "^5.5.4",
+    "wrangler": "^4.0.0"
+  }
+}

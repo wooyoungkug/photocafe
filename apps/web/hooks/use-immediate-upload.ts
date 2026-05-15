@@ -275,7 +275,10 @@ export function useImmediateUpload(productId: string) {
       const elapsedMs = Math.max(1, Date.now() - progress.startedAt);
       const avgSpeed = (progress.bytesUploaded * 1000) / elapsedMs; // bytes/sec
       const storageOverride = getStorageOverride();
-      const storage: 'b2' | 'r2' = storageOverride === 'r2' ? 'r2' : 'b2';
+      const storage: 'b2' | 'r2' | 'r2w' =
+        storageOverride === 'r2w' ? 'r2w'
+        : storageOverride === 'r2' ? 'r2'
+        : 'b2';
 
       updateFolderUploadStatus(folderId, {
         immediateUploadStatus: 'completed',

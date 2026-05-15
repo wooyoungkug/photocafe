@@ -561,27 +561,37 @@ export interface MultipartCreateResponse {
 }
 
 /**
- * 테스트 모드: localStorage 의 'storageOverride' 가 'r2' 면 R2 사용.
- * URL 에 ?_storage=r2 또는 ?_storage=b2 가 있으면 localStorage 에 저장.
- * 운영 사용자는 영향 없음 (기본 'b2').
+ * 스토리지/업로드 경로 토글 (테스트 + 점진 전환용):
+ *   - 'b2'  : Backblaze B2 (S3 API 직접 PUT)
+ *   - 'r2'  : Cloudflare R2 (S3 API 직접 PUT)
+ *   - 'r2w' : Cloudflare R2 + Workers 프록시 (브라우저 → Seoul edge → R2 binding)
+ *
+ * URL 에 `?_storage=<값>` 이 있으면 localStorage 에 저장 (영구 적용).
+ * 미설정 시 undefined → 백엔드 기본값 (현재 B2).
+ *
+ * 백엔드 API 에는 'r2w' 를 'r2-worker' 로 변환해 전달한다 (서버에서 인식하는 라벨).
  */
 export function getStorageOverride(): string | undefined {
   if (typeof window === 'undefined') return undefined;
   try {
-    // URL 파라미터로 토글 (영구 설정)
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get('_storage');
-    if (fromUrl === 'r2' || fromUrl === 'b2') {
+    if (fromUrl === 'r2' || fromUrl === 'b2' || fromUrl === 'r2w') {
       window.localStorage.setItem('storageOverride', fromUrl);
       return fromUrl;
     }
-    // localStorage 에 저장된 값 사용
     const v = window.localStorage.getItem('storageOverride');
-    if (v === 'r2' || v === 'b2') return v;
+    if (v === 'r2' || v === 'b2' || v === 'r2w') return v;
   } catch {
     // SSR/스토리지 미지원 환경
   }
   return undefined;
+}
+
+/** 프론트 토글값('r2w') → 백엔드 라벨('r2-worker') 변환 */
+function toBackendStorageLabel(v: string | undefined): string | undefined {
+  if (v === 'r2w') return 'r2-worker';
+  return v;
 }
 
 /**
@@ -810,7 +820,8 @@ export async function uploadAlbumFileMultipart(
   if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
   const contentType = file.type || 'image/jpeg';
-  const storage = getStorageOverride(); // 'r2' | 'b2' | undefined
+  const storageOverride = getStorageOverride(); // 'r2' | 'b2' | 'r2w' | undefined
+  const storage = toBackendStorageLabel(storageOverride); // 'r2-worker' 로 변환
 
   // 1) create
   let session: MultipartCreateResponse;
