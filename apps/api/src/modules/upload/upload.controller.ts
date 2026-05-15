@@ -577,10 +577,12 @@ export class UploadController implements OnModuleInit {
             contentType: string;
             fileSize: number;
             partSize?: number;
+            storage?: string;
         },
     ) {
-        if (!this.b2Storage.isEnabled()) {
-            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        const storage = this.pickStorage(body.storage);
+        if (!storage.isEnabled()) {
+            throw new BadRequestException('스토리지가 설정되지 않았습니다.');
         }
 
         const safeTempFolderId = this.sanitizeTempFolderId(body.tempFolderId);
