@@ -870,7 +870,16 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                   <span className="text-[11px] font-medium text-blue-700">
                     서버 업로드 중 ({folder.immediateUploadedCount || 0}/{folder.files.length})
                   </span>
-                  <span className="text-[10px] text-blue-500">{folder.immediateUploadProgress || 0}%</span>
+                  <span className="text-[10px] text-blue-500">
+                    {folder.immediateUploadSpeed && folder.immediateUploadSpeed > 0 && (
+                      <span className="mr-1.5">
+                        {folder.immediateUploadSpeed >= 1024 * 1024
+                          ? `${(folder.immediateUploadSpeed / 1024 / 1024).toFixed(1)} MB/s`
+                          : `${(folder.immediateUploadSpeed / 1024).toFixed(0)} KB/s`}
+                      </span>
+                    )}
+                    {folder.immediateUploadProgress || 0}%
+                  </span>
                 </div>
                 <Progress value={folder.immediateUploadProgress || 0} className="h-1.5" />
               </div>
