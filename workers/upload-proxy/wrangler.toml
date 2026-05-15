@@ -1,0 +1,32 @@
+name = "photocafe-upload-proxy"
+main = "src/index.ts"
+compatibility_date = "2025-05-15"
+compatibility_flags = ["nodejs_compat"]
+
+# workers.dev 서브도메인 미사용 — 오직 photocafe.co.kr 도메인으로만 노출.
+workers_dev = false
+
+# Custom Domain — wrangler 가 자동으로 Cloudflare DNS 에 CNAME 생성 + Worker 라우팅.
+# 별도 대시보드 작업 불필요. (photocafe.co.kr zone 에 자동 등록됨)
+routes = [
+  { pattern = "upload.photocafe.co.kr", custom_domain = true }
+]
+
+# 본 워커는 Seoul edge 에서 받은 청크를 R2 binding 으로 즉시 전달한다.
+
+# R2 binding — 실제 운영 버킷명으로 교체 (R2_BUCKET 와 동일해야 함)
+[[r2_buckets]]
+binding = "PHOTOCAFE_BUCKET"
+bucket_name = "photocafe-r2-test"
+
+[vars]
+# 콤마 구분. 운영 + 로컬 dev origin 만 허용.
+ALLOWED_ORIGINS = "https://photocafe.co.kr,https://www.photocafe.co.kr,http://localhost:3002"
+
+# 시크릿 (절대 wrangler.toml 에 넣지 말 것):
+#   wrangler secret put UPLOAD_SECRET
+# → API 의 UPLOAD_WORKER_SECRET 와 동일한 32+ 바이트 랜덤 문자열
+
+# (선택) 로그 보존
+[observability]
+enabled = true
