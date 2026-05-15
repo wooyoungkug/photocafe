@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Search,
@@ -170,15 +171,13 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
             </Tooltip>
           )}
 
-          {/* Top mode: Logo + TopNav (desktop only) — 로고는 홈페이지 프론트로 이동 (새 탭) */}
+          {/* Top mode: Logo + TopNav (desktop only) — 로고는 대시보드로 이동 */}
           {isTopMode && (
             <>
-              <a
-                href="/"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/dashboard"
                 className="hidden lg:flex shrink-0 items-center gap-2"
-                aria-label="홈페이지로 이동 (새 탭)"
+                aria-label="대시보드로 이동"
               >
                 <Image
                   src="/images/photocafe-logo.png"
@@ -188,7 +187,7 @@ export function Header({ onMenuClick, showMenuButton, layoutMode = "side", onSid
                   priority
                   className="h-[42px] w-auto"
                 />
-              </a>
+              </Link>
               <div className="hidden lg:flex flex-1 min-w-0 ml-2">
                 <TopNav />
               </div>
