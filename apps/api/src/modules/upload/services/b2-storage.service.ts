@@ -6,6 +6,10 @@ import {
   DeleteObjectCommand,
   GetObjectCommand,
   PutBucketCorsCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
@@ -236,6 +240,89 @@ export class B2StorageService implements OnModuleInit {
     });
 
     return getSignedUrl(s3, command, { expiresIn: exp });
+  }
+
+  /**
+   * Multipart 업로드 시작 — uploadId 발급.
+   * 큰 파일을 청크로 쪼개 병렬 PUT 하기 위한 1단계.
+   */
+  async createMultipartUpload(
+    key: string,
+    contentType: string,
+  ): Promise<string> {
+    const s3 = this.requireClient();
+    const res = await s3.send(
+      new CreateMultipartUploadCommand({
+        Bucket: this.privateBucket,
+        Key: key,
+        ContentType: contentType,
+      }),
+    );
+    if (!res.UploadId) {
+      throw new Error('CreateMultipartUpload returned no UploadId');
+    }
+    return res.UploadId;
+  }
+
+  /**
+   * Multipart 파트 업로드용 presigned PUT URL 발급 (2단계).
+   * 브라우저가 직접 청크를 PUT 한다. 응답 ETag 를 수집해 complete 단계로 전달.
+   */
+  async getPresignedUploadPartUrl(
+    key: string,
+    uploadId: string,
+    partNumber: number,
+    expiresIn: number = 900,
+  ): Promise<string> {
+    const s3 = this.requireClient();
+    const MAX_EXPIRES = 1800;
+    const exp =
+      Number.isFinite(expiresIn) && expiresIn > 0
+        ? Math.min(expiresIn, MAX_EXPIRES)
+        : 900;
+    const command = new UploadPartCommand({
+      Bucket: this.privateBucket,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+    return getSignedUrl(s3, command, { expiresIn: exp });
+  }
+
+  /**
+   * Multipart 업로드 완료 (3단계) — 수집한 ETag 들로 S3 에 통합 요청.
+   * parts 는 PartNumber 오름차순이어야 한다.
+   */
+  async completeMultipartUpload(
+    key: string,
+    uploadId: string,
+    parts: Array<{ PartNumber: number; ETag: string }>,
+  ): Promise<void> {
+    const s3 = this.requireClient();
+    const sorted = [...parts].sort((a, b) => a.PartNumber - b.PartNumber);
+    await s3.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: this.privateBucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: sorted },
+      }),
+    );
+  }
+
+  /**
+   * Multipart 업로드 취소 — 사용자 취소/오류 시 B2 에 쌓인 파트 정리.
+   * 호출 실패는 호출자가 무시해도 무방 (B2 lifecycle 가 미완료 multipart 자동 정리).
+   */
+  async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
+    const s3 = this.requireClient();
+    await s3.send(
+      new AbortMultipartUploadCommand({
+        Bucket: this.privateBucket,
+        Key: key,
+        UploadId: uploadId,
+      }),
+    );
   }
 
   getPublicObjectUrl(key: string): string {
