@@ -11,7 +11,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 
-const CONCURRENCY = 4; // 동시 업로드 수 (B2 직접 업로드 대응)
+const CONCURRENCY = 2; // Chrome 6연결 한도 고려 (2파일 × 6청크 = 12, 실제 활성 6 회전)
 const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
 
 function generateTempFolderId(): string {

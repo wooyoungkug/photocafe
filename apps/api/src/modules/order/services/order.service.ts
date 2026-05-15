@@ -1963,6 +1963,67 @@ export class OrderService {
     return Array.from(orderDirs);
   }
 
+  // ==================== B2 파일 키 수집 (DB cascade 삭제 전 호출) ====================
+  // 개인정보보호법 준수: 주문 삭제 시 B2 의 원본(private)·썸네일(public) 도 즉시 영구 삭제.
+  // OrderFile 은 Order.delete cascade 로 사라지므로 키는 반드시 DB 삭제 전에 수집해야 한다.
+  private async collectB2KeysForOrders(
+    orderIds: string[],
+  ): Promise<{ originalKey: string; thumbKey: string | null }[]> {
+    if (!this.b2Storage.isEnabled() || orderIds.length === 0) return [];
+
+    const files = await this.prisma.orderFile.findMany({
+      where: { orderItem: { orderId: { in: orderIds } } },
+      select: {
+        fileName: true,
+        orderItem: { select: { order: { select: { orderNumber: true } } } },
+      },
+    });
+
+    const publicEnabled = !!this.b2Storage.getPublicBucket();
+    const keys: { originalKey: string; thumbKey: string | null }[] = [];
+
+    for (const f of files) {
+      const orderNumber = f.orderItem?.order?.orderNumber;
+      if (!orderNumber || !f.fileName) continue;
+
+      const safeOrder = this.sanitizeStorageKeyPart(orderNumber);
+      const safeName = this.sanitizeStorageKeyPart(f.fileName);
+      const originalKey = `orders/${safeOrder}/originals/${safeName}`;
+      const thumbKey = publicEnabled
+        ? `orders/${safeOrder}/thumbnails/${this.sanitizeStorageKeyPart(this.fileStorage.getThumbName(f.fileName))}`
+        : null;
+
+      keys.push({ originalKey, thumbKey });
+    }
+
+    return keys;
+  }
+
+  // ==================== B2 파일 비동기 영구 삭제 (fire-and-forget) ====================
+  // 응답 지연 방지를 위해 await 하지 않고 백그라운드 실행. 부분 실패는 로그만.
+  private deleteB2KeysAsync(
+    keys: { originalKey: string; thumbKey: string | null }[],
+  ): void {
+    if (!this.b2Storage.isEnabled() || keys.length === 0) return;
+
+    const tasks: Promise<unknown>[] = [];
+    for (const { originalKey, thumbKey } of keys) {
+      tasks.push(
+        this.b2Storage.deletePrivateObject(originalKey).catch((err) => {
+          this.logger.warn(`B2 원본 삭제 실패 (${originalKey}): ${(err as Error).message}`);
+        }),
+      );
+      if (thumbKey) {
+        tasks.push(
+          this.b2Storage.deletePublicObject(thumbKey).catch((err) => {
+            this.logger.warn(`B2 썸네일 삭제 실패 (${thumbKey}): ${(err as Error).message}`);
+          }),
+        );
+      }
+    }
+    Promise.allSettled(tasks).catch(() => { });
+  }
+
   // ==================== 주문 삭제 ====================
   async delete(id: string) {
     const order = await this.findOne(id);
@@ -1978,8 +2039,9 @@ export class OrderService {
       await this.prisma.salesLedger.delete({ where: { id: ledger.id } });
     }
 
-    // 디스크 파일 경로 수집 (DB 삭제 전)
+    // 디스크 파일 경로 + B2 키 수집 (DB cascade 삭제 전)
     const orderDirs = await this.getOrderDirectories([id]);
+    const b2Keys = await this.collectB2KeysForOrders([id]);
     const clientId = order.clientId;
 
     const result = await this.prisma.order.delete({
@@ -1992,6 +2054,8 @@ export class OrderService {
         this.logger.warn(`디스크 파일 삭제 실패 (${id}): ${(err as Error).message}`);
       });
     }
+    // B2 원본·썸네일 영구 삭제 (개인정보보호법 준수)
+    this.deleteB2KeysAsync(b2Keys);
 
     // 당일 합배송 배송비 재계산 (주문 삭제로 누적금액 미달 시 환급 취소)
     try {
@@ -2441,12 +2505,18 @@ export class OrderService {
           continue;
         }
 
-        // 파일 경로 수집 (DB 삭제 전)
+        // 파일 경로 + B2 키 수집 (DB cascade 삭제 전)
         let dirs: string[] = [];
         try {
           dirs = await this.getOrderDirectories([orderId]);
         } catch (err) {
           this.logger.warn(`파일 경로 수집 실패 (${orderId}): ${(err as Error).message}`);
+        }
+        let b2Keys: { originalKey: string; thumbKey: string | null }[] = [];
+        try {
+          b2Keys = await this.collectB2KeysForOrders([orderId]);
+        } catch (err) {
+          this.logger.warn(`B2 키 수집 실패 (${orderId}): ${(err as Error).message}`);
         }
 
         // 매출원장 먼저 삭제
@@ -2467,6 +2537,8 @@ export class OrderService {
             this.logger.warn(`디스크 파일 삭제 실패 (${orderId}): ${(err as Error).message}`);
           });
         }
+        // B2 원본·썸네일 영구 삭제 (개인정보보호법 준수)
+        this.deleteB2KeysAsync(b2Keys);
       } catch (err) {
         this.logger.error(`주문 삭제 실패 (${orderId}): ${(err as Error).message}`);
         results.failed.push(orderId);
@@ -2783,9 +2855,12 @@ export class OrderService {
     });
     const orderIds = ordersToDelete.map(o => o.id);
 
-    // 디스크 파일 경로 수집 (썸네일 함께 삭제 옵션 시)
+    // 디스크 파일 경로 + B2 키 수집 (썸네일 함께 삭제 옵션 시, DB cascade 삭제 전)
     const orderDirs = dto.deleteThumbnails && orderIds.length > 0
       ? await this.getOrderDirectories(orderIds)
+      : [];
+    const b2Keys = dto.deleteThumbnails && orderIds.length > 0
+      ? await this.collectB2KeysForOrders(orderIds)
       : [];
 
     const deleted = await this.prisma.order.deleteMany({ where });
@@ -2796,6 +2871,8 @@ export class OrderService {
         this.logger.warn(`데이터정리 디스크 삭제 실패: ${(err as Error).message}`);
       });
     }
+    // B2 원본·썸네일 영구 삭제 (개인정보보호법 준수)
+    this.deleteB2KeysAsync(b2Keys);
 
     return { success: deleted.count, deleted: deleted.count };
   }

@@ -60,6 +60,8 @@ export class R2StorageService implements OnModuleInit {
         region: 'auto',
         endpoint,
         forcePathStyle: true,
+        // CRC32 자동 추가 비활성: presigned URL 단순화 + 브라우저 PUT 호환성 ↑
+        requestChecksumCalculation: 'WHEN_REQUIRED',
         credentials: { accessKeyId: keyId, secretAccessKey: secret },
       });
       this.enabled = true;

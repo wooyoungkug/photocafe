@@ -2,11 +2,11 @@ import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request, Ba
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { diskStorage, memoryStorage } from 'multer';
+import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { randomUUID } from 'crypto';
 import { existsSync, mkdirSync, createReadStream, statSync, unlinkSync, readFileSync } from 'fs';
-import { writeFile as fsWriteFile } from 'fs/promises';
+import { writeFile as fsWriteFile, rename as fsRename, open as fsOpen, unlink as fsUnlink } from 'fs/promises';
 import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
@@ -64,6 +64,37 @@ export class UploadController implements OnModuleInit {
 
     /** TTL: 24시간 경과 폴더 자동 정리 */
     private readonly TEMP_TTL_MS = 24 * 60 * 60 * 1000;
+
+    /**
+     * 백그라운드 썸네일 큐 — multipart-complete / confirm 의 setImmediate 대체.
+     * 한 번에 1개만 처리해 메인 이벤트 루프 점유를 제어한다 (sharp + B2 다운로드).
+     * 동시 multipart 요청들이 서로의 백그라운드 작업에 의해 지연되지 않게 함.
+     */
+    private readonly thumbnailQueue: Array<() => Promise<void>> = [];
+    private isProcessingThumbnail = false;
+
+    private enqueueThumbnail(task: () => Promise<void>): void {
+        this.thumbnailQueue.push(task);
+        void this.drainThumbnailQueue();
+    }
+
+    private async drainThumbnailQueue(): Promise<void> {
+        if (this.isProcessingThumbnail) return;
+        this.isProcessingThumbnail = true;
+        try {
+            while (this.thumbnailQueue.length > 0) {
+                const task = this.thumbnailQueue.shift();
+                if (!task) continue;
+                try {
+                    await task();
+                } catch (err) {
+                    this.logger.warn(`thumbnail bg task failed: ${(err as Error).message}`);
+                }
+            }
+        } finally {
+            this.isProcessingThumbnail = false;
+        }
+    }
 
     constructor(
         private readonly fileStorage: FileStorageService,
@@ -202,7 +233,21 @@ export class UploadController implements OnModuleInit {
     })
     @UseInterceptors(
         FileInterceptor('file', {
-            storage: memoryStorage(),
+            // diskStorage: 200MB 파일을 메모리에 적재하지 않고 즉시 디스크에 스트림
+            // → Railway 메모리 압박/GC pause 해소, 동시 N개 업로드 시에도 안정
+            storage: diskStorage({
+                destination: (_req, _file, cb) => {
+                    const incomingDir = join(getUploadBasePath(), 'temp', '_incoming');
+                    if (!existsSync(incomingDir)) {
+                        mkdirSync(incomingDir, { recursive: true });
+                    }
+                    cb(null, incomingDir);
+                },
+                filename: (_req, file, cb) => {
+                    const ext = extname(file.originalname).toLowerCase();
+                    cb(null, `${randomUUID()}${ext}`);
+                },
+            }),
             fileFilter: (_req, file, cb) => {
                 // image/tif (단수)도 허용 (일부 시스템이 tif로 전송)
                 if (!file.mimetype.match(/^image\/(jpg|jpeg|png|tif|tiff|webp)$/)) {
@@ -236,8 +281,17 @@ export class UploadController implements OnModuleInit {
         }
 
         // Magic number 검증 — MIME 헤더는 조작 가능하므로 파일 실제 바이트로 재확인
+        // diskStorage 사용 중이라 file.buffer 가 없음 → 디스크에서 첫 12바이트만 읽음 (전체 로드 X)
         // JPEG: FF D8 FF | PNG: 89 50 4E 47 | TIFF(LE): 49 49 2A 00 | TIFF(BE): 4D 4D 00 2A | WEBP: 52 49 46 46...57 45 42 50
-        const sig = file.buffer.slice(0, 12);
+        let sig: Buffer;
+        const fd = await fsOpen(file.path, 'r');
+        try {
+            const headerBuf = Buffer.alloc(12);
+            await fd.read(headerBuf, 0, 12, 0);
+            sig = headerBuf;
+        } finally {
+            await fd.close();
+        }
         const isJpeg = sig[0] === 0xFF && sig[1] === 0xD8 && sig[2] === 0xFF;
         const isPng  = sig[0] === 0x89 && sig[1] === 0x50 && sig[2] === 0x4E && sig[3] === 0x47;
         const isTiff = (sig[0] === 0x49 && sig[1] === 0x49 && sig[2] === 0x2A) ||
@@ -245,6 +299,8 @@ export class UploadController implements OnModuleInit {
         const isWebp = sig[0] === 0x52 && sig[1] === 0x49 && sig[2] === 0x46 && sig[3] === 0x46 &&
                        sig[8] === 0x57 && sig[9] === 0x45 && sig[10] === 0x42 && sig[11] === 0x50;
         if (!isJpeg && !isPng && !isTiff && !isWebp) {
+            // 잘못된 파일 즉시 삭제
+            await fsUnlink(file.path).catch(() => {});
             throw new BadRequestException('지원하지 않는 파일 형식입니다. (jpg, png, tif, webp만 허용)');
         }
 
@@ -254,6 +310,8 @@ export class UploadController implements OnModuleInit {
             .replace(/[/\\]/g, '')
             .trim();
         if (!safeTempFolderId) {
+            // 무효 요청도 임시 파일 정리
+            await fsUnlink(file.path).catch(() => {});
             throw new BadRequestException('유효하지 않은 tempFolderId입니다.');
         }
 
@@ -276,9 +334,9 @@ export class UploadController implements OnModuleInit {
         const prefix = sortOrder.toString().padStart(2, '0');
         const filename = `${prefix}_${base}${ext}`;
 
-        // 메모리 버퍼를 디스크에 비동기 쓰기 (이벤트 루프 블로킹 방지)
+        // diskStorage 가 이미 _incoming 에 썼으므로 최종 경로로 rename (디스크 복사 X)
         const filePath = join(dir, filename);
-        await fsWriteFile(filePath, file.buffer);
+        await fsRename(file.path, filePath);
 
         // multer 호환 속성 설정
         file.path = filePath;
@@ -513,28 +571,24 @@ export class UploadController implements OnModuleInit {
         // manifest.json 비동기 저장 (세션 복원용)
         void this.saveManifest(safeTempFolderId, filtered);
 
-        // 썸네일 백그라운드 생성: B2 원본 다운로드 → 로컬 저장 → sharp 썸네일
-        setImmediate(async () => {
-            try {
-                const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
-                const res = await fetch(presignedGetUrl);
-                if (!res.ok) {
-                    this.logger.warn(`B2 원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
-                    return;
-                }
-                const buf = Buffer.from(await res.arrayBuffer());
-
-                const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
-                if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
-                const tempFilePath = join(tempOrigDir, safeFileName);
-                await fsWriteFile(tempFilePath, buf);
-
-                const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
-                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
-                await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
-            } catch (err) {
-                this.logger.warn(`백그라운드 썸네일 생성 실패 (${b2Key}): ${(err as Error).message}`);
+        // 썸네일 백그라운드 큐 — 직렬 처리로 메인 루프 점유 제어
+        this.enqueueThumbnail(async () => {
+            const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
+            const res = await fetch(presignedGetUrl);
+            if (!res.ok) {
+                this.logger.warn(`B2 원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                return;
             }
+            const buf = Buffer.from(await res.arrayBuffer());
+
+            const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+            if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+            const tempFilePath = join(tempOrigDir, safeFileName);
+            await fsWriteFile(tempFilePath, buf);
+
+            const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
+            if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+            await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
         });
 
         return {
@@ -628,13 +682,16 @@ export class UploadController implements OnModuleInit {
         const uploadId = await storage.createMultipartUpload(b2Key, contentType);
 
         const expiresIn = 1800; // 30분
-        const partUrls: Array<{ partNumber: number; url: string; contentLength: number }> = [];
-        for (let partNumber = 1; partNumber <= partCount; partNumber++) {
-            const url = await storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
-            const offset = (partNumber - 1) * partSize;
-            const contentLength = Math.min(partSize, fileSize - offset);
-            partUrls.push({ partNumber, url, contentLength });
-        }
+        // 청크별 presigned URL 병렬 생성 (서명은 로컬 HMAC 이므로 IO 없음, 단 SDK 내부 비동기)
+        const partUrls = await Promise.all(
+            Array.from({ length: partCount }, async (_, idx) => {
+                const partNumber = idx + 1;
+                const url = await storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
+                const offset = idx * partSize;
+                const contentLength = Math.min(partSize, fileSize - offset);
+                return { partNumber, url, contentLength };
+            }),
+        );
 
         const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
 
@@ -776,29 +833,25 @@ export class UploadController implements OnModuleInit {
 
         void this.saveManifest(safeTempFolderId, filtered);
 
-        // 썸네일 백그라운드 생성: 원본 다운로드 → 로컬 저장 → sharp 썸네일
+        // 썸네일 백그라운드 큐 — 직렬 처리로 메인 루프 점유 제어
         const storageForDownload = storage;
-        setImmediate(async () => {
-            try {
-                const presignedGetUrl = await storageForDownload.getPrivatePresignedUrl(b2Key, 300);
-                const res = await fetch(presignedGetUrl);
-                if (!res.ok) {
-                    this.logger.warn(`원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
-                    return;
-                }
-                const buf = Buffer.from(await res.arrayBuffer());
-
-                const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
-                if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
-                const tempFilePath = join(tempOrigDir, safeFileName);
-                await fsWriteFile(tempFilePath, buf);
-
-                const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
-                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
-                await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
-            } catch (err) {
-                this.logger.warn(`백그라운드 썸네일 생성 실패 (${b2Key}): ${(err as Error).message}`);
+        this.enqueueThumbnail(async () => {
+            const presignedGetUrl = await storageForDownload.getPrivatePresignedUrl(b2Key, 300);
+            const res = await fetch(presignedGetUrl);
+            if (!res.ok) {
+                this.logger.warn(`원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                return;
             }
+            const buf = Buffer.from(await res.arrayBuffer());
+
+            const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+            if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+            const tempFilePath = join(tempOrigDir, safeFileName);
+            await fsWriteFile(tempFilePath, buf);
+
+            const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
+            if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+            await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
         });
 
         return {
