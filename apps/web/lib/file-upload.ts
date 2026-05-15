@@ -548,6 +548,383 @@ export async function uploadAlbumFilePresigned(
   }
 }
 
+// ==================== Multipart 업로드 (큰 파일용, 청크 병렬) ====================
+
+export interface MultipartCreateResponse {
+  uploadId: string;
+  b2Key: string;
+  partSize: number;
+  partCount: number;
+  partUrls: Array<{ partNumber: number; url: string; contentLength: number }>;
+  fileName: string;
+  expiresAt: string;
+}
+
+/**
+ * Multipart 업로드 시작 — uploadId와 청크별 presigned URL 발급
+ */
+async function requestMultipartCreate(
+  request: {
+    tempFolderId: string;
+    folderName: string;
+    sortOrder: number;
+    fileName: string;
+    contentType: string;
+    fileSize: number;
+    partSize?: number;
+  },
+  token: string | null,
+): Promise<MultipartCreateResponse> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/v1/upload/album-file-multipart-create`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(request),
+    });
+  } catch (err) {
+    throw new UploadError(
+      `Multipart 시작 네트워크 오류: ${(err as Error).message}`,
+      'network',
+      undefined,
+      true,
+    );
+  }
+
+  if (!res.ok) {
+    let bodyText = '';
+    try { bodyText = await res.text(); } catch {}
+    const msg = parseErrorResponse(bodyText, res.status, res.statusText);
+    const retriable = res.status === 0 || res.status === 429 || res.status >= 500;
+    const kind = res.status >= 500 ? 'server' : res.status === 400 ? 'server' : 'client';
+    throw new UploadError(msg, kind, res.status, retriable);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    throw new UploadError('Multipart 시작 응답 파싱 실패', 'server', res.status, true);
+  }
+}
+
+/**
+ * 단일 청크를 B2에 PUT 하고 ETag 를 반환 (응답 헤더에서 추출)
+ */
+function uploadPartToB2(
+  presignedUrl: string,
+  chunk: Blob,
+  onProgress?: (bytesUploaded: number) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new DOMException('Upload cancelled', 'AbortError'));
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+    xhr.timeout = UPLOAD_TIMEOUT_MS;
+
+    const onAbort = () => xhr.abort();
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    let lastLoaded = 0;
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const delta = e.loaded - lastLoaded;
+        lastLoaded = e.loaded;
+        onProgress?.(delta);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      signal?.removeEventListener('abort', onAbort);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        // S3/B2 ETag 응답 헤더 (따옴표 포함 그대로 반환)
+        const etag = xhr.getResponseHeader('ETag') || xhr.getResponseHeader('etag');
+        if (!etag) {
+          reject(new UploadError('파트 응답에 ETag 헤더가 없습니다', 'server', xhr.status, true));
+          return;
+        }
+        resolve(etag);
+      } else {
+        const msg = parseErrorResponse(xhr.responseText, xhr.status, xhr.statusText);
+        const retriable = xhr.status === 0 || xhr.status === 429 || xhr.status >= 500;
+        const kind = xhr.status >= 500 ? 'server' : 'client';
+        reject(new UploadError(`파트 업로드 실패: ${msg}`, kind, xhr.status, retriable));
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new UploadError('파트 업로드 네트워크 오류', 'network', undefined, true));
+    });
+    xhr.addEventListener('timeout', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new UploadError('파트 업로드 타임아웃', 'timeout', undefined, true));
+    });
+    xhr.addEventListener('abort', () => {
+      signal?.removeEventListener('abort', onAbort);
+      reject(new UploadError('업로드 취소됨', 'abort', undefined, false));
+    });
+
+    xhr.open('PUT', presignedUrl);
+    xhr.send(chunk);
+  });
+}
+
+/**
+ * Multipart 완료 — 모든 파트 ETag 를 서버에 전달해 통합 확정
+ */
+async function confirmMultipartComplete(
+  params: {
+    tempFolderId: string;
+    b2Key: string;
+    uploadId: string;
+    parts: Array<{ partNumber: number; etag: string }>;
+    fileName: string;
+    originalName: string;
+    sortOrder: number;
+    fileSize: number;
+    width: number;
+    height: number;
+    widthInch: number;
+    heightInch: number;
+    dpi: number;
+  },
+  token: string | null,
+): Promise<UploadedFileResult> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/api/v1/upload/album-file-multipart-complete`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+  } catch (err) {
+    throw new UploadError(
+      `Multipart 완료 네트워크 오류: ${(err as Error).message}`,
+      'network',
+      undefined,
+      true,
+    );
+  }
+
+  if (!res.ok) {
+    let bodyText = '';
+    try { bodyText = await res.text(); } catch {}
+    const msg = parseErrorResponse(bodyText, res.status, res.statusText);
+    const retriable = res.status === 0 || res.status === 429 || res.status >= 500;
+    const kind = res.status >= 500 ? 'server' : 'client';
+    throw new UploadError(`Multipart 완료 실패: ${msg}`, kind, res.status, retriable);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    throw new UploadError('Multipart 완료 응답 파싱 실패', 'server', res.status, true);
+  }
+}
+
+/**
+ * Multipart 업로드 취소 (best-effort, 실패 무시)
+ */
+async function abortMultipart(
+  params: { tempFolderId: string; b2Key: string; uploadId: string },
+  token: string | null,
+): Promise<void> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    await fetch(`${API_BASE}/api/v1/upload/album-file-multipart-abort`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(params),
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+/** Multipart 적용 임계값 — 이 이상의 파일만 multipart 사용 */
+export const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10MB
+/** 한 파일 내 동시 청크 업로드 수 */
+const PART_CONCURRENCY = 6;
+/** 청크 크기 — 8MB. 큰 파일도 ~10000 파트 이내로 유지 */
+const PART_SIZE = 8 * 1024 * 1024;
+
+/**
+ * 큰 파일을 Multipart 로 업로드한다 (5단계).
+ * 1) create → uploadId + 청크별 presigned URL
+ * 2) 파일을 청크로 분할
+ * 3) 청크들을 PART_CONCURRENCY 개씩 병렬로 PUT → ETag 수집
+ * 4) complete → 서버가 S3 통합
+ * 5) 실패 시 abort 시도 (best-effort)
+ */
+export async function uploadAlbumFileMultipart(
+  file: File,
+  metadata: AlbumFileMetadata,
+  token: string | null,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<UploadedFileResult> {
+  if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+  const contentType = file.type || 'image/jpeg';
+
+  // 1) create
+  let session: MultipartCreateResponse;
+  try {
+    session = await requestMultipartCreate(
+      {
+        tempFolderId: metadata.tempFolderId,
+        folderName: metadata.folderName,
+        sortOrder: metadata.sortOrder,
+        fileName: metadata.fileName,
+        contentType,
+        fileSize: metadata.fileSize,
+        partSize: PART_SIZE,
+      },
+      token,
+    );
+  } catch (err) {
+    if (err instanceof UploadError) {
+      if (err.kind === 'server' && err.status === 400) {
+        throw new UploadError(err.message, 'server', err.status, false);
+      }
+      throw err;
+    }
+    throw new UploadError(
+      `Multipart 시작 실패: ${(err as Error).message}`,
+      'server',
+      undefined,
+      false,
+    );
+  }
+
+  if (signal?.aborted) {
+    void abortMultipart({ tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId }, token);
+    throw new DOMException('Upload cancelled', 'AbortError');
+  }
+
+  // 2~3) 청크 병렬 업로드
+  const totalSize = file.size;
+  let uploadedBytes = 0;
+  const partResults = new Array<{ partNumber: number; etag: string } | null>(session.partCount).fill(null);
+
+  const reportProgress = () => {
+    if (!onProgress) return;
+    const pct = totalSize > 0 ? Math.min(99, Math.round((uploadedBytes / totalSize) * 100)) : 0;
+    onProgress(pct);
+  };
+
+  // 워커 풀 패턴: 큐에서 다음 파트를 끄집어내 처리
+  const queue = [...session.partUrls];
+  const workers: Promise<void>[] = [];
+  let aborted = false;
+  let firstError: Error | null = null;
+
+  const runWorker = async () => {
+    while (queue.length > 0) {
+      if (aborted || signal?.aborted) break;
+      const partInfo = queue.shift();
+      if (!partInfo) break;
+
+      const offset = (partInfo.partNumber - 1) * session.partSize;
+      const end = Math.min(offset + session.partSize, totalSize);
+      const chunk = file.slice(offset, end);
+
+      try {
+        const etag = await uploadPartToB2(
+          partInfo.url,
+          chunk,
+          (delta) => {
+            uploadedBytes += delta;
+            reportProgress();
+          },
+          signal,
+        );
+        partResults[partInfo.partNumber - 1] = { partNumber: partInfo.partNumber, etag };
+      } catch (err) {
+        aborted = true;
+        if (!firstError) firstError = err as Error;
+        break;
+      }
+    }
+  };
+
+  for (let i = 0; i < Math.min(PART_CONCURRENCY, session.partCount); i++) {
+    workers.push(runWorker());
+  }
+  await Promise.all(workers);
+
+  if (firstError || aborted) {
+    void abortMultipart(
+      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId },
+      token,
+    );
+    if (firstError) throw firstError;
+    if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+    throw new UploadError('Multipart 업로드가 중단되었습니다', 'network', undefined, true);
+  }
+
+  const parts = partResults.filter((p): p is { partNumber: number; etag: string } => p !== null);
+  if (parts.length !== session.partCount) {
+    void abortMultipart(
+      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId },
+      token,
+    );
+    throw new UploadError('일부 파트 업로드가 실패했습니다', 'network', undefined, true);
+  }
+
+  if (signal?.aborted) {
+    void abortMultipart({ tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId }, token);
+    throw new DOMException('Upload cancelled', 'AbortError');
+  }
+
+  // 4) complete
+  try {
+    const result = await confirmMultipartComplete(
+      {
+        tempFolderId: metadata.tempFolderId,
+        b2Key: session.b2Key,
+        uploadId: session.uploadId,
+        parts,
+        fileName: session.fileName,
+        originalName: metadata.fileName,
+        sortOrder: metadata.sortOrder,
+        fileSize: metadata.fileSize,
+        width: metadata.width,
+        height: metadata.height,
+        widthInch: metadata.widthInch,
+        heightInch: metadata.heightInch,
+        dpi: metadata.dpi,
+      },
+      token,
+    );
+    onProgress?.(100);
+    return result;
+  } catch (err) {
+    void abortMultipart(
+      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId },
+      token,
+    );
+    if (err instanceof UploadError) throw err;
+    throw new UploadError(
+      `Multipart 완료 실패: ${(err as Error).message}`,
+      'server',
+      undefined,
+      true,
+    );
+  }
+}
+
 /**
  * 임시 폴더 삭제
  */

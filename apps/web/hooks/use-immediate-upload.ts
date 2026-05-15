@@ -4,6 +4,8 @@ import { useCallback, useRef } from 'react';
 import {
   uploadAlbumFile,
   uploadAlbumFilePresigned,
+  uploadAlbumFileMultipart,
+  MULTIPART_THRESHOLD,
   UploadError,
   type AlbumFileMetadata,
   type UploadedFileResult,
@@ -141,18 +143,29 @@ export function useImmediateUpload(productId: string) {
         try {
           console.log('[ImmediateUpload] uploading file:', item.metadata.fileName, 'to folder:', item.tempFolderId);
 
-          // Presigned 업로드 시도 → 실패 시 기존 방식으로 폴백
+          // 업로드 경로 선택: 큰 파일 → Multipart, 작은 파일 → 단일 Presigned
+          // 둘 다 실패 시(400 = B2 미설정 등) 서버 경유 폴백
           let result: UploadedFileResult;
+          const useMultipart = item.file.size >= MULTIPART_THRESHOLD;
           try {
-            result = await uploadAlbumFilePresigned(
-              item.file,
-              item.metadata,
-              accessToken,
-              undefined,
-              controller.signal,
-            );
+            if (useMultipart) {
+              result = await uploadAlbumFileMultipart(
+                item.file,
+                item.metadata,
+                accessToken,
+                undefined,
+                controller.signal,
+              );
+            } else {
+              result = await uploadAlbumFilePresigned(
+                item.file,
+                item.metadata,
+                accessToken,
+                undefined,
+                controller.signal,
+              );
+            }
           } catch (presignErr) {
-            // B2 미설정(400) 또는 CORS 실패 시 기존 방식으로 폴백
             if (
               presignErr instanceof UploadError &&
               presignErr.kind === 'server' &&

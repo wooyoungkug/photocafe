@@ -538,6 +538,310 @@ export class UploadController implements OnModuleInit {
         };
     }
 
+    // ==================== 앨범 원본 파일 Multipart 업로드 (B2 직접, 청크 병렬) ====================
+
+    @Public()
+    @Post('album-file-multipart-create')
+    @Throttle({ default: { ttl: 60000, limit: 300 } })
+    @ApiOperation({ summary: '앨범 원본 파일 Multipart 업로드 시작 — uploadId + 청크별 presigned URL 반환' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                tempFolderId: { type: 'string' },
+                folderName: { type: 'string' },
+                sortOrder: { type: 'number' },
+                fileName: { type: 'string' },
+                contentType: { type: 'string' },
+                fileSize: { type: 'number' },
+                partSize: { type: 'number', description: '청크 크기 (bytes). 기본 8MB. 최소 5MB.' },
+            },
+        },
+    })
+    async createAlbumFileMultipart(
+        @Body() body: {
+            tempFolderId: string;
+            folderName: string;
+            sortOrder: number;
+            fileName: string;
+            contentType: string;
+            fileSize: number;
+            partSize?: number;
+        },
+    ) {
+        if (!this.b2Storage.isEnabled()) {
+            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        }
+
+        const safeTempFolderId = this.sanitizeTempFolderId(body.tempFolderId);
+        if (!safeTempFolderId) {
+            throw new BadRequestException('유효하지 않은 tempFolderId입니다.');
+        }
+
+        const contentType = (body.contentType || '').trim();
+        if (!contentType.match(/^image\/(jpeg|jpg|png|tif|tiff|webp)$/)) {
+            throw new BadRequestException('지원하지 않는 contentType입니다.');
+        }
+
+        const fileSize = Number(body.fileSize);
+        const MAX_FILE_SIZE = 1073741824; // 1GB
+        const MIN_FILE_SIZE = 5242880;    // 5MB (S3 multipart 최소 1청크 = 5MB)
+        if (!Number.isFinite(fileSize) || fileSize < MIN_FILE_SIZE || fileSize > MAX_FILE_SIZE) {
+            throw new BadRequestException(`Multipart 업로드 파일 크기는 ${MIN_FILE_SIZE} ~ ${MAX_FILE_SIZE} bytes 범위여야 합니다.`);
+        }
+
+        if (!body.fileName || !body.fileName.trim()) {
+            throw new BadRequestException('fileName이 필요합니다.');
+        }
+        const safeFileName = this.sanitizeFileName(body.fileName.trim());
+        if (!safeFileName) {
+            throw new BadRequestException('유효하지 않은 fileName입니다.');
+        }
+
+        const MIN_PART = 5242880;    // 5MB
+        const MAX_PART = 104857600;  // 100MB
+        const requestedPartSize = Number(body.partSize);
+        let partSize = Number.isFinite(requestedPartSize) && requestedPartSize > 0
+            ? Math.min(Math.max(requestedPartSize, MIN_PART), MAX_PART)
+            : 8388608; // 기본 8MB
+
+        let partCount = Math.ceil(fileSize / partSize);
+        if (partCount > 10000) {
+            partSize = Math.ceil(fileSize / 10000);
+            partCount = Math.ceil(fileSize / partSize);
+        }
+
+        const b2Key = `temp/${safeTempFolderId}/originals/${safeFileName}`;
+
+        const uploadId = await this.b2Storage.createMultipartUpload(b2Key, contentType);
+
+        const expiresIn = 1800; // 30분
+        const partUrls: Array<{ partNumber: number; url: string; contentLength: number }> = [];
+        for (let partNumber = 1; partNumber <= partCount; partNumber++) {
+            const url = await this.b2Storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
+            const offset = (partNumber - 1) * partSize;
+            const contentLength = Math.min(partSize, fileSize - offset);
+            partUrls.push({ partNumber, url, contentLength });
+        }
+
+        const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+        return {
+            uploadId,
+            b2Key,
+            partSize,
+            partCount,
+            partUrls,
+            fileName: safeFileName,
+            expiresAt,
+        };
+    }
+
+    @Public()
+    @Post('album-file-multipart-complete')
+    @Throttle({ default: { ttl: 60000, limit: 300 } })
+    @ApiOperation({ summary: '앨범 원본 파일 Multipart 업로드 완료 — 청크 ETag 수집 후 통합 확정' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                tempFolderId: { type: 'string' },
+                b2Key: { type: 'string' },
+                uploadId: { type: 'string' },
+                parts: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            partNumber: { type: 'number' },
+                            etag: { type: 'string' },
+                        },
+                    },
+                },
+                fileName: { type: 'string' },
+                originalName: { type: 'string' },
+                sortOrder: { type: 'number' },
+                fileSize: { type: 'number' },
+                width: { type: 'number' },
+                height: { type: 'number' },
+                widthInch: { type: 'number' },
+                heightInch: { type: 'number' },
+                dpi: { type: 'number' },
+            },
+        },
+    })
+    async completeAlbumFileMultipart(
+        @Body() body: {
+            tempFolderId: string;
+            b2Key: string;
+            uploadId: string;
+            parts: Array<{ partNumber: number; etag: string }>;
+            fileName: string;
+            originalName: string;
+            sortOrder: number;
+            fileSize: number;
+            width: number;
+            height: number;
+            widthInch: number;
+            heightInch: number;
+            dpi: number;
+        },
+    ) {
+        if (!this.b2Storage.isEnabled()) {
+            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        }
+
+        const safeTempFolderId = this.sanitizeTempFolderId(body.tempFolderId);
+        if (!safeTempFolderId) {
+            throw new BadRequestException('유효하지 않은 tempFolderId입니다.');
+        }
+
+        const b2Key = (body.b2Key || '').trim();
+        const uploadId = (body.uploadId || '').trim();
+        if (!b2Key || !uploadId) {
+            throw new BadRequestException('b2Key, uploadId가 필요합니다.');
+        }
+
+        const expectedPrefix = `temp/${safeTempFolderId}/originals/`;
+        if (!b2Key.startsWith(expectedPrefix) || b2Key.includes('..') || b2Key.includes('\0')) {
+            throw new BadRequestException('b2Key가 유효하지 않습니다.');
+        }
+
+        const safeFileName = this.sanitizeFileName((body.fileName || '').trim());
+        if (!safeFileName) {
+            throw new BadRequestException('유효하지 않은 fileName입니다.');
+        }
+
+        if (!Array.isArray(body.parts) || body.parts.length === 0) {
+            throw new BadRequestException('parts 배열이 비어있습니다.');
+        }
+
+        const partsForS3 = body.parts
+            .map((p) => ({
+                PartNumber: Number(p.partNumber),
+                ETag: String(p.etag || '').trim(),
+            }))
+            .filter((p) => Number.isFinite(p.PartNumber) && p.PartNumber > 0 && p.ETag);
+
+        if (partsForS3.length !== body.parts.length) {
+            throw new BadRequestException('parts 항목이 유효하지 않습니다.');
+        }
+
+        try {
+            await this.b2Storage.completeMultipartUpload(b2Key, uploadId, partsForS3);
+        } catch (err) {
+            throw new BadRequestException(`Multipart 완료 실패: ${(err as Error).message}`);
+        }
+
+        const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
+        const fileSize = Number.isFinite(Number(body.fileSize)) ? Number(body.fileSize) : 0;
+        const originalName = (body.originalName || safeFileName).toString();
+
+        const ext = extname(safeFileName);
+        const base = safeFileName.slice(0, -ext.length);
+        const thumbName = `${base}_thumb.jpg`;
+        const encodedThumbName = /[^\x00-\x7F]/.test(thumbName) || thumbName.includes(' ')
+            ? encodeURIComponent(thumbName)
+            : thumbName;
+        const thumbnailUrl = `/uploads/temp/${safeTempFolderId}/thumbnails/${encodedThumbName}`;
+
+        const meta: B2TempFileMeta = {
+            fileName: safeFileName,
+            originalName,
+            fileSize,
+            fileUrl: b2Key,
+            thumbnailUrl,
+            sortOrder,
+            createdAt: Date.now(),
+        };
+        const existing = this.b2TempFiles.get(safeTempFolderId) || [];
+        const filtered = existing.filter((f) => f.fileName !== safeFileName);
+        filtered.push(meta);
+        this.b2TempFiles.set(safeTempFolderId, filtered);
+
+        void this.saveManifest(safeTempFolderId, filtered);
+
+        // 썸네일 백그라운드 생성: B2 원본 다운로드 → 로컬 저장 → sharp 썸네일
+        setImmediate(async () => {
+            try {
+                const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
+                const res = await fetch(presignedGetUrl);
+                if (!res.ok) {
+                    this.logger.warn(`B2 원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                    return;
+                }
+                const buf = Buffer.from(await res.arrayBuffer());
+
+                const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+                if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+                const tempFilePath = join(tempOrigDir, safeFileName);
+                await fsWriteFile(tempFilePath, buf);
+
+                const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
+                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+            } catch (err) {
+                this.logger.warn(`백그라운드 썸네일 생성 실패 (${b2Key}): ${(err as Error).message}`);
+            }
+        });
+
+        return {
+            tempFileId: `${safeTempFolderId}/${safeFileName}`,
+            fileName: safeFileName,
+            originalName,
+            size: fileSize,
+            fileUrl: b2Key,
+            thumbnailUrl,
+            sortOrder,
+        };
+    }
+
+    @Public()
+    @Post('album-file-multipart-abort')
+    @Throttle({ default: { ttl: 60000, limit: 300 } })
+    @ApiOperation({ summary: '앨범 원본 파일 Multipart 업로드 취소 — B2에 쌓인 미완료 청크 정리' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                tempFolderId: { type: 'string' },
+                b2Key: { type: 'string' },
+                uploadId: { type: 'string' },
+            },
+        },
+    })
+    async abortAlbumFileMultipart(
+        @Body() body: {
+            tempFolderId: string;
+            b2Key: string;
+            uploadId: string;
+        },
+    ) {
+        if (!this.b2Storage.isEnabled()) {
+            return { aborted: false, reason: 'b2 disabled' };
+        }
+
+        const safeTempFolderId = this.sanitizeTempFolderId(body.tempFolderId);
+        const b2Key = (body.b2Key || '').trim();
+        const uploadId = (body.uploadId || '').trim();
+        if (!safeTempFolderId || !b2Key || !uploadId) {
+            return { aborted: false, reason: 'invalid input' };
+        }
+
+        const expectedPrefix = `temp/${safeTempFolderId}/originals/`;
+        if (!b2Key.startsWith(expectedPrefix)) {
+            return { aborted: false, reason: 'b2Key prefix mismatch' };
+        }
+
+        try {
+            await this.b2Storage.abortMultipartUpload(b2Key, uploadId);
+            return { aborted: true };
+        } catch (err) {
+            this.logger.warn(`Multipart abort 실패 (${b2Key}): ${(err as Error).message}`);
+            return { aborted: false, reason: (err as Error).message };
+        }
+    }
+
     @Public()
     @Get('temp/:tempFolderId/files')
     @Throttle({ default: { ttl: 60000, limit: 60 } })
