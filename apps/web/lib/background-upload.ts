@@ -1,5 +1,8 @@
 import {
   uploadAlbumFile,
+  uploadAlbumFilePresigned,
+  uploadAlbumFileMultipart,
+  MULTIPART_THRESHOLD,
   deleteTempFolder,
   UploadError,
   type AlbumFileMetadata,
@@ -8,7 +11,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 
-const CONCURRENCY = 1; // 순차 업로드 (Cloudflare → Railway 서버 경유)
+const CONCURRENCY = 4; // 동시 업로드 수 (B2 직접 업로드 대응)
 const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
 
 function generateTempFolderId(): string {
@@ -180,14 +183,44 @@ export function startBackgroundUpload(
             throttledProgress();
           };
 
-          // 서버 경유 업로드 (브라우저 → Cloudflare 한국 엣지 → Railway → Volume)
-          const result = await uploadAlbumFile(
-            file,
-            metadata,
-            accessToken,
-            onProgressCb,
-            signal,
-          );
+          // 업로드 경로 선택: 큰 파일 → Multipart, 작은 파일 → 단일 Presigned
+          let result;
+          const useMultipart = file.size >= MULTIPART_THRESHOLD;
+          try {
+            if (useMultipart) {
+              result = await uploadAlbumFileMultipart(
+                file,
+                metadata,
+                accessToken,
+                onProgressCb,
+                signal,
+              );
+            } else {
+              result = await uploadAlbumFilePresigned(
+                file,
+                metadata,
+                accessToken,
+                onProgressCb,
+                signal,
+              );
+            }
+          } catch (presignErr) {
+            if (
+              presignErr instanceof UploadError &&
+              presignErr.kind === 'server' &&
+              presignErr.status === 400
+            ) {
+              result = await uploadAlbumFile(
+                file,
+                metadata,
+                accessToken,
+                onProgressCb,
+                signal,
+              );
+            } else {
+              throw presignErr;
+            }
+          }
 
           fileProgress[index] = 100;
           serverFiles.push({
