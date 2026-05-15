@@ -430,9 +430,11 @@ export function AlbumSplitTool() {
       // 자동 저장: directoryHandle이 있으면 즉시 저장
       if (directoryHandle) {
         // 원본 파일명 기반 저장 (예: 0203.jpg → 0203_첫장.jpg, 0203_막장.jpg)
+        // 단, 원본이 "첫장막장"인 경우 prefix 없이 "첫장.jpg" / "막장.jpg" 로 저장
         const baseName = (fileName || 'image').replace(/\.(jpe?g|png)$/i, '');
-        const leftName = `${baseName}_첫장.jpg`;
-        const rightName = `${baseName}_막장.jpg`;
+        const isCoverSpread = baseName === '첫장막장';
+        const leftName = isCoverSpread ? '첫장.jpg' : `${baseName}_첫장.jpg`;
+        const rightName = isCoverSpread ? '막장.jpg' : `${baseName}_막장.jpg`;
 
         const ok1 = await saveToFolder(directoryHandle, leftResult.blob, leftName);
         const ok2 = await saveToFolder(directoryHandle, rightResult.blob, rightName);
@@ -530,8 +532,12 @@ export function AlbumSplitTool() {
   }, []);
 
   // 원본 파일명 기반 출력명 (덮어쓰기 방지)
+  // 단, 원본이 "첫장막장"인 경우 prefix 없이 "첫장.jpg" / "막장.jpg" 로 저장
   const getOutputNames = useCallback(() => {
     const baseName = (fileName || 'image').replace(/\.(jpe?g|png)$/i, '');
+    if (baseName === '첫장막장') {
+      return { leftName: '첫장.jpg', rightName: '막장.jpg' };
+    }
     return { leftName: `${baseName}_첫장.jpg`, rightName: `${baseName}_막장.jpg` };
   }, [fileName]);
 
