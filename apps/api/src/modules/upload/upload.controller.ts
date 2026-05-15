@@ -12,6 +12,7 @@ import { FileStorageService, getUploadBasePath } from './services/file-storage.s
 import { ThumbnailService } from './services/thumbnail.service';
 import { B2StorageService } from './services/b2-storage.service';
 import { R2StorageService } from './services/r2-storage.service';
+import { WorkerUploadProxyService } from './services/worker-upload-proxy.service';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -101,15 +102,32 @@ export class UploadController implements OnModuleInit {
         private readonly thumbnailService: ThumbnailService,
         private readonly b2Storage: B2StorageService,
         private readonly r2Storage: R2StorageService,
+        private readonly workerProxy: WorkerUploadProxyService,
         private readonly prisma: PrismaService,
     ) {}
 
-    /** body.storage === 'r2' 면 R2, 그 외엔 B2 사용 (테스트용). R2 미설정 시 B2 폴백. */
+    /**
+     * 스토리지 선택:
+     *   - storage === 'r2' 또는 'r2-worker' → R2 (R2 미설정 시 B2 폴백)
+     *   - 그 외 → B2
+     *
+     * 'r2-worker' 는 청크 PUT URL 생성 시에만 Worker 경유 URL 을 발급한다.
+     * 실제 multipart 생성/완료/취소 는 R2 S3 API 로 처리한다 (Worker 는 부분 업로드만).
+     */
     private pickStorage(storage: string | undefined): B2StorageService | R2StorageService {
-        if (storage === 'r2' && this.r2Storage.isEnabled()) {
+        if ((storage === 'r2' || storage === 'r2-worker') && this.r2Storage.isEnabled()) {
             return this.r2Storage;
         }
         return this.b2Storage;
+    }
+
+    /** Worker 프록시 모드 활성 조건: 사용자 요청 + Worker 설정 + R2 활성 모두 충족 */
+    private shouldUseWorkerProxy(storage: string | undefined): boolean {
+        return (
+            storage === 'r2-worker' &&
+            this.workerProxy.isEnabled() &&
+            this.r2Storage.isEnabled()
+        );
     }
 
     onModuleInit(): void {
@@ -682,18 +700,43 @@ export class UploadController implements OnModuleInit {
         const uploadId = await storage.createMultipartUpload(b2Key, contentType);
 
         const expiresIn = 1800; // 30분
-        // 청크별 presigned URL 병렬 생성 (서명은 로컬 HMAC 이므로 IO 없음, 단 SDK 내부 비동기)
-        const partUrls = await Promise.all(
-            Array.from({ length: partCount }, async (_, idx) => {
+        const useWorker = this.shouldUseWorkerProxy(body.storage);
+
+        // 청크별 URL 생성:
+        //  - r2-worker: Worker HMAC 서명 URL (Seoul edge → R2 binding, IO 없음)
+        //  - 그 외: S3/B2 presigned PUT URL
+        const partUrls = useWorker
+            ? Array.from({ length: partCount }, (_, idx) => {
                 const partNumber = idx + 1;
-                const url = await storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
                 const offset = idx * partSize;
                 const contentLength = Math.min(partSize, fileSize - offset);
+                const url = this.workerProxy.signPartUrl({
+                    key: b2Key,
+                    uploadId,
+                    partNumber,
+                    expiresInSeconds: expiresIn,
+                });
                 return { partNumber, url, contentLength };
-            }),
-        );
+            })
+            : await Promise.all(
+                Array.from({ length: partCount }, async (_, idx) => {
+                    const partNumber = idx + 1;
+                    const url = await storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
+                    const offset = idx * partSize;
+                    const contentLength = Math.min(partSize, fileSize - offset);
+                    return { partNumber, url, contentLength };
+                }),
+            );
 
         const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+
+        // 응답의 storage 필드는 클라이언트가 complete/abort 호출 시 같은 백엔드 스토리지를
+        // 가리키도록 유지해야 한다. 'r2-worker' 도 R2 위에 동작하므로 'r2-worker' 그대로 반환.
+        const storageLabel = useWorker
+            ? 'r2-worker'
+            : body.storage === 'r2' && this.r2Storage.isEnabled()
+                ? 'r2'
+                : 'b2';
 
         return {
             uploadId,
@@ -703,7 +746,7 @@ export class UploadController implements OnModuleInit {
             partUrls,
             fileName: safeFileName,
             expiresAt,
-            storage: body.storage === 'r2' && this.r2Storage.isEnabled() ? 'r2' : 'b2',
+            storage: storageLabel,
         };
     }
 

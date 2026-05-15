@@ -367,7 +367,7 @@ export interface UploadedFolder {
   immediateUploadAvgSpeed?: number;       // 완료 시 최종 평균 업로드 속도 (bytes/sec)
   immediateUploadElapsedMs?: number;      // 완료 시 총 소요 시간 (ms)
   immediateUploadTotalBytes?: number;     // 완료 시 총 업로드 바이트
-  immediateUploadStorage?: 'b2' | 'r2';   // 사용된 스토리지 (테스트 모드)
+  immediateUploadStorage?: 'b2' | 'r2' | 'r2w'; // 사용된 스토리지 (b2/r2 직접 PUT, r2w=Worker 프록시)
   immediateServerFiles?: Array<{
     tempFileId: string;
     fileUrl: string;
