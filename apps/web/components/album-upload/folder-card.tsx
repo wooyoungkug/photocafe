@@ -889,6 +889,30 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
             <>
               <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
               <span className="text-[11px] font-medium text-emerald-700">서버 저장 완료</span>
+              {folder.immediateUploadAvgSpeed && folder.immediateUploadAvgSpeed > 0 && (
+                <span className="text-[10px] text-emerald-700/80 ml-1">
+                  · 평균{' '}
+                  {folder.immediateUploadAvgSpeed >= 1024 * 1024
+                    ? `${(folder.immediateUploadAvgSpeed / 1024 / 1024).toFixed(1)} MB/s`
+                    : `${(folder.immediateUploadAvgSpeed / 1024).toFixed(0)} KB/s`}
+                  {typeof folder.immediateUploadElapsedMs === 'number' && (
+                    <> · {(folder.immediateUploadElapsedMs / 1000).toFixed(1)}초</>
+                  )}
+                  {typeof folder.immediateUploadTotalBytes === 'number' && folder.immediateUploadTotalBytes > 0 && (
+                    <>
+                      {' '}·{' '}
+                      {folder.immediateUploadTotalBytes >= 1024 * 1024
+                        ? `${(folder.immediateUploadTotalBytes / 1024 / 1024).toFixed(1)} MB`
+                        : `${(folder.immediateUploadTotalBytes / 1024).toFixed(0)} KB`}
+                    </>
+                  )}
+                  {folder.immediateUploadStorage && (
+                    <span className="ml-1 px-1 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">
+                      {folder.immediateUploadStorage}
+                    </span>
+                  )}
+                </span>
+              )}
             </>
           )}
           {(folder.immediateUploadStatus === 'failed' || folder.immediateUploadStatus === 'partial') && (

@@ -46,6 +46,13 @@ export interface UploadSessionFolder {
   totalFileCount: number;
   folderMeta: UploadSessionFolderMeta;
   createdAt: number;
+  // --- 업로드 시간/속도 측정 (테스트 모드 기록) ---
+  uploadStartedAt?: number;       // 업로드 시작 시각 (ms epoch)
+  uploadCompletedAt?: number;     // 업로드 완료 시각 (ms epoch)
+  uploadElapsedMs?: number;       // 총 소요 시간 (ms)
+  uploadTotalBytes?: number;      // 총 업로드 바이트
+  uploadAvgSpeed?: number;        // 평균 속도 (bytes/sec)
+  uploadStorage?: 'b2' | 'r2';    // 사용된 스토리지
 }
 
 export interface UploadSession {

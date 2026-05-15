@@ -7,6 +7,7 @@ import {
   uploadAlbumFileMultipart,
   MULTIPART_THRESHOLD,
   UploadError,
+  getStorageOverride,
   type AlbumFileMetadata,
   type UploadedFileResult,
 } from '@/lib/file-upload';
@@ -248,7 +249,7 @@ export function useImmediateUpload(productId: string) {
     // 폴더 성공 마무리 처리 (메모리 해제 등)
     function finalizeFolderSuccess(
       folderId: string,
-      progress: { uploaded: number; total: number; serverFiles: UploadedFileResult[]; failedFiles: any[] },
+      progress: { uploaded: number; total: number; serverFiles: UploadedFileResult[]; failedFiles: any[]; startedAt: number; bytesUploaded: number },
     ) {
       // folder의 파일 메타데이터를 매칭하여 포함
       const { folders } = useMultiFolderUploadStore.getState();
@@ -270,16 +271,32 @@ export function useImmediateUpload(productId: string) {
         };
       });
 
+      const elapsedMs = Math.max(1, Date.now() - progress.startedAt);
+      const avgSpeed = (progress.bytesUploaded * 1000) / elapsedMs; // bytes/sec
+      const storageOverride = getStorageOverride();
+      const storage: 'b2' | 'r2' = storageOverride === 'r2' ? 'r2' : 'b2';
+
       updateFolderUploadStatus(folderId, {
         immediateUploadStatus: 'completed',
         immediateUploadProgress: 100,
         immediateUploadedCount: progress.total,
         immediateServerFiles: serverFiles,
+        immediateUploadAvgSpeed: avgSpeed,
+        immediateUploadElapsedMs: elapsedMs,
+        immediateUploadTotalBytes: progress.bytesUploaded,
+        immediateUploadStorage: storage,
       });
 
+      const completedAt = Date.now();
       updateSessionFolder(productId, folderId, {
         uploadStatus: 'completed',
         uploadedFileCount: progress.total,
+        uploadStartedAt: progress.startedAt,
+        uploadCompletedAt: completedAt,
+        uploadElapsedMs: elapsedMs,
+        uploadTotalBytes: progress.bytesUploaded,
+        uploadAvgSpeed: avgSpeed,
+        uploadStorage: storage,
       });
 
       // 업로드 완료 후 File 객체 메모리 해제
@@ -391,6 +408,7 @@ export function useImmediateUpload(productId: string) {
     });
 
     // 세션에 저장
+    const startedAt = Date.now();
     const sessionFolder: UploadSessionFolder = {
       folderId: folder.id,
       tempFolderId,
@@ -399,7 +417,8 @@ export function useImmediateUpload(productId: string) {
       uploadedFileCount: 0,
       totalFileCount: folder.files.length,
       folderMeta: extractFolderMeta(folder),
-      createdAt: Date.now(),
+      createdAt: startedAt,
+      uploadStartedAt: startedAt,
     };
     addSessionFolder(productId, sessionFolder);
 
