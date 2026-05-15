@@ -87,6 +87,17 @@ export function AlbumSplitTool() {
     }
   }, [directoryHandle]);
 
+  // 표지 펼침 파일 판별: "첫장막장" 또는 NNNN 형태에서 두 페이지 번호가 연속되지 않은 경우
+  // 예: "0134" (01+34) → 표지, "0203" (02+03) → 일반 스프레드
+  const isCoverSpreadName = useCallback((baseName: string): boolean => {
+    if (baseName === '첫장막장') return true;
+    const m = baseName.match(/^(\d{2})(\d{2})$/);
+    if (!m) return false;
+    const first = parseInt(m[1], 10);
+    const second = parseInt(m[2], 10);
+    return second !== first + 1;
+  }, []);
+
   const playBeep = useCallback(() => {
     try {
       const ctx = new AudioContext();
@@ -430,9 +441,9 @@ export function AlbumSplitTool() {
       // 자동 저장: directoryHandle이 있으면 즉시 저장
       if (directoryHandle) {
         // 원본 파일명 기반 저장 (예: 0203.jpg → 0203_첫장.jpg, 0203_막장.jpg)
-        // 단, 원본이 "첫장막장"인 경우 prefix 없이 "첫장.jpg" / "막장.jpg" 로 저장
+        // 단, 표지 펼침("첫장막장" 또는 "0134" 같은 비연속 페이지 번호)은 prefix 없이 저장
         const baseName = (fileName || 'image').replace(/\.(jpe?g|png)$/i, '');
-        const isCoverSpread = baseName === '첫장막장';
+        const isCoverSpread = isCoverSpreadName(baseName);
         const leftName = isCoverSpread ? '첫장.jpg' : `${baseName}_첫장.jpg`;
         const rightName = isCoverSpread ? '막장.jpg' : `${baseName}_막장.jpg`;
 
@@ -532,14 +543,14 @@ export function AlbumSplitTool() {
   }, []);
 
   // 원본 파일명 기반 출력명 (덮어쓰기 방지)
-  // 단, 원본이 "첫장막장"인 경우 prefix 없이 "첫장.jpg" / "막장.jpg" 로 저장
+  // 단, 표지 펼침("첫장막장" 또는 "0134" 같은 비연속 페이지 번호)은 prefix 없이 저장
   const getOutputNames = useCallback(() => {
     const baseName = (fileName || 'image').replace(/\.(jpe?g|png)$/i, '');
-    if (baseName === '첫장막장') {
+    if (isCoverSpreadName(baseName)) {
       return { leftName: '첫장.jpg', rightName: '막장.jpg' };
     }
     return { leftName: `${baseName}_첫장.jpg`, rightName: `${baseName}_막장.jpg` };
-  }, [fileName]);
+  }, [fileName, isCoverSpreadName]);
 
   const handleSaveLeft = useCallback(async () => {
     if (!leftBlob) return;
