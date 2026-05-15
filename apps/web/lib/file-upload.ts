@@ -561,6 +561,30 @@ export interface MultipartCreateResponse {
 }
 
 /**
+ * 테스트 모드: localStorage 의 'storageOverride' 가 'r2' 면 R2 사용.
+ * URL 에 ?_storage=r2 또는 ?_storage=b2 가 있으면 localStorage 에 저장.
+ * 운영 사용자는 영향 없음 (기본 'b2').
+ */
+export function getStorageOverride(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  try {
+    // URL 파라미터로 토글 (영구 설정)
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('_storage');
+    if (fromUrl === 'r2' || fromUrl === 'b2') {
+      window.localStorage.setItem('storageOverride', fromUrl);
+      return fromUrl;
+    }
+    // localStorage 에 저장된 값 사용
+    const v = window.localStorage.getItem('storageOverride');
+    if (v === 'r2' || v === 'b2') return v;
+  } catch {
+    // SSR/스토리지 미지원 환경
+  }
+  return undefined;
+}
+
+/**
  * Multipart 업로드 시작 — uploadId와 청크별 presigned URL 발급
  */
 async function requestMultipartCreate(
@@ -572,6 +596,7 @@ async function requestMultipartCreate(
     contentType: string;
     fileSize: number;
     partSize?: number;
+    storage?: string;
   },
   token: string | null,
 ): Promise<MultipartCreateResponse> {
@@ -694,6 +719,7 @@ async function confirmMultipartComplete(
     widthInch: number;
     heightInch: number;
     dpi: number;
+    storage?: string;
   },
   token: string | null,
 ): Promise<UploadedFileResult> {
@@ -736,7 +762,7 @@ async function confirmMultipartComplete(
  * Multipart 업로드 취소 (best-effort, 실패 무시)
  */
 async function abortMultipart(
-  params: { tempFolderId: string; b2Key: string; uploadId: string },
+  params: { tempFolderId: string; b2Key: string; uploadId: string; storage?: string },
   token: string | null,
 ): Promise<void> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -777,6 +803,7 @@ export async function uploadAlbumFileMultipart(
   if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
 
   const contentType = file.type || 'image/jpeg';
+  const storage = getStorageOverride(); // 'r2' | 'b2' | undefined
 
   // 1) create
   let session: MultipartCreateResponse;
@@ -790,6 +817,7 @@ export async function uploadAlbumFileMultipart(
         contentType,
         fileSize: metadata.fileSize,
         partSize: PART_SIZE,
+        storage,
       },
       token,
     );
@@ -809,7 +837,7 @@ export async function uploadAlbumFileMultipart(
   }
 
   if (signal?.aborted) {
-    void abortMultipart({ tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId }, token);
+    void abortMultipart({ tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId, storage }, token);
     throw new DOMException('Upload cancelled', 'AbortError');
   }
 
@@ -866,7 +894,7 @@ export async function uploadAlbumFileMultipart(
 
   if (firstError || aborted) {
     void abortMultipart(
-      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId },
+      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId, storage },
       token,
     );
     if (firstError) throw firstError;
@@ -877,14 +905,14 @@ export async function uploadAlbumFileMultipart(
   const parts = partResults.filter((p): p is { partNumber: number; etag: string } => p !== null);
   if (parts.length !== session.partCount) {
     void abortMultipart(
-      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId },
+      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId, storage },
       token,
     );
     throw new UploadError('일부 파트 업로드가 실패했습니다', 'network', undefined, true);
   }
 
   if (signal?.aborted) {
-    void abortMultipart({ tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId }, token);
+    void abortMultipart({ tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId, storage }, token);
     throw new DOMException('Upload cancelled', 'AbortError');
   }
 
@@ -905,6 +933,7 @@ export async function uploadAlbumFileMultipart(
         widthInch: metadata.widthInch,
         heightInch: metadata.heightInch,
         dpi: metadata.dpi,
+        storage,
       },
       token,
     );
@@ -912,7 +941,7 @@ export async function uploadAlbumFileMultipart(
     return result;
   } catch (err) {
     void abortMultipart(
-      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId },
+      { tempFolderId: metadata.tempFolderId, b2Key: session.b2Key, uploadId: session.uploadId, storage },
       token,
     );
     if (err instanceof UploadError) throw err;

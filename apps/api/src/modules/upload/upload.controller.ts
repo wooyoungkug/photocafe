@@ -625,12 +625,12 @@ export class UploadController implements OnModuleInit {
 
         const b2Key = `temp/${safeTempFolderId}/originals/${safeFileName}`;
 
-        const uploadId = await this.b2Storage.createMultipartUpload(b2Key, contentType);
+        const uploadId = await storage.createMultipartUpload(b2Key, contentType);
 
         const expiresIn = 1800; // 30분
         const partUrls: Array<{ partNumber: number; url: string; contentLength: number }> = [];
         for (let partNumber = 1; partNumber <= partCount; partNumber++) {
-            const url = await this.b2Storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
+            const url = await storage.getPresignedUploadPartUrl(b2Key, uploadId, partNumber, expiresIn);
             const offset = (partNumber - 1) * partSize;
             const contentLength = Math.min(partSize, fileSize - offset);
             partUrls.push({ partNumber, url, contentLength });
@@ -646,6 +646,7 @@ export class UploadController implements OnModuleInit {
             partUrls,
             fileName: safeFileName,
             expiresAt,
+            storage: body.storage === 'r2' && this.r2Storage.isEnabled() ? 'r2' : 'b2',
         };
     }
 
@@ -697,10 +698,12 @@ export class UploadController implements OnModuleInit {
             widthInch: number;
             heightInch: number;
             dpi: number;
+            storage?: string;
         },
     ) {
-        if (!this.b2Storage.isEnabled()) {
-            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        const storage = this.pickStorage(body.storage);
+        if (!storage.isEnabled()) {
+            throw new BadRequestException('스토리지가 설정되지 않았습니다.');
         }
 
         const safeTempFolderId = this.sanitizeTempFolderId(body.tempFolderId);
@@ -740,7 +743,7 @@ export class UploadController implements OnModuleInit {
         }
 
         try {
-            await this.b2Storage.completeMultipartUpload(b2Key, uploadId, partsForS3);
+            await storage.completeMultipartUpload(b2Key, uploadId, partsForS3);
         } catch (err) {
             throw new BadRequestException(`Multipart 완료 실패: ${(err as Error).message}`);
         }
@@ -773,13 +776,14 @@ export class UploadController implements OnModuleInit {
 
         void this.saveManifest(safeTempFolderId, filtered);
 
-        // 썸네일 백그라운드 생성: B2 원본 다운로드 → 로컬 저장 → sharp 썸네일
+        // 썸네일 백그라운드 생성: 원본 다운로드 → 로컬 저장 → sharp 썸네일
+        const storageForDownload = storage;
         setImmediate(async () => {
             try {
-                const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
+                const presignedGetUrl = await storageForDownload.getPrivatePresignedUrl(b2Key, 300);
                 const res = await fetch(presignedGetUrl);
                 if (!res.ok) {
-                    this.logger.warn(`B2 원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                    this.logger.warn(`원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
                     return;
                 }
                 const buf = Buffer.from(await res.arrayBuffer());
@@ -827,10 +831,12 @@ export class UploadController implements OnModuleInit {
             tempFolderId: string;
             b2Key: string;
             uploadId: string;
+            storage?: string;
         },
     ) {
-        if (!this.b2Storage.isEnabled()) {
-            return { aborted: false, reason: 'b2 disabled' };
+        const storage = this.pickStorage(body.storage);
+        if (!storage.isEnabled()) {
+            return { aborted: false, reason: 'storage disabled' };
         }
 
         const safeTempFolderId = this.sanitizeTempFolderId(body.tempFolderId);
@@ -846,7 +852,7 @@ export class UploadController implements OnModuleInit {
         }
 
         try {
-            await this.b2Storage.abortMultipartUpload(b2Key, uploadId);
+            await storage.abortMultipartUpload(b2Key, uploadId);
             return { aborted: true };
         } catch (err) {
             this.logger.warn(`Multipart abort 실패 (${b2Key}): ${(err as Error).message}`);
