@@ -30,6 +30,7 @@ import {
   useClientBusinessCertUrl,
   type BusinessUpgradeRequest,
 } from "@/hooks/use-admin-business-upgrade";
+import { useCSDashboard, useConsultations } from "@/hooks/use-cs";
 import {
   ShoppingCart,
   Factory,
@@ -49,6 +50,10 @@ import {
   FileText,
   ExternalLink,
   ArrowRight,
+  Headphones,
+  Clock,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -271,6 +276,152 @@ function BusinessUpgradeSection() {
   );
 }
 
+const CS_STATUS_LABEL: Record<string, string> = {
+  open: '접수',
+  in_progress: '진행중',
+  resolved: '해결',
+  closed: '종료',
+};
+const CS_STATUS_CLASS: Record<string, string> = {
+  open: 'bg-blue-100 text-blue-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+  resolved: 'bg-emerald-100 text-emerald-700',
+  closed: 'bg-slate-100 text-slate-700',
+};
+const CS_PRIORITY_LABEL: Record<string, string> = {
+  low: '낮음',
+  normal: '보통',
+  high: '높음',
+  urgent: '긴급',
+};
+const CS_PRIORITY_CLASS: Record<string, string> = {
+  low: 'bg-slate-100 text-slate-600',
+  normal: 'bg-blue-100 text-blue-600',
+  high: 'bg-orange-100 text-orange-600',
+  urgent: 'bg-red-100 text-red-600',
+};
+
+function CSReceptionSection() {
+  const { data: dashboard } = useCSDashboard();
+  const { data: recentOpen } = useConsultations({ limit: 5, status: 'open' });
+  const summary = dashboard?.summary;
+  const recent: any[] = (recentOpen as any)?.data ?? [];
+
+  const csStatCards = [
+    {
+      title: '오늘 접수',
+      value: summary?.todayCount ?? 0,
+      icon: Headphones,
+      color: 'text-blue-500',
+      bg: 'bg-blue-500/10',
+    },
+    {
+      title: '미해결',
+      value: summary?.openCount ?? 0,
+      icon: Clock,
+      color: 'text-amber-500',
+      bg: 'bg-amber-500/10',
+    },
+    {
+      title: '진행중',
+      value: summary?.inProgressCount ?? 0,
+      icon: RefreshCw,
+      color: 'text-indigo-500',
+      bg: 'bg-indigo-500/10',
+    },
+    {
+      title: '긴급',
+      value: summary?.urgentCount ?? 0,
+      icon: AlertTriangle,
+      color: 'text-red-500',
+      bg: 'bg-red-500/10',
+    },
+  ];
+
+  return (
+    <Card className="border-0 shadow-md overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-sky-50 to-white border-b pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-slate-800 text-sm sm:text-base">
+            <Headphones className="h-4 w-4 text-sky-500" />
+            CS 접수 현황
+          </CardTitle>
+          <a href="/cs" className="flex items-center gap-1 text-[12px] text-slate-500 hover:text-slate-800 transition-colors">
+            전체보기 <ArrowRight className="h-3 w-3" />
+          </a>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {/* 요약 카드 */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-px bg-slate-100 border-b">
+          {csStatCards.map((s) => (
+            <div key={s.title} className="bg-white px-4 py-3 flex items-center gap-3">
+              <div className={`p-1.5 ${s.bg}`}>
+                <s.icon className={`h-4 w-4 ${s.color}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[12px] text-slate-500">{s.title}</p>
+                <p className="text-[18px] font-bold text-slate-800">{s.value}건</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 최근 미해결 상담 */}
+        {recent.length === 0 ? (
+          <div className="py-8 text-center text-[14px] text-slate-400">
+            <CheckCircle className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+            미해결 상담이 없습니다.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-[13px]">접수번호</TableHead>
+                <TableHead className="text-[13px]">거래처</TableHead>
+                <TableHead className="text-[13px]">제목</TableHead>
+                <TableHead className="text-[13px]">분류</TableHead>
+                <TableHead className="text-[13px]">상태</TableHead>
+                <TableHead className="text-[13px]">우선순위</TableHead>
+                <TableHead className="text-[13px]">접수일시</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recent.map((c: any) => (
+                <TableRow key={c.id}>
+                  <TableCell className="text-[13px] font-mono text-slate-600">
+                    <a href={`/cs/consultations/${c.id}`} className="text-indigo-600 hover:underline">
+                      {c.consultNumber || '-'}
+                    </a>
+                  </TableCell>
+                  <TableCell className="text-[14px]">{c.client?.clientName || '-'}</TableCell>
+                  <TableCell className="text-[14px] max-w-[260px] truncate">{c.title || '-'}</TableCell>
+                  <TableCell className="text-[13px]">
+                    {c.category?.name || '-'}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`text-[11px] border-0 ${CS_STATUS_CLASS[c.status] ?? ''}`}>
+                      {CS_STATUS_LABEL[c.status] ?? c.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={`text-[11px] border-0 ${CS_PRIORITY_CLASS[c.priority] ?? ''}`}>
+                      {CS_PRIORITY_LABEL[c.priority] ?? c.priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-[13px] text-slate-500">
+                    {c.consultedAt ? new Date(c.consultedAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function DashboardContent() {
   const { data: summary, isPending, isError, error, refetch, isFetching } = useDashboardSummary();
 
@@ -478,6 +629,9 @@ function DashboardContent() {
 
       {/* 신규회원 가입현황 */}
       <NewMembersSection summary={summary} />
+
+      {/* CS 접수 현황 */}
+      <CSReceptionSection />
 
       {/* 사업자 전환 신청 대기 */}
       <BusinessUpgradeSection />
