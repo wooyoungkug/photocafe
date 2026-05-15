@@ -699,6 +699,10 @@ export function useImmediateUpload(productId: string) {
           immediateUploadStatus: 'completed',
           immediateUploadProgress: 100,
           immediateUploadedCount: data.files.length,
+          immediateUploadAvgSpeed: sf.uploadAvgSpeed,
+          immediateUploadElapsedMs: sf.uploadElapsedMs,
+          immediateUploadTotalBytes: sf.uploadTotalBytes,
+          immediateUploadStorage: sf.uploadStorage,
           immediateServerFiles: data.files.map((f: any, idx: number) => {
             const reconstructed = files[idx];
             return {
