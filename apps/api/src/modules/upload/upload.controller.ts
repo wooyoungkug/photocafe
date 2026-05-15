@@ -842,10 +842,43 @@ export class UploadController implements OnModuleInit {
             throw new BadRequestException('parts 항목이 유효하지 않습니다.');
         }
 
-        try {
-            await storage.completeMultipartUpload(b2Key, uploadId, partsForS3);
-        } catch (err) {
-            throw new BadRequestException(`Multipart 완료 실패: ${(err as Error).message}`);
+        // R2/S3 CompleteMultipartUpload 는 idempotent.
+        // 동시 부하 시 R2 측 일시적 timeout 가능 → 짧은 backoff 로 3회 retry.
+        // 두 번째 호출에서 NoSuchUpload 가 오면 첫 호출이 이미 성공한 것으로 간주.
+        const MAX_COMPLETE_ATTEMPTS = 3;
+        let completeError: Error | null = null;
+        for (let attempt = 1; attempt <= MAX_COMPLETE_ATTEMPTS; attempt++) {
+            try {
+                await storage.completeMultipartUpload(b2Key, uploadId, partsForS3);
+                completeError = null;
+                break;
+            } catch (err) {
+                const e = err as Error & { name?: string; Code?: string };
+                const msg = (e?.message || '').toLowerCase();
+                const code = (e?.name || (e as any)?.Code || '').toString();
+                // 이미 완료된 multipart 는 정상 성공으로 처리
+                if (
+                    code === 'NoSuchUpload' ||
+                    msg.includes('nosuchupload') ||
+                    msg.includes('no such upload')
+                ) {
+                    this.logger.log(
+                        `multipart-complete: upload already finalized (b2Key=${b2Key}, attempt=${attempt})`,
+                    );
+                    completeError = null;
+                    break;
+                }
+                completeError = e;
+                if (attempt < MAX_COMPLETE_ATTEMPTS) {
+                    this.logger.warn(
+                        `multipart-complete retry ${attempt}/${MAX_COMPLETE_ATTEMPTS - 1}: ${e?.message}`,
+                    );
+                    await new Promise((r) => setTimeout(r, 1500 * attempt));
+                }
+            }
+        }
+        if (completeError) {
+            throw new BadRequestException(`Multipart 완료 실패: ${completeError.message}`);
         }
 
         const sortOrder = Number.isFinite(Number(body.sortOrder)) ? Number(body.sortOrder) : 0;
