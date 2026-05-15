@@ -363,6 +363,7 @@ export interface UploadedFolder {
   immediateUploadStatus?: 'pending' | 'uploading' | 'completed' | 'failed' | 'partial';
   immediateUploadProgress?: number;       // 0-100
   immediateUploadedCount?: number;        // 업로드 완료 파일 수
+  immediateUploadSpeed?: number;          // 평균 업로드 속도 (bytes/sec)
   immediateServerFiles?: Array<{
     tempFileId: string;
     fileUrl: string;
@@ -537,7 +538,7 @@ interface MultiFolderUploadState {
 
   // 즉시 서버 업로드 상태 업데이트
   updateFolderUploadStatus: (folderId: string, updates: Partial<Pick<UploadedFolder,
-    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateServerFiles' | 'immediateFailedFiles'
+    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateUploadSpeed' | 'immediateServerFiles' | 'immediateFailedFiles'
   >>) => void;
 
   // 개별 파일 메타데이터 업데이트 (복원 시 썸네일 비율 반영 등)

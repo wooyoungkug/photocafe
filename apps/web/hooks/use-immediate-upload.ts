@@ -88,6 +88,8 @@ export function useImmediateUpload(productId: string) {
     total: number;
     serverFiles: UploadedFileResult[];
     failedFiles: Array<{ fileName: string; sortOrder: number; errorMessage: string }>;
+    startedAt: number;
+    bytesUploaded: number;
   }>>(new Map());
 
   const flushProgress = useCallback((folderId: string) => {
@@ -102,9 +104,13 @@ export function useImmediateUpload(productId: string) {
       ? Math.round((progress.uploaded / progress.total) * 100)
       : 0;
 
+    const elapsedSec = Math.max(1, (now - progress.startedAt) / 1000);
+    const speed = progress.bytesUploaded / elapsedSec; // bytes/sec
+
     updateFolderUploadStatus(folderId, {
       immediateUploadProgress: percent,
       immediateUploadedCount: progress.uploaded,
+      immediateUploadSpeed: speed,
     });
   }, [updateFolderUploadStatus]);
 
@@ -187,6 +193,7 @@ export function useImmediateUpload(productId: string) {
           const progress = folderProgressRef.current.get(item.folderId);
           if (progress) {
             progress.uploaded++;
+            progress.bytesUploaded += item.file.size || 0;
             progress.serverFiles.push(result);
             flushProgress(item.folderId);
           }
@@ -379,6 +386,8 @@ export function useImmediateUpload(productId: string) {
       total: folder.files.length,
       serverFiles: [],
       failedFiles: [],
+      startedAt: Date.now(),
+      bytesUploaded: 0,
     });
 
     // 세션에 저장
@@ -486,6 +495,8 @@ export function useImmediateUpload(productId: string) {
         total: folder.files.length,
         serverFiles: [],
         failedFiles: [],
+        startedAt: Date.now(),
+        bytesUploaded: 0,
       });
     }
 

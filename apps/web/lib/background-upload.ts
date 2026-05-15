@@ -183,18 +183,28 @@ export function startBackgroundUpload(
             throttledProgress();
           };
 
-          // Presigned 업로드 시도 → 실패 시 기존 방식으로 폴백
+          // 업로드 경로 선택: 큰 파일 → Multipart, 작은 파일 → 단일 Presigned
           let result;
+          const useMultipart = file.size >= MULTIPART_THRESHOLD;
           try {
-            result = await uploadAlbumFilePresigned(
-              file,
-              metadata,
-              accessToken,
-              onProgressCb,
-              signal,
-            );
+            if (useMultipart) {
+              result = await uploadAlbumFileMultipart(
+                file,
+                metadata,
+                accessToken,
+                onProgressCb,
+                signal,
+              );
+            } else {
+              result = await uploadAlbumFilePresigned(
+                file,
+                metadata,
+                accessToken,
+                onProgressCb,
+                signal,
+              );
+            }
           } catch (presignErr) {
-            // B2 미설정(400) 또는 CORS 실패 시 기존 방식으로 폴백
             if (
               presignErr instanceof UploadError &&
               presignErr.kind === 'server' &&
