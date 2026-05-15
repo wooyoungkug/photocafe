@@ -11,6 +11,7 @@ import { Response } from 'express';
 import { FileStorageService, getUploadBasePath } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
 import { B2StorageService } from './services/b2-storage.service';
+import { R2StorageService } from './services/r2-storage.service';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -68,8 +69,17 @@ export class UploadController implements OnModuleInit {
         private readonly fileStorage: FileStorageService,
         private readonly thumbnailService: ThumbnailService,
         private readonly b2Storage: B2StorageService,
+        private readonly r2Storage: R2StorageService,
         private readonly prisma: PrismaService,
     ) {}
+
+    /** body.storage === 'r2' 면 R2, 그 외엔 B2 사용 (테스트용). R2 미설정 시 B2 폴백. */
+    private pickStorage(storage: string | undefined): B2StorageService | R2StorageService {
+        if (storage === 'r2' && this.r2Storage.isEnabled()) {
+            return this.r2Storage;
+        }
+        return this.b2Storage;
+    }
 
     onModuleInit(): void {
         // 1시간마다 TTL 체크 — 24시간 경과 메타데이터 정리
