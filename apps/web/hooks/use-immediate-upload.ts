@@ -3,17 +3,13 @@
 import { useCallback, useRef } from 'react';
 import {
   uploadAlbumFile,
-  uploadAlbumFilePresigned,
-  uploadAlbumFileMultipart,
-  MULTIPART_THRESHOLD,
   UploadError,
-  getStorageOverride,
   type AlbumFileMetadata,
   type UploadedFileResult,
 } from '@/lib/file-upload';
 import { dataUrlToFile } from '@/lib/background-upload';
 
-const CONCURRENCY = 4; // 동시 업로드 수 (B2 직접 업로드 대응)
+const CONCURRENCY = 1; // 순차 업로드 (Cloudflare → Railway 서버 경유)
 import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile } from '@/stores/multi-folder-upload-store';
 import {
   addSessionFolder,
@@ -150,45 +146,14 @@ export function useImmediateUpload(productId: string) {
         try {
           console.log('[ImmediateUpload] uploading file:', item.metadata.fileName, 'to folder:', item.tempFolderId);
 
-          // 업로드 경로 선택: 큰 파일 → Multipart, 작은 파일 → 단일 Presigned
-          // 둘 다 실패 시(400 = B2 미설정 등) 서버 경유 폴백
-          let result: UploadedFileResult;
-          const useMultipart = item.file.size >= MULTIPART_THRESHOLD;
-          try {
-            if (useMultipart) {
-              result = await uploadAlbumFileMultipart(
-                item.file,
-                item.metadata,
-                accessToken,
-                undefined,
-                controller.signal,
-              );
-            } else {
-              result = await uploadAlbumFilePresigned(
-                item.file,
-                item.metadata,
-                accessToken,
-                undefined,
-                controller.signal,
-              );
-            }
-          } catch (presignErr) {
-            if (
-              presignErr instanceof UploadError &&
-              presignErr.kind === 'server' &&
-              presignErr.status === 400
-            ) {
-              result = await uploadAlbumFile(
-                item.file,
-                item.metadata,
-                accessToken,
-                undefined,
-                controller.signal,
-              );
-            } else {
-              throw presignErr;
-            }
-          }
+          // 서버 경유 업로드 (브라우저 → Cloudflare 한국 엣지 → Railway → Volume)
+          const result: UploadedFileResult = await uploadAlbumFile(
+            item.file,
+            item.metadata,
+            accessToken,
+            undefined,
+            controller.signal,
+          );
 
           // 진행 상태 업데이트
           const progress = folderProgressRef.current.get(item.folderId);
@@ -273,8 +238,6 @@ export function useImmediateUpload(productId: string) {
 
       const elapsedMs = Math.max(1, Date.now() - progress.startedAt);
       const avgSpeed = (progress.bytesUploaded * 1000) / elapsedMs; // bytes/sec
-      const storageOverride = getStorageOverride();
-      const storage: 'b2' | 'r2' = storageOverride === 'r2' ? 'r2' : 'b2';
 
       updateFolderUploadStatus(folderId, {
         immediateUploadStatus: 'completed',
@@ -284,7 +247,6 @@ export function useImmediateUpload(productId: string) {
         immediateUploadAvgSpeed: avgSpeed,
         immediateUploadElapsedMs: elapsedMs,
         immediateUploadTotalBytes: progress.bytesUploaded,
-        immediateUploadStorage: storage,
       });
 
       const completedAt = Date.now();
@@ -296,7 +258,6 @@ export function useImmediateUpload(productId: string) {
         uploadElapsedMs: elapsedMs,
         uploadTotalBytes: progress.bytesUploaded,
         uploadAvgSpeed: avgSpeed,
-        uploadStorage: storage,
       });
 
       // 업로드 완료 후 File 객체 메모리 해제

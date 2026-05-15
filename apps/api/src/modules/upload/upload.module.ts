@@ -4,7 +4,6 @@ import { FileStorageService } from './services/file-storage.service';
 import { ThumbnailService } from './services/thumbnail.service';
 import { PdfGeneratorService } from './services/pdf-generator.service';
 import { B2StorageService } from './services/b2-storage.service';
-import { R2StorageService } from './services/r2-storage.service';
 import { FileRetentionSchedulerService } from './services/file-retention-scheduler.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 
@@ -18,7 +17,6 @@ const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6시간
         ThumbnailService,
         PdfGeneratorService,
         B2StorageService,
-        R2StorageService,
         FileRetentionSchedulerService,
     ],
     exports: [
@@ -26,7 +24,6 @@ const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6시간
         ThumbnailService,
         PdfGeneratorService,
         B2StorageService,
-        R2StorageService,
         FileRetentionSchedulerService,
     ],
 })
