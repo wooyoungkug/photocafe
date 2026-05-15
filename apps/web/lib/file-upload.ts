@@ -793,14 +793,19 @@ async function abortMultipart(
  * 10MB 로 낮춰 일반적인 30~50MB 인쇄 파일이 모두 병렬 청크 업로드 혜택.
  */
 export const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10MB
-/** 한 파일 내 동시 청크 업로드 수 (Chrome 도메인당 6개 한계) */
-const PART_CONCURRENCY = 6;
 /**
- * 청크 크기 — 8MB.
- * 30MB 파일 = 4 청크 → Chrome 6연결 한도 안에서 풀 병렬.
- * 너무 크면 단일 PUT 처럼 동작해 병렬 손실. 8MB가 균형점.
+ * 한 파일 내 동시 청크 업로드 수.
+ * HTTP/2 multiplexing 하에서는 single connection 위 다수 stream 동시 가능 (Chrome 6 connection 한도 무관).
+ * R2/Worker 모두 HTTP/2 지원이므로 8개로 상향 — 청크당 ingest 가 약해도 합산 throughput 증가.
  */
-const PART_SIZE = 8 * 1024 * 1024;
+const PART_CONCURRENCY = 8;
+/**
+ * 청크 크기 — 32MB.
+ * 청크 PUT 의 per-request overhead (TLS / signing / R2 ingest setup) 감소가 목적.
+ * 100MB 파일 = 4 청크 (이전 13청크 대비 overhead 1/3).
+ * 메모리: 32MB × 8 parallel = 256MB max in-flight (일반 PC 충분).
+ */
+const PART_SIZE = 32 * 1024 * 1024;
 
 /**
  * 큰 파일을 Multipart 로 업로드한다 (5단계).
