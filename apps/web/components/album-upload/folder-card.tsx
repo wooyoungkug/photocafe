@@ -336,6 +336,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
   }, [allPublicCopperPlates, ownedCopperPlates]);
 
   const cardRef = useRef<HTMLDivElement>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState(folder.orderTitle);
   const [isThumbnailOpen, setIsThumbnailOpen] = useState(true);
@@ -680,6 +681,15 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
     setFolderSelected,
   ]);
 
+  // 업로드 시작 시 진행률 바로 스크롤
+  useEffect(() => {
+    if (folder.immediateUploadStatus === 'uploading') {
+      setTimeout(() => {
+        progressRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 150);
+    }
+  }, [folder.immediateUploadStatus]);
+
   // 출력구분 결정: 사용자가 직접 선택한 값 우선, 없으면 상품 printType 또는 pageLayout 기반 추론
   const resolvedPrintSide = useMemo(() => {
     // 사용자가 직접 선택한 값이 있으면 우선
@@ -856,7 +866,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
       )}
       {/* 즉시 서버 업로드 진행률 */}
       {folder.immediateUploadStatus && folder.immediateUploadStatus !== 'pending' && (
-        <div className={cn(
+        <div ref={progressRef} className={cn(
           'mt-3 px-3 py-2 rounded-lg border flex items-center gap-2',
           folder.immediateUploadStatus === 'uploading' && 'bg-blue-50 border-blue-200',
           folder.immediateUploadStatus === 'completed' && 'bg-emerald-50 border-emerald-200',
