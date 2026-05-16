@@ -887,10 +887,10 @@ export const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10MB
  */
 const PART_CONCURRENCY = 8;
 /**
- * 청크 크기 — 32MB.
+ * 청크 크기 — 50MB.
  * 청크 PUT 의 per-request overhead (TLS / signing / R2 ingest setup) 감소가 목적.
- * 100MB 파일 = 4 청크 (이전 13청크 대비 overhead 1/3).
- * 메모리: 32MB × 8 parallel = 256MB max in-flight (일반 PC 충분).
+ * 100MB 파일 = 2 청크 (이전 13청크 대비 overhead 1/6).
+ * 메모리: 50MB × 8 parallel = 400MB max in-flight (일반 PC 충분).
  */
 const PART_SIZE = 50 * 1024 * 1024;
 

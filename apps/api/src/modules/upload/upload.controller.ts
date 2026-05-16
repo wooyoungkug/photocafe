@@ -705,7 +705,7 @@ export class UploadController implements OnModuleInit {
         const requestedPartSize = Number(body.partSize);
         let partSize = Number.isFinite(requestedPartSize) && requestedPartSize > 0
             ? Math.min(Math.max(requestedPartSize, MIN_PART), MAX_PART)
-            : 8388608; // 기본 8MB
+            : 52428800; // 기본 50MB
 
         let partCount = Math.ceil(fileSize / partSize);
         if (partCount > 10000) {
