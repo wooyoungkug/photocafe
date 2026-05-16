@@ -297,6 +297,7 @@ export class UploadController implements OnModuleInit {
             dpi: string;
             fileSize: string;
         },
+        @Request() req: any,
     ) {
         if (!file) {
             throw new BadRequestException('파일이 업로드되지 않았습니다.');
@@ -374,6 +375,19 @@ export class UploadController implements OnModuleInit {
                 .generateThumbnail(file.path, thumbDir, file.filename)
                 .catch(() => {});
         });
+
+        // API → B2 속도 측정: 인터셉터가 이 요청을 샘플링했을 때만 실행(10%)
+        // 실제 이미지 파일로 B2 업로드 속도를 즉시 측정하고 temp 키는 바로 삭제
+        if (req?.metricsSampled && this.b2Storage.isEnabled()) {
+            const probeKey = `metrics/probe/${randomUUID()}${extname(filePath)}`;
+            setImmediate(async () => {
+                try {
+                    await this.b2Storage.putPrivateObjectFromPath(probeKey, filePath, file.mimetype);
+                } catch { /* 측정 실패는 무시 */ } finally {
+                    this.b2Storage.deletePrivateObject(probeKey).catch(() => {});
+                }
+            });
+        }
 
         // 썸네일 URL을 예측 가능한 경로로 즉시 반환 (파일명 규칙: {base}_thumb.jpg)
         const thumbExt = extname(file.filename);
@@ -1995,5 +2009,18 @@ export class UploadController implements OnModuleInit {
         this.assertStaff(req);
         const lim = limit ? parseInt(limit, 10) : 50;
         return this.metrics.getRecent(Number.isFinite(lim) ? lim : 50, kind);
+    }
+
+    @Get('metrics/stats')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '기간별 업로드 통계 — 일/월/분기/연 (관리자 전용)' })
+    @ApiQuery({ name: 'period', required: false, enum: ['day', 'month', 'quarter', 'year'] })
+    async getMetricsStats(
+        @Query('period') period: 'day' | 'month' | 'quarter' | 'year' | undefined,
+        @Request() req: any,
+    ) {
+        this.assertStaff(req);
+        return this.metrics.getAggregatedStats(period ?? 'month');
     }
 }

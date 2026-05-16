@@ -23,7 +23,17 @@ export interface MetricsQuery {
     phase?: 'client_to_api' | 'api_to_b2' | 'b2_download';
     startDate?: Date;
     endDate?: Date;
-    groupBy?: 'hour' | 'day' | 'week' | 'month';
+    groupBy?: 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+}
+
+export interface AggregatedStatRow {
+    period: string;
+    phase: string;
+    count: number;
+    avgSpeedKbps: number;
+    p50SpeedKbps: number;
+    p95SpeedKbps: number;
+    totalBytes: number;
 }
 
 @Injectable()
@@ -74,6 +84,12 @@ export class UploadMetricsService {
 
         let truncExpr: string;
         switch (groupBy) {
+            case 'year':
+                truncExpr = `TO_CHAR("createdAt", 'YYYY')`;
+                break;
+            case 'quarter':
+                truncExpr = `TO_CHAR("createdAt", 'YYYY') || '-Q' || EXTRACT(QUARTER FROM "createdAt")::text`;
+                break;
             case 'month':
                 truncExpr = `TO_CHAR("createdAt", 'YYYY-MM')`;
                 break;
@@ -180,5 +196,74 @@ export class UploadMetricsService {
         }
 
         return { range, since, phases: result };
+    }
+
+    /**
+     * 일/월/분기/연별 집계 통계 (실 업로드 only).
+     * 각 기간·구간별 평균/p50/p95 속도 및 누적 용량 반환.
+     */
+    async getAggregatedStats(periodType: 'day' | 'month' | 'quarter' | 'year'): Promise<{
+        periodType: string;
+        rows: AggregatedStatRow[];
+    }> {
+        let truncExpr: string;
+        let limitRows: number;
+        switch (periodType) {
+            case 'year':
+                truncExpr = `TO_CHAR("createdAt", 'YYYY')`;
+                limitRows = 10;
+                break;
+            case 'quarter':
+                truncExpr = `TO_CHAR("createdAt", 'YYYY') || '-Q' || EXTRACT(QUARTER FROM "createdAt")::text`;
+                limitRows = 12;
+                break;
+            case 'month':
+                truncExpr = `TO_CHAR("createdAt", 'YYYY-MM')`;
+                limitRows = 24;
+                break;
+            default:
+                truncExpr = `TO_CHAR("createdAt", 'YYYY-MM-DD')`;
+                limitRows = 90;
+        }
+
+        const rows = await this.prisma.$queryRaw<
+            {
+                period: string;
+                phase: string;
+                count: bigint;
+                avg_speed: number;
+                p50_speed: number;
+                p95_speed: number;
+                total_bytes: number;
+            }[]
+        >(
+            Prisma.sql`SELECT
+                ${Prisma.raw(truncExpr)} as period,
+                phase,
+                COUNT(*) as count,
+                COALESCE(AVG("speedKbps"), 0)::float as avg_speed,
+                COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p50_speed,
+                COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p95_speed,
+                COALESCE(SUM("fileSize"::bigint), 0)::float as total_bytes
+              FROM upload_metrics
+              WHERE kind = 'real'
+                AND phase IN ('client_to_api', 'api_to_b2')
+              GROUP BY period, phase
+              ORDER BY period DESC
+              LIMIT ${limitRows * 2}`,
+        );
+
+        return {
+            periodType,
+            rows: rows.map(r => ({
+                period: r.period,
+                phase: r.phase,
+                count: Number(r.count),
+                avgSpeedKbps: Number(r.avg_speed),
+                p50SpeedKbps: Number(r.p50_speed),
+                p95SpeedKbps: Number(r.p95_speed),
+                totalBytes: Number(r.total_bytes),
+            })),
+        };
     }
 }

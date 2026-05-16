@@ -89,3 +89,27 @@ export function useUploadMetricsRecent(limit = 50, kind?: 'real' | 'speedtest') 
         staleTime: 15_000,
     });
 }
+
+export interface AggregatedStatRow {
+    period: string;
+    phase: string;
+    count: number;
+    avgSpeedKbps: number;
+    p50SpeedKbps: number;
+    p95SpeedKbps: number;
+    totalBytes: number;
+}
+
+export interface AggregatedStatsResponse {
+    periodType: string;
+    rows: AggregatedStatRow[];
+}
+
+export function useUploadMetricsStats(period: 'day' | 'month' | 'quarter' | 'year' = 'month') {
+    return useQuery({
+        queryKey: ['upload-metrics-stats', period],
+        queryFn: () =>
+            api.get<AggregatedStatsResponse>('/upload/metrics/stats', { period }),
+        staleTime: 5 * 60_000,
+    });
+}

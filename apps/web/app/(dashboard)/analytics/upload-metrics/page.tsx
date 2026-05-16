@@ -8,6 +8,8 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     LineChart,
     Line,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -15,11 +17,13 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts';
-import { Gauge, Zap, Upload, RefreshCw } from 'lucide-react';
+import { Gauge, Zap, Upload, RefreshCw, BarChart2 } from 'lucide-react';
 import {
     useUploadMetricsSummary,
     useUploadMetricsTimeseries,
     useUploadMetricsRecent,
+    useUploadMetricsStats,
+    type AggregatedStatRow,
 } from '@/hooks/use-upload-metrics';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
@@ -56,6 +60,7 @@ function formatDateTime(iso: string): string {
 export default function UploadMetricsPage() {
     const [range, setRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
     const [groupBy, setGroupBy] = useState<'hour' | 'day'>('hour');
+    const [statsPeriod, setStatsPeriod] = useState<'day' | 'month' | 'quarter' | 'year'>('month');
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<{ sizeMb: number; durationMs: number; speedKbps: number } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
@@ -65,6 +70,7 @@ export default function UploadMetricsPage() {
     const tsClient = useUploadMetricsTimeseries({ phase: 'client_to_api', groupBy });
     const tsB2 = useUploadMetricsTimeseries({ phase: 'api_to_b2', groupBy });
     const recent = useUploadMetricsRecent(50);
+    const stats = useUploadMetricsStats(statsPeriod);
 
     const clientPhase = summary.data?.phases?.client_to_api;
     const b2Phase = summary.data?.phases?.api_to_b2;
@@ -297,6 +303,112 @@ export default function UploadMetricsPage() {
                             </LineChart>
                         </ResponsiveContainer>
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* 기간별 통계 */}
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                        <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+                            <BarChart2 className="w-5 h-5" /> 기간별 통계 (실 업로드)
+                        </CardTitle>
+                        <Tabs value={statsPeriod} onValueChange={(v) => setStatsPeriod(v as any)}>
+                            <TabsList>
+                                <TabsTrigger value="day">일별</TabsTrigger>
+                                <TabsTrigger value="month">월별</TabsTrigger>
+                                <TabsTrigger value="quarter">분기별</TabsTrigger>
+                                <TabsTrigger value="year">연별</TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {(() => {
+                        const rows = stats.data?.rows ?? [];
+                        // 기간별로 client_to_api / api_to_b2 피벗
+                        const periodMap = new Map<string, { client?: AggregatedStatRow; b2?: AggregatedStatRow }>();
+                        for (const r of rows) {
+                            if (!periodMap.has(r.period)) periodMap.set(r.period, {});
+                            const entry = periodMap.get(r.period)!;
+                            if (r.phase === 'client_to_api') entry.client = r;
+                            else if (r.phase === 'api_to_b2') entry.b2 = r;
+                        }
+                        const pivoted = Array.from(periodMap.entries())
+                            .map(([period, v]) => ({ period, ...v }))
+                            .sort((a, b) => b.period.localeCompare(a.period));
+
+                        // 바 차트용 데이터 (오름차순)
+                        const chartData = [...pivoted].reverse().map(p => ({
+                            period: p.period,
+                            client: p.client?.avgSpeedKbps ?? 0,
+                            b2: p.b2?.avgSpeedKbps ?? 0,
+                        }));
+
+                        return (
+                            <>
+                                {chartData.length > 0 && (
+                                    <div style={{ width: '100%', height: 240 }}>
+                                        <ResponsiveContainer>
+                                            <BarChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="period" />
+                                                <YAxis label={{ value: 'KB/s', angle: -90, position: 'insideLeft' }} />
+                                                <Tooltip formatter={(v: any) => typeof v === 'number' ? formatSpeed(v) : v} />
+                                                <Legend />
+                                                <Bar dataKey="client" fill="#3b82f6" name="클라이언트 → API" />
+                                                <Bar dataKey="b2" fill="#10b981" name="API → B2" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-[14px] text-black font-normal">
+                                        <thead>
+                                            <tr className="border-b">
+                                                <th className="text-left py-2 px-2">기간</th>
+                                                <th className="text-right py-2 px-2">클라이언트→API 평균</th>
+                                                <th className="text-right py-2 px-2">p50</th>
+                                                <th className="text-right py-2 px-2">p95</th>
+                                                <th className="text-right py-2 px-2">건수</th>
+                                                <th className="text-right py-2 px-2">API→B2 평균</th>
+                                                <th className="text-right py-2 px-2">p50</th>
+                                                <th className="text-right py-2 px-2">p95</th>
+                                                <th className="text-right py-2 px-2">건수</th>
+                                                <th className="text-right py-2 px-2">총 데이터</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pivoted.map(p => {
+                                                const totalBytes = (p.client?.totalBytes ?? 0) + (p.b2?.totalBytes ?? 0);
+                                                return (
+                                                    <tr key={p.period} className="border-b hover:bg-slate-50">
+                                                        <td className="py-2 px-2 font-medium">{p.period}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.client?.avgSpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.client?.p50SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.client?.p95SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{p.client?.count ?? 0}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.b2?.avgSpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.b2?.p50SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.b2?.p95SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{p.b2?.count ?? 0}</td>
+                                                        <td className="py-2 px-2 text-right">{formatBytes(totalBytes)}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                            {pivoted.length === 0 && (
+                                                <tr>
+                                                    <td colSpan={10} className="text-center py-6 text-slate-500">
+                                                        아직 통계 데이터가 없습니다.
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </>
+                        );
+                    })()}
                 </CardContent>
             </Card>
 

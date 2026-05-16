@@ -892,7 +892,7 @@ const PART_CONCURRENCY = 8;
  * 100MB 파일 = 4 청크 (이전 13청크 대비 overhead 1/3).
  * 메모리: 32MB × 8 parallel = 256MB max in-flight (일반 PC 충분).
  */
-const PART_SIZE = 32 * 1024 * 1024;
+const PART_SIZE = 50 * 1024 * 1024;
 
 /**
  * 큰 파일을 Multipart 로 업로드한다 (5단계).

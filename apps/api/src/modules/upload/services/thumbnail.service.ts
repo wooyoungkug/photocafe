@@ -28,7 +28,7 @@ export class ThumbnailService {
           fit: 'inside',
           withoutEnlargement: true,
         })
-        .jpeg({ quality: 90 })
+        .jpeg({ quality: 80 })
         .toFile(thumbPath);
 
       return thumbPath;

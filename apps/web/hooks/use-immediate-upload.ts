@@ -13,8 +13,8 @@ import {
 } from '@/lib/file-upload';
 import { dataUrlToFile } from '@/lib/background-upload';
 
-// Chrome 도메인당 6연결 한도 고려: 2파일 × 6청크 = 12, 실제 활성 6 슬롯 효율 회전
-const CONCURRENCY = 2;
+// B2 직접 업로드 기준 (파일별 독립 도메인, 3파일 병렬 안전)
+const CONCURRENCY = 3;
 import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile } from '@/stores/multi-folder-upload-store';
 import {
   addSessionFolder,

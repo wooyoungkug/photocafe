@@ -55,6 +55,7 @@ export class B2StorageService implements OnModuleInit {
   /**
    * B2 전송 구간(API→B2) 측정. 호출자가 명시적으로 사용.
    * 실패해도 호출자에게 영향 없음.
+   * 샘플링은 호출자가 결정해 이 메서드를 호출할지 여부로 제어한다.
    */
   private recordTransfer(
     bytes: number,
