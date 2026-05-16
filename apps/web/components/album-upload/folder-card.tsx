@@ -1364,14 +1364,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     const leftFile = spread.left.type === 'page' ? folder.files[spread.left.fileIndex] : null;
                     const rightFile = spread.right.type === 'page' ? folder.files[spread.right.fileIndex] : null;
                     const hasBoth = !!leftFile && !!rightFile;
-                    const label = hasBoth
-                      ? `S${spreadIdx + 1} (p${leftFile!.pageNumber}-${rightFile!.pageNumber})`
-                      : leftFile
-                        ? `p${leftFile.pageNumber}`
-                        : rightFile
-                          ? `p${rightFile.pageNumber}`
-                          : '';
-
                     return (
                       <div
                         key={spreadIdx}
@@ -1380,9 +1372,6 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                           !hasBoth ? 'border-blue-400 bg-blue-50/30' : 'border-orange-300 bg-orange-50/20'
                         )}
                       >
-                        <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
-                          {label}
-                        </div>
                         <div className="grid grid-cols-2 gap-1">
                           {spread.left.type === 'page'
                             ? renderThumbnail(folder.files[spread.left.fileIndex], spread.left.fileIndex)

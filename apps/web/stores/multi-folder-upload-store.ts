@@ -670,17 +670,14 @@ export function autoDetectPageLayout(
   if (!singleMatch) return 'spread';
   if (!spreadMatch) return 'single';
 
-  // 비율 차이 비교
-  const singleRatio = calculateNormalizedRatio(singleAlbum.albumWidth, singleAlbum.albumHeight);
-  const spreadRatio = calculateNormalizedRatio(spreadAlbum.albumWidth, spreadAlbum.albumHeight);
-  const singleMatchRatio = calculateNormalizedRatio(singleMatch.width, singleMatch.height);
-  const spreadMatchRatio = calculateNormalizedRatio(spreadMatch.width, spreadMatch.height);
+  // 실제 인치 크기 차이 비교 — 가장 가까운 표준과의 거리가 짧은 모드 선택
+  // (비율 비교보다 정확: 낱장 7x10" 파일 vs 펼친면 14x10" 파일을 명확하게 구분)
+  const singleSizeDiff = Math.abs(singleAlbum.albumWidth - singleMatch.width)
+                       + Math.abs(singleAlbum.albumHeight - singleMatch.height);
+  const spreadSizeDiff = Math.abs(spreadAlbum.albumWidth - spreadMatch.width)
+                       + Math.abs(spreadAlbum.albumHeight - spreadMatch.height);
 
-  const singleDiff = Math.abs(singleRatio - singleMatchRatio);
-  const spreadDiff = Math.abs(spreadRatio - spreadMatchRatio);
-
-  // 차이가 작은 모드 선택 (동점 시 spread 우선)
-  if (singleDiff < spreadDiff) return 'single';
+  if (singleSizeDiff < spreadSizeDiff) return 'single';
   return 'spread';
 }
 

@@ -126,6 +126,8 @@ import { detectImageColorSpace } from '@/lib/image-color-detection';
 import { decodeTiffToCanvas, isTiffFile } from '@/lib/tiff-decoder';
 const ACCEPTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.tif', '.tiff'];
 const MAX_DEPTH = 4;
+// Mac 리소스 포크(._xxx), 썸네일 등 잔재 파일 제외 기준 (50KB 미만)
+const MIN_FILE_SIZE = 50 * 1024;
 
 interface MultiFolderUploadProps {
   onAddToCart?: (folders: UploadedFolder[]) => void;
@@ -1009,6 +1011,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
                   const file = await new Promise<File>((res) => {
                     fileEntry.file((f) => res(f));
                   });
+                  // 50KB 미만 소용량 파일 제외 (Mac 잔재·썸네일 등)
+                  if (file.size < MIN_FILE_SIZE) continue;
                   result.files.push(file);
                 }
               } else if (e.isDirectory) {
@@ -1427,6 +1431,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         if (file.name.startsWith('.')) continue;
         const ext = '.' + file.name.split('.').pop()?.toLowerCase();
         if (!ACCEPTED_EXTENSIONS.includes(ext)) continue;
+        // 50KB 미만 소용량 파일 제외 (Mac 잔재·썸네일 등)
+        if (file.size < MIN_FILE_SIZE) continue;
 
         const relativePath = (file as any).webkitRelativePath || file.name;
         const pathParts = relativePath.split('/');
@@ -1701,7 +1707,9 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         // macOS 리소스 포크(._xxx) 및 숨김 파일 제외
         if (file.name.startsWith('.')) return false;
         const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-        return ACCEPTED_EXTENSIONS.includes(ext);
+        if (!ACCEPTED_EXTENSIONS.includes(ext)) return false;
+        // 50KB 미만 소용량 파일 제외 (Mac 잔재·썸네일 등)
+        return file.size >= MIN_FILE_SIZE;
       });
 
       if (imageFiles.length === 0) {
