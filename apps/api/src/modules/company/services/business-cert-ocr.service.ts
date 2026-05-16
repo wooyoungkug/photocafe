@@ -89,7 +89,22 @@ export class BusinessCertOcrService {
 
     const format = this.detectFormat(uploadKey);
 
-    // 2) CLOVA OCR 호출
+    // 2) B2에서 이미지 다운로드 → base64 변환 (CLOVA OCR 서버가 B2 URL에 직접 접근 불가 대응)
+    let imageBase64: string;
+    try {
+      const imgRes = await fetch(presignedUrl);
+      if (!imgRes.ok) {
+        this.logger.warn(`B2 이미지 다운로드 실패 HTTP ${imgRes.status}`);
+        throw new Error('download failed');
+      }
+      const buf = await imgRes.arrayBuffer();
+      imageBase64 = Buffer.from(buf).toString('base64');
+    } catch (e: any) {
+      this.logger.warn(`B2 이미지 다운로드 실패: ${e?.message}`);
+      throw new InternalServerErrorException('업로드된 사업자등록증을 찾을 수 없습니다');
+    }
+
+    // 3) CLOVA OCR 호출 (base64 data 방식)
     let body: ClovaResponse;
     try {
       const res = await fetch(invokeUrl, {
@@ -103,7 +118,7 @@ export class BusinessCertOcrService {
           requestId: randomUUID(),
           timestamp: Date.now(),
           lang: 'ko',
-          images: [{ format, name: 'cert', url: presignedUrl }],
+          images: [{ format, name: 'cert', data: imageBase64 }],
         }),
       });
       if (!res.ok) {
