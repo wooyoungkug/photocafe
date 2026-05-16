@@ -947,7 +947,7 @@ async function abortMultipart(
  * Multipart 적용 임계값 — 이 이상의 파일은 multipart 사용.
  * 10MB 로 낮춰 일반적인 30~50MB 인쇄 파일이 모두 병렬 청크 업로드 혜택.
  */
-export const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // 10MB
+export const MULTIPART_THRESHOLD = 50 * 1024 * 1024; // 50MB — 이하는 단일 presigned PUT (multipart 오버헤드 2 RTT 400ms 절감)
 /**
  * 한 파일 내 동시 청크 업로드 수.
  * HTTP/2 multiplexing 하에서는 single connection 위 다수 stream 동시 가능 (Chrome 6 connection 한도 무관).

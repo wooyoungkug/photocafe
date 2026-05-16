@@ -110,14 +110,17 @@ export class B2StorageService implements OnModuleInit {
         // CRC32 자동 추가 비활성: presigned URL 단순화 + 브라우저 PUT 호환성 ↑
         requestChecksumCalculation: 'WHEN_REQUIRED',
         credentials: { accessKeyId: keyId, secretAccessKey: appKey },
-        // keepAlive: TCP 연결 재사용으로 소파일 다량 업로드 시 30~50% 속도 개선
+        // keepAlive 30초: idle 후 TLS 재수립(400ms) 방지. lifo: warm 소켓 우선 재사용
         requestHandler: new NodeHttpHandler({
           httpsAgent: new https.Agent({
             keepAlive: true,
-            maxSockets: 50,
-            keepAliveMsecs: 3000,
+            keepAliveMsecs: 30_000,
+            maxSockets: 100,
+            maxFreeSockets: 20,
+            scheduling: 'lifo' as any,
+            timeout: 60_000,
           }),
-          connectionTimeout: 3000,
+          connectionTimeout: 5_000,
           requestTimeout: 120_000,
         }),
         // 일시적 오류(503, 429, 네트워크 단절) 시 지수 백오프 자동 재시도
@@ -546,15 +549,11 @@ export class B2StorageService implements OnModuleInit {
               ID: 'photocafe-browser-direct-upload',
               AllowedOrigins: origins,
               AllowedMethods: ['PUT'],
-              AllowedHeaders: [
-                'Content-Type',
-                'x-amz-content-sha256',
-                'x-amz-date',
-                'Authorization',
-              ],
-              // ETag 는 멀티파트 후속 처리/체크섬 검증에 필요
-              ExposeHeaders: ['ETag'],
-              MaxAgeSeconds: 3600,
+              // wildcard: 브라우저 preflight 캐시 최대화 (청크당 OPTIONS 왕복 200ms 제거)
+              AllowedHeaders: ['*'],
+              ExposeHeaders: ['ETag', 'x-amz-request-id', 'x-amz-version-id'],
+              // 24시간 캐시: 재방문 시 preflight 완전 생략 (현재 1시간 → 24배)
+              MaxAgeSeconds: 86400,
             },
           ],
         },

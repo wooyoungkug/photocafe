@@ -1004,9 +1004,9 @@ export class UploadController implements OnModuleInit {
             });
         }
 
-        // API → B2 속도 측정: multipart-complete 완료 후 512KB 합성 프로브로 API→B2 속도 측정
-        // 실제 업로드(브라우저→B2 직접)와 별도로, API 서버의 B2 접근 속도를 추적한다.
-        if (req?.metricsSampled && this.b2Storage.isEnabled()) {
+        // API → B2 속도 측정: 5% 추가 샘플링 (20% 메트릭 샘플 × 5% = 전체 1%)
+        // 사용자 업로드와 소켓 풀 경쟁 최소화
+        if (req?.metricsSampled && Math.random() < 0.05 && this.b2Storage.isEnabled()) {
             const probeKey = `metrics/probe/${randomUUID()}`;
             setImmediate(async () => {
                 try {
