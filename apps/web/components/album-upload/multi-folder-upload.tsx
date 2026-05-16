@@ -1001,6 +1001,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
 
             for (const e of entries) {
               if (e.isFile) {
+                // macOS 리소스 포크(._xxx) 및 숨김 파일 제외
+                if (e.name.startsWith('.')) continue;
                 const fileEntry = e as FileSystemFileEntry;
                 const ext = '.' + e.name.split('.').pop()?.toLowerCase();
                 if (ACCEPTED_EXTENSIONS.includes(ext)) {
@@ -1421,6 +1423,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       const folderMap = new Map<string, { files: File[]; depth: number; folderName: string }>();
 
       for (const file of Array.from(files)) {
+        // macOS 리소스 포크(._xxx) 및 숨김 파일 제외
+        if (file.name.startsWith('.')) continue;
         const ext = '.' + file.name.split('.').pop()?.toLowerCase();
         if (!ACCEPTED_EXTENSIONS.includes(ext)) continue;
 
@@ -1694,6 +1698,8 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       if (!files || files.length === 0) return;
 
       const imageFiles = Array.from(files).filter(file => {
+        // macOS 리소스 포크(._xxx) 및 숨김 파일 제외
+        if (file.name.startsWith('.')) return false;
         const ext = '.' + file.name.split('.').pop()?.toLowerCase();
         return ACCEPTED_EXTENSIONS.includes(ext);
       });
