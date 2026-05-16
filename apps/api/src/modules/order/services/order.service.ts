@@ -270,8 +270,13 @@ export class OrderService {
         return { fileId: file.id, url: localUrl, source: 'local', expiresIn: null };
       }
 
+      // 로컬 경로(/uploads/...)는 B2에 없으므로 바로 로컬 URL 반환
+      if (localUrl?.startsWith('/')) {
+        return { fileId: file.id, url: localUrl, source: 'local', expiresIn: null };
+      }
+
       // fileUrl이 b2Key(로컬 경로 아님)이면 그대로 사용, 아니면 orderNumber+fileName으로 구성
-      const isB2Key = localUrl && !localUrl.startsWith('/') && !localUrl.startsWith('http');
+      const isB2Key = localUrl && !localUrl.startsWith('http');
       const key = isB2Key
         ? localUrl
         : `orders/${this.sanitizeStorageKeyPart(orderNumber)}/originals/${this.sanitizeStorageKeyPart(file.fileName)}`;
