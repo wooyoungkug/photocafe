@@ -545,6 +545,7 @@ export class UploadController implements OnModuleInit {
             widthInch: number;
             heightInch: number;
             dpi: number;
+            thumbnailDataUrl?: string;
         },
     ) {
         if (!this.b2Storage.isEnabled()) {
@@ -607,25 +608,50 @@ export class UploadController implements OnModuleInit {
         // manifest.json 비동기 저장 (세션 복원용)
         void this.saveManifest(safeTempFolderId, filtered);
 
-        // 썸네일 백그라운드 큐 — 직렬 처리로 메인 루프 점유 제어
-        this.enqueueThumbnail(async () => {
-            const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
-            const res = await fetch(presignedGetUrl);
-            if (!res.ok) {
-                this.logger.warn(`B2 원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
-                return;
+        const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
+        const thumbPath = join(thumbDir, thumbName);
+
+        // 클라이언트가 썸네일을 미리 생성해 보냈으면 바로 저장 (B2 재다운로드 없음)
+        const rawThumb = typeof body.thumbnailDataUrl === 'string' ? body.thumbnailDataUrl : '';
+        const thumbMatch = rawThumb.match(/^data:image\/\w+;base64,(.+)$/s);
+        if (thumbMatch && rawThumb.length <= 3 * 1024 * 1024) {
+            try {
+                const thumbBuffer = Buffer.from(thumbMatch[1], 'base64');
+                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                await fsWriteFile(thumbPath, thumbBuffer);
+            } catch (err) {
+                this.logger.warn(`클라이언트 썸네일 저장 실패, B2 폴백: ${err}`);
+                this.enqueueThumbnail(async () => {
+                    const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
+                    const res = await fetch(presignedGetUrl);
+                    if (!res.ok) return;
+                    const buf = Buffer.from(await res.arrayBuffer());
+                    const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+                    if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+                    const tempFilePath = join(tempOrigDir, safeFileName);
+                    await fsWriteFile(tempFilePath, buf);
+                    if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                    await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+                });
             }
-            const buf = Buffer.from(await res.arrayBuffer());
-
-            const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
-            if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
-            const tempFilePath = join(tempOrigDir, safeFileName);
-            await fsWriteFile(tempFilePath, buf);
-
-            const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
-            if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
-            await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
-        });
+        } else {
+            // 썸네일 없음 (TIFF 등 브라우저 미지원 포맷) → B2 재다운로드 폴백
+            this.enqueueThumbnail(async () => {
+                const presignedGetUrl = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
+                const res = await fetch(presignedGetUrl);
+                if (!res.ok) {
+                    this.logger.warn(`B2 원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                    return;
+                }
+                const buf = Buffer.from(await res.arrayBuffer());
+                const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+                if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+                const tempFilePath = join(tempOrigDir, safeFileName);
+                await fsWriteFile(tempFilePath, buf);
+                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+            });
+        }
 
         return {
             tempFileId: `${safeTempFolderId}/${safeFileName}`,
@@ -817,6 +843,7 @@ export class UploadController implements OnModuleInit {
             heightInch: number;
             dpi: number;
             storage?: string;
+            thumbnailDataUrl?: string;
         },
     ) {
         const storage = this.pickStorage(body.storage);
@@ -927,26 +954,52 @@ export class UploadController implements OnModuleInit {
 
         void this.saveManifest(safeTempFolderId, filtered);
 
-        // 썸네일 백그라운드 큐 — 직렬 처리로 메인 루프 점유 제어
-        const storageForDownload = storage;
-        this.enqueueThumbnail(async () => {
-            const presignedGetUrl = await storageForDownload.getPrivatePresignedUrl(b2Key, 300);
-            const res = await fetch(presignedGetUrl);
-            if (!res.ok) {
-                this.logger.warn(`원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
-                return;
+        const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
+        const thumbPath = join(thumbDir, thumbName);
+
+        // 클라이언트가 썸네일을 미리 생성해 보냈으면 바로 저장 (B2 재다운로드 없음)
+        const rawThumb = typeof body.thumbnailDataUrl === 'string' ? body.thumbnailDataUrl : '';
+        const thumbMatch = rawThumb.match(/^data:image\/\w+;base64,(.+)$/s);
+        if (thumbMatch && rawThumb.length <= 3 * 1024 * 1024) {
+            try {
+                const thumbBuffer = Buffer.from(thumbMatch[1], 'base64');
+                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                await fsWriteFile(thumbPath, thumbBuffer);
+            } catch (err) {
+                this.logger.warn(`클라이언트 썸네일 저장 실패, B2 폴백: ${err}`);
+                const storageForDownload = storage;
+                this.enqueueThumbnail(async () => {
+                    const presignedGetUrl = await storageForDownload.getPrivatePresignedUrl(b2Key, 300);
+                    const res = await fetch(presignedGetUrl);
+                    if (!res.ok) return;
+                    const buf = Buffer.from(await res.arrayBuffer());
+                    const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+                    if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+                    const tempFilePath = join(tempOrigDir, safeFileName);
+                    await fsWriteFile(tempFilePath, buf);
+                    if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                    await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+                });
             }
-            const buf = Buffer.from(await res.arrayBuffer());
-
-            const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
-            if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
-            const tempFilePath = join(tempOrigDir, safeFileName);
-            await fsWriteFile(tempFilePath, buf);
-
-            const thumbDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'thumbnails');
-            if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
-            await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
-        });
+        } else {
+            // 썸네일 없음 (TIFF 등 브라우저 미지원 포맷) → B2 재다운로드 폴백
+            const storageForDownload = storage;
+            this.enqueueThumbnail(async () => {
+                const presignedGetUrl = await storageForDownload.getPrivatePresignedUrl(b2Key, 300);
+                const res = await fetch(presignedGetUrl);
+                if (!res.ok) {
+                    this.logger.warn(`원본 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                    return;
+                }
+                const buf = Buffer.from(await res.arrayBuffer());
+                const tempOrigDir = join(getUploadBasePath(), 'temp', safeTempFolderId, 'originals');
+                if (!existsSync(tempOrigDir)) mkdirSync(tempOrigDir, { recursive: true });
+                const tempFilePath = join(tempOrigDir, safeFileName);
+                await fsWriteFile(tempFilePath, buf);
+                if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+                await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+            });
+        }
 
         return {
             tempFileId: `${safeTempFolderId}/${safeFileName}`,

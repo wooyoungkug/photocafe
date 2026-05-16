@@ -485,6 +485,7 @@ export async function confirmPresignedUpload(
     widthInch: number;
     heightInch: number;
     dpi: number;
+    thumbnailDataUrl?: string;
   },
   token: string | null,
 ): Promise<UploadedFileResult> {
@@ -530,6 +531,65 @@ export async function confirmPresignedUpload(
     throw new UploadError('Confirm 응답을 파싱할 수 없습니다.', 'server', res.status, true);
   }
 }
+
+/**
+ * Canvas API로 클라이언트 사이드 썸네일 생성 (max 1200px, JPEG 0.8)
+ * - TIFF 등 브라우저 미지원 포맷이면 null 반환 → 서버 폴백
+ * - base64 데이터 URL 반환 (data:image/jpeg;base64,...)
+ */
+async function generateClientThumbnail(file: File, maxSize = 1200): Promise<string | null> {
+  try {
+    // OffscreenCanvas: 메인 스레드 블로킹 없이 처리 (Chrome 69+, Firefox 105+, Safari 16.4+)
+    if (typeof OffscreenCanvas !== 'undefined' && typeof createImageBitmap !== 'undefined') {
+      const bitmap = await createImageBitmap(file);
+      let { width: w, height: h } = bitmap;
+      if (w > maxSize || h > maxSize) {
+        const ratio = Math.min(maxSize / w, maxSize / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = new OffscreenCanvas(w, h);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(bitmap, 0, 0, w, h);
+      bitmap.close();
+      const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.8 });
+      return new Promise<string | null>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    // 폴백: 일반 Canvas (Safari <16.4, Firefox <105)
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = objectUrl;
+      });
+      let { naturalWidth: w, naturalHeight: h } = img;
+      if (w > maxSize || h > maxSize) {
+        const ratio = Math.min(maxSize / w, maxSize / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', 0.8);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  } catch {
+    return null;
+  }
+}
+
+const MAX_THUMBNAIL_BASE64_BYTES = 3 * 1024 * 1024; // 3MB — 1200px JPEG 충분히 커버
 
 /**
  * 3단계 통합: presign 발급 → B2 직접 업로드 → 서버 confirm
@@ -587,7 +647,8 @@ export async function uploadAlbumFilePresigned(
     throw new DOMException('Upload cancelled', 'AbortError');
   }
 
-  // 2단계: B2 직접 업로드
+  // 2단계: B2 직접 업로드 + 클라이언트 썸네일 생성 병렬 실행
+  const thumbnailPromise = generateClientThumbnail(file);
   try {
     await uploadToB2Direct(presigned.presignedUrl, file, contentType, onProgress, signal);
   } catch (err) {
@@ -605,6 +666,11 @@ export async function uploadAlbumFilePresigned(
     throw new DOMException('Upload cancelled', 'AbortError');
   }
 
+  const thumbnailDataUrl = await thumbnailPromise.catch(() => null);
+  const safeThumb = thumbnailDataUrl && thumbnailDataUrl.length <= MAX_THUMBNAIL_BASE64_BYTES
+    ? thumbnailDataUrl
+    : undefined;
+
   // 3단계: 서버 confirm
   try {
     const result = await confirmPresignedUpload(
@@ -620,6 +686,7 @@ export async function uploadAlbumFilePresigned(
         widthInch: metadata.widthInch,
         heightInch: metadata.heightInch,
         dpi: metadata.dpi,
+        thumbnailDataUrl: safeThumb,
       },
       token,
     );
@@ -817,6 +884,7 @@ async function confirmMultipartComplete(
     heightInch: number;
     dpi: number;
     storage?: string;
+    thumbnailDataUrl?: string;
   },
   token: string | null,
 ): Promise<UploadedFileResult> {
@@ -951,7 +1019,8 @@ export async function uploadAlbumFileMultipart(
     throw new DOMException('Upload cancelled', 'AbortError');
   }
 
-  // 2~3) 청크 병렬 업로드
+  // 2~3) 청크 병렬 업로드 + 클라이언트 썸네일 생성 병렬 실행
+  const thumbnailPromise = generateClientThumbnail(file);
   const totalSize = file.size;
   let uploadedBytes = 0;
   const partResults = new Array<{ partNumber: number; etag: string } | null>(session.partCount).fill(null);
@@ -1026,6 +1095,11 @@ export async function uploadAlbumFileMultipart(
     throw new DOMException('Upload cancelled', 'AbortError');
   }
 
+  const thumbnailDataUrl = await thumbnailPromise.catch(() => null);
+  const safeThumb = thumbnailDataUrl && thumbnailDataUrl.length <= MAX_THUMBNAIL_BASE64_BYTES
+    ? thumbnailDataUrl
+    : undefined;
+
   // 4) complete
   try {
     const result = await confirmMultipartComplete(
@@ -1044,6 +1118,7 @@ export async function uploadAlbumFileMultipart(
         heightInch: metadata.heightInch,
         dpi: metadata.dpi,
         storage,
+        thumbnailDataUrl: safeThumb,
       },
       token,
     );
