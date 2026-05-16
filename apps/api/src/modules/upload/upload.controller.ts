@@ -1,4 +1,4 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request, BadRequestException, ForbiddenException, Get, Param, Res, Body, Delete, Query, Logger, OnModuleInit } from '@nestjs/common';
+import { Controller, Post, Patch, UseInterceptors, UploadedFile, UseGuards, Request, BadRequestException, ForbiddenException, Get, Param, Res, Body, Delete, Query, Logger, OnModuleInit } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiConsumes, ApiBody, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -2022,5 +2022,27 @@ export class UploadController implements OnModuleInit {
     ) {
         this.assertStaff(req);
         return this.metrics.getAggregatedStats(period ?? 'month');
+    }
+
+    @Get('metrics/config')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '업로드 메트릭 설정 조회 (관리자 전용)' })
+    async getMetricsConfig(@Request() req: any) {
+        this.assertStaff(req);
+        return { sampleRate: this.metrics.getSampleRate() };
+    }
+
+    @Patch('metrics/config')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '샘플링 비율 변경 0~1 (관리자 전용, 서버 재시작 시 env 기본값으로 초기화)' })
+    async updateMetricsConfig(
+        @Body() body: { sampleRate: number },
+        @Request() req: any,
+    ) {
+        this.assertStaff(req);
+        const updated = this.metrics.setSampleRate(body.sampleRate);
+        return { sampleRate: updated };
     }
 }

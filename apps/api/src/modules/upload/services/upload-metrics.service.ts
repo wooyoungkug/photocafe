@@ -40,7 +40,23 @@ export interface AggregatedStatRow {
 export class UploadMetricsService {
     private readonly logger = new Logger(UploadMetricsService.name);
 
-    constructor(private readonly prisma: PrismaService) {}
+    /** 런타임 샘플링 비율 (0~1). 재시작 시 env 기본값으로 초기화된다. */
+    private _sampleRate: number;
+
+    constructor(private readonly prisma: PrismaService) {
+        const raw = process.env.UPLOAD_METRICS_SAMPLE_RATE;
+        const parsed = raw ? parseFloat(raw) : 0.1;
+        this._sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.1;
+    }
+
+    getSampleRate(): number {
+        return this._sampleRate;
+    }
+
+    setSampleRate(rate: number): number {
+        this._sampleRate = Math.min(Math.max(Number.isFinite(rate) ? rate : 0.1, 0), 1);
+        return this._sampleRate;
+    }
 
     /**
      * 메트릭을 비동기 저장. 실패하더라도 호출자에게 영향 없음.

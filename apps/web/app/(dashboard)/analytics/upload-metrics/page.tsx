@@ -23,6 +23,8 @@ import {
     useUploadMetricsTimeseries,
     useUploadMetricsRecent,
     useUploadMetricsStats,
+    useUploadMetricsConfig,
+    useUpdateMetricsConfig,
     type AggregatedStatRow,
 } from '@/hooks/use-upload-metrics';
 import { API_URL } from '@/lib/api';
@@ -61,6 +63,7 @@ export default function UploadMetricsPage() {
     const [range, setRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
     const [groupBy, setGroupBy] = useState<'hour' | 'day'>('hour');
     const [statsPeriod, setStatsPeriod] = useState<'day' | 'month' | 'quarter' | 'year'>('month');
+    const [sampleInput, setSampleInput] = useState<string>('');
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<{ sizeMb: number; durationMs: number; speedKbps: number } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
@@ -71,6 +74,8 @@ export default function UploadMetricsPage() {
     const tsB2 = useUploadMetricsTimeseries({ phase: 'api_to_b2', groupBy });
     const recent = useUploadMetricsRecent(50);
     const stats = useUploadMetricsStats(statsPeriod);
+    const config = useUploadMetricsConfig();
+    const updateConfig = useUpdateMetricsConfig();
 
     const clientPhase = summary.data?.phases?.client_to_api;
     const b2Phase = summary.data?.phases?.api_to_b2;
@@ -136,10 +141,38 @@ export default function UploadMetricsPage() {
                 <div>
                     <h1 className="text-[24px] text-black font-normal">업로드 속도 모니터링</h1>
                     <p className="text-[14px] text-black font-normal mt-1">
-                        실 업로드는 10% 샘플링, 속도테스트는 100% 기록됩니다.
+                        실 업로드는 {Math.round((config.data?.sampleRate ?? 0.1) * 100)}% 샘플링, 속도테스트는 100% 기록됩니다.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    {/* 샘플링 비율 입력 */}
+                    <div className="flex items-center gap-1">
+                        <span className="text-[14px] text-black font-normal whitespace-nowrap">실 업로드 샘플</span>
+                        <input
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            className="w-16 border rounded px-2 py-1 text-[14px] text-black text-center"
+                            value={sampleInput !== '' ? sampleInput : Math.round((config.data?.sampleRate ?? 0.1) * 100).toString()}
+                            onChange={(e) => setSampleInput(e.target.value)}
+                            onBlur={() => {
+                                const pct = parseFloat(sampleInput);
+                                if (!Number.isFinite(pct)) return;
+                                updateConfig.mutate(pct / 100, {
+                                    onSuccess: () => {
+                                        setSampleInput('');
+                                        toast.success(`샘플링 ${pct}%로 변경됨`);
+                                    },
+                                    onError: () => toast.error('변경 실패'),
+                                });
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
+                        />
+                        <span className="text-[14px] text-black font-normal">%</span>
+                    </div>
                     <Tabs value={range} onValueChange={(v) => setRange(v as any)}>
                         <TabsList>
                             <TabsTrigger value="1h">1시간</TabsTrigger>

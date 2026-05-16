@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export interface MetricsSummary {
@@ -113,3 +113,27 @@ export function useUploadMetricsStats(period: 'day' | 'month' | 'quarter' | 'yea
         staleTime: 5 * 60_000,
     });
 }
+
+export interface MetricsConfig {
+    sampleRate: number;
+}
+
+export function useUploadMetricsConfig() {
+    return useQuery({
+        queryKey: ['upload-metrics-config'],
+        queryFn: () => api.get<MetricsConfig>('/upload/metrics/config'),
+        staleTime: 30_000,
+    });
+}
+
+export function useUpdateMetricsConfig() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (sampleRate: number) =>
+            api.patch<MetricsConfig>('/upload/metrics/config', { sampleRate }),
+        onSuccess: (data) => {
+            queryClient.setQueryData(['upload-metrics-config'], data);
+        },
+    });
+}
+

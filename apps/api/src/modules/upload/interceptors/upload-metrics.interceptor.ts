@@ -12,21 +12,15 @@ import { UploadMetricsService } from '../services/upload-metrics.service';
  */
 @Injectable()
 export class UploadMetricsInterceptor implements NestInterceptor {
-    private readonly sampleRate: number;
-
-    constructor(private readonly metrics: UploadMetricsService) {
-        const raw = process.env.UPLOAD_METRICS_SAMPLE_RATE;
-        const parsed = raw ? parseFloat(raw) : 0.1;
-        this.sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.1;
-    }
+    constructor(private readonly metrics: UploadMetricsService) {}
 
     intercept(context: ExecutionContext, next: CallHandler) {
         const req = context.switchToHttp().getRequest<any>();
         const path: string = req?.route?.path || req?.url || '';
         const isSpeedtest = typeof path === 'string' && path.includes('/speedtest/');
 
-        // 메트릭 대상 결정
-        const sampled = isSpeedtest || Math.random() < this.sampleRate;
+        // 메트릭 대상 결정 — 서비스에서 런타임 sampleRate 를 매 요청마다 읽음
+        const sampled = isSpeedtest || Math.random() < this.metrics.getSampleRate();
         req.metricsSampled = sampled;
         req.metricsKind = isSpeedtest ? 'speedtest' : 'real';
 
