@@ -23,6 +23,7 @@ import {
     useUploadMetricsTimeseries,
     useUploadMetricsRecent,
     useUploadMetricsStats,
+    useUploadMetricsWeekdayStats,
     useUploadMetricsConfig,
     useUpdateMetricsConfig,
     type AggregatedStatRow,
@@ -75,6 +76,7 @@ export default function UploadMetricsPage() {
     const tsB2 = useUploadMetricsTimeseries({ phase: 'api_to_b2', groupBy });
     const recent = useUploadMetricsRecent(50);
     const stats = useUploadMetricsStats(statsPeriod);
+    const weekdayStats = useUploadMetricsWeekdayStats();
     const config = useUploadMetricsConfig();
     const updateConfig = useUpdateMetricsConfig();
 
@@ -536,6 +538,104 @@ export default function UploadMetricsPage() {
                                             )}
                                         </tbody>
                                     </table>
+                                </div>
+                            </>
+                        );
+                    })()}
+                </CardContent>
+            </Card>
+
+            {/* 요일별 통계 */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+                        <BarChart2 className="w-5 h-5" /> 요일별 통계 (실 업로드)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {(() => {
+                        const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
+                        const rows = weekdayStats.data?.rows ?? [];
+
+                        const dowMap = new Map<number, { client?: (typeof rows)[0]; b2?: (typeof rows)[0] }>();
+                        for (const r of rows) {
+                            if (!dowMap.has(r.dow)) dowMap.set(r.dow, {});
+                            const entry = dowMap.get(r.dow)!;
+                            if (r.phase === 'client_to_api') entry.client = r;
+                            else if (r.phase === 'api_to_b2') entry.b2 = r;
+                        }
+
+                        const pivoted = DOW_LABELS.map((label, idx) => ({
+                            dow: idx,
+                            label,
+                            ...(dowMap.get(idx) ?? {}),
+                        }));
+
+                        const chartData = pivoted.map(p => ({
+                            period: p.label,
+                            client: p.client?.avgSpeedKbps ?? 0,
+                            b2: p.b2?.avgSpeedKbps ?? 0,
+                        }));
+
+                        const hasData = rows.length > 0;
+
+                        return (
+                            <>
+                                {hasData && (
+                                    <div className="w-full h-60">
+                                        <ResponsiveContainer>
+                                            <BarChart data={chartData}>
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="period" />
+                                                <YAxis label={{ value: 'KB/s', angle: -90, position: 'insideLeft' }} />
+                                                <Tooltip formatter={(v: any) => typeof v === 'number' ? formatSpeed(v) : v} />
+                                                <Legend />
+                                                <Bar dataKey="client" fill="#3b82f6" name="클라이언트 → API" />
+                                                <Bar dataKey="b2" fill="#10b981" name="API → B2" />
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                )}
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-[14px] text-black font-normal">
+                                        <thead>
+                                            <tr className="border-b">
+                                                <th className="text-left py-2 px-2">요일</th>
+                                                <th className="text-right py-2 px-2">클라이언트→API 평균</th>
+                                                <th className="text-right py-2 px-2">p50</th>
+                                                <th className="text-right py-2 px-2">p95</th>
+                                                <th className="text-right py-2 px-2">건수</th>
+                                                <th className="text-right py-2 px-2">API→B2 평균</th>
+                                                <th className="text-right py-2 px-2">p50</th>
+                                                <th className="text-right py-2 px-2">p95</th>
+                                                <th className="text-right py-2 px-2">건수</th>
+                                                <th className="text-right py-2 px-2">총 데이터</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {pivoted.map(p => {
+                                                const totalBytes = (p.client?.totalBytes ?? 0) + (p.b2?.totalBytes ?? 0);
+                                                const isEmpty = !p.client && !p.b2;
+                                                return (
+                                                    <tr key={p.dow} className="border-b hover:bg-slate-50">
+                                                        <td className="py-2 px-2 font-medium">{p.label}요일</td>
+                                                        <td className="py-2 px-2 text-right">{isEmpty ? '—' : formatSpeed(p.client?.avgSpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{isEmpty ? '—' : formatSpeed(p.client?.p50SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{isEmpty ? '—' : formatSpeed(p.client?.p95SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{p.client?.count ?? 0}</td>
+                                                        <td className="py-2 px-2 text-right">{isEmpty ? '—' : formatSpeed(p.b2?.avgSpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{isEmpty ? '—' : formatSpeed(p.b2?.p50SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{isEmpty ? '—' : formatSpeed(p.b2?.p95SpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right">{p.b2?.count ?? 0}</td>
+                                                        <td className="py-2 px-2 text-right">{formatBytes(totalBytes)}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    {!hasData && (
+                                        <div className="text-center py-6 text-slate-500">아직 요일별 데이터가 없습니다.</div>
+                                    )}
                                 </div>
                             </>
                         );

@@ -2094,6 +2094,15 @@ export class UploadController implements OnModuleInit {
         return this.metrics.getAggregatedStats(period ?? 'month');
     }
 
+    @Get('metrics/weekday-stats')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '요일별 업로드 통계 — 일~토 (관리자 전용)' })
+    async getMetricsWeekdayStats(@Request() req: any) {
+        this.assertStaff(req);
+        return this.metrics.getWeekdayStats();
+    }
+
     @Get('metrics/config')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()

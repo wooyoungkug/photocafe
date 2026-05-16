@@ -36,6 +36,16 @@ export interface AggregatedStatRow {
     totalBytes: number;
 }
 
+export interface WeekdayStatRow {
+    dow: number;
+    phase: string;
+    count: number;
+    avgSpeedKbps: number;
+    p50SpeedKbps: number;
+    p95SpeedKbps: number;
+    totalBytes: number;
+}
+
 @Injectable()
 export class UploadMetricsService {
     private readonly logger = new Logger(UploadMetricsService.name);
@@ -297,6 +307,50 @@ export class UploadMetricsService {
             periodType,
             rows: rows.map(r => ({
                 period: r.period,
+                phase: r.phase,
+                count: Number(r.count),
+                avgSpeedKbps: Number(r.avg_speed),
+                p50SpeedKbps: Number(r.p50_speed),
+                p95SpeedKbps: Number(r.p95_speed),
+                totalBytes: Number(r.total_bytes),
+            })),
+        };
+    }
+
+    /**
+     * 요일별 집계 통계 (실 업로드 only).
+     * DOW: 0=일, 1=월, 2=화, 3=수, 4=목, 5=금, 6=토 (PostgreSQL EXTRACT DOW 기준)
+     */
+    async getWeekdayStats(): Promise<{ rows: WeekdayStatRow[] }> {
+        const rows = await this.prisma.$queryRaw<
+            {
+                dow: number;
+                phase: string;
+                count: bigint;
+                avg_speed: number;
+                p50_speed: number;
+                p95_speed: number;
+                total_bytes: number;
+            }[]
+        >(
+            Prisma.sql`SELECT
+                EXTRACT(DOW FROM "createdAt")::int as dow,
+                phase,
+                COUNT(*) as count,
+                COALESCE(AVG("speedKbps"), 0)::float as avg_speed,
+                COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p50_speed,
+                COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p95_speed,
+                COALESCE(SUM("fileSize"::bigint), 0)::float as total_bytes
+              FROM upload_metrics
+              WHERE kind = 'real'
+                AND phase IN ('client_to_api', 'api_to_b2')
+              GROUP BY dow, phase
+              ORDER BY dow ASC`,
+        );
+
+        return {
+            rows: rows.map(r => ({
+                dow: Number(r.dow),
                 phase: r.phase,
                 count: Number(r.count),
                 avgSpeedKbps: Number(r.avg_speed),

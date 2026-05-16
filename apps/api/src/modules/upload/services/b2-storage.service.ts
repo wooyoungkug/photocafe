@@ -111,17 +111,18 @@ export class B2StorageService implements OnModuleInit {
         requestChecksumCalculation: 'WHEN_REQUIRED',
         credentials: { accessKeyId: keyId, secretAccessKey: appKey },
         // keepAlive 30초: idle 후 TLS 재수립(400ms) 방지. lifo: warm 소켓 우선 재사용
+        // maxSockets 200: 6파일×10파트=60 소켓 동시 → 풀 고갈 방지 여유 확보
         requestHandler: new NodeHttpHandler({
           httpsAgent: new https.Agent({
             keepAlive: true,
             keepAliveMsecs: 30_000,
-            maxSockets: 100,
-            maxFreeSockets: 20,
+            maxSockets: 200,
+            maxFreeSockets: 50,
             scheduling: 'lifo' as any,
             timeout: 60_000,
           }),
           connectionTimeout: 5_000,
-          requestTimeout: 120_000,
+          requestTimeout: 600_000, // 10분: 저속 환경(200MB÷5MB/s=40s)도 타임아웃 없이 완료
         }),
         // 일시적 오류(503, 429, 네트워크 단절) 시 지수 백오프 자동 재시도
         maxAttempts: 3,

@@ -126,6 +126,29 @@ export function useUploadMetricsStats(period: 'day' | 'month' | 'quarter' | 'yea
     });
 }
 
+export interface WeekdayStatRow {
+    dow: number;
+    phase: string;
+    count: number;
+    avgSpeedKbps: number;
+    p50SpeedKbps: number;
+    p95SpeedKbps: number;
+    totalBytes: number;
+}
+
+export interface WeekdayStatsResponse {
+    rows: WeekdayStatRow[];
+}
+
+export function useUploadMetricsWeekdayStats() {
+    return useQuery({
+        queryKey: ['upload-metrics-weekday-stats'],
+        queryFn: () => api.get<WeekdayStatsResponse>('/upload/metrics/weekday-stats'),
+        staleTime: 10 * 60_000,
+        refetchOnWindowFocus: false,
+    });
+}
+
 export interface MetricsConfig {
     sampleRate: number;
 }

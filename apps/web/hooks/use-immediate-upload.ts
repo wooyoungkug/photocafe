@@ -13,8 +13,8 @@ import {
 } from '@/lib/file-upload';
 import { dataUrlToFile } from '@/lib/background-upload';
 
-// B2 직접 업로드 기준 (파일별 독립 도메인, 3파일 병렬 안전)
-const CONCURRENCY = 3;
+// B2 직접 업로드 기준 (파일별 독립 도메인, 5파일 병렬)
+const CONCURRENCY = 5;
 import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile } from '@/stores/multi-folder-upload-store';
 import {
   addSessionFolder,
