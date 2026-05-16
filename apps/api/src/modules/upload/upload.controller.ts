@@ -75,28 +75,30 @@ export class UploadController implements OnModuleInit {
      * 동시 multipart 요청들이 서로의 백그라운드 작업에 의해 지연되지 않게 함.
      */
     private readonly thumbnailQueue: Array<() => Promise<void>> = [];
-    private isProcessingThumbnail = false;
+    private thumbnailActiveCount = 0;
+    private readonly THUMBNAIL_CONCURRENCY = 3;
 
     private enqueueThumbnail(task: () => Promise<void>): void {
         this.thumbnailQueue.push(task);
-        void this.drainThumbnailQueue();
+        this.drainThumbnailQueue();
     }
 
-    private async drainThumbnailQueue(): Promise<void> {
-        if (this.isProcessingThumbnail) return;
-        this.isProcessingThumbnail = true;
-        try {
-            while (this.thumbnailQueue.length > 0) {
-                const task = this.thumbnailQueue.shift();
-                if (!task) continue;
-                try {
-                    await task();
-                } catch (err) {
-                    this.logger.warn(`thumbnail bg task failed: ${(err as Error).message}`);
-                }
-            }
-        } finally {
-            this.isProcessingThumbnail = false;
+    private drainThumbnailQueue(): void {
+        while (
+            this.thumbnailQueue.length > 0 &&
+            this.thumbnailActiveCount < this.THUMBNAIL_CONCURRENCY
+        ) {
+            const task = this.thumbnailQueue.shift();
+            if (!task) continue;
+            this.thumbnailActiveCount++;
+            void task()
+                .catch((err) =>
+                    this.logger.warn(`thumbnail bg task failed: ${(err as Error).message}`),
+                )
+                .finally(() => {
+                    this.thumbnailActiveCount--;
+                    this.drainThumbnailQueue();
+                });
         }
     }
 
@@ -918,7 +920,7 @@ export class UploadController implements OnModuleInit {
                     this.logger.warn(
                         `multipart-complete retry ${attempt}/${MAX_COMPLETE_ATTEMPTS - 1}: ${e?.message}`,
                     );
-                    await new Promise((r) => setTimeout(r, 1500 * attempt));
+                    await new Promise((r) => setTimeout(r, 100 * Math.pow(2, attempt)));
                 }
             }
         }

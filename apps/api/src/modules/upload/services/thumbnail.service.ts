@@ -8,7 +8,7 @@ export class ThumbnailService {
   private readonly maxSize: number;
 
   constructor() {
-    this.maxSize = parseInt(process.env.THUMBNAIL_MAX_SIZE || '1200', 10);
+    this.maxSize = parseInt(process.env.THUMBNAIL_MAX_SIZE || '400', 10);
   }
 
   /** 원본 이미지에서 썸네일 생성 */

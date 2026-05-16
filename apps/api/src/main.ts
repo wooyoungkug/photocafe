@@ -9,6 +9,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import compression from 'compression';
 
 // BigInt JSON 직렬화 지원 (Prisma BigInt 필드)
 (BigInt.prototype as any).toJSON = function () {
@@ -29,6 +30,9 @@ async function bootstrap() {
 
   // Cookie parser (OAuth 초대 토큰 등)
   app.use(cookieParser());
+
+  // gzip 압축 — 1KB 이상 API 응답 압축 (presigned URL 목록 등 JSON 응답 크기 60~70% 절감)
+  app.use(compression({ threshold: 1024 }));
 
   // HTTP 보안 헤더 (XSS, 클릭재킹, MIME 스니핑, HSTS 등)
   // 설계서 v1.1 보안 요구사항: helmet 미들웨어 적용
