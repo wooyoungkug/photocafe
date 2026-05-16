@@ -1045,6 +1045,8 @@ export async function uploadAlbumFileMultipart(
       const offset = (partInfo.partNumber - 1) * session.partSize;
       const end = Math.min(offset + session.partSize, totalSize);
       const chunk = file.slice(offset, end);
+      const chunkSize = end - offset;
+      const partStart = performance.now();
 
       try {
         const etag = await uploadPartToB2(
@@ -1057,6 +1059,16 @@ export async function uploadAlbumFileMultipart(
           signal,
         );
         partResults[partInfo.partNumber - 1] = { partNumber: partInfo.partNumber, etag };
+
+        // 파트별 client→B2 속도를 API에 fire-and-forget 보고 (샘플링 30%)
+        if (token && Math.random() < 0.3) {
+          const durationMs = performance.now() - partStart;
+          void fetch(`${API_BASE}/api/v1/upload/metrics/record`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ kind: 'real', phase: 'client_to_b2', fileSize: chunkSize, durationMs }),
+          }).catch(() => {});
+        }
       } catch (err) {
         aborted = true;
         if (!firstError) firstError = err as Error;

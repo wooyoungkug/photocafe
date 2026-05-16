@@ -2,9 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
 
+export type MetricPhase = 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2';
+
 export interface RecordMetricInput {
     kind: 'real' | 'speedtest';
-    phase: 'client_to_api' | 'api_to_b2' | 'b2_download';
+    phase: MetricPhase;
     endpoint?: string | null;
     userId?: string | null;
     userType?: string | null;
@@ -20,7 +22,7 @@ export interface RecordMetricInput {
 
 export interface MetricsQuery {
     kind?: 'real' | 'speedtest';
-    phase?: 'client_to_api' | 'api_to_b2' | 'b2_download';
+    phase?: MetricPhase;
     startDate?: Date;
     endDate?: Date;
     groupBy?: 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
@@ -189,7 +191,7 @@ export class UploadMetricsService {
         };
         const since = new Date(Date.now() - ms[range]);
 
-        const phases = ['client_to_api', 'api_to_b2'] as const;
+        const phases = ['client_to_api', 'api_to_b2', 'client_to_b2'] as const;
         const result: Record<string, any> = {};
 
         for (const phase of phases) {
@@ -225,7 +227,7 @@ export class UploadMetricsService {
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p95_speed,
                     COALESCE(SUM("fileSize"::bigint), 0)::float as total_bytes
                   FROM upload_metrics
-                  WHERE phase = ${phase} AND "createdAt" >= ${since}`,
+                  WHERE phase = ${phase} AND kind = 'real' AND "createdAt" >= ${since}`,
             );
             const row = rows[0];
             result[phase] = {
@@ -245,7 +247,39 @@ export class UploadMetricsService {
             };
         }
 
-        return { range, since, phases: result };
+        // speedtest 별도 집계 (client_to_api phase 한정).
+        // 1MB 스피드테스트 데이터가 real 통계의 p10~p40을 오염시키는 문제를 분리 표시.
+        const speedtestRows = await this.prisma.$queryRaw<
+            {
+                count: bigint;
+                avg_speed: number;
+                p50_speed: number;
+                p95_speed: number;
+                max_speed: number;
+                total_bytes: number;
+            }[]
+        >(
+            Prisma.sql`SELECT
+                COUNT(*) as count,
+                COALESCE(AVG("speedKbps"), 0)::float as avg_speed,
+                COALESCE(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p50_speed,
+                COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p95_speed,
+                COALESCE(MAX("speedKbps"), 0)::float as max_speed,
+                COALESCE(SUM("fileSize"::bigint), 0)::float as total_bytes
+              FROM upload_metrics
+              WHERE phase = 'client_to_api' AND kind = 'speedtest' AND "createdAt" >= ${since}`,
+        );
+        const speedtestRow = speedtestRows[0];
+        const speedtest = {
+            count: Number(speedtestRow?.count ?? 0),
+            avgSpeedKbps: Number(speedtestRow?.avg_speed ?? 0),
+            p50SpeedKbps: Number(speedtestRow?.p50_speed ?? 0),
+            p95SpeedKbps: Number(speedtestRow?.p95_speed ?? 0),
+            maxSpeedKbps: Number(speedtestRow?.max_speed ?? 0),
+            totalBytes: Number(speedtestRow?.total_bytes ?? 0),
+        };
+
+        return { range, since, phases: result, speedtest };
     }
 
     /**

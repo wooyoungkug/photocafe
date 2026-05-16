@@ -2028,6 +2028,51 @@ export class UploadController implements OnModuleInit {
         });
     }
 
+    @Post('metrics/record')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Throttle({ default: { ttl: 60000, limit: 300 } })
+    @ApiOperation({ summary: '클라이언트 측 업로드 메트릭 기록 — 멀티파트 client_to_b2 직접 PUT 속도 등' })
+    async recordClientMetric(@Body() body: any, @Request() req: any) {
+        const allowedPhases = ['client_to_api', 'api_to_b2', 'b2_download', 'client_to_b2'] as const;
+        const allowedKinds = ['real', 'speedtest'] as const;
+
+        const kind = body?.kind;
+        const phase = body?.phase;
+        if (!allowedKinds.includes(kind)) {
+            throw new BadRequestException(`kind 는 ${allowedKinds.join(', ')} 중 하나여야 합니다.`);
+        }
+        if (!allowedPhases.includes(phase)) {
+            throw new BadRequestException(`phase 는 ${allowedPhases.join(', ')} 중 하나여야 합니다.`);
+        }
+
+        const fileSize = Number(body?.fileSize);
+        const durationMs = Number(body?.durationMs);
+        if (!Number.isFinite(fileSize) || fileSize < 0) {
+            throw new BadRequestException('fileSize 가 유효하지 않습니다.');
+        }
+        if (!Number.isFinite(durationMs) || durationMs < 0) {
+            throw new BadRequestException('durationMs 가 유효하지 않습니다.');
+        }
+
+        this.metrics.record({
+            kind,
+            phase,
+            endpoint: typeof body?.endpoint === 'string' ? body.endpoint : null,
+            userId: req.user?.sub || req.user?.id || null,
+            userType: req.user?.type || null,
+            fileSize,
+            durationMs,
+            success: body?.success !== false,
+            errorMessage: typeof body?.errorMessage === 'string' ? body.errorMessage : null,
+            clientIp: req.ip || null,
+            userAgent: req.headers?.['user-agent'] || null,
+            metadata: body?.metadata && typeof body.metadata === 'object' ? body.metadata : null,
+        });
+
+        return { ok: true };
+    }
+
     @Get('metrics/summary')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -2043,13 +2088,13 @@ export class UploadController implements OnModuleInit {
     @ApiBearerAuth()
     @ApiOperation({ summary: '업로드 메트릭 시계열 (관리자 전용)' })
     @ApiQuery({ name: 'kind', required: false, enum: ['real', 'speedtest'] })
-    @ApiQuery({ name: 'phase', required: false, enum: ['client_to_api', 'api_to_b2', 'b2_download'] })
+    @ApiQuery({ name: 'phase', required: false, enum: ['client_to_api', 'api_to_b2', 'b2_download', 'client_to_b2'] })
     @ApiQuery({ name: 'groupBy', required: false, enum: ['hour', 'day', 'week', 'month'] })
     @ApiQuery({ name: 'startDate', required: false })
     @ApiQuery({ name: 'endDate', required: false })
     async getMetricsTimeseries(
         @Query('kind') kind: 'real' | 'speedtest' | undefined,
-        @Query('phase') phase: 'client_to_api' | 'api_to_b2' | 'b2_download' | undefined,
+        @Query('phase') phase: 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2' | undefined,
         @Query('groupBy') groupBy: 'hour' | 'day' | 'week' | 'month' | undefined,
         @Query('startDate') startDate: string | undefined,
         @Query('endDate') endDate: string | undefined,

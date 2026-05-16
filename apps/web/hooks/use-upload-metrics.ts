@@ -1,27 +1,36 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
+export interface MetricsPhaseStats {
+    count: number;
+    avgSpeedKbps: number;
+    p10SpeedKbps: number;
+    p20SpeedKbps: number;
+    p30SpeedKbps: number;
+    p40SpeedKbps: number;
+    p50SpeedKbps: number;
+    p60SpeedKbps: number;
+    p70SpeedKbps: number;
+    p80SpeedKbps: number;
+    p90SpeedKbps: number;
+    p95SpeedKbps: number;
+    totalBytes: number;
+}
+
+export interface MetricsSpeedtestStats {
+    count: number;
+    avgSpeedKbps: number;
+    p50SpeedKbps: number;
+    p95SpeedKbps: number;
+    maxSpeedKbps: number;
+    totalBytes: number;
+}
+
 export interface MetricsSummary {
     range: string;
     since: string;
-    phases: Record<
-        string,
-        {
-            count: number;
-            avgSpeedKbps: number;
-            p10SpeedKbps: number;
-            p20SpeedKbps: number;
-            p30SpeedKbps: number;
-            p40SpeedKbps: number;
-            p50SpeedKbps: number;
-            p60SpeedKbps: number;
-            p70SpeedKbps: number;
-            p80SpeedKbps: number;
-            p90SpeedKbps: number;
-            p95SpeedKbps: number;
-            totalBytes: number;
-        }
-    >;
+    phases: Record<string, MetricsPhaseStats>;
+    speedtest?: MetricsSpeedtestStats;
 }
 
 export interface TimeseriesPoint {
@@ -66,7 +75,7 @@ export function useUploadMetricsSummary(range: '1h' | '24h' | '7d' | '30d' = '24
 
 export function useUploadMetricsTimeseries(params: {
     kind?: 'real' | 'speedtest';
-    phase?: 'client_to_api' | 'api_to_b2' | 'b2_download';
+    phase?: 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2';
     groupBy?: 'hour' | 'day' | 'week' | 'month';
     startDate?: string;
     endDate?: string;

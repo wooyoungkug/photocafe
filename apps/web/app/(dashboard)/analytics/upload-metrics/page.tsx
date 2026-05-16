@@ -80,8 +80,10 @@ export default function UploadMetricsPage() {
     const config = useUploadMetricsConfig();
     const updateConfig = useUpdateMetricsConfig();
 
-    const clientPhase = summary.data?.phases?.client_to_api;
-    const b2Phase = summary.data?.phases?.api_to_b2;
+    const clientPhase = summary.data?.phases?.client_to_api;    // 실측 클라이언트→API (presigned 이전 방식, 현재 거의 없음)
+    const b2Phase = summary.data?.phases?.api_to_b2;            // API→B2 프로브 (512KB)
+    const directPhase = summary.data?.phases?.client_to_b2;     // 클라이언트→B2 직접 멀티파트 업로드 (실제 업로드 경로)
+    const speedtest = summary.data?.speedtest;                  // 속도테스트 별도 집계
 
     // 두 시계열을 period 기준으로 병합
     const mergedSeries = (() => {
@@ -205,25 +207,49 @@ export default function UploadMetricsPage() {
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
-                            <Upload className="w-4 h-4" /> 클라이언트 → API
+                            <Upload className="w-4 h-4" />
+                            {(directPhase?.count ?? 0) > 0
+                                ? '클라이언트 → B2 (직접)'
+                                : '클라이언트 → API (속도테스트)'}
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-[24px] text-black font-normal">
-                            {formatSpeed(clientPhase?.avgSpeedKbps ?? 0)}
-                        </div>
-                        <div className="text-[14px] text-black font-normal mt-1">
-                            중앙값 {formatSpeed(clientPhase?.p50SpeedKbps ?? 0)} · p95 {formatSpeed(clientPhase?.p95SpeedKbps ?? 0)}
-                        </div>
-                        <div className="text-[14px] text-black font-normal mt-1">
-                            샘플 {clientPhase?.count ?? 0}건 · 누적 {formatBytes(clientPhase?.totalBytes ?? 0)}
-                        </div>
+                        {(directPhase?.count ?? 0) > 0 ? (
+                            <>
+                                <div className="text-[24px] text-black font-normal">
+                                    {formatSpeed(directPhase?.avgSpeedKbps ?? 0)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal mt-1">
+                                    중앙값 {formatSpeed(directPhase?.p50SpeedKbps ?? 0)} · p95 {formatSpeed(directPhase?.p95SpeedKbps ?? 0)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal mt-1">
+                                    샘플 {directPhase?.count ?? 0}건 · 누적 {formatBytes(directPhase?.totalBytes ?? 0)}
+                                </div>
+                            </>
+                        ) : speedtest && speedtest.count > 0 ? (
+                            <>
+                                <div className="text-[24px] text-black font-normal">
+                                    {formatSpeed(speedtest.avgSpeedKbps)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal mt-1">
+                                    중앙값 {formatSpeed(speedtest.p50SpeedKbps)} · p95 {formatSpeed(speedtest.p95SpeedKbps)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal mt-1">
+                                    샘플 {speedtest.count}건 · 누적 {formatBytes(speedtest.totalBytes)}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="text-[24px] text-black font-normal">—</div>
+                                <div className="text-[14px] text-black font-normal mt-1">데이터 없음</div>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
-                            <Zap className="w-4 h-4" /> API → B2 (내부망)
+                            <Zap className="w-4 h-4" /> API → B2 (B2 프로브)
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -246,36 +272,58 @@ export default function UploadMetricsPage() {
                     </CardHeader>
                     <CardContent>
                         {(() => {
-                            const c = clientPhase?.avgSpeedKbps ?? 0;
+                            const d = directPhase?.avgSpeedKbps ?? 0;
                             const b = b2Phase?.avgSpeedKbps ?? 0;
-                            if (!c || !b) return <div className="text-[14px] text-black font-normal">데이터 부족</div>;
-                            if (b >= c) {
-                                const ratio = b / c;
+                            const st = speedtest?.avgSpeedKbps ?? 0;
+
+                            // 1순위: 클라이언트→B2 직접 vs API→B2 프로브 비교
+                            if (d > 0 && b > 0) {
+                                if (b >= d) {
+                                    const ratio = b / d;
+                                    return (
+                                        <>
+                                            <div className="text-[24px] text-black font-normal">{ratio.toFixed(1)}배 역전</div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                API→B2 프로브가 클라이언트→B2 직접보다 {ratio.toFixed(1)}배 빠름
+                                            </div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                → 클라이언트↔B2 외부망(한국→버지니아)이 주요 병목
+                                            </div>
+                                        </>
+                                    );
+                                } else {
+                                    const ratio = d / b;
+                                    return (
+                                        <>
+                                            <div className="text-[24px] text-red-500 font-normal">{ratio.toFixed(1)}배 느림</div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                클라이언트→B2가 API→B2 프로브보다 {ratio.toFixed(1)}배 빠름
+                                            </div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                → B2 프로브 구간 또는 Railway↔B2 경로 점검 필요
+                                            </div>
+                                        </>
+                                    );
+                                }
+                            }
+
+                            // 2순위: 속도테스트(클라→API) vs B2 프로브 참고 비교
+                            if (st > 0 && b > 0) {
+                                const ratio = b >= st ? b / st : st / b;
                                 return (
                                     <>
-                                        <div className="text-[24px] text-black font-normal">{ratio.toFixed(1)}배 역전</div>
+                                        <div className="text-[24px] text-black font-normal">참고 데이터</div>
                                         <div className="text-[14px] text-black font-normal mt-1">
-                                            API→B2가 클라이언트→API보다 {ratio.toFixed(1)}배 빠름
+                                            속도테스트(클라→API) {formatSpeed(st)} · B2 프로브 {formatSpeed(b)} ({ratio.toFixed(1)}배 차이)
                                         </div>
-                                        <div className="text-[14px] text-black font-normal mt-1">
-                                            → 외부망(한국→오리건)이 주요 병목
-                                        </div>
-                                    </>
-                                );
-                            } else {
-                                const ratio = c / b;
-                                return (
-                                    <>
-                                        <div className="text-[24px] text-red-500 font-normal">{ratio.toFixed(1)}배 느림</div>
-                                        <div className="text-[14px] text-black font-normal mt-1">
-                                            API→B2가 클라이언트→API보다 {ratio.toFixed(1)}배 느림
-                                        </div>
-                                        <div className="text-[14px] text-black font-normal mt-1">
-                                            → 내부망(Railway↔B2) 또는 B2 처리 성능이 주요 병목
+                                        <div className="text-[14px] text-slate-500 font-normal mt-1">
+                                            ※ 실제 업로드(클라→B2 직접) 데이터 누적 시 정밀 분석 가능
                                         </div>
                                     </>
                                 );
                             }
+
+                            return <div className="text-[14px] text-black font-normal">데이터 부족</div>;
                         })()}
                     </CardContent>
                 </Card>
@@ -307,7 +355,7 @@ export default function UploadMetricsPage() {
                     return { label: '⚡ 우수', cls: 'text-sky-500', detail: `1GB 파일 ${Math.round(1024 * 1024 / kbps)}초` };
                 }
 
-                const hasData = (clientPhase?.count ?? 0) > 0 || (b2Phase?.count ?? 0) > 0;
+                const hasData = (directPhase?.count ?? 0) > 0 || (b2Phase?.count ?? 0) > 0;
 
                 return (
                     <Card>
@@ -323,29 +371,29 @@ export default function UploadMetricsPage() {
                                         <thead>
                                             <tr className="border-b">
                                                 <th className="text-left py-2 px-2">구간</th>
-                                                <th className="text-right py-2 px-2">클라이언트→API</th>
+                                                <th className="text-right py-2 px-2">클라이언트→B2 (직접)</th>
                                                 <th className="text-left py-2 px-3">진단</th>
                                                 <th className="text-left py-2 px-2">1GB 예상</th>
-                                                <th className="text-right py-2 px-2">API→B2</th>
+                                                <th className="text-right py-2 px-2">API→B2 (프로브)</th>
                                                 <th className="text-left py-2 px-3">진단</th>
                                                 <th className="text-left py-2 px-2">1GB 예상</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {PERCENTILES.map(({ key, label }) => {
-                                                const cVal = clientPhase?.[key] ?? 0;
+                                                const dVal = directPhase?.[key] ?? 0;
                                                 const bVal = b2Phase?.[key] ?? 0;
-                                                const cDiag = diagSpeed(cVal);
+                                                const dDiag = diagSpeed(dVal);
                                                 const bDiag = diagSpeed(bVal);
                                                 return (
                                                     <tr key={key} className="border-b hover:bg-slate-50">
                                                         <td className="py-2 px-2 font-medium">{label}</td>
-                                                        <td className="py-2 px-2 text-right">{formatSpeed(cVal)}</td>
-                                                        <td className={`py-2 px-3 ${cDiag.cls}`}>{cDiag.label}</td>
-                                                        <td className="py-2 px-2 text-slate-600">{cDiag.detail}</td>
-                                                        <td className="py-2 px-2 text-right">{formatSpeed(bVal)}</td>
-                                                        <td className={`py-2 px-3 ${bDiag.cls}`}>{bDiag.label}</td>
-                                                        <td className="py-2 px-2 text-slate-600">{bDiag.detail}</td>
+                                                        <td className="py-2 px-2 text-right">{dVal > 0 ? formatSpeed(dVal) : '—'}</td>
+                                                        <td className={`py-2 px-3 ${dDiag.cls}`}>{dVal > 0 ? dDiag.label : '—'}</td>
+                                                        <td className="py-2 px-2 text-slate-600">{dVal > 0 ? dDiag.detail : '—'}</td>
+                                                        <td className="py-2 px-2 text-right">{bVal > 0 ? formatSpeed(bVal) : '—'}</td>
+                                                        <td className={`py-2 px-3 ${bDiag.cls}`}>{bVal > 0 ? bDiag.label : '—'}</td>
+                                                        <td className="py-2 px-2 text-slate-600">{bVal > 0 ? bDiag.detail : '—'}</td>
                                                     </tr>
                                                 );
                                             })}
@@ -354,7 +402,8 @@ export default function UploadMetricsPage() {
                                     <div className="mt-3 p-3 bg-slate-50 rounded text-[13px] text-slate-600 space-y-1">
                                         <div><strong>기준 해석</strong>: p10 = 하위 10% 속도 (가장 느린 구간) · p50 = 중앙값 · p95 = 상위 5% (가장 빠른 구간)</div>
                                         <div><strong>앨범 1권 기준</strong>: 평균 원본 이미지 용량 1GB 기준 예상 소요 시간</div>
-                                        <div><strong>병목 판단</strong>: 클라이언트→API &lt; API→B2 이면 외부망 병목 / API→B2 &lt; 클라이언트→API 이면 내부망·B2 병목</div>
+                                        <div><strong>클라이언트→B2 (직접)</strong>: 실제 멀티파트 업로드 속도 (presigned URL 경유, 가장 중요한 실측 지표)</div>
+                                        <div><strong>API→B2 (프로브)</strong>: Railway API 서버에서 B2로 512KB 데이터 송신 시 측정한 내부망 속도</div>
                                     </div>
                                 </div>
                             )}
@@ -362,6 +411,42 @@ export default function UploadMetricsPage() {
                     </Card>
                 );
             })()}
+
+            {/* 속도 테스트 집계 */}
+            {summary.data?.speedtest && summary.data.speedtest.count > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-[18px] text-black font-bold">
+                            속도 테스트 결과 (클라이언트→API, {summary.data.speedtest.count}회)
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <div className="text-[24px] text-black font-normal">
+                                    {formatSpeed(summary.data.speedtest.p50SpeedKbps)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal">중앙값 (p50)</div>
+                            </div>
+                            <div>
+                                <div className="text-[24px] text-black font-normal">
+                                    {formatSpeed(summary.data.speedtest.p95SpeedKbps)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal">상위 5% (p95)</div>
+                            </div>
+                            <div>
+                                <div className="text-[24px] text-black font-normal">
+                                    {formatSpeed(summary.data.speedtest.maxSpeedKbps)}
+                                </div>
+                                <div className="text-[14px] text-black font-normal">최고 속도</div>
+                            </div>
+                        </div>
+                        <div className="mt-2 text-[13px] text-slate-500 text-center">
+                            ※ 속도테스트는 API 서버(Railway 오리건)까지의 속도입니다. 실제 B2 업로드는 클라이언트→B2 직접 전송입니다.
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* 지금 테스트 */}
             <Card>
