@@ -331,8 +331,8 @@ export default function UploadMetricsPage() {
                                         </thead>
                                         <tbody>
                                             {PERCENTILES.map(({ key, label }) => {
-                                                const cVal = (clientPhase as any)?.[key] ?? 0;
-                                                const bVal = (b2Phase as any)?.[key] ?? 0;
+                                                const cVal = clientPhase?.[key] ?? 0;
+                                                const bVal = b2Phase?.[key] ?? 0;
                                                 const cDiag = diagSpeed(cVal);
                                                 const bDiag = diagSpeed(bVal);
                                                 return (
