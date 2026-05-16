@@ -7,6 +7,8 @@ import { B2StorageService } from './services/b2-storage.service';
 import { R2StorageService } from './services/r2-storage.service';
 import { WorkerUploadProxyService } from './services/worker-upload-proxy.service';
 import { FileRetentionSchedulerService } from './services/file-retention-scheduler.service';
+import { UploadMetricsService } from './services/upload-metrics.service';
+import { UploadMetricsInterceptor } from './interceptors/upload-metrics.interceptor';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 
 const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6시간
@@ -22,6 +24,8 @@ const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6시간
         R2StorageService,
         WorkerUploadProxyService,
         FileRetentionSchedulerService,
+        UploadMetricsService,
+        UploadMetricsInterceptor,
     ],
     exports: [
         FileStorageService,
@@ -31,6 +35,7 @@ const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6시간
         R2StorageService,
         WorkerUploadProxyService,
         FileRetentionSchedulerService,
+        UploadMetricsService,
     ],
 })
 export class UploadModule implements OnModuleInit, OnModuleDestroy {

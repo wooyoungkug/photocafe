@@ -94,6 +94,7 @@ export class RecruitmentService {
       page = 1,
       limit = 20,
       sort = 'latest',
+      region,
     } = query;
 
     const where: any = {};
@@ -113,6 +114,10 @@ export class RecruitmentService {
       where.shootingDate = {};
       if (startDate) where.shootingDate.gte = new Date(startDate);
       if (endDate) where.shootingDate.lte = new Date(endDate);
+    }
+
+    if (region) {
+      where.venueAddress = { contains: region };
     }
 
     const orderBy: any =

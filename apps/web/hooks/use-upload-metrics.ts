@@ -1,0 +1,91 @@
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+
+export interface MetricsSummary {
+    range: string;
+    since: string;
+    phases: Record<
+        string,
+        {
+            count: number;
+            avgSpeedKbps: number;
+            p50SpeedKbps: number;
+            p95SpeedKbps: number;
+            totalBytes: number;
+        }
+    >;
+}
+
+export interface TimeseriesPoint {
+    period: string;
+    count: number;
+    avgSpeedKbps: number;
+    avgFileSize: number;
+    avgDurationMs: number;
+}
+
+export interface TimeseriesResponse {
+    data: TimeseriesPoint[];
+    period: { startDate?: string; endDate?: string; groupBy: string };
+}
+
+export interface RecentMetric {
+    id: string;
+    kind: string;
+    phase: string;
+    endpoint: string | null;
+    userId: string | null;
+    userType: string | null;
+    fileSize: number;
+    durationMs: number;
+    speedKbps: number;
+    success: boolean;
+    errorMessage: string | null;
+    clientIp: string | null;
+    countryCode: string | null;
+    createdAt: string;
+}
+
+export function useUploadMetricsSummary(range: '1h' | '24h' | '7d' | '30d' = '24h') {
+    return useQuery({
+        queryKey: ['upload-metrics-summary', range],
+        queryFn: () => api.get<MetricsSummary>('/upload/metrics/summary', { range }),
+        refetchInterval: 30_000,
+        staleTime: 15_000,
+    });
+}
+
+export function useUploadMetricsTimeseries(params: {
+    kind?: 'real' | 'speedtest';
+    phase?: 'client_to_api' | 'api_to_b2' | 'b2_download';
+    groupBy?: 'hour' | 'day' | 'week' | 'month';
+    startDate?: string;
+    endDate?: string;
+}) {
+    return useQuery({
+        queryKey: ['upload-metrics-timeseries', params],
+        queryFn: () =>
+            api.get<TimeseriesResponse>('/upload/metrics/timeseries', {
+                ...(params.kind ? { kind: params.kind } : {}),
+                ...(params.phase ? { phase: params.phase } : {}),
+                ...(params.groupBy ? { groupBy: params.groupBy } : {}),
+                ...(params.startDate ? { startDate: params.startDate } : {}),
+                ...(params.endDate ? { endDate: params.endDate } : {}),
+            }),
+        refetchInterval: 60_000,
+        staleTime: 30_000,
+    });
+}
+
+export function useUploadMetricsRecent(limit = 50, kind?: 'real' | 'speedtest') {
+    return useQuery({
+        queryKey: ['upload-metrics-recent', limit, kind],
+        queryFn: () =>
+            api.get<RecentMetric[]>('/upload/metrics/recent', {
+                limit,
+                ...(kind ? { kind } : {}),
+            }),
+        refetchInterval: 30_000,
+        staleTime: 15_000,
+    });
+}

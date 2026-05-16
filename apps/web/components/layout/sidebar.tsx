@@ -232,6 +232,7 @@ export const DEFAULT_NAVIGATION: NavItem[] = [
     children: [
       { name: "방문 통계", href: "/analytics" },
       { name: "의심 IP 관리", href: "/analytics/suspicious-ips" },
+      { name: "업로드 속도", href: "/analytics/upload-metrics" },
     ],
   },
 ];

@@ -220,4 +220,9 @@ export class QueryRecruitmentDto {
   @IsOptional()
   @IsIn(['latest', 'deadline', 'budget_high', 'budget_low'])
   sort?: string;
+
+  /** 지역 필터: 시/도 키워드 (예: 서울, 경기, 부산) */
+  @IsOptional()
+  @IsString()
+  region?: string;
 }

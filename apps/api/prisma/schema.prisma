@@ -156,6 +156,41 @@ model SecurityLog {
   @@map("security_logs")
 }
 
+/// 업로드 속도 메트릭 — 클라이언트→API 및 API→B2 구간 측정값 저장
+/// 실 업로드는 10% 샘플링, 속도테스트는 100% 기록.
+model UploadMetric {
+  id           String   @id @default(cuid())
+  /// "real" (실 업로드 샘플) | "speedtest" (관리자 수동 테스트)
+  kind         String
+  /// "client_to_api" | "api_to_b2" | "b2_download"
+  phase        String
+  /// 엔드포인트 경로 (/upload/album-file 등)
+  endpoint     String?
+  userId       String?
+  /// staff | client | branch | anonymous
+  userType     String?
+  /// 바이트 단위 파일 크기
+  fileSize     BigInt
+  /// 소요시간(밀리초)
+  durationMs   Int
+  /// 계산값 — KB/s (fileSize / 1024 / (durationMs / 1000))
+  speedKbps    Float
+  success      Boolean  @default(true)
+  errorMessage String?
+  clientIp     String?
+  userAgent    String?  @db.Text
+  /// Cloudflare CF-IPCountry 헤더
+  countryCode  String?
+  /// 추가 컨텍스트 (CF-Ray, 페어ID 등)
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([kind, phase, createdAt])
+  @@index([endpoint, createdAt])
+  @@index([createdAt])
+  @@map("upload_metrics")
+}
+
 model Staff {
   id                      String                  @id @default(cuid())
   staffId                 String?                 @unique

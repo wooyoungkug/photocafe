@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Optional, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
   S3Client,
@@ -14,6 +14,7 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import * as path from 'path';
+import { UploadMetricsService } from './upload-metrics.service';
 
 /**
  * order.service.sanitizeStorageKeyPart 와 동일한 정규화.
@@ -42,8 +43,36 @@ export class B2StorageService implements OnModuleInit {
   private publicUrlPrefix = '';
   private enabled = false;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    @Optional() private readonly metrics?: UploadMetricsService,
+  ) {
     this.hydrate();
+  }
+
+  /**
+   * B2 전송 구간(API→B2) 측정. 호출자가 명시적으로 사용.
+   * 실패해도 호출자에게 영향 없음.
+   */
+  private recordTransfer(
+    bytes: number,
+    durationMs: number,
+    success: boolean,
+    errorMessage?: string,
+    extra?: { endpoint?: string; userId?: string; userType?: string; kind?: 'real' | 'speedtest' },
+  ): void {
+    if (!this.metrics) return;
+    this.metrics.record({
+      kind: extra?.kind ?? 'real',
+      phase: 'api_to_b2',
+      endpoint: extra?.endpoint ?? null,
+      userId: extra?.userId ?? null,
+      userType: extra?.userType ?? null,
+      fileSize: bytes,
+      durationMs,
+      success,
+      errorMessage,
+    });
   }
 
   private getFirst(...keys: string[]): string {
@@ -130,15 +159,27 @@ export class B2StorageService implements OnModuleInit {
    */
   async putPrivateObject(key: string, body: Buffer, contentType: string): Promise<string> {
     const s3 = this.requireClient();
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: this.privateBucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-      }),
-    );
-    return key;
+    const start = process.hrtime.bigint();
+    let success = false;
+    let errorMessage: string | undefined;
+    try {
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: this.privateBucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+        }),
+      );
+      success = true;
+      return key;
+    } catch (err) {
+      errorMessage = (err as Error)?.message;
+      throw err;
+    } finally {
+      const durationMs = Number((process.hrtime.bigint() - start) / 1_000_000n);
+      this.recordTransfer(body.length, durationMs, success, errorMessage);
+    }
   }
 
   /**
@@ -153,6 +194,9 @@ export class B2StorageService implements OnModuleInit {
     const s3 = this.requireClient();
     const size = fs.statSync(filePath).size;
     const stream = fs.createReadStream(filePath);
+    const start = process.hrtime.bigint();
+    let success = false;
+    let errorMessage: string | undefined;
     try {
       await s3.send(
         new PutObjectCommand({
@@ -163,9 +207,15 @@ export class B2StorageService implements OnModuleInit {
           ContentLength: size,
         }),
       );
+      success = true;
+    } catch (err) {
+      errorMessage = (err as Error)?.message;
+      throw err;
     } finally {
       // ReadStream이 다 안 읽혀도 핸들 닫기
       stream.destroy();
+      const durationMs = Number((process.hrtime.bigint() - start) / 1_000_000n);
+      this.recordTransfer(size, durationMs, success, errorMessage);
     }
     return key;
   }
@@ -178,16 +228,28 @@ export class B2StorageService implements OnModuleInit {
       throw new Error('B2_PUBLIC_BUCKET is not set');
     }
     const s3 = this.requireClient();
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: this.publicBucket,
-        Key: key,
-        Body: body,
-        ContentType: contentType,
-        CacheControl: 'public, max-age=31536000, immutable',
-      }),
-    );
-    return key;
+    const start = process.hrtime.bigint();
+    let success = false;
+    let errorMessage: string | undefined;
+    try {
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: this.publicBucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+          CacheControl: 'public, max-age=31536000, immutable',
+        }),
+      );
+      success = true;
+      return key;
+    } catch (err) {
+      errorMessage = (err as Error)?.message;
+      throw err;
+    } finally {
+      const durationMs = Number((process.hrtime.bigint() - start) / 1_000_000n);
+      this.recordTransfer(body.length, durationMs, success, errorMessage);
+    }
   }
 
   /**

@@ -1,10 +1,10 @@
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request, BadRequestException, Get, Param, Res, Body, Delete, Logger, OnModuleInit } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Request, BadRequestException, ForbiddenException, Get, Param, Res, Body, Delete, Query, Logger, OnModuleInit } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiConsumes, ApiBody, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiConsumes, ApiBody, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { diskStorage } from 'multer';
+import { diskStorage, memoryStorage } from 'multer';
 import { extname, join } from 'path';
-import { randomUUID } from 'crypto';
+import { randomUUID, randomBytes } from 'crypto';
 import { existsSync, mkdirSync, createReadStream, statSync, unlinkSync, readFileSync } from 'fs';
 import { writeFile as fsWriteFile, rename as fsRename, open as fsOpen, unlink as fsUnlink } from 'fs/promises';
 import { Response } from 'express';
@@ -13,6 +13,8 @@ import { ThumbnailService } from './services/thumbnail.service';
 import { B2StorageService } from './services/b2-storage.service';
 import { R2StorageService } from './services/r2-storage.service';
 import { WorkerUploadProxyService } from './services/worker-upload-proxy.service';
+import { UploadMetricsService } from './services/upload-metrics.service';
+import { UploadMetricsInterceptor } from './interceptors/upload-metrics.interceptor';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
@@ -57,6 +59,7 @@ interface B2TempFileMeta {
 
 @ApiTags('Upload')
 @Controller('upload')
+@UseInterceptors(UploadMetricsInterceptor)
 export class UploadController implements OnModuleInit {
     private readonly logger = new Logger(UploadController.name);
 
@@ -104,6 +107,7 @@ export class UploadController implements OnModuleInit {
         private readonly r2Storage: R2StorageService,
         private readonly workerProxy: WorkerUploadProxyService,
         private readonly prisma: PrismaService,
+        private readonly metrics: UploadMetricsService,
     ) {}
 
     /**
@@ -1690,5 +1694,147 @@ export class UploadController implements OnModuleInit {
         if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
         await this.thumbnailService.generateThumbnail(origCachePath, cacheDir, origFileName);
         return existsSync(cachePath) ? cachePath : null;
+    }
+
+    // ==================== 속도 테스트 & 메트릭 조회 (관리자 전용) ====================
+
+    private assertStaff(req: any): void {
+        if (req?.user?.type !== 'staff') {
+            throw new ForbiddenException('관리자(staff)만 접근 가능합니다.');
+        }
+    }
+
+    @Post('speedtest/upload')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Throttle({ default: { ttl: 60000, limit: 30 } })
+    @ApiOperation({ summary: '업로드 속도 테스트 — 받은 파일을 즉시 폐기, 메트릭만 기록 (관리자 전용)' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: { file: { type: 'string', format: 'binary' } },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: memoryStorage(),
+            limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB 상한
+        }),
+    )
+    speedtestUpload(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+        this.assertStaff(req);
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+        // 메모리 즉시 폐기 (참조 끊기)
+        const size = file.size;
+        (file as any).buffer = null;
+        return {
+            sizeBytes: size,
+            sizeMb: +(size / 1024 / 1024).toFixed(2),
+            message: 'received',
+        };
+    }
+
+    @Get('speedtest/download')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Throttle({ default: { ttl: 60000, limit: 30 } })
+    @ApiOperation({ summary: '다운로드 속도 테스트 — 무작위 바이트 N MB 스트리밍 (관리자 전용, 최대 100MB)' })
+    @ApiQuery({ name: 'sizeMb', required: false, description: '다운로드 크기 MB (기본 10, 최대 100)' })
+    async speedtestDownload(@Query('sizeMb') sizeMb: string, @Request() req: any, @Res() res: Response) {
+        this.assertStaff(req);
+        const requested = parseInt(sizeMb || '10', 10);
+        const sizeMbClamped = Math.min(Math.max(Number.isFinite(requested) ? requested : 10, 1), 100);
+        const totalBytes = sizeMbClamped * 1024 * 1024;
+        const chunkSize = 64 * 1024; // 64KB
+
+        res.setHeader('Content-Type', 'application/octet-stream');
+        res.setHeader('Content-Length', String(totalBytes));
+        res.setHeader('Cache-Control', 'no-store');
+
+        const start = process.hrtime.bigint();
+        let sent = 0;
+        try {
+            while (sent < totalBytes) {
+                const remaining = totalBytes - sent;
+                const len = Math.min(chunkSize, remaining);
+                const chunk = randomBytes(len);
+                const ok = res.write(chunk);
+                sent += len;
+                if (!ok) {
+                    await new Promise<void>(resolve => res.once('drain', () => resolve()));
+                }
+            }
+            res.end();
+        } catch (err) {
+            this.logger.warn(`speedtest/download 실패: ${(err as Error).message}`);
+        }
+
+        const durationMs = Number((process.hrtime.bigint() - start) / 1_000_000n);
+        this.metrics.record({
+            kind: 'speedtest',
+            phase: 'b2_download',
+            endpoint: '/upload/speedtest/download',
+            userId: req.user?.sub || req.user?.id || null,
+            userType: req.user?.type || null,
+            fileSize: sent,
+            durationMs,
+            success: sent === totalBytes,
+        });
+    }
+
+    @Get('metrics/summary')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '업로드 메트릭 요약 (관리자 전용)' })
+    @ApiQuery({ name: 'range', required: false, enum: ['1h', '24h', '7d', '30d'] })
+    async getMetricsSummary(@Query('range') range: '1h' | '24h' | '7d' | '30d' | undefined, @Request() req: any) {
+        this.assertStaff(req);
+        return this.metrics.getSummary(range ?? '24h');
+    }
+
+    @Get('metrics/timeseries')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '업로드 메트릭 시계열 (관리자 전용)' })
+    @ApiQuery({ name: 'kind', required: false, enum: ['real', 'speedtest'] })
+    @ApiQuery({ name: 'phase', required: false, enum: ['client_to_api', 'api_to_b2', 'b2_download'] })
+    @ApiQuery({ name: 'groupBy', required: false, enum: ['hour', 'day', 'week', 'month'] })
+    @ApiQuery({ name: 'startDate', required: false })
+    @ApiQuery({ name: 'endDate', required: false })
+    async getMetricsTimeseries(
+        @Query('kind') kind: 'real' | 'speedtest' | undefined,
+        @Query('phase') phase: 'client_to_api' | 'api_to_b2' | 'b2_download' | undefined,
+        @Query('groupBy') groupBy: 'hour' | 'day' | 'week' | 'month' | undefined,
+        @Query('startDate') startDate: string | undefined,
+        @Query('endDate') endDate: string | undefined,
+        @Request() req: any,
+    ) {
+        this.assertStaff(req);
+        return this.metrics.getTimeSeries({
+            kind,
+            phase,
+            groupBy,
+            startDate: startDate ? new Date(startDate) : undefined,
+            endDate: endDate ? new Date(endDate) : undefined,
+        });
+    }
+
+    @Get('metrics/recent')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '최근 업로드 메트릭 (관리자 전용)' })
+    @ApiQuery({ name: 'limit', required: false })
+    @ApiQuery({ name: 'kind', required: false, enum: ['real', 'speedtest'] })
+    async getMetricsRecent(
+        @Query('limit') limit: string | undefined,
+        @Query('kind') kind: 'real' | 'speedtest' | undefined,
+        @Request() req: any,
+    ) {
+        this.assertStaff(req);
+        const lim = limit ? parseInt(limit, 10) : 50;
+        return this.metrics.getRecent(Number.isFinite(lim) ? lim : 50, kind);
     }
 }
