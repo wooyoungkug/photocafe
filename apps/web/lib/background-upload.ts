@@ -11,7 +11,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 
-const CONCURRENCY = 6; // 16MB×10청크×6파일 = 960MB in-flight (고속 회선 최적화)
+const CONCURRENCY = 8; // 16MB×10청크×8파일 = 1280MB in-flight (고속 회선 최적화)
 const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
 
 function generateTempFolderId(): string {
