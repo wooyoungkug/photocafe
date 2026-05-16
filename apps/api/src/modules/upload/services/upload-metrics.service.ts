@@ -45,8 +45,8 @@ export class UploadMetricsService {
 
     constructor(private readonly prisma: PrismaService) {
         const raw = process.env.UPLOAD_METRICS_SAMPLE_RATE;
-        const parsed = raw ? parseFloat(raw) : 0.2;
-        this._sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.2;
+        const parsed = raw ? parseFloat(raw) : 0.5;
+        this._sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.5;
     }
 
     getSampleRate(): number {
@@ -187,7 +187,15 @@ export class UploadMetricsService {
                 {
                     count: bigint;
                     avg_speed: number;
+                    p10_speed: number;
+                    p20_speed: number;
+                    p30_speed: number;
+                    p40_speed: number;
                     p50_speed: number;
+                    p60_speed: number;
+                    p70_speed: number;
+                    p80_speed: number;
+                    p90_speed: number;
                     p95_speed: number;
                     total_bytes: number;
                 }[]
@@ -195,7 +203,15 @@ export class UploadMetricsService {
                 Prisma.sql`SELECT
                     COUNT(*) as count,
                     COALESCE(AVG("speedKbps"), 0)::float as avg_speed,
-                    COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p50_speed,
+                    COALESCE(PERCENTILE_CONT(0.10) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p10_speed,
+                    COALESCE(PERCENTILE_CONT(0.20) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p20_speed,
+                    COALESCE(PERCENTILE_CONT(0.30) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p30_speed,
+                    COALESCE(PERCENTILE_CONT(0.40) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p40_speed,
+                    COALESCE(PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p50_speed,
+                    COALESCE(PERCENTILE_CONT(0.60) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p60_speed,
+                    COALESCE(PERCENTILE_CONT(0.70) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p70_speed,
+                    COALESCE(PERCENTILE_CONT(0.80) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p80_speed,
+                    COALESCE(PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p90_speed,
                     COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY "speedKbps"), 0)::float as p95_speed,
                     COALESCE(SUM("fileSize"::bigint), 0)::float as total_bytes
                   FROM upload_metrics
@@ -205,7 +221,15 @@ export class UploadMetricsService {
             result[phase] = {
                 count: Number(row?.count ?? 0),
                 avgSpeedKbps: Number(row?.avg_speed ?? 0),
+                p10SpeedKbps: Number(row?.p10_speed ?? 0),
+                p20SpeedKbps: Number(row?.p20_speed ?? 0),
+                p30SpeedKbps: Number(row?.p30_speed ?? 0),
+                p40SpeedKbps: Number(row?.p40_speed ?? 0),
                 p50SpeedKbps: Number(row?.p50_speed ?? 0),
+                p60SpeedKbps: Number(row?.p60_speed ?? 0),
+                p70SpeedKbps: Number(row?.p70_speed ?? 0),
+                p80SpeedKbps: Number(row?.p80_speed ?? 0),
+                p90SpeedKbps: Number(row?.p90_speed ?? 0),
                 p95SpeedKbps: Number(row?.p95_speed ?? 0),
                 totalBytes: Number(row?.total_bytes ?? 0),
             };

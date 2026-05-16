@@ -26,6 +26,7 @@ import {
     useUploadMetricsConfig,
     useUpdateMetricsConfig,
     type AggregatedStatRow,
+    type MetricsSummary,
 } from '@/hooks/use-upload-metrics';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
@@ -238,7 +239,7 @@ export default function UploadMetricsPage() {
                 <Card>
                     <CardHeader className="pb-2">
                         <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
-                            <Gauge className="w-4 h-4" /> 병목 비율
+                            <Gauge className="w-4 h-4" /> 병목 분석
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -246,22 +247,119 @@ export default function UploadMetricsPage() {
                             const c = clientPhase?.avgSpeedKbps ?? 0;
                             const b = b2Phase?.avgSpeedKbps ?? 0;
                             if (!c || !b) return <div className="text-[14px] text-black font-normal">데이터 부족</div>;
-                            const ratio = b / c;
-                            return (
-                                <>
-                                    <div className="text-[24px] text-black font-normal">{ratio.toFixed(1)}배</div>
-                                    <div className="text-[14px] text-black font-normal mt-1">
-                                        B2가 클라이언트→API보다 {ratio.toFixed(1)}배 빠름
-                                    </div>
-                                    <div className="text-[14px] text-black font-normal mt-1">
-                                        → 외부망(한국→오리건)이 주요 병목
-                                    </div>
-                                </>
-                            );
+                            if (b >= c) {
+                                const ratio = b / c;
+                                return (
+                                    <>
+                                        <div className="text-[24px] text-black font-normal">{ratio.toFixed(1)}배 역전</div>
+                                        <div className="text-[14px] text-black font-normal mt-1">
+                                            API→B2가 클라이언트→API보다 {ratio.toFixed(1)}배 빠름
+                                        </div>
+                                        <div className="text-[14px] text-black font-normal mt-1">
+                                            → 외부망(한국→오리건)이 주요 병목
+                                        </div>
+                                    </>
+                                );
+                            } else {
+                                const ratio = c / b;
+                                return (
+                                    <>
+                                        <div className="text-[24px] text-red-500 font-normal">{ratio.toFixed(1)}배 느림</div>
+                                        <div className="text-[14px] text-black font-normal mt-1">
+                                            API→B2가 클라이언트→API보다 {ratio.toFixed(1)}배 느림
+                                        </div>
+                                        <div className="text-[14px] text-black font-normal mt-1">
+                                            → 내부망(Railway↔B2) 또는 B2 처리 성능이 주요 병목
+                                        </div>
+                                    </>
+                                );
+                            }
                         })()}
                     </CardContent>
                 </Card>
             </div>
+
+            {/* 실측 분포 분석 (10분위) */}
+            {(() => {
+                type PhaseData = MetricsSummary['phases'][string];
+                const PERCENTILES: { key: keyof PhaseData; label: string }[] = [
+                    { key: 'p10SpeedKbps', label: 'p10 (하위 10%)' },
+                    { key: 'p20SpeedKbps', label: 'p20 (하위 20%)' },
+                    { key: 'p30SpeedKbps', label: 'p30 (하위 30%)' },
+                    { key: 'p40SpeedKbps', label: 'p40 (하위 40%)' },
+                    { key: 'p50SpeedKbps', label: 'p50 중앙값' },
+                    { key: 'p60SpeedKbps', label: 'p60 (상위 40%)' },
+                    { key: 'p70SpeedKbps', label: 'p70 (상위 30%)' },
+                    { key: 'p80SpeedKbps', label: 'p80 (상위 20%)' },
+                    { key: 'p90SpeedKbps', label: 'p90 (상위 10%)' },
+                    { key: 'p95SpeedKbps', label: 'p95 (상위 5%)' },
+                ];
+
+                function diagSpeed(kbps: number): { label: string; cls: string; detail: string } {
+                    if (!kbps || kbps <= 0) return { label: '—', cls: 'text-slate-400', detail: '데이터 없음' };
+                    if (kbps < 100) return { label: '🔴 심각', cls: 'text-red-500', detail: '업로드 사실상 불가' };
+                    if (kbps < 512) return { label: '🟠 매우 느림', cls: 'text-orange-500', detail: `1GB 파일 약 ${Math.round(1024 * 1024 / kbps / 60)}분` };
+                    if (kbps < 1024) return { label: '🟡 느림', cls: 'text-yellow-500', detail: `1GB 파일 약 ${Math.round(1024 * 1024 / kbps / 60)}분` };
+                    if (kbps < 3072) return { label: '🟢 보통', cls: 'text-green-500', detail: `1GB 파일 약 ${Math.round(1024 * 1024 / kbps / 60)}분` };
+                    if (kbps < 10240) return { label: '💚 양호', cls: 'text-green-700', detail: `1GB 파일 약 ${Math.round(1024 * 1024 / kbps / 60)}분` };
+                    return { label: '⚡ 우수', cls: 'text-sky-500', detail: `1GB 파일 ${Math.round(1024 * 1024 / kbps)}초` };
+                }
+
+                const hasData = (clientPhase?.count ?? 0) > 0 || (b2Phase?.count ?? 0) > 0;
+
+                return (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-[18px] text-black font-bold">실측 속도 분포 분석 (10분위)</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {!hasData ? (
+                                <div className="text-[14px] text-black font-normal text-center py-4">아직 실측 데이터가 없습니다.</div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-[14px] text-black font-normal">
+                                        <thead>
+                                            <tr className="border-b">
+                                                <th className="text-left py-2 px-2">구간</th>
+                                                <th className="text-right py-2 px-2">클라이언트→API</th>
+                                                <th className="text-left py-2 px-3">진단</th>
+                                                <th className="text-left py-2 px-2">1GB 예상</th>
+                                                <th className="text-right py-2 px-2">API→B2</th>
+                                                <th className="text-left py-2 px-3">진단</th>
+                                                <th className="text-left py-2 px-2">1GB 예상</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {PERCENTILES.map(({ key, label }) => {
+                                                const cVal = (clientPhase as any)?.[key] ?? 0;
+                                                const bVal = (b2Phase as any)?.[key] ?? 0;
+                                                const cDiag = diagSpeed(cVal);
+                                                const bDiag = diagSpeed(bVal);
+                                                return (
+                                                    <tr key={key} className="border-b hover:bg-slate-50">
+                                                        <td className="py-2 px-2 font-medium">{label}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(cVal)}</td>
+                                                        <td className={`py-2 px-3 ${cDiag.cls}`}>{cDiag.label}</td>
+                                                        <td className="py-2 px-2 text-slate-600">{cDiag.detail}</td>
+                                                        <td className="py-2 px-2 text-right">{formatSpeed(bVal)}</td>
+                                                        <td className={`py-2 px-3 ${bDiag.cls}`}>{bDiag.label}</td>
+                                                        <td className="py-2 px-2 text-slate-600">{bDiag.detail}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                    <div className="mt-3 p-3 bg-slate-50 rounded text-[13px] text-slate-600 space-y-1">
+                                        <div><strong>기준 해석</strong>: p10 = 하위 10% 속도 (가장 느린 구간) · p50 = 중앙값 · p95 = 상위 5% (가장 빠른 구간)</div>
+                                        <div><strong>앨범 1권 기준</strong>: 평균 원본 이미지 용량 1GB 기준 예상 소요 시간</div>
+                                        <div><strong>병목 판단</strong>: 클라이언트→API &lt; API→B2 이면 외부망 병목 / API→B2 &lt; 클라이언트→API 이면 내부망·B2 병목</div>
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            })()}
 
             {/* 지금 테스트 */}
             <Card>

@@ -9,7 +9,15 @@ export interface MetricsSummary {
         {
             count: number;
             avgSpeedKbps: number;
+            p10SpeedKbps: number;
+            p20SpeedKbps: number;
+            p30SpeedKbps: number;
+            p40SpeedKbps: number;
             p50SpeedKbps: number;
+            p60SpeedKbps: number;
+            p70SpeedKbps: number;
+            p80SpeedKbps: number;
+            p90SpeedKbps: number;
             p95SpeedKbps: number;
             totalBytes: number;
         }
