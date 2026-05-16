@@ -52,6 +52,7 @@ export function useUploadMetricsSummary(range: '1h' | '24h' | '7d' | '30d' = '24
         queryFn: () => api.get<MetricsSummary>('/upload/metrics/summary', { range }),
         refetchInterval: 30_000,
         staleTime: 15_000,
+        refetchOnWindowFocus: false,
     });
 }
 
@@ -74,6 +75,7 @@ export function useUploadMetricsTimeseries(params: {
             }),
         refetchInterval: 60_000,
         staleTime: 30_000,
+        refetchOnWindowFocus: false,
     });
 }
 
@@ -87,6 +89,7 @@ export function useUploadMetricsRecent(limit = 50, kind?: 'real' | 'speedtest') 
             }),
         refetchInterval: 30_000,
         staleTime: 15_000,
+        refetchOnWindowFocus: false,
     });
 }
 
@@ -111,6 +114,7 @@ export function useUploadMetricsStats(period: 'day' | 'month' | 'quarter' | 'yea
         queryFn: () =>
             api.get<AggregatedStatsResponse>('/upload/metrics/stats', { period }),
         staleTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
     });
 }
 
@@ -122,7 +126,9 @@ export function useUploadMetricsConfig() {
     return useQuery({
         queryKey: ['upload-metrics-config'],
         queryFn: () => api.get<MetricsConfig>('/upload/metrics/config'),
-        staleTime: 30_000,
+        staleTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
+        retry: 1,
     });
 }
 
