@@ -45,8 +45,8 @@ export class UploadMetricsService {
 
     constructor(private readonly prisma: PrismaService) {
         const raw = process.env.UPLOAD_METRICS_SAMPLE_RATE;
-        const parsed = raw ? parseFloat(raw) : 0.1;
-        this._sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.1;
+        const parsed = raw ? parseFloat(raw) : 0.2;
+        this._sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.2;
     }
 
     getSampleRate(): number {

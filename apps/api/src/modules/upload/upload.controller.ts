@@ -847,6 +847,7 @@ export class UploadController implements OnModuleInit {
             storage?: string;
             thumbnailDataUrl?: string;
         },
+        @Request() req: any,
     ) {
         const storage = this.pickStorage(body.storage);
         if (!storage.isEnabled()) {
@@ -1000,6 +1001,20 @@ export class UploadController implements OnModuleInit {
                 await fsWriteFile(tempFilePath, buf);
                 if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
                 await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+            });
+        }
+
+        // API → B2 속도 측정: multipart-complete 완료 후 512KB 합성 프로브로 API→B2 속도 측정
+        // 실제 업로드(브라우저→B2 직접)와 별도로, API 서버의 B2 접근 속도를 추적한다.
+        if (req?.metricsSampled && this.b2Storage.isEnabled()) {
+            const probeKey = `metrics/probe/${randomUUID()}`;
+            setImmediate(async () => {
+                try {
+                    const probe = Buffer.allocUnsafe(512 * 1024); // 512KB 합성 데이터
+                    await this.b2Storage.putPrivateObject(probeKey, probe, 'application/octet-stream');
+                } catch { /* 측정 실패 무시 */ } finally {
+                    this.b2Storage.deletePrivateObject(probeKey).catch(() => {});
+                }
             });
         }
 
