@@ -1980,6 +1980,28 @@ export class UploadController implements OnModuleInit {
         };
     }
 
+    @Post('speedtest/b2-presign')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Throttle({ default: { ttl: 60000, limit: 30 } })
+    @ApiOperation({ summary: 'B2 직접 업로드 속도 테스트용 presigned PUT URL 발급 (관리자 전용, 최대 100MB)' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: { sizeMb: { type: 'number', description: '업로드할 크기 MB (1~100)' } },
+        },
+    })
+    async speedtestB2Presign(@Body() body: { sizeMb?: number }, @Request() req: any) {
+        this.assertStaff(req);
+        if (!this.b2Storage.isEnabled()) {
+            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        }
+        const sizeMb = Math.min(Math.max(Number.isFinite(body?.sizeMb) ? body.sizeMb! : 10, 1), 100);
+        const key = `speedtest/${Date.now()}-${randomBytes(6).toString('hex')}.bin`;
+        const presignedUrl = await this.b2Storage.getPresignedPutUrl(key, 'application/octet-stream', 'private', 300);
+        return { presignedUrl, key, sizeMb, expiresIn: 300 };
+    }
+
     @Get('speedtest/download')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
@@ -2154,7 +2176,10 @@ export class UploadController implements OnModuleInit {
     @ApiOperation({ summary: '업로드 메트릭 설정 조회 (관리자 전용)' })
     async getMetricsConfig(@Request() req: any) {
         this.assertStaff(req);
-        return { sampleRate: this.metrics.getSampleRate() };
+        return {
+            sampleRate: this.metrics.getSampleRate(),
+            b2SampleRate: this.metrics.getB2SampleRate(),
+        };
     }
 
     @Patch('metrics/config')
@@ -2162,11 +2187,15 @@ export class UploadController implements OnModuleInit {
     @ApiBearerAuth()
     @ApiOperation({ summary: '샘플링 비율 변경 0~1 (관리자 전용, 서버 재시작 시 env 기본값으로 초기화)' })
     async updateMetricsConfig(
-        @Body() body: { sampleRate: number },
+        @Body() body: { sampleRate?: number; b2SampleRate?: number },
         @Request() req: any,
     ) {
         this.assertStaff(req);
-        const updated = this.metrics.setSampleRate(body.sampleRate);
-        return { sampleRate: updated };
+        if (body.sampleRate !== undefined) this.metrics.setSampleRate(body.sampleRate);
+        if (body.b2SampleRate !== undefined) this.metrics.setB2SampleRate(body.b2SampleRate);
+        return {
+            sampleRate: this.metrics.getSampleRate(),
+            b2SampleRate: this.metrics.getB2SampleRate(),
+        };
     }
 }

@@ -1,6 +1,16 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || '/api/v1';
 const API_BASE = API_URL.replace(/\/api\/v1\/?$/, '');
 
+function getB2SampleRate(): number {
+  if (typeof window === 'undefined') return 0.3;
+  try {
+    const v = parseFloat(window.localStorage.getItem('b2SampleRate') ?? '');
+    return Number.isFinite(v) ? Math.min(Math.max(v, 0), 1) : 0.3;
+  } catch {
+    return 0.3;
+  }
+}
+
 const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000; // 10분
 
 export class UploadError extends Error {
@@ -649,6 +659,7 @@ export async function uploadAlbumFilePresigned(
 
   // 2단계: B2 직접 업로드 + 클라이언트 썸네일 생성 병렬 실행
   const thumbnailPromise = generateClientThumbnail(file);
+  const b2UploadStart = performance.now();
   try {
     await uploadToB2Direct(presigned.presignedUrl, file, contentType, onProgress, signal);
   } catch (err) {
@@ -660,6 +671,16 @@ export async function uploadAlbumFilePresigned(
       undefined,
       true,
     );
+  }
+
+  // 파트별 client→B2 속도 보고 (설정 샘플링)
+  if (token && Math.random() < getB2SampleRate()) {
+    const durationMs = performance.now() - b2UploadStart;
+    void fetch(`${API_BASE}/api/v1/upload/metrics/record`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ kind: 'real', phase: 'client_to_b2', fileSize: file.size, durationMs }),
+    }).catch(() => {});
   }
 
   if (signal?.aborted) {
@@ -1060,8 +1081,8 @@ export async function uploadAlbumFileMultipart(
         );
         partResults[partInfo.partNumber - 1] = { partNumber: partInfo.partNumber, etag };
 
-        // 파트별 client→B2 속도를 API에 fire-and-forget 보고 (샘플링 30%)
-        if (token && Math.random() < 0.3) {
+        // 파트별 client→B2 속도를 API에 fire-and-forget 보고 (설정 샘플링)
+        if (token && Math.random() < getB2SampleRate()) {
           const durationMs = performance.now() - partStart;
           void fetch(`${API_BASE}/api/v1/upload/metrics/record`, {
             method: 'POST',

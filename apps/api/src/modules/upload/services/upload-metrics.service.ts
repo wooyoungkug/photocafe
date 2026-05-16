@@ -54,11 +54,16 @@ export class UploadMetricsService {
 
     /** 런타임 샘플링 비율 (0~1). 재시작 시 env 기본값으로 초기화된다. */
     private _sampleRate: number;
+    /** 클라이언트→B2 직접 업로드 실측 기록 샘플링 비율 (0~1). */
+    private _b2SampleRate: number;
 
     constructor(private readonly prisma: PrismaService) {
         const raw = process.env.UPLOAD_METRICS_SAMPLE_RATE;
         const parsed = raw ? parseFloat(raw) : 0.5;
         this._sampleRate = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 0), 1) : 0.5;
+        const b2Raw = process.env.UPLOAD_METRICS_B2_SAMPLE_RATE;
+        const b2Parsed = b2Raw ? parseFloat(b2Raw) : 0.3;
+        this._b2SampleRate = Number.isFinite(b2Parsed) ? Math.min(Math.max(b2Parsed, 0), 1) : 0.3;
     }
 
     getSampleRate(): number {
@@ -68,6 +73,15 @@ export class UploadMetricsService {
     setSampleRate(rate: number): number {
         this._sampleRate = Math.min(Math.max(Number.isFinite(rate) ? rate : 0.1, 0), 1);
         return this._sampleRate;
+    }
+
+    getB2SampleRate(): number {
+        return this._b2SampleRate;
+    }
+
+    setB2SampleRate(rate: number): number {
+        this._b2SampleRate = Math.min(Math.max(Number.isFinite(rate) ? rate : 0.3, 0), 1);
+        return this._b2SampleRate;
     }
 
     /**

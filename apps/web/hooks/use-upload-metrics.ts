@@ -160,6 +160,7 @@ export function useUploadMetricsWeekdayStats() {
 
 export interface MetricsConfig {
     sampleRate: number;
+    b2SampleRate: number;
 }
 
 export function useUploadMetricsConfig() {
@@ -175,8 +176,8 @@ export function useUploadMetricsConfig() {
 export function useUpdateMetricsConfig() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (sampleRate: number) =>
-            api.patch<MetricsConfig>('/upload/metrics/config', { sampleRate }),
+        mutationFn: (patch: { sampleRate?: number; b2SampleRate?: number }) =>
+            api.patch<MetricsConfig>('/upload/metrics/config', patch),
         onSuccess: (data) => {
             queryClient.setQueryData(['upload-metrics-config'], data);
         },

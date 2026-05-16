@@ -76,7 +76,7 @@ export const NAVIGATION: NavItem[] = [
     icon: Layers,
     children: [
       { name: "기초정보 설정", href: "/settings/basic", group: "설정" },
-      { name: "감사로그", href: "/settings/audit-logs", group: "설정" },
+      // { name: "감사로그", href: "/settings/audit-logs", group: "설정" },
       { name: "용지관리", href: "/master/papers", group: "원자재" },
       { name: "표지원단정보", href: "/master/fabrics", group: "원자재" },
       { name: "카테고리", href: "/company/categories", group: "분류" },

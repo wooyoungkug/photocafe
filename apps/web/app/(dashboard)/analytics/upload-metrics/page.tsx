@@ -36,6 +36,7 @@ import { useQueryClient } from '@tanstack/react-query';
 const PHASE_LABEL: Record<string, string> = {
     client_to_api: '클라이언트 → API',
     api_to_b2: 'API → B2',
+    client_to_b2: '클라이언트 → B2',
     b2_download: '다운로드',
 };
 
@@ -66,8 +67,11 @@ export default function UploadMetricsPage() {
     const [groupBy, setGroupBy] = useState<'hour' | 'day'>('hour');
     const [statsPeriod, setStatsPeriod] = useState<'day' | 'month' | 'quarter' | 'year'>('month');
     const [sampleInput, setSampleInput] = useState<string>('');
+    const [b2SampleInput, setB2SampleInput] = useState<string>('');
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<{ sizeMb: number; durationMs: number; speedKbps: number } | null>(null);
+    const [testingB2, setTestingB2] = useState(false);
+    const [testResultB2, setTestResultB2] = useState<{ sizeMb: number; durationMs: number; speedKbps: number } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
     const queryClient = useQueryClient();
 
@@ -140,34 +144,120 @@ export default function UploadMetricsPage() {
         }
     }
 
+    async function runB2UploadTest(sizeMb: number) {
+        if (testingB2) return;
+        setTestingB2(true);
+        setTestResultB2(null);
+        try {
+            // 1) presigned URL 발급
+            const presignRes = await fetch(`${API_URL}/upload/speedtest/b2-presign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Context': 'staff' },
+                body: JSON.stringify({ sizeMb }),
+                credentials: 'include',
+            });
+            if (!presignRes.ok) throw new Error(`presign 실패: HTTP ${presignRes.status}`);
+            const { presignedUrl } = await presignRes.json();
+
+            // 2) 랜덤 데이터 생성 후 B2에 직접 PUT
+            const buf = new Uint8Array(sizeMb * 1024 * 1024);
+            crypto.getRandomValues(buf.subarray(0, Math.min(buf.length, 65536)));
+            const blob = new Blob([buf], { type: 'application/octet-stream' });
+
+            const start = performance.now();
+            const putRes = await fetch(presignedUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/octet-stream' },
+                body: blob,
+            });
+            const durationMs = performance.now() - start;
+            if (!putRes.ok) throw new Error(`B2 PUT 실패: HTTP ${putRes.status}`);
+
+            const totalBytes = sizeMb * 1024 * 1024;
+            const speedKbps = totalBytes / 1024 / (durationMs / 1000);
+            setTestResultB2({ sizeMb, durationMs, speedKbps });
+            toast.success(`외실측 테스트 완료: ${formatSpeed(speedKbps)}`);
+
+            // 3) 메트릭 기록
+            void fetch(`${API_URL}/upload/metrics/record`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Auth-Context': 'staff' },
+                credentials: 'include',
+                body: JSON.stringify({ kind: 'speedtest', phase: 'client_to_b2', fileSize: totalBytes, durationMs }),
+            }).catch(() => {});
+
+            queryClient.invalidateQueries({ queryKey: ['upload-metrics-summary'] });
+            queryClient.invalidateQueries({ queryKey: ['upload-metrics-recent'] });
+        } catch (err: any) {
+            toast.error(`외실측 테스트 실패: ${err?.message || '알 수 없는 오류'}`);
+        } finally {
+            setTestingB2(false);
+        }
+    }
+
     return (
         <div className="p-6 space-y-6">
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-[24px] text-black font-normal">업로드 속도 모니터링</h1>
                     <p className="text-[14px] text-black font-normal mt-1">
-                        실 업로드는 {Math.round((config.data?.sampleRate ?? 0.1) * 100)}% 샘플링, 속도테스트는 100% 기록됩니다.
+                        실 업로드(API) {Math.round((config.data?.sampleRate ?? 0.1) * 100)}% · 외실측(B2 직접) {Math.round((config.data?.b2SampleRate ?? 0.3) * 100)}% 샘플링, 속도테스트는 100% 기록
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap justify-end">
-                    {/* 샘플링 비율 입력 */}
+                    {/* 실 업로드 샘플링 비율 (API 인터셉터) */}
                     <div className="flex items-center gap-1">
-                        <span className="text-[14px] text-black font-normal whitespace-nowrap">실 업로드 샘플</span>
+                        <label htmlFor="sample-rate-input" className="text-[14px] text-black font-normal whitespace-nowrap">실 업로드 샘플</label>
                         <input
+                            id="sample-rate-input"
                             type="number"
                             min={0}
                             max={100}
                             step={1}
+                            title="실 업로드 샘플링 비율 (%)"
+                            placeholder="0~100"
                             className="w-16 border rounded px-2 py-1 text-[14px] text-black text-center"
                             value={sampleInput !== '' ? sampleInput : Math.round((config.data?.sampleRate ?? 0.1) * 100).toString()}
                             onChange={(e) => setSampleInput(e.target.value)}
                             onBlur={() => {
                                 const pct = parseFloat(sampleInput);
                                 if (!Number.isFinite(pct)) return;
-                                updateConfig.mutate(pct / 100, {
+                                updateConfig.mutate({ sampleRate: pct / 100 }, {
                                     onSuccess: () => {
                                         setSampleInput('');
-                                        toast.success(`샘플링 ${pct}%로 변경됨`);
+                                        toast.success(`실 업로드 샘플 ${pct}%로 변경됨`);
+                                    },
+                                    onError: () => toast.error('변경 실패'),
+                                });
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+                            }}
+                        />
+                        <span className="text-[14px] text-black font-normal">%</span>
+                    </div>
+                    {/* 외실측(클라이언트→B2) 샘플링 비율 */}
+                    <div className="flex items-center gap-1">
+                        <label htmlFor="b2-sample-rate-input" className="text-[14px] text-black font-normal whitespace-nowrap">외실측 샘플</label>
+                        <input
+                            id="b2-sample-rate-input"
+                            type="number"
+                            min={0}
+                            max={100}
+                            step={1}
+                            title="클라이언트→B2 직접 업로드 실측 샘플링 비율 (%)"
+                            placeholder="0~100"
+                            className="w-16 border rounded px-2 py-1 text-[14px] text-black text-center"
+                            value={b2SampleInput !== '' ? b2SampleInput : Math.round((config.data?.b2SampleRate ?? 0.3) * 100).toString()}
+                            onChange={(e) => setB2SampleInput(e.target.value)}
+                            onBlur={() => {
+                                const pct = parseFloat(b2SampleInput);
+                                if (!Number.isFinite(pct)) return;
+                                updateConfig.mutate({ b2SampleRate: pct / 100 }, {
+                                    onSuccess: () => {
+                                        setB2SampleInput('');
+                                        window.localStorage.setItem('b2SampleRate', String(pct / 100));
+                                        toast.success(`외실측 샘플 ${pct}%로 변경됨`);
                                     },
                                     onError: () => toast.error('변경 실패'),
                                 });
@@ -471,6 +561,38 @@ export default function UploadMetricsPage() {
                         <div className="text-[14px] text-black font-normal">
                             {testResult.sizeMb}MB · {(testResult.durationMs / 1000).toFixed(2)}초 ·{' '}
                             <strong>{formatSpeed(testResult.speedKbps)}</strong>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* 외실측 테스트 (클라이언트 → B2 직접) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-[18px] text-black font-bold">외실측 테스트 (클라이언트 → B2 직접)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <p className="text-[14px] text-black font-normal">
+                        이 테스트는 presigned URL을 발급받아 브라우저에서 B2(미국 버지니아)로 직접 PUT 업로드합니다.<br />
+                        실제 앨범 업로드 경로와 동일하므로 가장 정확한 외부망 속도를 측정합니다.
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {[1, 5, 10, 50].map((mb) => (
+                            <Button
+                                key={mb}
+                                variant="outline"
+                                size="sm"
+                                disabled={testingB2}
+                                onClick={() => runB2UploadTest(mb)}
+                            >
+                                {testingB2 ? '측정 중...' : `${mb}MB 외실측`}
+                            </Button>
+                        ))}
+                    </div>
+                    {testResultB2 && (
+                        <div className="text-[14px] text-black font-normal">
+                            {testResultB2.sizeMb}MB · {(testResultB2.durationMs / 1000).toFixed(2)}초 ·{' '}
+                            <strong>{formatSpeed(testResultB2.speedKbps)}</strong>
                         </div>
                     )}
                 </CardContent>
