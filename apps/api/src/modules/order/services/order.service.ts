@@ -270,7 +270,11 @@ export class OrderService {
         return { fileId: file.id, url: localUrl, source: 'local', expiresIn: null };
       }
 
-      const key = `orders/${this.sanitizeStorageKeyPart(orderNumber)}/originals/${this.sanitizeStorageKeyPart(file.fileName)}`;
+      // fileUrl이 b2Key(로컬 경로 아님)이면 그대로 사용, 아니면 orderNumber+fileName으로 구성
+      const isB2Key = localUrl && !localUrl.startsWith('/') && !localUrl.startsWith('http');
+      const key = isB2Key
+        ? localUrl
+        : `orders/${this.sanitizeStorageKeyPart(orderNumber)}/originals/${this.sanitizeStorageKeyPart(file.fileName)}`;
       const fromEnv = parseInt(process.env.B2_PRESIGN_EXPIRES_IN || '300', 10);
       const expiresIn = Number.isFinite(fromEnv) && fromEnv > 0 ? fromEnv : 300;
       const url = await this.b2Storage.getPrivatePresignedUrl(key, expiresIn);
