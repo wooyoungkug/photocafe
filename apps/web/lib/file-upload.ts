@@ -950,17 +950,15 @@ async function abortMultipart(
 export const MULTIPART_THRESHOLD = 50 * 1024 * 1024; // 50MB — 이하는 단일 presigned PUT (multipart 오버헤드 2 RTT 400ms 절감)
 /**
  * 한 파일 내 동시 청크 업로드 수.
- * HTTP/2 multiplexing 하에서는 single connection 위 다수 stream 동시 가능 (Chrome 6 connection 한도 무관).
- * R2/Worker 모두 HTTP/2 지원이므로 8개로 상향 — 청크당 ingest 가 약해도 합산 throughput 증가.
+ * 한국→미국 TCP 윈도우(BDP ≈ 25MB) 기준, 16MB 청크 6개 = 96MB in-flight로 윈도우 내 유지.
  */
-const PART_CONCURRENCY = 8;
+const PART_CONCURRENCY = 6;
 /**
- * 청크 크기 — 50MB.
- * 청크 PUT 의 per-request overhead (TLS / signing / R2 ingest setup) 감소가 목적.
- * 100MB 파일 = 2 청크 (이전 13청크 대비 overhead 1/6).
- * 메모리: 50MB × 8 parallel = 400MB max in-flight (일반 PC 충분).
+ * 청크 크기 — 16MB.
+ * 한국→미국 RTT 200ms 기준 BDP(대역폭×지연) ≈ 25MB 이하로 맞춰 TCP 윈도우 초과 방지.
+ * 100MB 파일 = 7 청크, 메모리: 16MB × 6 × 4파일 = 384MB max in-flight (현재 2GB → 1/5).
  */
-const PART_SIZE = 50 * 1024 * 1024;
+const PART_SIZE = 16 * 1024 * 1024;
 
 /**
  * 큰 파일을 Multipart 로 업로드한다 (5단계).

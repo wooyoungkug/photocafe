@@ -11,7 +11,7 @@ import { useCartStore } from '@/stores/cart-store';
 import { useAuthStore } from '@/stores/auth-store';
 import { toast } from 'sonner';
 
-const CONCURRENCY = 5; // B2 직접 업로드 기준 (파일별 독립 도메인, 5파일 병렬)
+const CONCURRENCY = 4; // 16MB×6청크×4파일 = 384MB in-flight (BDP 최적화)
 const THROTTLE_MS = 200;        // progress 업데이트 최소 간격
 
 function generateTempFolderId(): string {
