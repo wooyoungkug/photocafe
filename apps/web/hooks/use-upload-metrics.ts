@@ -184,3 +184,33 @@ export function useUpdateMetricsConfig() {
     });
 }
 
+export interface StorageOverview {
+    b2: {
+        public: { bucket: string; fileCount: number; totalBytes: number };
+        private: { bucket: string; fileCount: number; totalBytes: number };
+        totalBytes: number;
+        scannedAt: string;
+        cacheAgeSeconds: number;
+    };
+    db: { sizeBytes: number; name: string };
+    uploadTrend: {
+        daily: Array<{ date: string; bytes: number; count: number }>;
+        monthly: Array<{ month: string; bytes: number; count: number }>;
+    };
+    cost: {
+        b2StorageMonthlyUsd: number;
+        b2StorageMonthlyKrw: number;
+        breakdown: { b2PublicUsd: number; b2PrivateUsd: number; totalUsd: number; totalKrw: number };
+    };
+}
+
+export function useStorageOverview() {
+    return useQuery({
+        queryKey: ['storage-overview'],
+        queryFn: () => api.get<StorageOverview>('/upload/metrics/storage-overview'),
+        staleTime: 10 * 60_000,       // 10분 (B2 스캔이 오래 걸리므로 자주 호출 안 함)
+        refetchInterval: 30 * 60_000, // 30분마다 자동 갱신
+        refetchOnWindowFocus: false,
+    });
+}
+

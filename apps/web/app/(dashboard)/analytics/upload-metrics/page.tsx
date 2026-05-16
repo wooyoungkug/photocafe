@@ -10,6 +10,8 @@ import {
     Line,
     BarChart,
     Bar,
+    AreaChart,
+    Area,
     XAxis,
     YAxis,
     CartesianGrid,
@@ -17,7 +19,7 @@ import {
     ResponsiveContainer,
     Legend,
 } from 'recharts';
-import { Gauge, Zap, Upload, RefreshCw, BarChart2 } from 'lucide-react';
+import { Gauge, Zap, Upload, RefreshCw, BarChart2, Database, HardDrive, DollarSign, TrendingUp } from 'lucide-react';
 import {
     useUploadMetricsSummary,
     useUploadMetricsTimeseries,
@@ -26,8 +28,10 @@ import {
     useUploadMetricsWeekdayStats,
     useUploadMetricsConfig,
     useUpdateMetricsConfig,
+    useStorageOverview,
     type AggregatedStatRow,
     type MetricsSummary,
+    type StorageOverview,
 } from '@/hooks/use-upload-metrics';
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
@@ -66,8 +70,10 @@ export default function UploadMetricsPage() {
     const [range, setRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
     const [groupBy, setGroupBy] = useState<'hour' | 'day'>('hour');
     const [statsPeriod, setStatsPeriod] = useState<'day' | 'month' | 'quarter' | 'year'>('month');
+    const [recentPage, setRecentPage] = useState(1);
     const [sampleInput, setSampleInput] = useState<string>('');
     const [b2SampleInput, setB2SampleInput] = useState<string>('');
+    const [trendTab, setTrendTab] = useState<'daily' | 'monthly'>('daily');
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState<{ sizeMb: number; durationMs: number; speedKbps: number } | null>(null);
     const [testingB2, setTestingB2] = useState(false);
@@ -78,11 +84,12 @@ export default function UploadMetricsPage() {
     const summary = useUploadMetricsSummary(range);
     const tsClient = useUploadMetricsTimeseries({ phase: 'client_to_api', groupBy });
     const tsB2 = useUploadMetricsTimeseries({ phase: 'api_to_b2', groupBy });
-    const recent = useUploadMetricsRecent(50);
+    const recent = useUploadMetricsRecent(500);
     const stats = useUploadMetricsStats(statsPeriod);
     const weekdayStats = useUploadMetricsWeekdayStats();
     const config = useUploadMetricsConfig();
     const updateConfig = useUpdateMetricsConfig();
+    const storageOverview = useStorageOverview();
 
     const clientPhase = summary.data?.phases?.client_to_api;    // 실측 클라이언트→API (presigned 이전 방식, 현재 거의 없음)
     const b2Phase = summary.data?.phases?.api_to_b2;            // API→B2 프로브 (512KB)
@@ -289,8 +296,331 @@ export default function UploadMetricsPage() {
                         <RefreshCw className="w-4 h-4 mr-1" />
                         새로고침
                     </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => storageOverview.refetch()}
+                        disabled={storageOverview.isFetching}
+                    >
+                        <HardDrive className="w-4 h-4 mr-1" />
+                        {storageOverview.isFetching ? '스캔 중...' : '스토리지 스캔'}
+                    </Button>
                 </div>
             </div>
+
+            {/* 서버 스토리지 현황 */}
+            {(() => {
+                const so = storageOverview.data;
+                const isLoading = storageOverview.isLoading;
+                const isError = storageOverview.isError;
+
+                function formatDateTimeShort(iso: string): string {
+                    try {
+                        return new Date(iso).toLocaleString('ko-KR', { hour12: false });
+                    } catch {
+                        return iso;
+                    }
+                }
+
+                function formatCacheAge(seconds: number): string {
+                    if (!Number.isFinite(seconds) || seconds < 0) return '—';
+                    if (seconds < 60) return `${Math.round(seconds)}초 전`;
+                    if (seconds < 3600) return `${Math.round(seconds / 60)}분 전`;
+                    if (seconds < 86400) return `${Math.round(seconds / 3600)}시간 전`;
+                    return `${Math.round(seconds / 86400)}일 전`;
+                }
+
+                if (isError) {
+                    return (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+                                    <HardDrive className="w-5 h-5" /> 서버 스토리지 현황
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-center py-6 space-y-3">
+                                    <div className="text-[14px] text-black font-normal">스토리지 정보를 불러올 수 없습니다.</div>
+                                    <Button variant="outline" size="sm" onClick={() => storageOverview.refetch()}>
+                                        <RefreshCw className="w-4 h-4 mr-1" /> 재시도
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                }
+
+                const trendData = so
+                    ? (trendTab === 'daily' ? so.uploadTrend.daily : so.uploadTrend.monthly).map((d: any) => ({
+                          period: trendTab === 'daily' ? d.date : d.month,
+                          bytes: d.bytes,
+                          count: d.count,
+                          gb: d.bytes / 1024 ** 3,
+                      }))
+                    : [];
+
+                // 최근 7개 항목 + 전 대비 증감 계산
+                const recentTrend = trendData.slice(-7);
+                const recentWithDiff = recentTrend.map((row, idx) => {
+                    if (idx === 0) return { ...row, diffPct: null as number | null };
+                    const prev = recentTrend[idx - 1].bytes;
+                    if (!prev) return { ...row, diffPct: null };
+                    return { ...row, diffPct: ((row.bytes - prev) / prev) * 100 };
+                });
+
+                return (
+                    <div className="space-y-4">
+                        <h2 className="text-[18px] text-black font-bold flex items-center gap-2">
+                            <HardDrive className="w-5 h-5" /> 서버 스토리지 현황
+                        </h2>
+
+                        {/* KPI 카드 4개 */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
+                                        <HardDrive className="w-4 h-4" /> B2 총 보관 용량
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading || !so ? (
+                                        <div className="text-[14px] text-black font-normal">로딩 중...</div>
+                                    ) : (
+                                        <>
+                                            <div className="text-[24px] text-black font-normal">{formatBytes(so.b2.totalBytes)}</div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                public {so.b2.public.fileCount.toLocaleString()}개 / private {so.b2.private.fileCount.toLocaleString()}개
+                                            </div>
+                                            <div className="text-[13px] text-slate-500 font-normal mt-1">
+                                                마지막 스캔 {formatDateTimeShort(so.b2.scannedAt)} ({formatCacheAge(so.b2.cacheAgeSeconds)})
+                                            </div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
+                                        <Upload className="w-4 h-4" /> B2 Public 버킷
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading || !so ? (
+                                        <div className="text-[14px] text-black font-normal">로딩 중...</div>
+                                    ) : (
+                                        <>
+                                            <div className="text-[24px] text-black font-normal">{formatBytes(so.b2.public.totalBytes)}</div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                {so.b2.public.fileCount.toLocaleString()}개 파일
+                                            </div>
+                                            <div className="text-[13px] text-slate-500 font-normal mt-1">{so.b2.public.bucket}</div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
+                                        <Database className="w-4 h-4" /> B2 Private 버킷
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading || !so ? (
+                                        <div className="text-[14px] text-black font-normal">로딩 중...</div>
+                                    ) : (
+                                        <>
+                                            <div className="text-[24px] text-black font-normal">{formatBytes(so.b2.private.totalBytes)}</div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                {so.b2.private.fileCount.toLocaleString()}개 파일
+                                            </div>
+                                            <div className="text-[13px] text-slate-500 font-normal mt-1">{so.b2.private.bucket}</div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader className="pb-2">
+                                    <CardTitle className="text-[14px] text-black font-normal flex items-center gap-2">
+                                        <Database className="w-4 h-4" /> Railway DB
+                                    </CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    {isLoading || !so ? (
+                                        <div className="text-[14px] text-black font-normal">로딩 중...</div>
+                                    ) : (
+                                        <>
+                                            <div className="text-[24px] text-black font-normal">{formatBytes(so.db.sizeBytes)}</div>
+                                            <div className="text-[14px] text-black font-normal mt-1">{so.db.name}</div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </div>
+
+                        {/* 비용 카드 */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+                                    <DollarSign className="w-5 h-5" /> 예상 월 B2 스토리지 비용
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {isLoading || !so ? (
+                                    <div className="text-[14px] text-black font-normal">로딩 중...</div>
+                                ) : (
+                                    <>
+                                        <div>
+                                            <div className="text-[24px] text-black font-normal">
+                                                ₩{so.cost.b2StorageMonthlyKrw.toLocaleString()}/월
+                                            </div>
+                                            <div className="text-[14px] text-black font-normal mt-1">
+                                                ${so.cost.b2StorageMonthlyUsd.toFixed(2)}/월 · $0.006/GB 기준
+                                            </div>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-[14px] text-black font-normal">
+                                                <thead>
+                                                    <tr className="border-b bg-slate-50">
+                                                        <th className="text-left py-2 px-2">항목</th>
+                                                        <th className="text-right py-2 px-2">용량</th>
+                                                        <th className="text-right py-2 px-2">월 비용 (USD)</th>
+                                                        <th className="text-right py-2 px-2">월 비용 (KRW)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr className="border-b">
+                                                        <td className="py-2 px-2">B2 Public</td>
+                                                        <td className="py-2 px-2 text-right">{formatBytes(so.b2.public.totalBytes)}</td>
+                                                        <td className="py-2 px-2 text-right">${so.cost.breakdown.b2PublicUsd.toFixed(2)}</td>
+                                                        <td className="py-2 px-2 text-right">
+                                                            ₩{Math.round(so.cost.breakdown.b2PublicUsd * (so.cost.breakdown.totalKrw / Math.max(so.cost.breakdown.totalUsd, 0.0001))).toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                    <tr className="border-b">
+                                                        <td className="py-2 px-2">B2 Private</td>
+                                                        <td className="py-2 px-2 text-right">{formatBytes(so.b2.private.totalBytes)}</td>
+                                                        <td className="py-2 px-2 text-right">${so.cost.breakdown.b2PrivateUsd.toFixed(2)}</td>
+                                                        <td className="py-2 px-2 text-right">
+                                                            ₩{Math.round(so.cost.breakdown.b2PrivateUsd * (so.cost.breakdown.totalKrw / Math.max(so.cost.breakdown.totalUsd, 0.0001))).toLocaleString()}
+                                                        </td>
+                                                    </tr>
+                                                    <tr className="border-b font-bold">
+                                                        <td className="py-2 px-2">합계</td>
+                                                        <td className="py-2 px-2 text-right">{formatBytes(so.b2.totalBytes)}</td>
+                                                        <td className="py-2 px-2 text-right">${so.cost.breakdown.totalUsd.toFixed(2)}</td>
+                                                        <td className="py-2 px-2 text-right">₩{so.cost.breakdown.totalKrw.toLocaleString()}</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        <div className="text-[13px] text-slate-500 font-normal">
+                                            ※ Railway DB, API 호출 비용 별도 · 10GB 무료 구간 포함 미반영
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+
+                        {/* 업로드 추세 차트 */}
+                        <Card>
+                            <CardHeader>
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+                                        <TrendingUp className="w-5 h-5" /> 일/월별 업로드 증감
+                                    </CardTitle>
+                                    <Tabs value={trendTab} onValueChange={(v) => setTrendTab(v as 'daily' | 'monthly')}>
+                                        <TabsList>
+                                            <TabsTrigger value="daily">일별(30일)</TabsTrigger>
+                                            <TabsTrigger value="monthly">월별(12개월)</TabsTrigger>
+                                        </TabsList>
+                                    </Tabs>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                {isLoading || !so ? (
+                                    <div className="text-[14px] text-black font-normal">로딩 중...</div>
+                                ) : trendData.length === 0 ? (
+                                    <div className="text-center py-6 text-slate-500 text-[14px]">추세 데이터가 없습니다.</div>
+                                ) : (
+                                    <>
+                                        <div className="w-full h-[280px]">
+                                            <ResponsiveContainer>
+                                                <AreaChart data={trendData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis dataKey="period" />
+                                                    <YAxis
+                                                        tickFormatter={(v: number) => `${v.toFixed(1)} GB`}
+                                                        label={{ value: 'GB', angle: -90, position: 'insideLeft' }}
+                                                    />
+                                                    <Tooltip
+                                                        formatter={(value: any, name: any, item: any) => {
+                                                            if (name === 'gb') {
+                                                                const bytes = item?.payload?.bytes ?? 0;
+                                                                return [formatBytes(bytes), '업로드'];
+                                                            }
+                                                            return [value, name];
+                                                        }}
+                                                        labelFormatter={(label: any, payload: any) => {
+                                                            const cnt = payload?.[0]?.payload?.count;
+                                                            return cnt != null ? `${label} · ${cnt}건` : label;
+                                                        }}
+                                                    />
+                                                    <Area
+                                                        type="monotone"
+                                                        dataKey="gb"
+                                                        stroke="#3b82f6"
+                                                        fill="#3b82f6"
+                                                        fillOpacity={0.3}
+                                                        name="업로드"
+                                                    />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-[14px] text-black font-normal">
+                                                <thead>
+                                                    <tr className="border-b bg-slate-50">
+                                                        <th className="text-left py-2 px-2">{trendTab === 'daily' ? '날짜' : '월'}</th>
+                                                        <th className="text-right py-2 px-2">업로드</th>
+                                                        <th className="text-right py-2 px-2">건수</th>
+                                                        <th className="text-right py-2 px-2">{trendTab === 'daily' ? '전일 대비' : '전월 대비'}</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {recentWithDiff.map((row) => {
+                                                        const diff = row.diffPct;
+                                                        let diffEl: React.ReactNode = '—';
+                                                        if (diff != null && Number.isFinite(diff)) {
+                                                            if (diff > 0) {
+                                                                diffEl = <span className="text-red-500">▲ {diff.toFixed(1)}%</span>;
+                                                            } else if (diff < 0) {
+                                                                diffEl = <span className="text-blue-500">▼ {Math.abs(diff).toFixed(1)}%</span>;
+                                                            } else {
+                                                                diffEl = <span className="text-slate-500">0.0%</span>;
+                                                            }
+                                                        }
+                                                        return (
+                                                            <tr key={row.period} className="border-b hover:bg-slate-50">
+                                                                <td className="py-2 px-2 font-medium">{row.period}</td>
+                                                                <td className="py-2 px-2 text-right">{formatBytes(row.bytes)}</td>
+                                                                <td className="py-2 px-2 text-right">{row.count.toLocaleString()}</td>
+                                                                <td className="py-2 px-2 text-right">{diffEl}</td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </div>
+                );
+            })()}
 
             {/* KPI 카드 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -666,13 +996,14 @@ export default function UploadMetricsPage() {
                 <CardContent className="space-y-4">
                     {(() => {
                         const rows = stats.data?.rows ?? [];
-                        // 기간별로 client_to_api / api_to_b2 피벗
-                        const periodMap = new Map<string, { client?: AggregatedStatRow; b2?: AggregatedStatRow }>();
+                        // 기간별로 client_to_api / api_to_b2 / client_to_b2 피벗
+                        const periodMap = new Map<string, { client?: AggregatedStatRow; b2?: AggregatedStatRow; direct?: AggregatedStatRow }>();
                         for (const r of rows) {
                             if (!periodMap.has(r.period)) periodMap.set(r.period, {});
                             const entry = periodMap.get(r.period)!;
                             if (r.phase === 'client_to_api') entry.client = r;
                             else if (r.phase === 'api_to_b2') entry.b2 = r;
+                            else if (r.phase === 'client_to_b2') entry.direct = r;
                         }
                         const pivoted = Array.from(periodMap.entries())
                             .map(([period, v]) => ({ period, ...v }))
@@ -683,6 +1014,7 @@ export default function UploadMetricsPage() {
                             period: p.period,
                             client: p.client?.avgSpeedKbps ?? 0,
                             b2: p.b2?.avgSpeedKbps ?? 0,
+                            direct: p.direct?.avgSpeedKbps ?? 0,
                         }));
 
                         return (
@@ -698,6 +1030,7 @@ export default function UploadMetricsPage() {
                                                 <Legend />
                                                 <Bar dataKey="client" fill="#3b82f6" name="클라이언트 → API" />
                                                 <Bar dataKey="b2" fill="#10b981" name="API → B2" />
+                                                <Bar dataKey="direct" fill="#f59e0b" name="클라이언트 → B2 (직접)" />
                                             </BarChart>
                                         </ResponsiveContainer>
                                     </div>
@@ -705,40 +1038,53 @@ export default function UploadMetricsPage() {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-[14px] text-black font-normal">
                                         <thead>
+                                            <tr className="border-b bg-slate-50">
+                                                <th className="text-left py-2 px-2" rowSpan={2}>기간</th>
+                                                <th className="text-center py-1 px-2 border-l" colSpan={4}>클라이언트 → B2 직접</th>
+                                                <th className="text-center py-1 px-2 border-l" colSpan={4}>클라이언트 → API</th>
+                                                <th className="text-center py-1 px-2 border-l" colSpan={4}>API → B2</th>
+                                                <th className="text-right py-1 px-2 border-l" rowSpan={2}>총 데이터</th>
+                                            </tr>
                                             <tr className="border-b">
-                                                <th className="text-left py-2 px-2">기간</th>
-                                                <th className="text-right py-2 px-2">클라이언트→API 평균</th>
+                                                <th className="text-right py-2 px-2 border-l">평균</th>
                                                 <th className="text-right py-2 px-2">p50</th>
                                                 <th className="text-right py-2 px-2">p95</th>
                                                 <th className="text-right py-2 px-2">건수</th>
-                                                <th className="text-right py-2 px-2">API→B2 평균</th>
+                                                <th className="text-right py-2 px-2 border-l">평균</th>
                                                 <th className="text-right py-2 px-2">p50</th>
                                                 <th className="text-right py-2 px-2">p95</th>
                                                 <th className="text-right py-2 px-2">건수</th>
-                                                <th className="text-right py-2 px-2">총 데이터</th>
+                                                <th className="text-right py-2 px-2 border-l">평균</th>
+                                                <th className="text-right py-2 px-2">p50</th>
+                                                <th className="text-right py-2 px-2">p95</th>
+                                                <th className="text-right py-2 px-2">건수</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {pivoted.map(p => {
-                                                const totalBytes = (p.client?.totalBytes ?? 0) + (p.b2?.totalBytes ?? 0);
+                                                const totalBytes = (p.client?.totalBytes ?? 0) + (p.b2?.totalBytes ?? 0) + (p.direct?.totalBytes ?? 0);
                                                 return (
                                                     <tr key={p.period} className="border-b hover:bg-slate-50">
                                                         <td className="py-2 px-2 font-medium">{p.period}</td>
-                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.client?.avgSpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right border-l">{p.direct ? formatSpeed(p.direct.avgSpeedKbps) : '—'}</td>
+                                                        <td className="py-2 px-2 text-right">{p.direct ? formatSpeed(p.direct.p50SpeedKbps) : '—'}</td>
+                                                        <td className="py-2 px-2 text-right">{p.direct ? formatSpeed(p.direct.p95SpeedKbps) : '—'}</td>
+                                                        <td className="py-2 px-2 text-right">{p.direct?.count ?? 0}</td>
+                                                        <td className="py-2 px-2 text-right border-l">{formatSpeed(p.client?.avgSpeedKbps ?? 0)}</td>
                                                         <td className="py-2 px-2 text-right">{formatSpeed(p.client?.p50SpeedKbps ?? 0)}</td>
                                                         <td className="py-2 px-2 text-right">{formatSpeed(p.client?.p95SpeedKbps ?? 0)}</td>
                                                         <td className="py-2 px-2 text-right">{p.client?.count ?? 0}</td>
-                                                        <td className="py-2 px-2 text-right">{formatSpeed(p.b2?.avgSpeedKbps ?? 0)}</td>
+                                                        <td className="py-2 px-2 text-right border-l">{formatSpeed(p.b2?.avgSpeedKbps ?? 0)}</td>
                                                         <td className="py-2 px-2 text-right">{formatSpeed(p.b2?.p50SpeedKbps ?? 0)}</td>
                                                         <td className="py-2 px-2 text-right">{formatSpeed(p.b2?.p95SpeedKbps ?? 0)}</td>
                                                         <td className="py-2 px-2 text-right">{p.b2?.count ?? 0}</td>
-                                                        <td className="py-2 px-2 text-right">{formatBytes(totalBytes)}</td>
+                                                        <td className="py-2 px-2 text-right border-l">{formatBytes(totalBytes)}</td>
                                                     </tr>
                                                 );
                                             })}
                                             {pivoted.length === 0 && (
                                                 <tr>
-                                                    <td colSpan={10} className="text-center py-6 text-slate-500">
+                                                    <td colSpan={14} className="text-center py-6 text-slate-500">
                                                         아직 통계 데이터가 없습니다.
                                                     </td>
                                                 </tr>
@@ -851,56 +1197,110 @@ export default function UploadMetricsPage() {
             </Card>
 
             {/* 최근 측정 */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-[18px] text-black font-bold">최근 측정 (최대 50건)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-[14px] text-black font-normal">
-                            <thead>
-                                <tr className="border-b">
-                                    <th className="text-left py-2 px-2">일시</th>
-                                    <th className="text-left py-2 px-2">종류</th>
-                                    <th className="text-left py-2 px-2">구간</th>
-                                    <th className="text-left py-2 px-2">엔드포인트</th>
-                                    <th className="text-right py-2 px-2">용량</th>
-                                    <th className="text-right py-2 px-2">소요</th>
-                                    <th className="text-right py-2 px-2">속도</th>
-                                    <th className="text-left py-2 px-2">국가</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(recent.data ?? []).map((m) => (
-                                    <tr key={m.id} className="border-b hover:bg-slate-50">
-                                        <td className="py-2 px-2">{formatDateTime(m.createdAt)}</td>
-                                        <td className="py-2 px-2">
-                                            <Badge variant={m.kind === 'speedtest' ? 'default' : 'secondary'} className="text-xs">
-                                                {m.kind === 'speedtest' ? '테스트' : '실측'}
-                                            </Badge>
-                                        </td>
-                                        <td className="py-2 px-2">{PHASE_LABEL[m.phase] ?? m.phase}</td>
-                                        <td className="py-2 px-2 text-xs text-slate-600">{m.endpoint ?? '—'}</td>
-                                        <td className="py-2 px-2 text-right">{formatBytes(m.fileSize)}</td>
-                                        <td className="py-2 px-2 text-right">{(m.durationMs / 1000).toFixed(2)}s</td>
-                                        <td className="py-2 px-2 text-right">
-                                            <strong>{formatSpeed(m.speedKbps)}</strong>
-                                        </td>
-                                        <td className="py-2 px-2">{m.countryCode ?? '—'}</td>
-                                    </tr>
-                                ))}
-                                {(!recent.data || recent.data.length === 0) && (
-                                    <tr>
-                                        <td colSpan={8} className="text-center py-6 text-slate-500">
-                                            아직 측정 데이터가 없습니다.
-                                        </td>
-                                    </tr>
+            {(() => {
+                const RECENT_PAGE_SIZE = 50;
+                const allRecent = recent.data ?? [];
+                const totalPages = Math.max(1, Math.ceil(allRecent.length / RECENT_PAGE_SIZE));
+                const pagedRecent = allRecent.slice((recentPage - 1) * RECENT_PAGE_SIZE, recentPage * RECENT_PAGE_SIZE);
+                return (
+                    <Card>
+                        <CardHeader>
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-[18px] text-black font-bold">
+                                    최근 측정 (최대 500건, {allRecent.length}건 로드됨)
+                                </CardTitle>
+                                {totalPages > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={recentPage <= 1}
+                                            onClick={() => setRecentPage(p => Math.max(1, p - 1))}
+                                        >
+                                            이전
+                                        </Button>
+                                        <span className="text-[14px] text-black font-normal">
+                                            {recentPage} / {totalPages}
+                                        </span>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            disabled={recentPage >= totalPages}
+                                            onClick={() => setRecentPage(p => Math.min(totalPages, p + 1))}
+                                        >
+                                            다음
+                                        </Button>
+                                    </div>
                                 )}
-                            </tbody>
-                        </table>
-                    </div>
-                </CardContent>
-            </Card>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-[14px] text-black font-normal">
+                                    <thead>
+                                        <tr className="border-b">
+                                            <th className="text-left py-2 px-2">일시</th>
+                                            <th className="text-left py-2 px-2">종류</th>
+                                            <th className="text-left py-2 px-2">구간</th>
+                                            <th className="text-left py-2 px-2">엔드포인트</th>
+                                            <th className="text-right py-2 px-2">용량</th>
+                                            <th className="text-right py-2 px-2">소요</th>
+                                            <th className="text-right py-2 px-2">속도</th>
+                                            <th className="text-left py-2 px-2">국가</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {pagedRecent.map((m) => (
+                                            <tr key={m.id} className="border-b hover:bg-slate-50">
+                                                <td className="py-2 px-2">{formatDateTime(m.createdAt)}</td>
+                                                <td className="py-2 px-2">
+                                                    <Badge variant={m.kind === 'speedtest' ? 'default' : 'secondary'} className="text-xs">
+                                                        {m.kind === 'speedtest' ? '테스트' : '실측'}
+                                                    </Badge>
+                                                </td>
+                                                <td className="py-2 px-2">{PHASE_LABEL[m.phase] ?? m.phase}</td>
+                                                <td className="py-2 px-2 text-xs text-slate-600">{m.endpoint ?? '—'}</td>
+                                                <td className="py-2 px-2 text-right">{formatBytes(m.fileSize)}</td>
+                                                <td className="py-2 px-2 text-right">{(m.durationMs / 1000).toFixed(2)}s</td>
+                                                <td className="py-2 px-2 text-right">
+                                                    <strong>{formatSpeed(m.speedKbps)}</strong>
+                                                </td>
+                                                <td className="py-2 px-2">{m.countryCode ?? '—'}</td>
+                                            </tr>
+                                        ))}
+                                        {allRecent.length === 0 && (
+                                            <tr>
+                                                <td colSpan={8} className="text-center py-6 text-slate-500">
+                                                    아직 측정 데이터가 없습니다.
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {totalPages > 1 && (
+                                <div className="flex items-center justify-center gap-2 mt-4">
+                                    <Button variant="outline" size="sm" disabled={recentPage <= 1} onClick={() => setRecentPage(1)}>
+                                        처음
+                                    </Button>
+                                    <Button variant="outline" size="sm" disabled={recentPage <= 1} onClick={() => setRecentPage(p => Math.max(1, p - 1))}>
+                                        이전
+                                    </Button>
+                                    <span className="text-[14px] text-black font-normal px-2">
+                                        {recentPage} / {totalPages} 페이지 ({(recentPage - 1) * RECENT_PAGE_SIZE + 1}~{Math.min(recentPage * RECENT_PAGE_SIZE, allRecent.length)}건)
+                                    </span>
+                                    <Button variant="outline" size="sm" disabled={recentPage >= totalPages} onClick={() => setRecentPage(p => Math.min(totalPages, p + 1))}>
+                                        다음
+                                    </Button>
+                                    <Button variant="outline" size="sm" disabled={recentPage >= totalPages} onClick={() => setRecentPage(totalPages)}>
+                                        마지막
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                );
+            })()}
         </div>
     );
 }

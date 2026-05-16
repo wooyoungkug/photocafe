@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import type { B2StorageService } from './b2-storage.service';
 
 export type MetricPhase = 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2';
 
@@ -406,6 +407,165 @@ export class UploadMetricsService {
                 p95SpeedKbps: Number(r.p95_speed),
                 totalBytes: Number(r.total_bytes),
             })),
+        };
+    }
+
+    /**
+     * 스토리지 사용 현황 + 비용 한눈에 보기.
+     *
+     * - B2 public/private 버킷 객체 수·바이트 (B2StorageService 캐시 1시간)
+     * - PostgreSQL DB 크기 (pg_database_size)
+     * - 업로드 추이: 최근 30일(일별) + 최근 12개월(월별), kind='real' success=true
+     * - 비용: B2 스토리지 $0.006/GB/월, 1 USD = 1,400 KRW
+     *
+     * 모든 외부 호출은 개별 try/catch 로 감싸 부분 실패해도 응답을 채워 반환한다.
+     */
+    async getStorageOverview(b2Service?: B2StorageService) {
+        const RATE_USD_TO_KRW = 1400;
+        const B2_PRICE_PER_GB_USD = 0.006;
+        const BYTES_PER_GB = 1024 ** 3;
+
+        // ---- B2 버킷 스캔 (병렬) ----
+        const publicBucketName = b2Service?.getPublicBucket?.() ?? '';
+        const privateBucketName = b2Service?.getPrivateBucket?.() ?? '';
+        const b2Enabled = !!b2Service && b2Service.isEnabled?.() === true;
+
+        const emptyStats = { fileCount: 0, totalBytes: 0, scannedAt: new Date() };
+        const [publicStats, privateStats] = await Promise.all([
+            b2Enabled && publicBucketName
+                ? b2Service!.getBucketStats(publicBucketName).catch(err => {
+                      this.logger.warn(`B2 public 버킷 스캔 실패: ${(err as Error).message}`);
+                      return emptyStats;
+                  })
+                : Promise.resolve(emptyStats),
+            b2Enabled && privateBucketName
+                ? b2Service!.getBucketStats(privateBucketName).catch(err => {
+                      this.logger.warn(`B2 private 버킷 스캔 실패: ${(err as Error).message}`);
+                      return emptyStats;
+                  })
+                : Promise.resolve(emptyStats),
+        ]);
+
+        const totalBytes = publicStats.totalBytes + privateStats.totalBytes;
+        // 둘 중 더 최근 스캔 시각을 대표값으로 (가장 최근 데이터 기준)
+        const scannedAt =
+            publicStats.scannedAt.getTime() >= privateStats.scannedAt.getTime()
+                ? publicStats.scannedAt
+                : privateStats.scannedAt;
+        const cacheAgeSeconds = Math.max(
+            0,
+            Math.floor((Date.now() - scannedAt.getTime()) / 1000),
+        );
+
+        // ---- DB 크기 ----
+        let dbSizeBytes = 0;
+        let dbName = '';
+        try {
+            const dbSizeResult = await this.prisma.$queryRaw<
+                [{ bytes: bigint; name: string }]
+            >`
+                SELECT pg_database_size(current_database()) as bytes,
+                       current_database() as name
+            `;
+            const row = dbSizeResult?.[0];
+            if (row) {
+                dbSizeBytes = Number(row.bytes);
+                dbName = String(row.name ?? '');
+            }
+        } catch (err) {
+            this.logger.warn(`DB 크기 조회 실패: ${(err as Error).message}`);
+        }
+
+        // ---- 업로드 추이 (일별 30일 / 월별 12개월) ----
+        let dailyRows: Array<{ date: string; bytes: bigint; count: bigint }> = [];
+        try {
+            dailyRows = await this.prisma.$queryRaw<
+                Array<{ date: string; bytes: bigint; count: bigint }>
+            >`
+                SELECT
+                    DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC')::date::text as date,
+                    COALESCE(SUM("fileSize"::bigint), 0) as bytes,
+                    COUNT(*) as count
+                FROM upload_metrics
+                WHERE success = true
+                  AND kind = 'real'
+                  AND "createdAt" >= NOW() - INTERVAL '30 days'
+                GROUP BY 1
+                ORDER BY 1
+            `;
+        } catch (err) {
+            this.logger.warn(`일별 업로드 추이 조회 실패: ${(err as Error).message}`);
+        }
+
+        let monthlyRows: Array<{ month: string; bytes: bigint; count: bigint }> = [];
+        try {
+            monthlyRows = await this.prisma.$queryRaw<
+                Array<{ month: string; bytes: bigint; count: bigint }>
+            >`
+                SELECT
+                    TO_CHAR(DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC'), 'YYYY-MM') as month,
+                    COALESCE(SUM("fileSize"::bigint), 0) as bytes,
+                    COUNT(*) as count
+                FROM upload_metrics
+                WHERE success = true
+                  AND kind = 'real'
+                  AND "createdAt" >= NOW() - INTERVAL '12 months'
+                GROUP BY 1
+                ORDER BY 1
+            `;
+        } catch (err) {
+            this.logger.warn(`월별 업로드 추이 조회 실패: ${(err as Error).message}`);
+        }
+
+        // ---- 비용 계산 ----
+        const toGb = (bytes: number) => bytes / BYTES_PER_GB;
+        const b2PublicUsd = +(toGb(publicStats.totalBytes) * B2_PRICE_PER_GB_USD).toFixed(4);
+        const b2PrivateUsd = +(toGb(privateStats.totalBytes) * B2_PRICE_PER_GB_USD).toFixed(4);
+        const b2StorageMonthlyUsd = +(b2PublicUsd + b2PrivateUsd).toFixed(4);
+        const b2StorageMonthlyKrw = Math.round(b2StorageMonthlyUsd * RATE_USD_TO_KRW);
+
+        return {
+            b2: {
+                public: {
+                    bucket: publicBucketName,
+                    fileCount: publicStats.fileCount,
+                    totalBytes: publicStats.totalBytes,
+                },
+                private: {
+                    bucket: privateBucketName,
+                    fileCount: privateStats.fileCount,
+                    totalBytes: privateStats.totalBytes,
+                },
+                totalBytes,
+                scannedAt: scannedAt.toISOString(),
+                cacheAgeSeconds,
+            },
+            db: {
+                sizeBytes: dbSizeBytes,
+                name: dbName,
+            },
+            uploadTrend: {
+                daily: dailyRows.map(r => ({
+                    date: r.date,
+                    bytes: Number(r.bytes),
+                    count: Number(r.count),
+                })),
+                monthly: monthlyRows.map(r => ({
+                    month: r.month,
+                    bytes: Number(r.bytes),
+                    count: Number(r.count),
+                })),
+            },
+            cost: {
+                b2StorageMonthlyUsd,
+                b2StorageMonthlyKrw,
+                breakdown: {
+                    b2PublicUsd,
+                    b2PrivateUsd,
+                    totalUsd: b2StorageMonthlyUsd,
+                    totalKrw: b2StorageMonthlyKrw,
+                },
+            },
         };
     }
 }

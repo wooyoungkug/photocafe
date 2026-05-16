@@ -10,6 +10,7 @@ import {
   UploadPartCommand,
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
+  ListObjectsV2Command,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
@@ -44,6 +45,16 @@ export class B2StorageService implements OnModuleInit {
   /** e.g. https://f005.backblazeb2.com/file/photocafe-public or custom CDN path */
   private publicUrlPrefix = '';
   private enabled = false;
+
+  /**
+   * 버킷 전체 객체 스캔 결과 캐시. ListObjectsV2 는 1000개씩 페이지네이션이라
+   * 100만 파일 버킷이면 1000회 호출 = 수십 초. 1시간 TTL 로 응답 비용 분산.
+   */
+  private bucketSizeCache: Map<
+    string,
+    { fileCount: number; totalBytes: number; scannedAt: Date }
+  > = new Map();
+  private readonly BUCKET_CACHE_TTL_MS = 60 * 60 * 1000; // 1시간
 
   constructor(
     private readonly config: ConfigService,
@@ -515,6 +526,54 @@ export class B2StorageService implements OnModuleInit {
         // 다운로드 실패는 호출자 missing 검증에서 처리
       }
     }
+  }
+
+  /**
+   * 버킷의 총 객체 수 + 합계 바이트 조회. 1시간 메모리 캐시.
+   *
+   * - ListObjectsV2 페이지네이션(1000개/페이지) 으로 전체 순회 후 합산.
+   * - 빈 버킷명/B2 미설정 시 0/0 반환.
+   * - 실패 시 throw — 호출자(UploadMetricsService) 가 try/catch 로 fallback.
+   */
+  async getBucketStats(
+    bucket: string,
+  ): Promise<{ fileCount: number; totalBytes: number; scannedAt: Date }> {
+    if (!bucket) {
+      return { fileCount: 0, totalBytes: 0, scannedAt: new Date() };
+    }
+
+    const cached = this.bucketSizeCache.get(bucket);
+    if (
+      cached &&
+      Date.now() - cached.scannedAt.getTime() < this.BUCKET_CACHE_TTL_MS
+    ) {
+      return cached;
+    }
+
+    const s3 = this.requireClient();
+    let fileCount = 0;
+    let totalBytes = 0;
+    let continuationToken: string | undefined = undefined;
+
+    do {
+      const res: any = await s3.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          ContinuationToken: continuationToken,
+          MaxKeys: 1000,
+        }),
+      );
+      const contents = (res?.Contents ?? []) as Array<{ Size?: number }>;
+      for (const obj of contents) {
+        fileCount += 1;
+        totalBytes += Number(obj.Size ?? 0);
+      }
+      continuationToken = res?.IsTruncated ? res?.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    const result = { fileCount, totalBytes, scannedAt: new Date() };
+    this.bucketSizeCache.set(bucket, result);
+    return result;
   }
 
   /**

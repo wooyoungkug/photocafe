@@ -2170,6 +2170,15 @@ export class UploadController implements OnModuleInit {
         return this.metrics.getWeekdayStats();
     }
 
+    @Get('metrics/storage-overview')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: 'B2 버킷·DB 스토리지 사용 현황 + 비용 조회 (관리자 전용)' })
+    async getStorageOverview(@Request() req: any) {
+        this.assertStaff(req);
+        return this.metrics.getStorageOverview(this.b2Storage);
+    }
+
     @Get('metrics/config')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
