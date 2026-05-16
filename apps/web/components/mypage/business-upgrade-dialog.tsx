@@ -131,6 +131,12 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // 미입력 필드 포커스용 refs
+  const certRef = useRef<HTMLLabelElement>(null);
+  const businessNumberRef = useRef<HTMLInputElement>(null);
+  const representativeRef = useRef<HTMLInputElement>(null);
+  const taxInvoiceEmailRef = useRef<HTMLInputElement>(null);
+
   // 카카오(Daum) 주소 위젯
   const [addressOpen, setAddressOpen] = useState(false);
   const embedRef = useRef<HTMLDivElement>(null);
@@ -334,24 +340,39 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
     }
   };
 
+  const focusField = (ref: React.RefObject<HTMLElement | null>) => {
+    ref.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (ref.current instanceof HTMLInputElement) ref.current.focus();
+  };
+
   const handleSubmit = async () => {
     setError(null);
     setManagerConfirmPending(false);
 
+    if (!certUploadKey) {
+      setError('사업자등록증 파일을 첨부해 주세요.');
+      focusField(certRef);
+      return;
+    }
     if (!businessNumber.trim() || businessNumber.replace(/\D/g, '').length !== 10) {
-      setError('사업자등록번호 10자리를 정확히 입력해 주세요.'); return;
+      setError('사업자등록번호 10자리를 정확히 입력해 주세요.');
+      focusField(businessNumberRef);
+      return;
     }
     if (!representative.trim()) {
-      setError('대표자명을 입력해 주세요.'); return;
+      setError('대표자명을 입력해 주세요.');
+      focusField(representativeRef);
+      return;
     }
     if (!taxInvoiceEmail.trim()) {
-      setError('세금계산서 수신 이메일을 입력해 주세요.'); return;
+      setError('세금계산서 수신 이메일을 입력해 주세요.');
+      focusField(taxInvoiceEmailRef);
+      return;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(taxInvoiceEmail.trim())) {
-      setError('올바른 이메일 주소를 입력해 주세요.'); return;
-    }
-    if (!certUploadKey) {
-      setError('사업자등록증 파일을 첨부해 주세요.'); return;
+      setError('올바른 이메일 주소를 입력해 주세요.');
+      focusField(taxInvoiceEmailRef);
+      return;
     }
 
     // 담당자 공란 확인
@@ -471,7 +492,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 사업자등록증 첨부 <span className="text-red-500">*</span>
               </Label>
               <div className="flex items-center gap-2 flex-wrap">
-                <label className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-[14px] cursor-pointer">
+                <label ref={certRef} className="inline-flex items-center gap-1.5 px-3 h-9 rounded-md border border-gray-300 bg-white hover:bg-gray-50 text-[14px] cursor-pointer">
                   {isOcrRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
                   파일 선택
                   <input type="file" accept={ACCEPTED} className="hidden" onChange={handleFileChange} disabled={isOcrRunning} />
@@ -502,6 +523,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 </Label>
                 <div className="flex gap-1.5">
                   <Input
+                    ref={businessNumberRef}
                     className={`${fieldCls('businessNumber', businessNumber, true)} flex-1 min-w-0`}
                     value={businessNumber}
                     onChange={(e) => { clearOcrField('businessNumber'); setBusinessNumber(formatBusinessNumber(e.target.value)); setNtsResult(null); }}
@@ -542,6 +564,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                   대표자명 <span className="text-red-500">*</span>
                 </Label>
                 <Input
+                  ref={representativeRef}
                   className={fieldCls('representative', representative, true)}
                   value={representative}
                   onChange={(e) => { clearOcrField('representative'); setRepresentative(e.target.value); }}
@@ -592,6 +615,7 @@ export function BusinessUpgradeDialog({ children, onSubmitted }: Props) {
                 세금계산서 수신 이메일 <span className="text-red-500">*</span>
               </Label>
               <Input
+                ref={taxInvoiceEmailRef}
                 type="email"
                 className={fieldCls('taxInvoiceEmail', taxInvoiceEmail, true)}
                 value={taxInvoiceEmail}
