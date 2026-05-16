@@ -12,6 +12,8 @@ import {
   AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
+import * as https from 'https';
 import * as fs from 'fs';
 import * as path from 'path';
 import { UploadMetricsService } from './upload-metrics.service';
@@ -107,6 +109,18 @@ export class B2StorageService implements OnModuleInit {
         // CRC32 자동 추가 비활성: presigned URL 단순화 + 브라우저 PUT 호환성 ↑
         requestChecksumCalculation: 'WHEN_REQUIRED',
         credentials: { accessKeyId: keyId, secretAccessKey: appKey },
+        // keepAlive: TCP 연결 재사용으로 소파일 다량 업로드 시 30~50% 속도 개선
+        requestHandler: new NodeHttpHandler({
+          httpsAgent: new https.Agent({
+            keepAlive: true,
+            maxSockets: 50,
+            keepAliveMsecs: 3000,
+          }),
+          connectionTimeout: 3000,
+          requestTimeout: 120_000,
+        }),
+        // 일시적 오류(503, 429, 네트워크 단절) 시 지수 백오프 자동 재시도
+        maxAttempts: 3,
       });
       this.enabled = true;
     }

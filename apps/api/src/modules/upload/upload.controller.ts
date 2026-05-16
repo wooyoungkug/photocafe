@@ -1533,6 +1533,165 @@ export class UploadController implements OnModuleInit {
         };
     }
 
+    // ==================== 앨범수리 교체페이지 파일 업로드 (B2 직접, presigned PUT) ====================
+
+    @Public()
+    @Post('repair-file-presign')
+    @Throttle({ default: { ttl: 60000, limit: 20 } })
+    @ApiOperation({ summary: '앨범수리 파일 B2 직접 업로드용 presigned PUT URL 발급' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                tempRepairId: { type: 'string' },
+                pageNumber: { type: 'number' },
+                fileName: { type: 'string' },
+                contentType: { type: 'string' },
+                fileSize: { type: 'number' },
+            },
+        },
+    })
+    async getRepairFilePresignedUrl(
+        @Body() body: {
+            tempRepairId: string;
+            pageNumber: number;
+            fileName: string;
+            contentType: string;
+            fileSize: number;
+        },
+    ) {
+        if (!this.b2Storage.isEnabled()) {
+            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        }
+
+        const safeId = (body.tempRepairId || '')
+            .replace(/\.\./g, '')
+            .replace(/[/\\]/g, '')
+            .trim();
+        if (!safeId) throw new BadRequestException('유효하지 않은 tempRepairId입니다.');
+
+        const contentType = (body.contentType || '').trim();
+        if (!contentType.match(/^image\/(jpeg|jpg|png|tif|tiff|webp)$/)) {
+            throw new BadRequestException('지원하지 않는 contentType입니다.');
+        }
+
+        const fileSize = Number(body.fileSize);
+        const MAX = parseInt(process.env.UPLOAD_MAX_FILE_SIZE || '209715200', 10);
+        if (!Number.isFinite(fileSize) || fileSize <= 0 || fileSize > MAX) {
+            throw new BadRequestException('파일 크기가 유효하지 않습니다.');
+        }
+
+        if (!body.fileName?.trim()) throw new BadRequestException('fileName이 필요합니다.');
+        const safeFileName = this.sanitizeFileName(body.fileName.trim());
+        if (!safeFileName) throw new BadRequestException('유효하지 않은 fileName입니다.');
+
+        const pageNumber = Number.isFinite(Number(body.pageNumber)) ? Number(body.pageNumber) : 0;
+        const ext = extname(safeFileName).toLowerCase();
+        const base = safeFileName.slice(0, -ext.length).slice(0, 80);
+        const prefix = `page_${String(pageNumber).padStart(3, '0')}`;
+        const uid = randomUUID().slice(0, 8);
+        const b2FileName = `${prefix}_${uid}_${base}${ext}`;
+        const b2Key = `repairs/${safeId}/${b2FileName}`;
+
+        const expiresIn = 900; // 15분
+        const presignedUrl = await this.b2Storage.getPresignedPutUrl(b2Key, contentType, 'private', expiresIn);
+
+        const thumbName = `${prefix}_${uid}_${base}_thumb.jpg`;
+        const thumbnailUrl = `/uploads/repairs/${safeId}/thumbnails/${encodeURIComponent(thumbName)}`;
+
+        return {
+            presignedUrl,
+            b2Key,
+            fileName: b2FileName,
+            thumbnailUrl,
+            pageNumber,
+            expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+        };
+    }
+
+    @Public()
+    @Post('repair-file-confirm')
+    @Throttle({ default: { ttl: 60000, limit: 20 } })
+    @ApiOperation({ summary: '앨범수리 파일 B2 직접 업로드 완료 통보 (썸네일 백그라운드 생성)' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                tempRepairId: { type: 'string' },
+                b2Key: { type: 'string' },
+                fileName: { type: 'string' },
+                originalName: { type: 'string' },
+                pageNumber: { type: 'number' },
+                fileSize: { type: 'number' },
+            },
+        },
+    })
+    async confirmRepairFileUpload(
+        @Body() body: {
+            tempRepairId: string;
+            b2Key: string;
+            fileName: string;
+            originalName: string;
+            pageNumber: number;
+            fileSize: number;
+        },
+    ) {
+        if (!this.b2Storage.isEnabled()) {
+            throw new BadRequestException('B2 스토리지가 설정되지 않았습니다.');
+        }
+
+        const safeId = (body.tempRepairId || '')
+            .replace(/\.\./g, '')
+            .replace(/[/\\]/g, '')
+            .trim();
+        if (!safeId) throw new BadRequestException('유효하지 않은 tempRepairId입니다.');
+
+        const b2Key = (body.b2Key || '').trim();
+        const expectedPrefix = `repairs/${safeId}/`;
+        if (!b2Key.startsWith(expectedPrefix) || b2Key.includes('..') || b2Key.includes('\0')) {
+            throw new BadRequestException('b2Key가 유효하지 않습니다.');
+        }
+
+        const safeFileName = this.sanitizeFileName((body.fileName || '').trim());
+        if (!safeFileName) throw new BadRequestException('유효하지 않은 fileName입니다.');
+
+        const pageNumber = Number.isFinite(Number(body.pageNumber)) ? Number(body.pageNumber) : 0;
+        const fileSize = Number.isFinite(Number(body.fileSize)) ? Number(body.fileSize) : 0;
+        const originalName = (body.originalName || safeFileName).toString();
+
+        const ext = extname(safeFileName);
+        const base = safeFileName.slice(0, -ext.length);
+        const thumbName = `${base}_thumb.jpg`;
+        const thumbnailUrl = `/uploads/repairs/${safeId}/thumbnails/${encodeURIComponent(thumbName)}`;
+
+        // 썸네일 백그라운드 생성 — B2 원본 다운로드 후 로컬 생성
+        this.enqueueThumbnail(async () => {
+            const url = await this.b2Storage.getPrivatePresignedUrl(b2Key, 300);
+            const res = await fetch(url);
+            if (!res.ok) {
+                this.logger.warn(`수리파일 B2 다운로드 실패 (${b2Key}): HTTP ${res.status}`);
+                return;
+            }
+            const buf = Buffer.from(await res.arrayBuffer());
+            const tempDir = join(getUploadBasePath(), 'repairs', safeId);
+            if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true });
+            const tempPath = join(tempDir, safeFileName);
+            await fsWriteFile(tempPath, buf);
+            const thumbDir = join(getUploadBasePath(), 'repairs', safeId, 'thumbnails');
+            if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
+            await this.thumbnailService.generateThumbnail(tempPath, thumbDir, safeFileName);
+        });
+
+        return {
+            fileName: safeFileName,
+            originalName,
+            size: fileSize,
+            fileUrl: b2Key,
+            thumbnailUrl,
+            pageNumber,
+        };
+    }
+
     @Public()
     @Delete('repair/:tempRepairId')
     @Throttle({ default: { ttl: 60000, limit: 20 } })

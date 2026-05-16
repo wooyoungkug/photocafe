@@ -246,6 +246,93 @@ export function uploadRepairFile(
   });
 }
 
+// ===== 앨범수리 파일 B2 직접 업로드 (Presigned PUT) =====
+
+interface RepairPresignedResponse {
+  presignedUrl: string;
+  b2Key: string;
+  fileName: string;
+  thumbnailUrl: string;
+  pageNumber: number;
+  expiresAt: string;
+}
+
+/**
+ * 앨범수리 교체페이지를 B2에 직접 업로드 (3단계: presign → B2 PUT → confirm)
+ * B2 미설정(400) 시 UploadError(status=400)를 throw → 호출자가 폴백 처리
+ */
+export async function uploadRepairFilePresigned(
+  file: File,
+  tempRepairId: string,
+  pageNumber: number,
+  token: string | null,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal,
+): Promise<RepairFileResult> {
+  if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+
+  // 1단계: presigned URL 발급
+  const presignRes = await fetch(`${API_BASE}/api/v1/upload/repair-file-presign`, {
+    method: 'POST',
+    headers: authHeaders,
+    body: JSON.stringify({
+      tempRepairId,
+      pageNumber,
+      fileName: file.name,
+      contentType: file.type || 'image/jpeg',
+      fileSize: file.size,
+    }),
+    signal,
+  });
+
+  if (!presignRes.ok) {
+    const text = await presignRes.text().catch(() => '');
+    throw new UploadError(
+      parseErrorResponse(text, presignRes.status, presignRes.statusText),
+      presignRes.status >= 500 ? 'server' : 'client',
+      presignRes.status,
+      false,
+    );
+  }
+
+  const presigned: RepairPresignedResponse = await presignRes.json();
+  if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+  // 2단계: B2 직접 PUT
+  await uploadToB2Direct(presigned.presignedUrl, file, file.type || 'image/jpeg', onProgress, signal);
+  if (signal?.aborted) throw new DOMException('Upload cancelled', 'AbortError');
+
+  // 3단계: 서버 confirm (썸네일 백그라운드 생성 트리거)
+  const confirmRes = await fetch(`${API_BASE}/api/v1/upload/repair-file-confirm`, {
+    method: 'POST',
+    headers: authHeaders,
+    body: JSON.stringify({
+      tempRepairId,
+      b2Key: presigned.b2Key,
+      fileName: presigned.fileName,
+      originalName: file.name,
+      pageNumber,
+      fileSize: file.size,
+    }),
+    signal,
+  });
+
+  if (!confirmRes.ok) {
+    const text = await confirmRes.text().catch(() => '');
+    throw new UploadError(
+      parseErrorResponse(text, confirmRes.status, confirmRes.statusText),
+      'server',
+      confirmRes.status,
+      false,
+    );
+  }
+
+  return confirmRes.json();
+}
+
 // ===== Presigned URL 직접 업로드 (B2 Direct Upload) =====
 
 export interface PresignedUploadRequest {

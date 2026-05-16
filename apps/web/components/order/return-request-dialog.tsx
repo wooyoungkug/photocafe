@@ -27,7 +27,7 @@ import {
   REPAIR_REASON_PAID,
 } from '@/hooks/use-return-requests';
 import { useOrder } from '@/hooks/use-orders';
-import { uploadRepairFile, type RepairFileResult } from '@/lib/file-upload';
+import { uploadRepairFile, uploadRepairFilePresigned, UploadError, type RepairFileResult } from '@/lib/file-upload';
 import { getSpreadPageLabel, getPagePairForSheet, getFileForPageNumber, type PageFile } from '@/lib/page-utils';
 import { Upload, X, FileImage, Calendar, Check, Link2 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -370,12 +370,26 @@ export function ReturnRequestDialog({
     updatePages((e) => ({ ...e, file, uploading: true, progress: 0, error: undefined }));
 
     try {
-      const result = await uploadRepairFile(file, tempRepairId.current, pageNumber, null, (percent) => {
-        updatePages((e) => ({ ...e, progress: percent }));
-      });
+      let result: RepairFileResult;
+      try {
+        // B2 직접 업로드 (브라우저 → B2, Railway 경유 없음)
+        result = await uploadRepairFilePresigned(file, tempRepairId.current, pageNumber, null, (percent) => {
+          updatePages((e) => ({ ...e, progress: percent }));
+        });
+      } catch (presignErr: unknown) {
+        // B2 미설정(400) 시 Railway 경유 폴백
+        if (presignErr instanceof UploadError && presignErr.status === 400) {
+          result = await uploadRepairFile(file, tempRepairId.current, pageNumber, null, (percent) => {
+            updatePages((e) => ({ ...e, progress: percent }));
+          });
+        } else {
+          throw presignErr;
+        }
+      }
       updatePages((e) => ({ ...e, uploading: false, progress: 100, result }));
-    } catch (err: any) {
-      updatePages((e) => ({ ...e, uploading: false, error: err?.message || '업로드 실패' }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : '업로드 실패';
+      updatePages((e) => ({ ...e, uploading: false, error: message }));
     }
   };
 
