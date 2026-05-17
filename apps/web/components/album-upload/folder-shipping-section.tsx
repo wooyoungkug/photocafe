@@ -185,17 +185,28 @@ export function FolderShippingSection({
     deliveryMemo, calculateDeliveryFee, onChange,
   ]);
 
-  // 초기 마운트 시 emit 방지 (사용자 조작 없이 배송정보가 자동 설정되는 문제)
   const isFirstRender = useRef(true);
+  // 컴포넌트 마운트 시점에 이미 shippingInfo가 있었는지 기록
+  const initialHadShipping = useRef(!!shippingInfo);
 
   // 상태 변경 시 자동 emit
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
+      // 기존 배송정보가 없는 신규 항목이면 기본값(포토미 발송 + 주문자 수신)으로 즉시 완성
+      if (!initialHadShipping.current) emitChange();
       return;
     }
     emitChange();
   }, [senderType, receiverType, deliveryMethod, fareType, directRecipientName, directPhone, directPhone2, directPostalCode, directAddress, directAddressDetail, deliveryMemo, studioTotal]);
+
+  // clientInfo가 뒤늦게 로드될 때(API 응답 지연) 신규 항목을 재emit해 수신자 주소 자동 완성
+  useEffect(() => {
+    if (!initialHadShipping.current && clientInfo) {
+      emitChange();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientInfo]);
 
   // 배송지가 고객직배송이면 방문수령 비활성
   const availableMethods = receiverType === 'direct_customer'
