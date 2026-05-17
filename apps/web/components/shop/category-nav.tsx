@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { useTopMenuCategories } from '@/hooks/use-categories';
-import { cn } from '@/lib/utils';
+import { cn, normalizeImageUrl } from '@/lib/utils';
 import { API_BASE_URL } from '@/lib/api';
 import type { Category } from '@/lib/types/category';
 import { useTranslations, useLocale } from 'next-intl';
@@ -99,7 +99,7 @@ export function CategoryNav() {
                       <img
                         src={category.iconUrl.startsWith('/api')
                           ? `${API_BASE_URL}${category.iconUrl}`
-                          : category.iconUrl}
+                          : normalizeImageUrl(category.iconUrl)}
                         alt=""
                         className="h-4 w-auto object-contain"
                         onError={(e) => {
@@ -124,7 +124,7 @@ export function CategoryNav() {
                       <img
                         src={category.iconUrl.startsWith('/api')
                           ? `${API_BASE_URL}${category.iconUrl}`
-                          : category.iconUrl}
+                          : normalizeImageUrl(category.iconUrl)}
                         alt=""
                         className="h-4 w-auto object-contain"
                         onError={(e) => {

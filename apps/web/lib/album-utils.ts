@@ -2,7 +2,7 @@
  * 앨범/화보/포토북 주문 유틸리티 함수
  */
 
-import type { AlbumUploadedFile } from '@/stores/album-order-store';
+import type { AlbumUploadedFile, BindingDirection } from '@/stores/album-order-store';
 
 // ===== 비율 계산 유틸리티 =====
 
@@ -626,4 +626,150 @@ export function formatPhotobookOrderInfo(
   totalSize: number
 ): string {
   return `${folderName} / ${widthInch}x${heightInch}inch(${dpi}dpi) / ${pageCount}p / ${quantity}부 / ${formatFileSize(totalSize)}`;
+}
+
+// ===== 스프레드 감지 및 시작방향 자동 결정 엔진 =====
+
+/** 가로/세로 비율이 이 값 이상이면 펼침면(스프레드)으로 판정 — 서버 pdf-generator.service.ts 와 동일 기준 (폴백용) */
+export const SPREAD_RATIO = 1.3;
+
+/** 앨범 방향 타입: 세로형(portrait) / 정방형(square) / 가로형(landscape) */
+export type AlbumOrientation = 'portrait' | 'landscape' | 'square';
+
+/**
+ * 단일 이미지의 방향 판단
+ * - 세로 > 가로 (ratio < 0.9)  → portrait
+ * - 가로 > 세로 (ratio > 1.1)  → landscape
+ * - 나머지                      → square
+ */
+export function detectImageOrientation(widthPx: number, heightPx: number): AlbumOrientation {
+  if (heightPx === 0) return 'square';
+  const ratio = widthPx / heightPx;
+  if (ratio < 0.9) return 'portrait';
+  if (ratio > 1.1) return 'landscape';
+  return 'square';
+}
+
+/**
+ * 폴더 내 파일 다수결로 앨범 방향 결정
+ * 예: 세로 이미지가 대부분이면 → portrait 앨범
+ */
+export function detectAlbumOrientation(
+  files: { widthPx: number; heightPx: number }[]
+): AlbumOrientation {
+  if (files.length === 0) return 'landscape';
+  const counts = { portrait: 0, landscape: 0, square: 0 };
+  files.forEach((f) => { counts[detectImageOrientation(f.widthPx, f.heightPx)]++; });
+  return (Object.entries(counts) as [AlbumOrientation, number][])
+    .sort(([, a], [, b]) => b - a)[0][0];
+}
+
+/**
+ * 앨범 방향별 스프레드 판정 비율 임계값
+ *
+ * portrait : 세로 단면 ratio < 1.0  →  스프레드는 가로가 더 넓어짐 (ratio ≥ 1.1)
+ * square   : 정방형 단면 ratio ≈ 1.0 →  스프레드 ratio ≈ 2.0 (임계 1.7)
+ * landscape: 가로 단면 ratio ≈ 1.3   →  스프레드 ratio ≈ 2.5 (임계 2.0)
+ */
+const SPREAD_RATIO_MAP: Record<AlbumOrientation, number> = {
+  portrait:  1.1,
+  square:    1.7,
+  landscape: 2.0,
+};
+
+/**
+ * 앨범 방향을 고려한 스프레드 판정
+ * - portrait  앨범: 단면은 세로(ratio < 1.0), 스프레드는 가로(ratio ≥ 1.1)
+ * - square    앨범: ratio ≥ 1.7 이면 스프레드
+ * - landscape 앨범: ratio ≥ 2.0 이면 스프레드
+ */
+export function detectSpreadSmart(
+  widthPx: number,
+  heightPx: number,
+  albumOrientation: AlbumOrientation,
+): boolean {
+  if (heightPx === 0) return false;
+  return widthPx / heightPx >= SPREAD_RATIO_MAP[albumOrientation];
+}
+
+/** 픽셀 크기 기반 스프레드(펼침면) 여부 판정 (폴백: 방향 정보 없을 때) */
+export function detectSpread(widthPx: number, heightPx: number): boolean {
+  if (heightPx === 0) return false;
+  return widthPx > heightPx * SPREAD_RATIO;
+}
+
+/**
+ * Canvas API 로 이미지 파일의 좌측 절반 평균 밝기를 계산하여 빈 페이지 여부 반환
+ * 대용량 이미지 성능을 위해 최대 200px 너비로 다운스케일하여 샘플링
+ * (서버 BLANK_MEAN_THRESHOLD=250 과 동일 기준)
+ */
+export async function isLeftHalfBlank(
+  file: File,
+  blankThreshold = 250,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      try {
+        const halfWidth = Math.floor(img.naturalWidth / 2);
+        const scale = Math.min(1, 200 / halfWidth);
+        const sampleW = Math.max(1, Math.floor(halfWidth * scale));
+        const sampleH = Math.max(1, Math.floor(img.naturalHeight * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = sampleW;
+        canvas.height = sampleH;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { URL.revokeObjectURL(url); resolve(false); return; }
+        ctx.drawImage(img, 0, 0, halfWidth, img.naturalHeight, 0, 0, sampleW, sampleH);
+        const data = ctx.getImageData(0, 0, sampleW, sampleH).data;
+        let sum = 0;
+        const count = data.length / 4;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+        }
+        URL.revokeObjectURL(url);
+        resolve(count > 0 && sum / count > blankThreshold);
+      } catch {
+        URL.revokeObjectURL(url);
+        resolve(false);
+      }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+    img.src = url;
+  });
+}
+
+/**
+ * 폴더의 첫 번째 파일을 분석하여 시작방향과 빈 페이지 삽입 여부를 자동 결정
+ *
+ * 규칙:
+ * - 첫 파일이 스프레드 + 좌측 절반이 빈 페이지  →  우시작(rtl-lend),  삽입 없음
+ * - 첫 파일이 스프레드 + 좌측 절반에 내용        →  좌시작(ltr-rend),  삽입 없음
+ * - 첫 파일이 낱장(단면)                         →  우시작(rtl-lend),  hasInsertedBlankStart=true
+ *
+ * @param albumOrientation 폴더 전체 파일로 계산한 앨범 방향 (없으면 폴백 로직 사용)
+ */
+export async function detectFolderStartDirection(
+  firstFile: AlbumUploadedFile,
+  albumOrientation?: AlbumOrientation,
+): Promise<{ direction: BindingDirection; hasInsertedBlankStart: boolean }> {
+  const isSpread = albumOrientation
+    ? detectSpreadSmart(firstFile.widthPx, firstFile.heightPx, albumOrientation)
+    : detectSpread(firstFile.widthPx, firstFile.heightPx);
+
+  if (!isSpread) {
+    return { direction: 'rtl-lend', hasInsertedBlankStart: true };
+  }
+
+  if (firstFile.file) {
+    try {
+      const leftBlank = await isLeftHalfBlank(firstFile.file);
+      return { direction: leftBlank ? 'rtl-lend' : 'ltr-rend', hasInsertedBlankStart: false };
+    } catch {
+      // 판정 불가 시 기본값: 우시작
+    }
+  }
+
+  return { direction: 'rtl-lend', hasInsertedBlankStart: false };
 }

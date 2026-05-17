@@ -36,6 +36,7 @@ export interface AlbumUploadedFile {
   isFirst: boolean;           // 첫장 여부
   isLast: boolean;            // 막장 여부
   isCoverPage: boolean;       // 첫막장 파일 (분리 대상)
+  isSpread: boolean;           // 스프레드(펼침면) 여부 — 가로/세로 비율 ≥ 1.3
   hasRatioWarning: boolean;   // 비율 불일치 경고
   ratioScale?: number;        // 비율 확대 스케일
   warningMessage?: string;
@@ -61,6 +62,8 @@ export interface AlbumFolderData {
   pageCount: number;          // 페이지 수 (펼침면일 경우 다를 수 있음)
   quantity: number;           // 부수 (기본 1)
   hasRatioMismatch: boolean;  // 비율 불일치 파일 존재
+  detectedStartDirection: BindingDirection | null;  // 업로드 시 자동 감지된 시작방향
+  hasInsertedBlankStart: boolean;                   // 낱장 첫 페이지 → 좌측 빈 페이지 삽입 여부
 }
 
 // 앨범 주문 스텝
@@ -286,6 +289,14 @@ export const BINDING_DIRECTION_LABELS: Record<BindingDirection, string> = {
   'ltr-lend': '좌 시작 → 좌 끝',
   'rtl-lend': '우 시작 → 좌 끝',
   'rtl-rend': '우 시작 → 우 끝',
+};
+
+// 끝나는 페이지 방향 라벨 (배지용)
+export const END_PAGE_LABELS: Record<BindingDirection, string> = {
+  'ltr-rend': '우끝',
+  'ltr-lend': '좌끝',
+  'rtl-lend': '좌끝',
+  'rtl-rend': '우끝',
 };
 
 // 페이지 레이아웃 라벨

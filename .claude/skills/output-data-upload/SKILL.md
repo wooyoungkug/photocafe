@@ -91,3 +91,47 @@ interface UploadedFile {
 4. 썸네일은 정사각형 또는 원본 비율 유지
 5. 경고 파일은 빨간 테두리 + 아이콘
 6. 파일 순서 드래그로 변경 가능
+
+---
+
+## 스프레드(펼침면) 감지 및 시작방향 자동 결정 엔진
+
+> ⚠️ 이 규칙은 중요하므로 반드시 준수할 것
+
+### 스프레드 판정 기준
+
+클라이언트는 **앨범 방향(AlbumOrientation)** 을 먼저 판단한 뒤 방향별 임계값을 적용한다.
+
+| 앨범 방향 | 단면 예시 | 스프레드 예시 | 임계 ratio |
+|---------|---------|------------|-----------|
+| portrait (세로형) | 11×15 → 0.73 | 22×15 → 1.47 | **≥ 1.1** |
+| square (정방형) | 20×20 → 1.0 | 40×20 → 2.0 | **≥ 1.7** |
+| landscape (가로형) | 14×11 → 1.27 | 28×11 → 2.54 | **≥ 2.0** |
+
+- 앨범 방향은 폴더 내 전체 파일의 **다수결**(`detectAlbumOrientation`)로 결정
+- 단일 임계값 1.3은 폴백용(`SPREAD_RATIO`)으로만 사용
+- 서버(`pdf-generator.service.ts`)는 `SPREAD_RATIO = 1.3` 유지 (PDF 생성 시 이미지 분할용)
+
+### 시작방향 자동 결정 규칙 (낱장 폴더 업로드 시)
+
+| 첫 번째 파일 상태 | 시작방향 | 빈 페이지 삽입 |
+|----------------|---------|------------|
+| 스프레드 + **좌측 절반이 흰색(빈 페이지)** | `rtl-lend` (우시작 → 좌끝) | 없음 |
+| 스프레드 + **좌측 절반에 내용 있음** | `ltr-rend` (좌시작 → 우끝) | 없음 |
+| **낱장(단면)** 파일 | `rtl-lend` (우시작 → 좌끝) | 좌측에 빈 페이지 자동 삽입 (`hasInsertedBlankStart=true`) |
+
+### 핵심 동작 원리
+- 우시작(`rtl-lend`): 왼쪽이 빈 페이지, 오른쪽이 1페이지
+- 낱장으로 주문 시 → 시스템이 왼쪽에 빈 페이지를 자동 삽입하여 펼침면 주문으로 변환
+- 표지(첫장/막장) 개념은 이 로직에서 사용하지 않음
+
+### 구현 위치
+- 감지 함수: `apps/web/lib/album-utils.ts` → `detectImageOrientation()`, `detectAlbumOrientation()`, `detectSpreadSmart()`, `detectFolderStartDirection()`, `isLeftHalfBlank()`, `detectSpread()`(폴백)
+- 스토어 필드: `AlbumFolderData.detectedStartDirection`, `AlbumFolderData.hasInsertedBlankStart`
+- 파일 필드: `AlbumUploadedFile.isSpread`
+- UI: `apps/web/components/album-order/steps/step-data-upload.tsx` — 폴더 카드에 자동 감지 결과 배지 표시
+
+### 좌측 빈 페이지 판정 방법 (Canvas API)
+- 좌측 절반을 200px 너비로 다운스케일하여 평균 밝기 계산
+- 평균 밝기 > 250 → 흰색(빈 페이지)으로 판정
+- 서버의 `BLANK_MEAN_THRESHOLD=250` 과 동일 기준

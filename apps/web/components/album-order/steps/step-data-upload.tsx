@@ -11,13 +11,19 @@ import {
   useAlbumOrderStore,
   type AlbumFolderData,
   type AlbumUploadedFile,
+  type BindingDirection,
+  BINDING_DIRECTION_LABELS,
+  END_PAGE_LABELS,
 } from '@/stores/album-order-store';
 import {
   detectCoverPageType,
   analyzeRepresentativeSpec,
   findRatioMismatchFiles,
   formatFileSize,
-  pixelsToInches,
+  detectSpread,
+  detectSpreadSmart,
+  detectAlbumOrientation,
+  detectFolderStartDirection,
 } from '@/lib/album-utils';
 
 // 지원 파일 형식
@@ -87,6 +93,7 @@ export function StepDataUpload() {
       isFirst: coverType === 'first' || coverType === 'firstlast',
       isLast: coverType === 'last',
       isCoverPage: coverType === 'firstlast',
+      isSpread: false,
       hasRatioWarning: false,
       relativePath,
     };
@@ -101,6 +108,8 @@ export function StepDataUpload() {
         uploadedFile.widthInch = pxToInch(meta.widthPx, meta.dpi);
         uploadedFile.heightInch = pxToInch(meta.heightPx, meta.dpi);
         uploadedFile.thumbnailUrl = uploadedFile.url;
+        // 임시값 — 폴더 전체 처리 후 detectAlbumOrientation 기반으로 재계산됨
+        uploadedFile.isSpread = detectSpread(meta.widthPx, meta.heightPx);
       } catch (error) {
         uploadedFile.warningMessage = '이미지 분석 실패';
       }
@@ -295,6 +304,28 @@ export function StepDataUpload() {
           f.sortOrder = idx;
         });
 
+        // 앨범 방향 자동 감지 (폴더 전체 파일 다수결)
+        const albumOrientation = detectAlbumOrientation(processedFiles);
+
+        // 방향 기반 isSpread 재계산 (1패스: extractImageMetadata 에서 임시 detectSpread 로 설정된 값을 교체)
+        processedFiles.forEach((f) => {
+          f.isSpread = detectSpreadSmart(f.widthPx, f.heightPx, albumOrientation);
+        });
+
+        // 시작방향 자동 감지 (첫 번째 파일 기준, 앨범 방향 전달)
+        let detectedStartDirection: BindingDirection | null = null;
+        let hasInsertedBlankStart = false;
+        const firstFile = processedFiles[0];
+        if (firstFile) {
+          try {
+            const detected = await detectFolderStartDirection(firstFile, albumOrientation);
+            detectedStartDirection = detected.direction;
+            hasInsertedBlankStart = detected.hasInsertedBlankStart;
+          } catch {
+            // 감지 실패 시 null 유지
+          }
+        }
+
         const folderData: AlbumFolderData = {
           id: `folder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           folderName,
@@ -306,6 +337,8 @@ export function StepDataUpload() {
           pageCount: processedFiles.length,
           quantity: 1,
           hasRatioMismatch,
+          detectedStartDirection,
+          hasInsertedBlankStart,
         };
 
         newFolders.push(folderData);
@@ -444,10 +477,21 @@ export function StepDataUpload() {
 
                       {/* 폴더 정보 */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h5 className="font-medium truncate">{folder.folderName}</h5>
+                          {folder.detectedStartDirection && (
+                            <Badge variant="outline" className="text-blue-600 border-blue-400 text-xs">
+                              <Check className="w-3 h-3 mr-1" />
+                              {END_PAGE_LABELS[folder.detectedStartDirection]}
+                            </Badge>
+                          )}
+                          {folder.hasInsertedBlankStart && (
+                            <Badge variant="outline" className="text-gray-500 border-gray-300 text-xs">
+                              빈페이지 자동삽입
+                            </Badge>
+                          )}
                           {folder.hasRatioMismatch && (
-                            <Badge variant="outline" className="text-yellow-600 border-yellow-400">
+                            <Badge variant="outline" className="text-yellow-600 border-yellow-400 text-xs">
                               <AlertTriangle className="w-3 h-3 mr-1" />
                               비율 불일치
                             </Badge>
@@ -466,24 +510,24 @@ export function StepDataUpload() {
                             </span>
                           )}
                         </div>
-                        {/* 첫장/막장 표시 */}
-                        <div className="flex items-center gap-2 mt-2">
-                          {folder.files.some((f) => f.isFirst) && (
-                            <Badge className="bg-green-100 text-green-700 text-xs">
-                              첫장 포함
+                        {/* 스프레드 감지 통계 */}
+                        {folder.files.some((f) => f.isSpread) && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge className="bg-blue-50 text-blue-700 text-xs border border-blue-200">
+                              펼침면 {folder.files.filter((f) => f.isSpread).length}개
                             </Badge>
-                          )}
-                          {folder.files.some((f) => f.isLast) && (
-                            <Badge className="bg-orange-100 text-orange-700 text-xs">
-                              막장 포함
+                            <Badge className="bg-gray-50 text-gray-600 text-xs border border-gray-200">
+                              낱장 {folder.files.filter((f) => !f.isSpread).length}개
                             </Badge>
-                          )}
-                          {folder.files.some((f) => f.isCoverPage) && (
-                            <Badge className="bg-purple-100 text-purple-700 text-xs">
-                              첫막장 포함
+                          </div>
+                        )}
+                        {!folder.files.some((f) => f.isSpread) && folder.files.length > 0 && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge className="bg-gray-50 text-gray-600 text-xs border border-gray-200">
+                              낱장 {folder.files.length}개
                             </Badge>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </div>
 

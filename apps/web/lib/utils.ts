@@ -1,14 +1,19 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
+const CDN_BASE = process.env.NEXT_PUBLIC_CDN_URL || '';
+
 /**
- * 이미지 URL 정규화 (DB 저장 값 → 상대 경로)
- * Next.js rewrite가 /uploads/* → API 서버로 프록시 처리
+ * 이미지 URL 정규화 (DB 저장 값 → 실제 접근 가능한 URL)
+ * - 로컬: NEXT_PUBLIC_CDN_URL 미설정 → /uploads/... 그대로 (Next.js rewrite로 API 프록시)
+ * - 운영: NEXT_PUBLIC_CDN_URL 설정 → /uploads/... → B2 CDN URL 직접 변환
  */
 export function normalizeImageUrl(url: string | null | undefined): string {
   if (!url) return '';
-  // 절대 URL → 상대 경로 추출 (API 서버 주소 제거)
+  // 절대 URL 처리
   if (url.startsWith('http://') || url.startsWith('https://')) {
+    // 이미 CDN URL이면 그대로 사용
+    if (CDN_BASE && url.startsWith(CDN_BASE)) return url;
     try {
       const u = new URL(url);
       url = u.pathname;
@@ -19,6 +24,10 @@ export function normalizeImageUrl(url: string | null | undefined): string {
   // /upload/... → /uploads/... 변환 (레거시 URL 호환)
   if (url.startsWith('/upload/') && !url.startsWith('/uploads/')) {
     url = `/uploads/${url.substring('/upload/'.length)}`;
+  }
+  // 운영: /uploads/... → B2 CDN URL (NEXT_PUBLIC_CDN_URL 설정 시)
+  if (CDN_BASE && url.startsWith('/uploads/')) {
+    return `${CDN_BASE}/${url.substring('/uploads/'.length)}`;
   }
   return url;
 }
