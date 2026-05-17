@@ -7,8 +7,8 @@ import { ThumbnailService } from '@/modules/upload/services/thumbnail.service';
 import { B2StorageService } from '@/modules/upload/services/b2-storage.service';
 import { AuditLogService } from '@/modules/audit-log/audit-log.service';
 import { Prisma } from '@prisma/client';
-import { dirname, join } from 'path';
-import { existsSync } from 'fs';
+import { dirname, join, extname } from 'path';
+import { existsSync, readdirSync } from 'fs';
 import {
   CreateOrderDto,
   CreateOrderItemDto,
@@ -742,7 +742,7 @@ export class OrderService {
       allItemIds.length > 0
         ? this.prisma.orderFile.groupBy({
             by: ['orderItemId'],
-            where: { orderItemId: { in: allItemIds }, originalPath: { not: null }, storageStatus: 'uploaded', deletedAt: null },
+            where: { orderItemId: { in: allItemIds }, storageStatus: 'uploaded', deletedAt: null },
             _count: true,
           })
         : Promise.resolve([] as { orderItemId: string; _count: number }[]),
@@ -3396,13 +3396,31 @@ export class OrderService {
 
       this.logger.log(`파일 이동 시작 (주문: ${order.orderNumber}, temp: ${tempFolderId}, DB파일수: ${item.files.length})`);
 
-      // 즉시 업로드가 완료될 때까지 대기 (최대 30초)
+      // B2 직접 업로드 케이스 사전 감지: 로컬 temp originals 가 비어있으면
+      // 클라이언트가 B2 에 직접 PUT 한 케이스이므로 B2 내부 복사로 처리.
       const tempOriginalsDir = this.fileStorage.getTempOriginalsDir(tempFolderId);
       this.logger.log(`[DEBUG] tempOriginalsDir = ${tempOriginalsDir}`);
+      const tempOrigExists = existsSync(tempOriginalsDir);
+      const localFileCount = tempOrigExists ? readdirSync(tempOriginalsDir).length : 0;
+      if (localFileCount === 0) {
+        this.logger.log(
+          `[B2직접업로드 감지] temp 로컬 originals 비어있음 (exists=${tempOrigExists}). B2 내부 복사로 처리 (주문: ${order.orderNumber}, temp: ${tempFolderId})`,
+        );
+        try {
+          await this.handleB2DirectUploadFiles(order, item, tempFolderId);
+        } catch (b2Err) {
+          this.logger.error(
+            `[B2직접업로드] 처리 실패 (주문: ${order.orderNumber}): ${(b2Err as Error).message}`,
+            (b2Err as Error).stack,
+          );
+        }
+        continue;
+      }
+
+      // 즉시 업로드가 완료될 때까지 대기 (최대 30초)
       const expectedFileCount = item.files.length;
       for (let attempt = 0; attempt < 30; attempt++) {
         try {
-          const { readdirSync, existsSync } = require('fs');
           if (existsSync(tempOriginalsDir)) {
             const currentCount = readdirSync(tempOriginalsDir).length;
             if (currentCount >= expectedFileCount) {
@@ -3420,7 +3438,6 @@ export class OrderService {
       }
       // 대기 후 최종 상태 로깅
       try {
-        const { readdirSync, existsSync } = require('fs');
         const exists = existsSync(tempOriginalsDir);
         const files = exists ? readdirSync(tempOriginalsDir) : [];
         this.logger.log(`[DEBUG] 대기 완료 후 temp 상태: exists=${exists}, fileCount=${files.length}, expected=${expectedFileCount}`);
@@ -3560,6 +3577,158 @@ export class OrderService {
         } else {
           this.logger.warn(`temp 폴더 보존 (주문: ${order.orderNumber}, temp: ${tempFolderId}) - ${updates.length}/${totalDbFiles}건만 이동됨, 미이동 파일 존재`);
         }
+      }
+    }
+  }
+
+  /**
+   * B2 직접 업로드 케이스(presigned PUT 으로 클라이언트가 B2 에 직접 올린 파일) 처리.
+   *
+   * 입력 상태:
+   *   - OrderFile.fileUrl = `temp/{tempFolderId}/originals/{fileName}` (B2 키)
+   *   - 로컬 디스크에는 원본이 없음(서버를 거치지 않음). 썸네일만 confirm 단계에서 저장될 수 있음.
+   *   - storageStatus = 'pending'
+   *
+   * 처리:
+   *   1. B2 내부 CopyObject 로 temp → orders/{orderNumber}/originals/{fileName} 복사
+   *   2. 썸네일도 best-effort 로 temp → thumbnails/{orderNumber}/{base}_thumb.jpg 복사
+   *   3. DB 업데이트: fileUrl = 최종 B2 키, storageStatus = 'uploaded'
+   *
+   * 실패 정책:
+   *   - 개별 파일 복사 실패는 로그만 남기고 다음 파일로 진행
+   *   - 썸네일 복사 실패는 무시(원본 fallback)
+   *   - B2 미설정 시 즉시 반환(다른 fallback 경로 없음)
+   */
+  private async handleB2DirectUploadFiles(
+    order: any,
+    item: any,
+    tempFolderId: string,
+  ): Promise<void> {
+    if (!this.b2Storage.isEnabled()) {
+      this.logger.warn(`[B2직접업로드] B2 미설정, 건너뜀 (주문: ${order.orderNumber})`);
+      return;
+    }
+
+    const safeOrderNumber = this.sanitizeStorageKeyPart(order.orderNumber);
+    const updates: { id: string; fileUrl: string; thumbnailUrl: string | null; thumbnailPath: string | null; storageStatus: string }[] = [];
+
+    for (const file of item.files) {
+      if (!file.fileUrl?.includes('temp/')) continue;
+
+      // B2 temp 키 추출
+      const sourceParts = file.fileUrl.replace(/\\/g, '/').split(/\/?temp\//);
+      if (sourceParts.length < 2) continue;
+      const tempRelPath = sourceParts[1]; // e.g. "tf-xxx/originals/filename.jpg"
+      const sourceKey = `temp/${tempRelPath}`;
+
+      const safeFileName = this.sanitizeStorageKeyPart(file.fileName);
+      const destKey = `orders/${safeOrderNumber}/originals/${safeFileName}`;
+
+      try {
+        await this.b2Storage.copyObject(sourceKey, destKey);
+        this.logger.log(`[B2직접업로드] 원본 복사 완료: ${sourceKey} → ${destKey}`);
+
+        // 썸네일 best-effort 복사
+        const ext = extname(file.fileName);
+        const base = file.fileName.slice(0, -ext.length);
+        const thumbSrcKey = `temp/${tempFolderId}/thumbnails/${base}_thumb.jpg`;
+        const safeBase = safeFileName.replace(/\.[^.]+$/, '');
+        const thumbDestKey = `thumbnails/${safeOrderNumber}/${safeBase}_thumb.jpg`;
+
+        let finalThumbUrl: string | null = file.thumbnailUrl ?? null;
+        let finalThumbPath: string | null = file.thumbnailPath ?? null;
+        try {
+          await this.b2Storage.copyObject(thumbSrcKey, thumbDestKey);
+          finalThumbUrl = thumbDestKey;
+          finalThumbPath = thumbDestKey;
+          this.logger.log(`[B2직접업로드] 썸네일 복사 완료: ${thumbSrcKey} → ${thumbDestKey}`);
+        } catch (thumbErr) {
+          this.logger.warn(
+            `[B2직접업로드] 썸네일 복사 실패(무시): ${thumbSrcKey} - ${(thumbErr as Error).message}`,
+          );
+        }
+
+        updates.push({
+          id: file.id,
+          fileUrl: destKey,
+          thumbnailUrl: finalThumbUrl,
+          thumbnailPath: finalThumbPath,
+          storageStatus: 'uploaded',
+        });
+      } catch (err) {
+        this.logger.error(
+          `[B2직접업로드] 복사 실패 (${file.fileName}): ${(err as Error).message}`,
+        );
+      }
+    }
+
+    if (updates.length === 0) {
+      this.logger.warn(`[B2직접업로드] 업데이트 대상 없음 (주문: ${order.orderNumber})`);
+      return;
+    }
+
+    // 50개씩 배치 처리
+    const BATCH_SIZE = 50;
+    for (let i = 0; i < updates.length; i += BATCH_SIZE) {
+      const batch = updates.slice(i, i + BATCH_SIZE);
+      try {
+        await this.prisma.$transaction(
+          batch.map(u =>
+            this.prisma.orderFile.update({
+              where: { id: u.id },
+              data: {
+                fileUrl: u.fileUrl,
+                thumbnailUrl: u.thumbnailUrl,
+                thumbnailPath: u.thumbnailPath,
+                storageStatus: u.storageStatus,
+              },
+            }),
+          ),
+        );
+      } catch (dbErr) {
+        this.logger.error(
+          `[B2직접업로드] DB 배치 업데이트 실패 (주문: ${order.orderNumber}, batch ${i}-${i + batch.length}): ${(dbErr as Error).message}`,
+        );
+        for (const u of batch) {
+          try {
+            await this.prisma.orderFile.update({
+              where: { id: u.id },
+              data: {
+                fileUrl: u.fileUrl,
+                thumbnailUrl: u.thumbnailUrl,
+                thumbnailPath: u.thumbnailPath,
+                storageStatus: u.storageStatus,
+              },
+            });
+          } catch (singleErr) {
+            this.logger.error(
+              `[B2직접업로드] 개별 DB 업데이트 실패 (파일: ${u.id}): ${(singleErr as Error).message}`,
+            );
+          }
+        }
+      }
+    }
+
+    this.logger.log(
+      `[B2직접업로드] DB 업데이트 완료: ${updates.length}건 (주문: ${order.orderNumber})`,
+    );
+
+    // OrderItem 대표 썸네일 동기화 (sortOrder 우선)
+    const firstUpdate = [...updates].sort((a, b) => {
+      const af = item.files.find((f: any) => f.id === a.id);
+      const bf = item.files.find((f: any) => f.id === b.id);
+      return (af?.sortOrder ?? 0) - (bf?.sortOrder ?? 0);
+    })[0];
+    if (firstUpdate?.thumbnailUrl) {
+      try {
+        await this.prisma.orderItem.update({
+          where: { id: item.id },
+          data: { thumbnailUrl: firstUpdate.thumbnailUrl },
+        });
+      } catch (err) {
+        this.logger.warn(
+          `[B2직접업로드] OrderItem 썸네일 동기화 실패 (item: ${item.id}): ${(err as Error).message}`,
+        );
       }
     }
   }

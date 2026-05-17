@@ -11,6 +11,7 @@ import {
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
   ListObjectsV2Command,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
@@ -464,6 +465,31 @@ export class B2StorageService implements OnModuleInit {
     const s3 = this.requireClient();
     await s3.send(
       new DeleteObjectCommand({ Bucket: this.privateBucket, Key: key }),
+    );
+  }
+
+  /**
+   * Private 버킷 내부에서 객체를 다른 키로 복사한다.
+   *
+   * B2 직접 업로드(`temp/{tempFolderId}/originals/...`)된 파일을
+   * 주문 확정 후 최종 경로(`orders/{orderNumber}/originals/...`)로 옮길 때 사용.
+   *
+   * - 서버 메모리/디스크를 거치지 않고 B2 내부에서 복사 → 대용량도 빠르게 처리
+   * - CopySource 는 `{bucket}/{key}` 형식이며 URL 인코딩 필요
+   * - 원본은 그대로 유지됨(필요 시 호출자가 deletePrivateObject 로 정리)
+   */
+  async copyObject(sourceKey: string, destKey: string): Promise<void> {
+    const s3 = this.requireClient();
+    const encodedSource = `${this.privateBucket}/${sourceKey
+      .split('/')
+      .map((s) => encodeURIComponent(s))
+      .join('/')}`;
+    await s3.send(
+      new CopyObjectCommand({
+        Bucket: this.privateBucket,
+        Key: destKey,
+        CopySource: encodedSource,
+      }),
     );
   }
 
