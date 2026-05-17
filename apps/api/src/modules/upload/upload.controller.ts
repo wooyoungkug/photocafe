@@ -548,6 +548,7 @@ export class UploadController implements OnModuleInit {
             heightInch: number;
             dpi: number;
             thumbnailDataUrl?: string;
+            b2DurationMs?: number;
         },
     ) {
         if (!this.b2Storage.isEnabled()) {
@@ -652,6 +653,19 @@ export class UploadController implements OnModuleInit {
                 await fsWriteFile(tempFilePath, buf);
                 if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
                 await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+            });
+        }
+
+        // 클라이언트가 측정한 B2 직접 업로드 소요 시간 → 서버사이드로 안정적 기록
+        const b2DurationMs = Number(body.b2DurationMs);
+        if (Number.isFinite(b2DurationMs) && b2DurationMs > 0 && fileSize > 0) {
+            this.metrics.record({
+                kind: 'real',
+                phase: 'client_to_b2',
+                endpoint: '/upload/album-file-confirm',
+                fileSize,
+                durationMs: b2DurationMs,
+                success: true,
             });
         }
 
@@ -846,6 +860,7 @@ export class UploadController implements OnModuleInit {
             dpi: number;
             storage?: string;
             thumbnailDataUrl?: string;
+            b2DurationMs?: number;
         },
         @Request() req: any,
     ) {
@@ -1001,6 +1016,19 @@ export class UploadController implements OnModuleInit {
                 await fsWriteFile(tempFilePath, buf);
                 if (!existsSync(thumbDir)) mkdirSync(thumbDir, { recursive: true });
                 await this.thumbnailService.generateThumbnail(tempFilePath, thumbDir, safeFileName);
+            });
+        }
+
+        // 클라이언트가 측정한 B2 직접 업로드 소요 시간 → 서버사이드로 안정적 기록
+        const b2DurationMsMulti = Number(body.b2DurationMs);
+        if (Number.isFinite(b2DurationMsMulti) && b2DurationMsMulti > 0 && fileSize > 0) {
+            this.metrics.record({
+                kind: 'real',
+                phase: 'client_to_b2',
+                endpoint: '/upload/album-file-multipart-complete',
+                fileSize,
+                durationMs: b2DurationMsMulti,
+                success: true,
             });
         }
 

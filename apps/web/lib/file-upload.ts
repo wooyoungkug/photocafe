@@ -496,6 +496,7 @@ export async function confirmPresignedUpload(
     heightInch: number;
     dpi: number;
     thumbnailDataUrl?: string;
+    b2DurationMs?: number;
   },
   token: string | null,
 ): Promise<UploadedFileResult> {
@@ -511,7 +512,10 @@ export async function confirmPresignedUpload(
     res = await fetch(`${API_BASE}/api/v1/upload/album-file-confirm`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        ...(params.b2DurationMs ? { b2DurationMs: params.b2DurationMs } : {}),
+      }),
     });
   } catch (err) {
     throw new UploadError(
@@ -672,16 +676,7 @@ export async function uploadAlbumFilePresigned(
       true,
     );
   }
-
-  // 파트별 client→B2 속도 보고 (설정 샘플링)
-  if (token && Math.random() < getB2SampleRate()) {
-    const durationMs = performance.now() - b2UploadStart;
-    void fetch(`${API_BASE}/api/v1/upload/metrics/record`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ kind: 'real', phase: 'client_to_b2', fileSize: file.size, durationMs }),
-    }).catch(() => {});
-  }
+  const b2DurationMs = performance.now() - b2UploadStart;
 
   if (signal?.aborted) {
     throw new DOMException('Upload cancelled', 'AbortError');
@@ -708,6 +703,7 @@ export async function uploadAlbumFilePresigned(
         heightInch: metadata.heightInch,
         dpi: metadata.dpi,
         thumbnailDataUrl: safeThumb,
+        b2DurationMs,
       },
       token,
     );
@@ -906,6 +902,7 @@ async function confirmMultipartComplete(
     dpi: number;
     storage?: string;
     thumbnailDataUrl?: string;
+    b2DurationMs?: number;
   },
   token: string | null,
 ): Promise<UploadedFileResult> {
@@ -917,7 +914,10 @@ async function confirmMultipartComplete(
     res = await fetch(`${API_BASE}/api/v1/upload/album-file-multipart-complete`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        ...(params.b2DurationMs ? { b2DurationMs: params.b2DurationMs } : {}),
+      }),
     });
   } catch (err) {
     throw new UploadError(
@@ -1041,6 +1041,7 @@ export async function uploadAlbumFileMultipart(
 
   // 2~3) 청크 병렬 업로드 + 클라이언트 썸네일 생성 병렬 실행
   const thumbnailPromise = generateClientThumbnail(file);
+  const b2MultipartStart = performance.now();
   const totalSize = file.size;
   let uploadedBytes = 0;
   const partResults = new Array<{ partNumber: number; etag: string } | null>(session.partCount).fill(null);
@@ -1102,6 +1103,7 @@ export async function uploadAlbumFileMultipart(
     workers.push(runWorker());
   }
   await Promise.all(workers);
+  const b2MultipartDurationMs = performance.now() - b2MultipartStart;
 
   if (firstError || aborted) {
     void abortMultipart(
@@ -1151,6 +1153,7 @@ export async function uploadAlbumFileMultipart(
         dpi: metadata.dpi,
         storage,
         thumbnailDataUrl: safeThumb,
+        b2DurationMs: b2MultipartDurationMs,
       },
       token,
     );

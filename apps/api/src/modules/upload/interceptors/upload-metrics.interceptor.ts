@@ -17,6 +17,13 @@ export class UploadMetricsInterceptor implements NestInterceptor {
     intercept(context: ExecutionContext, next: CallHandler) {
         const req = context.switchToHttp().getRequest<any>();
         const path: string = req?.route?.path || req?.url || '';
+
+        // presign 엔드포인트는 URL 발급만 하고 데이터 전송이 없으므로 기록 제외
+        if (typeof path === 'string' && path.includes('presign')) {
+            req.metricsSampled = false;
+            return next.handle();
+        }
+
         const isSpeedtest = typeof path === 'string' && path.includes('/speedtest/');
 
         // 메트릭 대상 결정 — 서비스에서 런타임 sampleRate 를 매 요청마다 읽음

@@ -904,10 +904,11 @@ export default function UploadMetricsPage() {
                 <CardContent className="space-y-3">
                     <p className="text-[14px] text-black font-normal">
                         이 테스트는 presigned URL을 발급받아 브라우저에서 B2(미국 버지니아)로 직접 PUT 업로드합니다.<br />
-                        실제 앨범 업로드 경로와 동일하므로 가장 정확한 외부망 속도를 측정합니다.
+                        실제 앨범 업로드 경로와 동일하므로 가장 정확한 외부망 속도를 측정합니다.<br />
+                        <span className="text-[13px] text-slate-500">※ 5MB 미만은 TCP 연결 수립 시간이 측정값을 왜곡(실제보다 느리게 측정)하므로 5MB부터 제공합니다.</span>
                     </p>
                     <div className="flex flex-wrap gap-2">
-                        {[1, 5, 10, 50].map((mb) => (
+                        {[5, 10, 20, 50].map((mb) => (
                             <Button
                                 key={mb}
                                 variant="outline"
