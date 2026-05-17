@@ -712,12 +712,11 @@ export default function OrderDetailPage() {
                                         </div>
                                         <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md bg-white border-gray-200">
                                           <div className="truncate font-medium" title={file.fileName}>{formatThumbFileLabel(file.fileName)}</div>
-                                          {wIn && hIn && (
-                                            <div className="text-gray-500 truncate">{wIn}×{hIn}&quot;</div>
-                                          )}
-                                          {file.dpi > 0 && (
-                                            <div className="text-gray-500">{file.dpi}dpi</div>
-                                          )}
+                                          <div className="text-gray-500 truncate">
+                                            {wIn && hIn ? `${wIn}×${hIn}"` : ''}
+                                            {wIn && hIn && file.dpi > 0 ? ' ' : ''}
+                                            {file.dpi > 0 ? `${file.dpi}dpi` : ''}
+                                          </div>
                                         </div>
                                       </div>
                                     );
