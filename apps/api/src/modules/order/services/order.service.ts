@@ -3380,12 +3380,12 @@ export class OrderService {
 
       const firstFile = item.files[0];
       this.logger.log(`[moveTemporaryFiles] item ${item.id}: 첫번째 파일 URL = ${firstFile.fileUrl}`);
-      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('/temp/')) {
+      if (!firstFile.fileUrl || !firstFile.fileUrl.includes('temp/')) {
         this.logger.log(`[moveTemporaryFiles] item ${item.id}: temp 경로 아님, 건너뜀`);
         continue;
       }
 
-      const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split('/temp/');
+      const urlParts = firstFile.fileUrl.replace(/\\/g, '/').split(/\/?temp\//);
       if (urlParts.length < 2) continue;
       const tempFolderId = urlParts[1].split('/')[0];
 
@@ -3885,7 +3885,7 @@ export class OrderService {
       where: {
         deletedAt: null,
         OR: [
-          { thumbnailUrl: { contains: '/temp/' } },
+          { thumbnailUrl: { contains: 'temp/' } },
           { thumbnailUrl: null },
           { thumbnailUrl: '' },
         ],
@@ -3907,9 +3907,9 @@ export class OrderService {
       } catch { failed++; }
     }
 
-    // Case 2: fileUrl이 /temp/ 경로인 파일 → 파일 이동 미완료
+    // Case 2: fileUrl이 temp/ 경로인 파일 → 파일 이동 미완료
     const tempUrlFiles = await this.prisma.orderFile.findMany({
-      where: { deletedAt: null, fileUrl: { contains: '/temp/' } },
+      where: { deletedAt: null, fileUrl: { contains: 'temp/' } },
       select: { id: true, fileUrl: true, thumbnailUrl: true, fileName: true, orderItemId: true },
       orderBy: { sortOrder: 'asc' },
     });
@@ -3926,7 +3926,7 @@ export class OrderService {
       for (const [orderItemId, files] of byItem) {
         // temp 원본 경로 확인
         const firstUrl = files[0].fileUrl;
-        const tempParts = firstUrl.replace(/\\/g, '/').split('/temp/');
+        const tempParts = firstUrl.replace(/\\/g, '/').split(/\/?temp\//);
         if (tempParts.length < 2) continue;
         const tempFolderId = tempParts[1].split('/')[0];
         const tempOrigDir = join(getUploadBasePath(), 'temp', tempFolderId, 'originals');
@@ -3965,7 +3965,7 @@ export class OrderService {
           }
           // 복구되지 못한 파일만 missing 처리
           const stillTempFiles = await this.prisma.orderFile.findMany({
-            where: { deletedAt: null, orderItemId, fileUrl: { contains: '/temp/' } },
+            where: { deletedAt: null, orderItemId, fileUrl: { contains: 'temp/' } },
             select: { id: true },
           });
           for (const f of stillTempFiles) {
@@ -4076,12 +4076,12 @@ export class OrderService {
    * 3단계: 썸네일 누락 시 원본에서 재생성
    */
   async repairPendingFiles() {
-    // storageStatus가 pending이고 fileUrl에 /temp/가 포함된 파일들
+    // storageStatus가 pending이고 fileUrl에 temp/가 포함된 파일들
     const pendingFiles = await this.prisma.orderFile.findMany({
       where: {
         deletedAt: null,
         storageStatus: 'pending',
-        fileUrl: { contains: '/temp/' },
+        fileUrl: { contains: 'temp/' },
       },
       include: {
         orderItem: {
