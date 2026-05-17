@@ -256,7 +256,11 @@ export function useImmediateUpload(productId: string) {
       const { folders } = useMultiFolderUploadStore.getState();
       const currentFolder = folders.find(f => f.id === folderId);
       const serverFiles = progress.serverFiles.map(r => {
-        const origFile = currentFolder?.files.find(f => (f.newFileName || f.fileName) === r.fileName);
+        const origFile = currentFolder?.files.find(f =>
+          f.pageNumber === r.sortOrder ||
+          f.fileName === r.fileName ||
+          f.newFileName === r.fileName
+        );
         return {
           tempFileId: r.tempFileId,
           fileUrl: r.fileUrl,

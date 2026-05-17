@@ -491,7 +491,11 @@ export default function ProductPage() {
             if (originalFolder?.immediateUploadStatus === 'completed' && originalFolder.tempFolderId && originalFolder.immediateServerFiles) {
               // 이미 서버에 있으므로 바로 completed 설정
               const serverFiles = originalFolder.immediateServerFiles.map(sf => {
-                const origFile = originalFolder.files.find(f => (f.newFileName || f.fileName) === sf.fileName);
+                const origFile = originalFolder.files.find(f =>
+                  f.pageNumber === sf.sortOrder ||
+                  f.fileName === sf.fileName ||
+                  f.newFileName === sf.fileName
+                );
                 return {
                   tempFileId: sf.tempFileId,
                   fileUrl: sf.fileUrl,
