@@ -55,6 +55,11 @@ interface B2TempFileMeta {
     thumbnailUrl: string;
     sortOrder: number;
     createdAt: number;     // Date.now()
+    width?: number;
+    height?: number;
+    widthInch?: number;
+    heightInch?: number;
+    dpi?: number;
 }
 
 @ApiTags('Upload')
@@ -594,6 +599,11 @@ export class UploadController implements OnModuleInit {
         const thumbnailUrl = `/uploads/temp/${safeTempFolderId}/thumbnails/${encodedThumbName}`;
 
         // 인메모리 Map에 메타데이터 저장 (중복 fileName 은 새 값으로 덮어쓰기)
+        const width = Number.isFinite(Number(body.width)) ? Number(body.width) : undefined;
+        const height = Number.isFinite(Number(body.height)) ? Number(body.height) : undefined;
+        const widthInch = Number.isFinite(Number(body.widthInch)) ? Number(body.widthInch) : undefined;
+        const heightInch = Number.isFinite(Number(body.heightInch)) ? Number(body.heightInch) : undefined;
+        const dpi = Number.isFinite(Number(body.dpi)) ? Number(body.dpi) : undefined;
         const meta: B2TempFileMeta = {
             fileName: safeFileName,
             originalName,
@@ -602,6 +612,11 @@ export class UploadController implements OnModuleInit {
             thumbnailUrl,
             sortOrder,
             createdAt: Date.now(),
+            width,
+            height,
+            widthInch,
+            heightInch,
+            dpi,
         };
         const existing = this.b2TempFiles.get(safeTempFolderId) || [];
         const filtered = existing.filter((f) => f.fileName !== safeFileName);
