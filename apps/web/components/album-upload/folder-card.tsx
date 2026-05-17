@@ -1236,52 +1236,27 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
-                      <div className="truncate font-medium" title={file.newFileName || file.fileName}>{formatThumbFileLabel(file.newFileName || file.fileName)}</div>
-                      {folder.pageLayout === 'single' ? (
-                        <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
-                          <span className="truncate shrink">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
-                          {file.colorSpace && (
-                            <span className={cn(
-                              'inline-block px-1 py-0 rounded text-[8px] font-medium',
-                              file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
-                                file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-600'
-                            )}>
-                              {file.colorSpace}
-                            </span>
-                          )}
+                      <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
+                        <span className="truncate shrink">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                        {file.colorSpace && (
                           <span className={cn(
-                            'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
-                            file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
-                              file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
+                            'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                            file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
+                              file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
+                                'bg-gray-100 text-gray-600'
                           )}>
-                            {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
+                            {file.colorSpace}
                           </span>
-                        </div>
-                      ) : (
-                        <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
-                          <span className="truncate shrink">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
-                          {file.colorSpace && (
-                            <span className={cn(
-                              'inline-block px-1 py-0 rounded text-[8px] font-medium',
-                              file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
-                                file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
-                                  'bg-gray-100 text-gray-600'
-                            )}>
-                              {file.colorSpace}
-                            </span>
-                          )}
-                          <span className={cn(
-                            'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
-                            file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
-                              file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                          )}>
-                            {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
-                          </span>
-                        </div>
-                      )}
+                        )}
+                        <span className={cn(
+                          'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
+                          file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
+                            file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-red-100 text-red-700'
+                        )}>
+                          {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
+                        </span>
+                      </div>
                     </div>
                   </div>
               );
