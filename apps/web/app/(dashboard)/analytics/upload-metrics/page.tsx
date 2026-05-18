@@ -41,6 +41,7 @@ import { BaselineTestCard } from './_components/baseline-test-card';
 import { MultipartSettingsCard } from './_components/multipart-settings-card';
 import { PathComparisonCard } from './_components/path-comparison-card';
 import { TuningMatrixCard } from './_components/tuning-matrix-card';
+import { MetricsExportCard } from './_components/metrics-export-card';
 
 const PHASE_LABEL: Record<string, string> = {
     client_to_api: '클라이언트 → API',
@@ -312,6 +313,9 @@ export default function UploadMetricsPage() {
                     </Button>
                 </div>
             </div>
+
+            {/* 메트릭 다운로드 (CSV/JSON) */}
+            <MetricsExportCard />
 
             {/* 진단 정보 → 회선 진단 → 멀티파트 설정 → 경로 비교 → 청크/동시성 매트릭스 */}
             <DiagnosticsCard />
