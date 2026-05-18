@@ -966,21 +966,21 @@ async function abortMultipart(
 
 /**
  * Multipart 적용 임계값 — 이 이상의 파일은 multipart 사용.
- * 20MB: 20~50MB 앨범 인쇄 파일이 병렬 청크 업로드 혜택 (2청크 이상 = 병렬 효과 시작점).
- * 단일 presigned PUT 대비 오버헤드 2 RTT(~300ms)는 청크 병렬화 이득(~1-3초)이 상쇄.
+ * 6MB: S3/B2 multipart 최소 청크 5MB 기준, 6MB부터 2청크 병렬 가능.
+ * 2026-05-18 측정: 한국→B2(미국동부) 단일 PUT 200~400KB/s vs multipart 8MB/s — 20~30배 차이.
+ * 단일 TCP 연결의 transcontinental throughput 한계가 주원인이라 임계값을 대폭 낮춤.
  */
-export const MULTIPART_THRESHOLD = 20 * 1024 * 1024; // 20MB
+export const MULTIPART_THRESHOLD = 6 * 1024 * 1024; // 6MB
 /**
  * 한 파일 내 동시 청크 업로드 수.
- * 16MB 청크 × 10 = 160MB in-flight/파일. 한국→미국 고속 회선 TCP 윈도우를 최대한 채움.
- * 파일 6개 동시 기준 총 960MB — 브라우저 메모리 충분한 환경 기준.
+ * 5MB × 8 = 40MB in-flight/파일. 한국→미국 RTT 200ms BDP(~25MB) 충분히 커버.
  */
-const PART_CONCURRENCY = 10;
+const PART_CONCURRENCY = 8;
 /**
- * 청크 크기 — 16MB.
- * 한국→미국 RTT 200ms 기준 BDP ≈ 25MB. 16MB × 10 병렬 = 160MB in-flight.
+ * 청크 크기 — 5MB (S3/B2 multipart 최소값).
+ * 백엔드 MIN_PART=5MB 와 일치. 작은 청크가 RTT 오버헤드 대비 throughput 이득이 더 큼.
  */
-const PART_SIZE = 16 * 1024 * 1024;
+const PART_SIZE = 5 * 1024 * 1024;
 
 /**
  * 큰 파일을 Multipart 로 업로드한다 (5단계).
