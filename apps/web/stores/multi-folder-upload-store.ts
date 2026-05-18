@@ -388,6 +388,8 @@ export interface UploadedFolder {
     sortOrder: number;
     errorMessage: string;
   }>;
+  // 세션에서 복원된 partial 폴더의 원래 기대 파일 수 (files.length 와 다를 수 있음)
+  expectedFileCount?: number;
 
   // 업로드 시 계산된 가격 정보 (FolderCard에서 설정, 장바구니 담을 때 그대로 사용)
   computedPriceInfo?: {

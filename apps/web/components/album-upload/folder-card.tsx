@@ -940,7 +940,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
           {(folder.immediateUploadStatus === 'failed' || folder.immediateUploadStatus === 'partial') && (() => {
             // 세션에서 복원된 경우 File 객체가 없음 → "이어서 업로드(폴더 재선택)" 필요
             const needsRePick = folder.files.length > 0 && folder.files.every(f => !f.file && !f.canvasDataUrl);
-            const totalExpected = folder.files.length;
+            const totalExpected = folder.expectedFileCount ?? folder.files.length;
             const uploadedCount = folder.immediateUploadedCount || 0;
             return (
               <>

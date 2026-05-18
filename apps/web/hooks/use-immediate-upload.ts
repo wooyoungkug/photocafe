@@ -715,6 +715,7 @@ export function useImmediateUpload(productId: string) {
           foilPosition: meta.foilPosition,
           uploadedAt: sf.createdAt,
           tempFolderId: sf.tempFolderId,
+          expectedFileCount: isPartial ? expectedFileCount : undefined,
           immediateUploadStatus: isPartial ? 'partial' : 'completed',
           immediateUploadProgress: isPartial
             ? Math.round((serverFileCount / expectedFileCount) * 100)
@@ -808,7 +809,9 @@ export function useImmediateUpload(productId: string) {
 
     // 4) 진행 상태 초기화 (이미 서버에 있는 파일은 uploaded 카운트에 포함)
     const startedAt = Date.now();
-    const totalExpected = existingFolder.files.length;
+    // expectedFileCount 가 세션에 저장돼 있으면 사용 (partial 복원 시), 아니면 picker 가 가진 파일 수
+    const totalExpected = existingFolder.expectedFileCount
+      ?? Math.max(existingFolder.files.length, rawFiles.length);
     folderProgressRef.current.set(existingFolderId, {
       uploaded: serverFileNames.size,
       total: totalExpected,
@@ -832,38 +835,35 @@ export function useImmediateUpload(productId: string) {
       uploadStartedAt: startedAt,
     });
 
-    // 7) 기존 폴더의 메타데이터(UploadedFile[]) 를 순회하면서, 서버에 없고 사용자 picker 에 있는 파일만 업로드
+    // 7) 사용자가 재선택한 파일(rawFiles) 을 순회하면서, 서버에 없는 파일만 업로드
+    //    sortOrder 는 파일명 정렬 순서(1-based)로 부여 — 동일 폴더 재선택 시 같은 순서 보장
     let resumedCount = 0;
     let alreadyOnServer = 0;
     let missingFromPick = 0;
 
-    existingFolder.files.forEach((uploadedFile: UploadedFile, idx: number) => {
-      // 서버에 이미 있으면 스킵 (newFileName 기준 매칭, 없으면 fileName)
-      const serverKey = uploadedFile.newFileName || uploadedFile.fileName;
-      if (serverFileNames.has(serverKey)) {
-        alreadyOnServer++;
-        return;
-      }
+    // 파일명 자연 정렬 (한글/숫자 포함)
+    const sortedRawFiles = [...rawFiles].sort((a, b) =>
+      a.name.localeCompare(b.name, 'ko', { numeric: true }),
+    );
 
-      // 사용자가 재선택한 파일 중에서 매칭 (원본 파일명으로)
-      const pickedFile = pickedByName.get(uploadedFile.fileName);
-      if (!pickedFile) {
-        missingFromPick++;
-        console.warn('[ImmediateUpload] resumePartialFolder: missing in re-pick:', uploadedFile.fileName);
+    sortedRawFiles.forEach((pickedFile, idx) => {
+      // 서버에 이미 있으면 스킵
+      if (serverFileNames.has(pickedFile.name)) {
+        alreadyOnServer++;
         return;
       }
 
       const metadata: AlbumFileMetadata = {
         tempFolderId,
         folderName: existingFolder.folderName,
-        sortOrder: uploadedFile.pageNumber,
-        fileName: serverKey,
-        width: uploadedFile.widthPx,
-        height: uploadedFile.heightPx,
-        widthInch: uploadedFile.widthInch,
-        heightInch: uploadedFile.heightInch,
-        dpi: uploadedFile.dpi,
-        fileSize: uploadedFile.fileSize || pickedFile.size,
+        sortOrder: idx + 1,
+        fileName: pickedFile.name,
+        width: 0,
+        height: 0,
+        widthInch: 0,
+        heightInch: 0,
+        dpi: 0,
+        fileSize: pickedFile.size,
       };
 
       queueRef.current.push({
@@ -876,6 +876,9 @@ export function useImmediateUpload(productId: string) {
       });
       resumedCount++;
     });
+
+    // pickedByName 변수는 더 이상 사용하지 않지만 디버깅 시 도움이 되므로 유지 가능 — 여기서는 제거
+    void pickedByName;
 
     // 7) 큐 처리 시작
     if (resumedCount > 0) {
