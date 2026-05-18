@@ -395,7 +395,7 @@ export default function ProfilePage() {
       )}
 
       {/* 회원 정보 카드 */}
-      <Card className="md:w-[70%]">
+      <Card className="md:w-[70%] mx-auto">
         <CardHeader className="pb-3 pt-4 px-5">
           <div className="flex items-center justify-between">
             <div>
@@ -767,7 +767,7 @@ export default function ProfilePage() {
       <ProfileStatusCard onEdit={() => router.push('/mypage/onboarding')} />
 
       {/* 공정별 문자 알림 카드 */}
-      <Card className="md:w-[70%]">
+      <Card className="md:w-[70%] mx-auto">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <Bell className="h-4 w-4" />
@@ -842,7 +842,7 @@ export default function ProfilePage() {
         </Card>
 
       {/* 비밀번호 변경 카드 — 소셜 로그인 사용자는 비밀번호가 없으므로 숨김 */}
-      {!profile?.oauthProvider && !user?.oauthProvider && <Card className="md:w-[70%]">
+      {!profile?.oauthProvider && !user?.oauthProvider && <Card className="md:w-[70%] mx-auto">
         <CardHeader className="pb-3 pt-4 px-5">
           <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
             <Lock className="h-4 w-4" />
@@ -892,7 +892,7 @@ export default function ProfilePage() {
 
       {/* 소속 해제 / 회원 탈퇴 카드 */}
       {isEmployee ? (
-        <Card className="border-orange-100 md:w-[70%]">
+        <Card className="border-orange-100 md:w-[70%] mx-auto">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <LogOut className="h-4 w-4 text-orange-500" />
@@ -935,7 +935,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-red-100 md:w-[70%]">
+        <Card className="border-red-100 md:w-[70%] mx-auto">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <LogOut className="h-4 w-4 text-red-500" />
@@ -1167,7 +1167,7 @@ function ProfileStatusCard({ onEdit }: { onEdit: () => void }) {
   };
 
   return (
-    <Card className="mt-4 md:w-[70%]">
+    <Card className="mt-4 md:w-[70%] mx-auto">
       <CardHeader className="pb-3 pt-4 px-5">
         <div className="flex items-center justify-between">
           <div>
