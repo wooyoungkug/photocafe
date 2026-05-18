@@ -761,6 +761,209 @@ export default function UploadMetricsPage() {
                 </Card>
             </div>
 
+            {/* 세부 병목 분석 — 파트별 진단 */}
+            {(() => {
+                const d = directPhase?.avgSpeedKbps ?? 0;       // KB/s, 클라→B2 직접
+                const b = b2Phase?.avgSpeedKbps ?? 0;            // KB/s, API→B2 프로브
+                const chunkMb = config.data?.multipartChunkSize
+                    ? Math.round(config.data.multipartChunkSize / 1024 / 1024)
+                    : 5;
+                const concurrency = config.data?.multipartConcurrency ?? 8;
+
+                // 진단 등급 (KB/s 기준)
+                const gradeSpeed = (kbps: number): { label: string; color: string; emoji: string } => {
+                    if (kbps <= 0) return { label: '데이터 없음', color: 'text-slate-400', emoji: '—' };
+                    if (kbps < 500) return { label: '매우 느림', color: 'text-red-600', emoji: '🔴' };
+                    if (kbps < 1024) return { label: '느림', color: 'text-orange-500', emoji: '🟠' };
+                    if (kbps < 5120) return { label: '보통', color: 'text-yellow-600', emoji: '🟡' };
+                    if (kbps < 10240) return { label: '양호', color: 'text-green-600', emoji: '🟢' };
+                    return { label: '우수', color: 'text-emerald-600', emoji: '🟢' };
+                };
+
+                // 한국 → 미국(버지니아) 추정 RTT — Cloudflare/CDN 통계 일반 평균 180~220ms
+                const ASSUMED_RTT_MS = 200;
+                // 단일 TCP 흐름 처리량 추정 = 64KB(기본 TCP window) / RTT
+                const singleTcpKbps = 64 / (ASSUMED_RTT_MS / 1000);
+                // 멀티파트 이론 최대 ≈ 단일 흐름 × 동시성 (실제로는 RTT 분산으로 보정)
+                const theoreticalMaxKbps = singleTcpKbps * concurrency;
+                // 실측 활용도 (%)
+                const utilizationPct = theoreticalMaxKbps > 0 ? (d / theoreticalMaxKbps) * 100 : 0;
+
+                const directGrade = gradeSpeed(d);
+                const probeGrade = gradeSpeed(b);
+
+                // 권장 조치 자동 생성 (현재 데이터 기반)
+                const recommendations: Array<{ priority: number; title: string; effect: string; cost: string }> = [];
+                if (d > 0 && d < 5120) {
+                    recommendations.push({
+                        priority: 1,
+                        title: 'Cloudflare Workers 엣지 프록시 도입',
+                        effect: '한국 인접 엣지(도쿄·서울)에서 TLS 종료 → 예상 3~10배 향상 (20~50 MB/s)',
+                        cost: '무료 (Cloudflare Free 플랜 내) · 1~2일 작업',
+                    });
+                }
+                if (chunkMb < 25) {
+                    recommendations.push({
+                        priority: recommendations.length + 1,
+                        title: `청크 크기 ${chunkMb}MB → 25MB로 증가`,
+                        effect: 'RTT 오버헤드 분산 효과 ↑ · 예상 20~40% 향상',
+                        cost: '설정 변경만 · 즉시 적용 가능 (위 "멀티파트 설정" 카드)',
+                    });
+                }
+                if (concurrency < 16) {
+                    recommendations.push({
+                        priority: recommendations.length + 1,
+                        title: `동시성 ${concurrency} → 16으로 증가`,
+                        effect: '병렬 TCP 흐름 ↑ · 브라우저 HTTP/2 멀티플렉싱 활용도 ↑',
+                        cost: '설정 변경만 · 단 동시성 32 초과 시 브라우저 한계로 역효과',
+                    });
+                }
+                if (recommendations.length === 0) {
+                    recommendations.push({
+                        priority: 1,
+                        title: '현재 설정이 최적에 가까움',
+                        effect: '추가 개선은 인프라 변경(R2/B2 멀티리전, 전용선) 검토 단계',
+                        cost: '—',
+                    });
+                }
+
+                const hasData = d > 0 || b > 0;
+                if (!hasData) return null;
+
+                return (
+                    <Card className="mt-4">
+                        <CardHeader>
+                            <CardTitle className="text-[18px] text-black font-bold flex items-center gap-2">
+                                <Gauge className="w-5 h-5" /> 세부 병목 분석 (파트별 진단)
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {/* 파트 1: 외부망 (한국 → 미국 B2) */}
+                                <div className="border rounded-lg p-4 space-y-2">
+                                    <div className="text-[14px] text-black font-bold flex items-center gap-1">
+                                        <span>{directGrade.emoji}</span>
+                                        <span>외부망</span>
+                                    </div>
+                                    <div className="text-[13px] text-slate-500">한국 ↔ 미국 버지니아 (B2)</div>
+                                    <div className={`text-[18px] font-bold ${directGrade.color}`}>
+                                        {formatSpeed(d)}
+                                    </div>
+                                    <div className="text-[14px] text-black font-normal">
+                                        진단: <span className={directGrade.color}>{directGrade.label}</span>
+                                    </div>
+                                    <div className="text-[13px] text-slate-600 pt-2 border-t">
+                                        <div>원인 (가능성 순):</div>
+                                        <ul className="list-disc list-inside mt-1 space-y-0.5">
+                                            <li>한·미 RTT 약 {ASSUMED_RTT_MS}ms (지리적 거리)</li>
+                                            <li>단일 TCP 흐름 한계 ≈ {Math.round(singleTcpKbps)} KB/s</li>
+                                            <li>회선 혼잡(시간대) · 회사 라우터</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                {/* 파트 2: 내부망 (Railway ↔ B2) */}
+                                <div className="border rounded-lg p-4 space-y-2">
+                                    <div className="text-[14px] text-black font-bold flex items-center gap-1">
+                                        <span>{probeGrade.emoji}</span>
+                                        <span>내부망</span>
+                                    </div>
+                                    <div className="text-[13px] text-slate-500">Railway(미국 오레곤) ↔ B2(버지니아)</div>
+                                    <div className={`text-[18px] font-bold ${probeGrade.color}`}>
+                                        {formatSpeed(b)}
+                                    </div>
+                                    <div className="text-[14px] text-black font-normal">
+                                        진단: <span className={probeGrade.color}>{probeGrade.label}</span>
+                                    </div>
+                                    <div className="text-[13px] text-slate-600 pt-2 border-t">
+                                        <div>특징:</div>
+                                        <ul className="list-disc list-inside mt-1 space-y-0.5">
+                                            <li>미국 대륙 내 통신 (RTT ~50ms)</li>
+                                            <li>presign/메타 호출 등 소량 페이로드 비중</li>
+                                            <li>대용량 전송 경로로 직접 활용 불가</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                {/* 파트 3: 멀티파트 설정 활용도 */}
+                                <div className="border rounded-lg p-4 space-y-2">
+                                    <div className="text-[14px] text-black font-bold flex items-center gap-1">
+                                        <span>⚙️</span>
+                                        <span>멀티파트 설정</span>
+                                    </div>
+                                    <div className="text-[13px] text-slate-500">현재 청크 / 동시성 / 활용도</div>
+                                    <div className="text-[18px] font-bold text-black">
+                                        {chunkMb} MB × {concurrency}
+                                    </div>
+                                    <div className="text-[14px] text-black font-normal">
+                                        이론 최대: <span className="font-bold">{formatSpeed(theoreticalMaxKbps)}</span>
+                                    </div>
+                                    <div className="text-[14px] text-black font-normal">
+                                        실측 활용도: <span className={utilizationPct < 30 ? 'text-red-600 font-bold' : utilizationPct < 70 ? 'text-yellow-600 font-bold' : 'text-green-600 font-bold'}>{utilizationPct.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="text-[13px] text-slate-600 pt-2 border-t">
+                                        <div>해석:</div>
+                                        <ul className="list-disc list-inside mt-1 space-y-0.5">
+                                            <li>활용도 ≥ 70% → 설정 최적</li>
+                                            <li>활용도 30~70% → 청크/동시성 조정 여지</li>
+                                            <li>활용도 &lt; 30% → 외부망 자체가 병목</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                {/* 파트 4: 권장 조치 */}
+                                <div className="border rounded-lg p-4 space-y-2 bg-blue-50/30 border-blue-200">
+                                    <div className="text-[14px] text-black font-bold flex items-center gap-1">
+                                        <span>💡</span>
+                                        <span>권장 조치 (우선순위 순)</span>
+                                    </div>
+                                    <div className="space-y-3 pt-1">
+                                        {recommendations.slice(0, 3).map((rec) => (
+                                            <div key={rec.priority} className="border-l-2 border-blue-400 pl-2">
+                                                <div className="text-[14px] text-black font-bold">
+                                                    {rec.priority}. {rec.title}
+                                                </div>
+                                                <div className="text-[13px] text-slate-700 mt-0.5">
+                                                    효과: {rec.effect}
+                                                </div>
+                                                <div className="text-[13px] text-slate-500">
+                                                    비용/난이도: {rec.cost}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 종합 결론 */}
+                            <div className="mt-4 p-3 bg-slate-50 border rounded-lg">
+                                <div className="text-[14px] text-black font-bold mb-1">🎯 종합</div>
+                                <div className="text-[14px] text-black font-normal">
+                                    {d > 0 && b > 0 && b / d >= 2 ? (
+                                        <>
+                                            <span className="font-bold text-red-600">주 병목은 외부망(한국↔미국)</span>입니다.
+                                            내부망(Railway↔B2)이 {(b / d).toFixed(1)}배 빠른 것은 지리적 거리 차이의 결과로 정상.
+                                            가장 큰 효과는 <span className="font-bold">한국 인접 엣지에서 TLS 종료</span>하는 Workers 프록시 도입이며,
+                                            그 전엔 청크 크기를 25MB까지 늘려 RTT 오버헤드를 분산하는 것이 가장 빠른 개선책입니다.
+                                        </>
+                                    ) : d > 0 && b > 0 && d > b ? (
+                                        <>
+                                            <span className="font-bold text-amber-600">이례적: 클라이언트→B2가 더 빠름.</span>
+                                            B2 프로브 측정 표본이 작거나(presign 등 짧은 호출), Railway↔B2 사이에 일시적 라우팅 이슈가 있을 수 있습니다.
+                                            며칠 더 데이터 누적 후 재확인을 권장합니다.
+                                        </>
+                                    ) : (
+                                        <>
+                                            데이터 누적이 더 필요합니다. <span className="font-bold">'외부측 테스트'</span> 또는 <span className="font-bold">'경로 비교'</span> 카드에서 10MB 이상으로 5회 이상 측정 후 다시 확인하세요.
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                );
+            })()}
+
             {/* 실측 분포 분석 (10분위) */}
             {(() => {
                 type PhaseData = MetricsSummary['phases'][string];

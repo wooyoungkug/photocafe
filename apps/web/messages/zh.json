@@ -762,6 +762,29 @@
       "saveFailed": "保存失败",
       "loading": "加载中...",
       "threshold": "※ 仅适用于≥6MB的文件。"
+    },
+    "export": {
+      "title": "指标下载",
+      "description": "下载所选时间段和过滤条件对应的上传指标文件。",
+      "rangeLabel": "时间段",
+      "fromLabel": "开始日期",
+      "toLabel": "结束日期",
+      "kindLabel": "类型",
+      "phaseLabel": "阶段",
+      "kindAll": "全部",
+      "kindReal": "实测",
+      "kindSpeedtest": "速度测试",
+      "phaseAll": "全部",
+      "phaseClientToApi": "客户端 → API",
+      "phaseApiToB2": "API → B2",
+      "phaseClientToB2": "客户端 → B2",
+      "phaseB2Download": "B2 下载",
+      "downloadCsv": "下载 CSV",
+      "downloadJson": "下载 JSON",
+      "downloading": "下载中...",
+      "downloadSuccess": "下载完成",
+      "downloadFailed": "下载失败",
+      "invalidRange": "开始日期必须早于结束日期。"
     }
   }
 }

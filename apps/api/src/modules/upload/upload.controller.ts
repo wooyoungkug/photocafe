@@ -19,6 +19,16 @@ import { PrismaService } from '@/common/prisma/prisma.service';
 import { Public } from '@/common/decorators/public.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 
+/** CSV 셀 이스케이프: 쉼표·따옴표·개행 포함 시 따옴표로 감싸고 내부 " 는 "" 로 escape */
+function csvEscape(v: unknown): string {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'boolean' || typeof v === 'number' ? String(v) : String(v);
+    if (/[",\n\r]/.test(s)) {
+        return '"' + s.replace(/"/g, '""') + '"';
+    }
+    return s;
+}
+
 /** B2 키 세그먼트 정규화 (b2-storage.service 의 sanitizeStorageKeyPart 와 동일 규칙) */
 function sanitizeStorageKeyPart(value: string): string {
     return value
@@ -2189,6 +2199,94 @@ export class UploadController implements OnModuleInit {
         this.assertStaff(req);
         const lim = limit ? parseInt(limit, 10) : 50;
         return this.metrics.getRecent(Number.isFinite(lim) ? lim : 50, kind);
+    }
+
+    @Get('metrics/export')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @ApiOperation({ summary: '업로드 메트릭 전체 다운로드 (관리자 전용, CSV/JSON)' })
+    @ApiQuery({ name: 'from', required: false, description: 'ISO date (default: 7일 전)' })
+    @ApiQuery({ name: 'to', required: false, description: 'ISO date (default: 지금)' })
+    @ApiQuery({ name: 'format', required: false, enum: ['csv', 'json'], description: 'default: csv' })
+    @ApiQuery({ name: 'kind', required: false, enum: ['real', 'speedtest'] })
+    @ApiQuery({ name: 'phase', required: false, enum: ['client_to_api', 'api_to_b2', 'b2_download', 'client_to_b2'] })
+    async exportMetrics(
+        @Query('from') fromStr: string | undefined,
+        @Query('to') toStr: string | undefined,
+        @Query('format') format: 'csv' | 'json' | undefined,
+        @Query('kind') kind: 'real' | 'speedtest' | undefined,
+        @Query('phase') phase: 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2' | undefined,
+        @Request() req: any,
+        @Res() res: Response,
+    ): Promise<void> {
+        this.assertStaff(req);
+
+        const now = new Date();
+        const defaultFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const from = fromStr ? new Date(fromStr) : defaultFrom;
+        const to = toStr ? new Date(toStr) : now;
+
+        if (isNaN(from.getTime()) || isNaN(to.getTime())) {
+            throw new BadRequestException('from/to 는 유효한 ISO date 여야 합니다.');
+        }
+        if (from > to) {
+            throw new BadRequestException('from 은 to 보다 이전이어야 합니다.');
+        }
+
+        const fmt: 'csv' | 'json' = format === 'json' ? 'json' : 'csv';
+        const fromTag = from.toISOString().slice(0, 10);
+        const toTag = to.toISOString().slice(0, 10);
+        const filename = `upload-metrics-${fromTag}_${toTag}.${fmt}`;
+
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'no-store');
+
+        const iter = this.metrics.iterateMetrics({ from, to, kind, phase });
+
+        if (fmt === 'csv') {
+            res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+            // UTF-8 BOM (엑셀 한글 깨짐 방지)
+            res.write('﻿');
+            const headers = [
+                'id', 'createdAt', 'kind', 'phase', 'endpoint',
+                'userId', 'userType', 'fileSize', 'durationMs', 'speedKbps',
+                'success', 'errorMessage', 'clientIp', 'countryCode', 'userAgent', 'metadata',
+            ];
+            res.write(headers.join(',') + '\n');
+            for await (const row of iter) {
+                const line = [
+                    csvEscape(row.id),
+                    csvEscape(row.createdAt),
+                    csvEscape(row.kind),
+                    csvEscape(row.phase),
+                    csvEscape(row.endpoint),
+                    csvEscape(row.userId),
+                    csvEscape(row.userType),
+                    csvEscape(row.fileSize),
+                    csvEscape(row.durationMs),
+                    csvEscape(row.speedKbps),
+                    csvEscape(row.success),
+                    csvEscape(row.errorMessage),
+                    csvEscape(row.clientIp),
+                    csvEscape(row.countryCode),
+                    csvEscape(row.userAgent),
+                    csvEscape(row.metadata === null || row.metadata === undefined ? '' : JSON.stringify(row.metadata)),
+                ].join(',');
+                if (!res.write(line + '\n')) {
+                    await new Promise<void>(resolve => res.once('drain', () => resolve()));
+                }
+            }
+            res.end();
+        } else {
+            // NDJSON: newline-delimited JSON (한 줄에 한 객체)
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            for await (const row of iter) {
+                if (!res.write(JSON.stringify(row) + '\n')) {
+                    await new Promise<void>(resolve => res.once('drain', () => resolve()));
+                }
+            }
+            res.end();
+        }
     }
 
     @Get('metrics/stats')

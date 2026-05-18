@@ -762,6 +762,29 @@
       "saveFailed": "保存失敗",
       "loading": "読み込み中...",
       "threshold": "※ 6MB以上のファイルのみに適用されます。"
+    },
+    "export": {
+      "title": "メトリクスのダウンロード",
+      "description": "選択した期間とフィルタに対応するアップロードメトリクスをファイルでダウンロードします。",
+      "rangeLabel": "期間",
+      "fromLabel": "開始日",
+      "toLabel": "終了日",
+      "kindLabel": "種類",
+      "phaseLabel": "フェーズ",
+      "kindAll": "すべて",
+      "kindReal": "実測",
+      "kindSpeedtest": "速度テスト",
+      "phaseAll": "すべて",
+      "phaseClientToApi": "クライアント → API",
+      "phaseApiToB2": "API → B2",
+      "phaseClientToB2": "クライアント → B2",
+      "phaseB2Download": "B2 ダウンロード",
+      "downloadCsv": "CSV ダウンロード",
+      "downloadJson": "JSON ダウンロード",
+      "downloading": "ダウンロード中...",
+      "downloadSuccess": "ダウンロード完了",
+      "downloadFailed": "ダウンロード失敗",
+      "invalidRange": "開始日は終了日より前である必要があります。"
     }
   }
 }

@@ -840,6 +840,29 @@
       "saveFailed": "저장 실패",
       "loading": "불러오는 중...",
       "threshold": "※ 6MB 이상 파일에만 적용됩니다."
+    },
+    "export": {
+      "title": "메트릭 다운로드",
+      "description": "선택한 기간과 필터에 해당하는 업로드 메트릭을 파일로 내려받습니다.",
+      "rangeLabel": "기간",
+      "fromLabel": "시작일",
+      "toLabel": "종료일",
+      "kindLabel": "종류",
+      "phaseLabel": "위상",
+      "kindAll": "전체",
+      "kindReal": "실측",
+      "kindSpeedtest": "속도테스트",
+      "phaseAll": "전체",
+      "phaseClientToApi": "클라이언트 → API",
+      "phaseApiToB2": "API → B2",
+      "phaseClientToB2": "클라이언트 → B2",
+      "phaseB2Download": "B2 다운로드",
+      "downloadCsv": "CSV 다운로드",
+      "downloadJson": "JSON 다운로드",
+      "downloading": "다운로드 중...",
+      "downloadSuccess": "다운로드 완료",
+      "downloadFailed": "다운로드 실패",
+      "invalidRange": "시작일은 종료일보다 이전이어야 합니다."
     }
   }
 }

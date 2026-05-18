@@ -39,6 +39,25 @@ export interface AggregatedStatRow {
     totalBytes: number;
 }
 
+export interface ExportRow {
+    id: string;
+    createdAt: string;
+    kind: string;
+    phase: string;
+    endpoint: string | null;
+    userId: string | null;
+    userType: string | null;
+    fileSize: number;
+    durationMs: number;
+    speedKbps: number;
+    success: boolean;
+    errorMessage: string | null;
+    clientIp: string | null;
+    countryCode: string | null;
+    userAgent: string | null;
+    metadata: Prisma.JsonValue;
+}
+
 export interface WeekdayStatRow {
     dow: number;
     phase: string;
@@ -254,6 +273,81 @@ export class UploadMetricsService {
             ...r,
             fileSize: Number(r.fileSize),
         }));
+    }
+
+    /**
+     * 전체 메트릭을 배치(1000건씩) 단위로 페이지네이션하며 순차 yield.
+     * CSV/JSON 스트리밍 export 전용 — 메모리 폭발 방지.
+     */
+    async *iterateMetrics(opts: {
+        from: Date;
+        to: Date;
+        kind?: 'real' | 'speedtest';
+        phase?: MetricPhase;
+        batchSize?: number;
+    }): AsyncGenerator<ExportRow, void, void> {
+        const { from, to, kind, phase, batchSize = 1000 } = opts;
+
+        const where: Prisma.UploadMetricWhereInput = {
+            createdAt: { gte: from, lte: to },
+        };
+        if (kind) where.kind = kind;
+        if (phase) where.phase = phase;
+
+        // keyset 페이지네이션 (createdAt + id 복합 cursor 대신 단순 cursor 사용).
+        // createdAt 동일값 다수일 때 누락/중복 방지를 위해 id asc 보조 정렬.
+        let cursor: { id: string } | undefined = undefined;
+        while (true) {
+            const rows: Array<{
+                id: string;
+                createdAt: Date;
+                kind: string;
+                phase: string;
+                endpoint: string | null;
+                userId: string | null;
+                userType: string | null;
+                fileSize: bigint;
+                durationMs: number;
+                speedKbps: number;
+                success: boolean;
+                errorMessage: string | null;
+                clientIp: string | null;
+                countryCode: string | null;
+                userAgent: string | null;
+                metadata: Prisma.JsonValue;
+            }> = await this.prisma.uploadMetric.findMany({
+                where,
+                orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+                take: batchSize,
+                ...(cursor ? { skip: 1, cursor } : {}),
+            });
+
+            if (rows.length === 0) break;
+
+            for (const r of rows) {
+                yield {
+                    id: r.id,
+                    createdAt: r.createdAt.toISOString(),
+                    kind: r.kind,
+                    phase: r.phase,
+                    endpoint: r.endpoint,
+                    userId: r.userId,
+                    userType: r.userType,
+                    fileSize: Number(r.fileSize),
+                    durationMs: r.durationMs,
+                    speedKbps: r.speedKbps,
+                    success: r.success,
+                    errorMessage: r.errorMessage,
+                    clientIp: r.clientIp,
+                    countryCode: r.countryCode,
+                    userAgent: r.userAgent,
+                    metadata: r.metadata,
+                };
+            }
+
+            if (rows.length < batchSize) break;
+            cursor = { id: rows[rows.length - 1].id };
+        }
     }
 
     /**

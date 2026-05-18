@@ -762,6 +762,29 @@
       "saveFailed": "Save failed",
       "loading": "Loading...",
       "threshold": "※ Applied to files ≥6MB only."
+    },
+    "export": {
+      "title": "Metrics Export",
+      "description": "Download upload metrics for the selected period and filters.",
+      "rangeLabel": "Period",
+      "fromLabel": "From",
+      "toLabel": "To",
+      "kindLabel": "Kind",
+      "phaseLabel": "Phase",
+      "kindAll": "All",
+      "kindReal": "Real",
+      "kindSpeedtest": "Speedtest",
+      "phaseAll": "All",
+      "phaseClientToApi": "Client → API",
+      "phaseApiToB2": "API → B2",
+      "phaseClientToB2": "Client → B2",
+      "phaseB2Download": "B2 Download",
+      "downloadCsv": "Download CSV",
+      "downloadJson": "Download JSON",
+      "downloading": "Downloading...",
+      "downloadSuccess": "Download complete",
+      "downloadFailed": "Download failed",
+      "invalidRange": "Start date must be earlier than end date."
     }
   }
 }
