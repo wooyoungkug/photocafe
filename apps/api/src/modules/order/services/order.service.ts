@@ -40,6 +40,7 @@ import { NotificationService } from '@/modules/notification/notification.service
 import { NOTIFICATION_TYPES } from '@/modules/notification/dto/notification.dto';
 import { KakaoAlimtalkService } from '@/common/kakao-alimtalk/kakao-alimtalk.service';
 import { PrintPdfSlipPrinterService } from '@/modules/print-pdf/services/print-pdf-slip-printer.service';
+import { PrintRoomQueueService } from '@/modules/print-room/print-room-queue.service';
 
 @Injectable()
 export class OrderService {
@@ -57,7 +58,43 @@ export class OrderService {
     private notificationService: NotificationService,
     private kakaoAlimtalk: KakaoAlimtalkService,
     private slipPrinter: PrintPdfSlipPrinterService,
+    private printRoomQueue: PrintRoomQueueService,
   ) { }
+
+  /**
+   * 주문의 모든 OrderItem 에 대해 출력실 큐를 등록한다.
+   *
+   * - 접수완료(receipt_completed) 전환 시 setImmediate 로 fire-and-forget 호출
+   * - 개별 OrderItem 의 printRoomStatus 가 비어있을 때만 등록 (PrintRoomQueueService 내부 가드)
+   * - 큐 등록 실패는 메인 흐름에 영향 없음 — 로그만 남김
+   */
+  private async enqueuePrintRoomForOrder(orderId: string): Promise<void> {
+    try {
+      const items = await this.prisma.orderItem.findMany({
+        where: { orderId },
+        select: { id: true, printRoomStatus: true, printMethod: true },
+      });
+      if (!items.length) return;
+
+      this.logger.log(
+        `[출력실큐] 주문 ${orderId} — OrderItem ${items.length}건 큐 등록 시작`,
+      );
+      for (const it of items) {
+        try {
+          await this.printRoomQueue.enqueuePrintRoom(it.id, false);
+        } catch (err) {
+          this.logger.error(
+            `[출력실큐] OrderItem ${it.id} 등록 실패: ${(err as Error)?.message}`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.error(
+        `[출력실큐] 주문 ${orderId} 처리 중 오류: ${(err as Error)?.message}`,
+        (err as Error)?.stack,
+      );
+    }
+  }
 
   private readonly STATUS_LABELS: Record<string, string> = {
     receipt_completed: '접수완료',
@@ -1554,6 +1591,9 @@ export class OrderService {
       setImmediate(() => {
         this.triggerPdfAndAutoAdvance(id).catch((err) =>
           this.logger.error(`[자동PDF] 주문 ${id} 처리 실패: ${err?.message}`, err),
+        );
+        this.enqueuePrintRoomForOrder(id).catch((err) =>
+          this.logger.error(`[출력실큐] 주문 ${id} 큐 등록 실패: ${err?.message}`, err),
         );
       });
     }

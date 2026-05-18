@@ -7,6 +7,7 @@ import { UploadModule } from "../upload/upload.module";
 import { AuditLogModule } from "../audit-log/audit-log.module";
 import { NotificationModule } from "../notification/notification.module";
 import { PrintPdfModule } from "../print-pdf/print-pdf.module";
+import { PrintRoomModule } from "../print-room/print-room.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { PrintPdfModule } from "../print-pdf/print-pdf.module";
     AuditLogModule,
     NotificationModule,
     PrintPdfModule,
+    PrintRoomModule,
   ],
   controllers: [OrderController],
   providers: [OrderService],
