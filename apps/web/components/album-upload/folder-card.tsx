@@ -1117,7 +1117,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       'text-[9px] leading-tight p-1 border border-b-0 rounded-t-md',
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
-                      <div className="text-gray-500 flex items-center gap-0.5 min-w-0">
+                      <div className="text-gray-500 flex items-center justify-center gap-1 min-w-0">
                         <span className="truncate shrink">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
                         {file.colorSpace && (
                           <span className={cn(
@@ -1130,7 +1130,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                           </span>
                         )}
                         <span className={cn(
-                          'inline-block px-1 py-0 rounded text-[8px] font-medium ml-auto',
+                          'inline-block px-1 py-0 rounded text-[8px] font-medium',
                           file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
                             file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
                               'bg-red-100 text-red-700'
@@ -1263,7 +1263,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
                       <span
-                        className="block truncate text-gray-600"
+                        className="block truncate text-center text-gray-600"
                         title={file.fileName}
                       >
                         {file.fileName}
