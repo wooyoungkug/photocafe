@@ -180,7 +180,11 @@ export class NoteAttachmentService {
 
     if (this.b2.isEnabled() && att.storageKey) {
       try {
-        await this.b2.deletePrivateObject(att.storageKey);
+        await this.b2.deletePrivateObject(att.storageKey, {
+          fileSize: att.sizeBytes ?? 0,
+          userId: user.id,
+          endpoint: 'note-attachment.delete',
+        });
       } catch (e: any) {
         this.logger.warn(`B2 delete failed (continuing): ${e?.message}`);
       }

@@ -1977,19 +1977,20 @@ export class OrderService {
   // OrderFile 은 Order.delete cascade 로 사라지므로 키는 반드시 DB 삭제 전에 수집해야 한다.
   private async collectB2KeysForOrders(
     orderIds: string[],
-  ): Promise<{ originalKey: string; thumbKey: string | null }[]> {
+  ): Promise<{ originalKey: string; thumbKey: string | null; fileSize: number }[]> {
     if (!this.b2Storage.isEnabled() || orderIds.length === 0) return [];
 
     const files = await this.prisma.orderFile.findMany({
       where: { orderItem: { orderId: { in: orderIds } } },
       select: {
         fileName: true,
+        fileSize: true,
         orderItem: { select: { order: { select: { orderNumber: true } } } },
       },
     });
 
     const publicEnabled = !!this.b2Storage.getPublicBucket();
-    const keys: { originalKey: string; thumbKey: string | null }[] = [];
+    const keys: { originalKey: string; thumbKey: string | null; fileSize: number }[] = [];
 
     for (const f of files) {
       const orderNumber = f.orderItem?.order?.orderNumber;
@@ -2002,7 +2003,7 @@ export class OrderService {
         ? `orders/${safeOrder}/thumbnails/${this.sanitizeStorageKeyPart(this.fileStorage.getThumbName(f.fileName))}`
         : null;
 
-      keys.push({ originalKey, thumbKey });
+      keys.push({ originalKey, thumbKey, fileSize: f.fileSize ?? 0 });
     }
 
     return keys;
@@ -2011,22 +2012,29 @@ export class OrderService {
   // ==================== B2 파일 비동기 영구 삭제 (fire-and-forget) ====================
   // 응답 지연 방지를 위해 await 하지 않고 백그라운드 실행. 부분 실패는 로그만.
   private deleteB2KeysAsync(
-    keys: { originalKey: string; thumbKey: string | null }[],
+    keys: { originalKey: string; thumbKey: string | null; fileSize?: number }[],
   ): void {
     if (!this.b2Storage.isEnabled() || keys.length === 0) return;
 
     const tasks: Promise<unknown>[] = [];
-    for (const { originalKey, thumbKey } of keys) {
+    for (const { originalKey, thumbKey, fileSize } of keys) {
       tasks.push(
-        this.b2Storage.deletePrivateObject(originalKey).catch((err) => {
-          this.logger.warn(`B2 원본 삭제 실패 (${originalKey}): ${(err as Error).message}`);
-        }),
+        this.b2Storage
+          .deletePrivateObject(originalKey, {
+            fileSize,
+            endpoint: 'order.delete',
+          })
+          .catch((err) => {
+            this.logger.warn(`B2 원본 삭제 실패 (${originalKey}): ${(err as Error).message}`);
+          }),
       );
       if (thumbKey) {
         tasks.push(
-          this.b2Storage.deletePublicObject(thumbKey).catch((err) => {
-            this.logger.warn(`B2 썸네일 삭제 실패 (${thumbKey}): ${(err as Error).message}`);
-          }),
+          this.b2Storage
+            .deletePublicObject(thumbKey, { endpoint: 'order.delete' })
+            .catch((err) => {
+              this.logger.warn(`B2 썸네일 삭제 실패 (${thumbKey}): ${(err as Error).message}`);
+            }),
         );
       }
     }

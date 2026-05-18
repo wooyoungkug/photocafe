@@ -266,6 +266,49 @@ export class UploadMetricsService implements OnModuleInit {
     }
 
     /**
+     * 파일 삭제 메트릭을 비동기 저장. 업로드와 달리 **항상 100% 기록** (양이 적고
+     * 누적 보관량 계산에 차감해야 하므로 누락 불가).
+     *
+     * kind='delete' / phase='b2_delete' 로 저장. fileSize=삭제된 객체 크기,
+     * durationMs=0, speedKbps=0.
+     */
+    recordDeletion(input: {
+        fileSize: number;
+        bucket: 'private' | 'public';
+        endpoint?: string | null;
+        userId?: string | null;
+        userType?: string | null;
+        success?: boolean;
+        errorMessage?: string | null;
+        metadata?: Record<string, unknown> | null;
+    }): void {
+        setImmediate(async () => {
+            try {
+                await this.prisma.uploadMetric.create({
+                    data: {
+                        kind: 'delete',
+                        phase: 'b2_delete',
+                        endpoint: input.endpoint ?? null,
+                        userId: input.userId ?? null,
+                        userType: input.userType ?? null,
+                        fileSize: BigInt(Math.max(0, Math.floor(input.fileSize))),
+                        durationMs: 0,
+                        speedKbps: 0,
+                        success: input.success ?? true,
+                        errorMessage: input.errorMessage ?? null,
+                        metadata: ({
+                            bucket: input.bucket,
+                            ...(input.metadata ?? {}),
+                        } as Prisma.InputJsonValue),
+                    },
+                });
+            } catch (err) {
+                this.logger.warn(`삭제 메트릭 저장 실패: ${(err as Error).message}`);
+            }
+        });
+    }
+
+    /**
      * 시계열 집계 (DB 수준 GROUP BY)
      */
     async getTimeSeries(query: MetricsQuery) {
@@ -697,19 +740,28 @@ export class UploadMetricsService implements OnModuleInit {
             this.logger.warn(`DB 크기 조회 실패: ${(err as Error).message}`);
         }
 
-        // ---- 업로드 추이 (일별 30일 / 월별 12개월) ----
-        let dailyRows: Array<{ date: string; bytes: bigint; count: bigint }> = [];
+        // ---- 업로드/삭제 추이 (일별 30일 / 월별 12개월) ----
+        // kind='real'  = 업로드 (10% 샘플링) / kind='delete' = 삭제 (100% 기록)
+        // 누적 보관량 계산: SUM(uploaded) - SUM(deleted)
+        type DailyRow = {
+            date: string;
+            uploaded_bytes: bigint;
+            uploaded_count: bigint;
+            deleted_bytes: bigint;
+            deleted_count: bigint;
+        };
+        let dailyRows: DailyRow[] = [];
         try {
-            dailyRows = await this.prisma.$queryRaw<
-                Array<{ date: string; bytes: bigint; count: bigint }>
-            >`
+            dailyRows = await this.prisma.$queryRaw<DailyRow[]>`
                 SELECT
                     DATE_TRUNC('day', "createdAt" AT TIME ZONE 'UTC')::date::text as date,
-                    COALESCE(SUM("fileSize"::bigint), 0) as bytes,
-                    COUNT(*) as count
+                    COALESCE(SUM(CASE WHEN kind = 'real'   THEN "fileSize"::bigint END), 0) as uploaded_bytes,
+                    COUNT(*) FILTER (WHERE kind = 'real')                                   as uploaded_count,
+                    COALESCE(SUM(CASE WHEN kind = 'delete' THEN "fileSize"::bigint END), 0) as deleted_bytes,
+                    COUNT(*) FILTER (WHERE kind = 'delete')                                 as deleted_count
                 FROM upload_metrics
                 WHERE success = true
-                  AND kind = 'real'
+                  AND kind IN ('real', 'delete')
                   AND "createdAt" >= NOW() - INTERVAL '30 days'
                 GROUP BY 1
                 ORDER BY 1
@@ -718,24 +770,44 @@ export class UploadMetricsService implements OnModuleInit {
             this.logger.warn(`일별 업로드 추이 조회 실패: ${(err as Error).message}`);
         }
 
-        let monthlyRows: Array<{ month: string; bytes: bigint; count: bigint }> = [];
+        type MonthlyRow = {
+            month: string;
+            uploaded_bytes: bigint;
+            uploaded_count: bigint;
+            deleted_bytes: bigint;
+            deleted_count: bigint;
+        };
+        let monthlyRows: MonthlyRow[] = [];
         try {
-            monthlyRows = await this.prisma.$queryRaw<
-                Array<{ month: string; bytes: bigint; count: bigint }>
-            >`
+            monthlyRows = await this.prisma.$queryRaw<MonthlyRow[]>`
                 SELECT
                     TO_CHAR(DATE_TRUNC('month', "createdAt" AT TIME ZONE 'UTC'), 'YYYY-MM') as month,
-                    COALESCE(SUM("fileSize"::bigint), 0) as bytes,
-                    COUNT(*) as count
+                    COALESCE(SUM(CASE WHEN kind = 'real'   THEN "fileSize"::bigint END), 0) as uploaded_bytes,
+                    COUNT(*) FILTER (WHERE kind = 'real')                                   as uploaded_count,
+                    COALESCE(SUM(CASE WHEN kind = 'delete' THEN "fileSize"::bigint END), 0) as deleted_bytes,
+                    COUNT(*) FILTER (WHERE kind = 'delete')                                 as deleted_count
                 FROM upload_metrics
                 WHERE success = true
-                  AND kind = 'real'
+                  AND kind IN ('real', 'delete')
                   AND "createdAt" >= NOW() - INTERVAL '12 months'
                 GROUP BY 1
                 ORDER BY 1
             `;
         } catch (err) {
             this.logger.warn(`월별 업로드 추이 조회 실패: ${(err as Error).message}`);
+        }
+
+        // 삭제 트래킹 시작일 — UI 안내용
+        let deletionTrackingStartedAt: string | null = null;
+        try {
+            const earliest = await this.prisma.uploadMetric.findFirst({
+                where: { kind: 'delete' },
+                orderBy: { createdAt: 'asc' },
+                select: { createdAt: true },
+            });
+            deletionTrackingStartedAt = earliest?.createdAt?.toISOString() ?? null;
+        } catch (err) {
+            this.logger.warn(`삭제 트래킹 시작일 조회 실패: ${(err as Error).message}`);
         }
 
         // ---- 비용 계산 ----
@@ -766,16 +838,26 @@ export class UploadMetricsService implements OnModuleInit {
                 name: dbName,
             },
             uploadTrend: {
+                // bytes/count 는 **업로드만** (기존 호환). 신규 필드 uploadedBytes/deletedBytes 등.
                 daily: dailyRows.map(r => ({
                     date: r.date,
-                    bytes: Number(r.bytes),
-                    count: Number(r.count),
+                    bytes: Number(r.uploaded_bytes),
+                    count: Number(r.uploaded_count),
+                    uploadedBytes: Number(r.uploaded_bytes),
+                    uploadedCount: Number(r.uploaded_count),
+                    deletedBytes: Number(r.deleted_bytes),
+                    deletedCount: Number(r.deleted_count),
                 })),
                 monthly: monthlyRows.map(r => ({
                     month: r.month,
-                    bytes: Number(r.bytes),
-                    count: Number(r.count),
+                    bytes: Number(r.uploaded_bytes),
+                    count: Number(r.uploaded_count),
+                    uploadedBytes: Number(r.uploaded_bytes),
+                    uploadedCount: Number(r.uploaded_count),
+                    deletedBytes: Number(r.deleted_bytes),
+                    deletedCount: Number(r.deleted_count),
                 })),
+                deletionTrackingStartedAt,
             },
             cost: {
                 b2StorageMonthlyUsd,

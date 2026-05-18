@@ -5,6 +5,7 @@ import {
   PutObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
+  HeadObjectCommand,
   PutBucketCorsCommand,
   CreateMultipartUploadCommand,
   UploadPartCommand,
@@ -461,11 +462,47 @@ export class B2StorageService implements OnModuleInit {
     return getSignedUrl(s3, new GetObjectCommand(input), { expiresIn: exp });
   }
 
-  async deletePrivateObject(key: string): Promise<void> {
+  /**
+   * Private 버킷 객체 영구 삭제 + 누적 보관량 메트릭 차감 기록.
+   * - opts.fileSize 가 있으면 그대로 사용 (HEAD 호출 없음)
+   * - 없고 skipMetric 아니면 HEAD 한 번 호출해 size 조회
+   * - opts.skipMetric=true 면 메트릭 건너뜀 (probe 합성 파일용)
+   */
+  async deletePrivateObject(
+    key: string,
+    opts?: {
+      fileSize?: number;
+      userId?: string;
+      userType?: string;
+      endpoint?: string;
+      skipMetric?: boolean;
+    },
+  ): Promise<void> {
     const s3 = this.requireClient();
+    let size = opts?.fileSize;
+    if (size == null && !opts?.skipMetric) {
+      try {
+        const head = await s3.send(
+          new HeadObjectCommand({ Bucket: this.privateBucket, Key: key }),
+        );
+        size = Number(head.ContentLength ?? 0);
+      } catch {
+        size = 0;
+      }
+    }
     await s3.send(
       new DeleteObjectCommand({ Bucket: this.privateBucket, Key: key }),
     );
+    if (!opts?.skipMetric && this.metrics) {
+      this.metrics.recordDeletion({
+        fileSize: size ?? 0,
+        bucket: 'private',
+        endpoint: opts?.endpoint,
+        userId: opts?.userId,
+        userType: opts?.userType,
+        metadata: { key },
+      });
+    }
   }
 
   /**
@@ -511,11 +548,20 @@ export class B2StorageService implements OnModuleInit {
         const lastModMs = obj.LastModified ? new Date(obj.LastModified).getTime() : 0;
         if (lastModMs > 0 && lastModMs < cutoffMs) {
           try {
+            const objSize = Number(obj.Size ?? 0);
             await s3.send(
               new DeleteObjectCommand({ Bucket: this.privateBucket, Key: obj.Key }),
             );
             deletedCount++;
-            freedBytes += Number(obj.Size ?? 0);
+            freedBytes += objSize;
+            if (this.metrics) {
+              this.metrics.recordDeletion({
+                fileSize: objSize,
+                bucket: 'private',
+                endpoint: 'cleanupStaleTempObjects',
+                metadata: { key: obj.Key, reason: 'stale-temp' },
+              });
+            }
           } catch (err) {
             this.logger.warn(`Failed to delete stale temp object ${obj.Key}: ${(err as Error)?.message}`);
           }
@@ -557,14 +603,44 @@ export class B2StorageService implements OnModuleInit {
     );
   }
 
-  async deletePublicObject(key: string): Promise<void> {
+  async deletePublicObject(
+    key: string,
+    opts?: {
+      fileSize?: number;
+      userId?: string;
+      userType?: string;
+      endpoint?: string;
+      skipMetric?: boolean;
+    },
+  ): Promise<void> {
     if (!this.publicBucket) {
       throw new Error('B2_PUBLIC_BUCKET is not set');
     }
     const s3 = this.requireClient();
+    let size = opts?.fileSize;
+    if (size == null && !opts?.skipMetric) {
+      try {
+        const head = await s3.send(
+          new HeadObjectCommand({ Bucket: this.publicBucket, Key: key }),
+        );
+        size = Number(head.ContentLength ?? 0);
+      } catch {
+        size = 0;
+      }
+    }
     await s3.send(
       new DeleteObjectCommand({ Bucket: this.publicBucket, Key: key }),
     );
+    if (!opts?.skipMetric && this.metrics) {
+      this.metrics.recordDeletion({
+        fileSize: size ?? 0,
+        bucket: 'public',
+        endpoint: opts?.endpoint,
+        userId: opts?.userId,
+        userType: opts?.userType,
+        metadata: { key },
+      });
+    }
   }
 
   /**

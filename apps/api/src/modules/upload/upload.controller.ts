@@ -401,7 +401,7 @@ export class UploadController implements OnModuleInit {
                 try {
                     await this.b2Storage.putPrivateObjectFromPath(probeKey, filePath, file.mimetype);
                 } catch { /* 측정 실패는 무시 */ } finally {
-                    this.b2Storage.deletePrivateObject(probeKey).catch(() => {});
+                    this.b2Storage.deletePrivateObject(probeKey, { skipMetric: true }).catch(() => {});
                 }
             });
         }
@@ -1066,7 +1066,7 @@ export class UploadController implements OnModuleInit {
                     const probe = Buffer.allocUnsafe(512 * 1024); // 512KB 합성 데이터
                     await this.b2Storage.putPrivateObject(probeKey, probe, 'application/octet-stream');
                 } catch { /* 측정 실패 무시 */ } finally {
-                    this.b2Storage.deletePrivateObject(probeKey).catch(() => {});
+                    this.b2Storage.deletePrivateObject(probeKey, { skipMetric: true }).catch(() => {});
                 }
             });
         }
