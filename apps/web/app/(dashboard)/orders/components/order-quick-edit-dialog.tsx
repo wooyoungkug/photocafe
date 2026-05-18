@@ -358,7 +358,10 @@ function AdaptiveThumbnail({
   onDeleteFile?: (file: ThumbnailFile) => void;
   deletingFileId?: string | null;
 }) {
-  const [aspectStyle, setAspectStyle] = useState<string>('aspect-[3/4]');
+  const initialAspect = file.width && file.height
+    ? (file.width / file.height > 1 ? 'aspect-[4/3]' : file.width / file.height > 0.9 ? 'aspect-square' : 'aspect-[3/4]')
+    : 'aspect-[3/4]';
+  const [aspectStyle, setAspectStyle] = useState<string>(initialAspect);
   const baseThumbUrl = normalizeImageUrl(file.thumbnailUrl);
   const baseFileUrl = normalizeImageUrl(file.fileUrl);
   const [imgSrc, setImgSrc] = useState<string | null>(baseThumbUrl || baseFileUrl || null);
@@ -589,9 +592,14 @@ function ThumbnailGrid({
       }
     }
 
+    const f0 = files[0];
+    const blankAspect = f0?.width && f0?.height
+      ? (f0.width / f0.height > 1 ? 'aspect-[4/3]' : f0.width / f0.height > 0.9 ? 'aspect-square' : 'aspect-[3/4]')
+      : 'aspect-[3/4]';
+
     const renderBlankSlot = () => (
       <div className="flex flex-col">
-        <div className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/50 aspect-[3/4] flex items-center justify-center overflow-hidden">
+        <div className={`relative rounded-t-md border-2 border-dashed border-blue-400 bg-blue-50/50 ${blankAspect} flex items-center justify-center overflow-hidden`}>
           <svg
             className="absolute inset-0 w-full h-full"
             viewBox="0 0 100 100"
@@ -602,6 +610,9 @@ function ThumbnailGrid({
             <line x1="100" y1="0" x2="0" y2="100" stroke="rgb(96 165 250 / 0.5)" strokeWidth="1.2" />
           </svg>
           <span className="relative text-sm font-bold text-blue-600 select-none bg-white/95 rounded px-2 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
+        </div>
+        <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md border-blue-200 bg-blue-50/10 invisible" aria-hidden="true">
+          <div className="mb-0.5">&nbsp;</div>
         </div>
       </div>
     );
@@ -642,13 +653,17 @@ function ThumbnailGrid({
                   <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
                     {label}
                   </div>
-                  <div className="grid grid-cols-2 gap-1">
-                    {spread.left.type === 'page'
-                      ? renderSingleThumbnail(files[spread.left.fileIndex], spread.left.fileIndex)
-                      : renderBlankSlot()}
-                    {spread.right.type === 'page'
-                      ? renderSingleThumbnail(files[spread.right.fileIndex], spread.right.fileIndex)
-                      : renderBlankSlot()}
+                  <div className="flex items-stretch">
+                    <div className="flex-1 min-w-0">
+                      {spread.left.type === 'page'
+                        ? renderSingleThumbnail(files[spread.left.fileIndex], spread.left.fileIndex)
+                        : renderBlankSlot()}
+                    </div>
+                    <div className="flex-1 min-w-0 -ml-0.5">
+                      {spread.right.type === 'page'
+                        ? renderSingleThumbnail(files[spread.right.fileIndex], spread.right.fileIndex)
+                        : renderBlankSlot()}
+                    </div>
                   </div>
                 </div>
               );

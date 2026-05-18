@@ -259,13 +259,17 @@ export function CartThumbnailGallery({ thumbnailUrls, pageLayout, bindingDirecti
                       <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
                         {label}
                       </div>
-                      <div className="grid grid-cols-2 gap-1">
-                        {spread.left.type === 'page'
-                          ? renderThumbnail(thumbnailUrls[spread.left.fileIndex], spread.left.fileIndex)
-                          : renderBlankSlot(`blank-l-${spreadIdx}`)}
-                        {spread.right.type === 'page'
-                          ? renderThumbnail(thumbnailUrls[spread.right.fileIndex], spread.right.fileIndex)
-                          : renderBlankSlot(`blank-r-${spreadIdx}`)}
+                      <div className="flex items-stretch">
+                        <div className="flex-1 min-w-0">
+                          {spread.left.type === 'page'
+                            ? renderThumbnail(thumbnailUrls[spread.left.fileIndex], spread.left.fileIndex)
+                            : renderBlankSlot(`blank-l-${spreadIdx}`)}
+                        </div>
+                        <div className="flex-1 min-w-0 -ml-0.5">
+                          {spread.right.type === 'page'
+                            ? renderThumbnail(thumbnailUrls[spread.right.fileIndex], spread.right.fileIndex)
+                            : renderBlankSlot(`blank-r-${spreadIdx}`)}
+                        </div>
                       </div>
                     </div>
                   );

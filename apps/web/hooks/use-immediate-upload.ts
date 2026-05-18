@@ -15,7 +15,7 @@ import { dataUrlToFile } from '@/lib/background-upload';
 
 // B2 직접 업로드 기준 (파일별 독립 도메인, 8파일 병렬)
 const CONCURRENCY = 8;
-import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile } from '@/stores/multi-folder-upload-store';
+import { useMultiFolderUploadStore, type UploadedFolder, type UploadedFile, type ImageColorSpace } from '@/stores/multi-folder-upload-store';
 import {
   addSessionFolder,
   updateSessionFolder,
@@ -418,6 +418,11 @@ export function useImmediateUpload(productId: string) {
 
     // 세션에 저장
     const startedAt = Date.now();
+    const fileColorSpaces: Record<string, string> = {};
+    folder.files.forEach((f: UploadedFile) => {
+      if (f.colorSpace) fileColorSpaces[f.fileName] = f.colorSpace;
+    });
+
     const sessionFolder: UploadSessionFolder = {
       folderId: folder.id,
       tempFolderId,
@@ -428,6 +433,7 @@ export function useImmediateUpload(productId: string) {
       folderMeta: extractFolderMeta(folder),
       createdAt: startedAt,
       uploadStartedAt: startedAt,
+      fileColorSpaces: Object.keys(fileColorSpaces).length > 0 ? fileColorSpaces : undefined,
     };
     addSessionFolder(productId, sessionFolder);
 
@@ -639,6 +645,7 @@ export function useImmediateUpload(productId: string) {
           ratio: metaRatio,
           coverType: 'INNER_PAGE' as const,
           thumbnailUrl: serverFile.thumbnailUrl,
+          colorSpace: sf.fileColorSpaces?.[serverFile.fileName] as ImageColorSpace | undefined,
           status: 'EXACT_MATCH' as const,
         }));
 

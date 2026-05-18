@@ -1093,12 +1093,18 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
         </div>
         <CollapsibleContent className="mt-2">
           {(() => {
+            // 파일명 순번 프리픽스 계산 (10p미만: 1자리, 100p미만: 2자리, 1000p미만: 3자리)
+            const totalFiles = folder.files.length;
+            const totalPages = folder.pageLayout === 'spread' ? totalFiles * 2 : totalFiles;
+            const fnDigits = totalPages < 10 ? 1 : totalPages < 100 ? 2 : 3;
+
             // 썸네일 1개 렌더링 함수
             const renderThumbnail = (file: typeof folder.files[0], index: number) => {
               const thumbUrl = file.thumbnailUrl || file.serverThumbnailUrl;
               const aspectRatio = file.widthPx > 0 && file.heightPx > 0
                 ? (file.heightPx / file.widthPx) * 100
                 : 133;
+              const fnPrefix = String(index + 1).padStart(fnDigits, '0');
               return (
                 <div key={file.id}
                     className={cn(
@@ -1133,37 +1139,9 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     }}
                     onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
                   >
-                    <div className={cn(
-                      'relative text-[9px] leading-tight p-1 border border-b-0 rounded-t-md',
-                      file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
-                    )}>
-                      <div className="text-gray-500 text-center truncate px-1">
-                        {file.widthInch}×{file.heightInch}" | {file.dpi}dpi
-                      </div>
-                      <div className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
-                        {file.colorSpace && (
-                          <span className={cn(
-                            'inline-block px-1 py-0 rounded text-[8px] font-medium',
-                            file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
-                              file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
-                                'bg-gray-100 text-gray-600'
-                          )}>
-                            {file.colorSpace}
-                          </span>
-                        )}
-                        <span className={cn(
-                          'inline-block px-1 py-0 rounded text-[8px] font-medium',
-                          file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
-                            file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-red-100 text-red-700'
-                        )}>
-                          {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
-                        </span>
-                      </div>
-                    </div>
                     <div
                       className={cn(
-                        'relative overflow-hidden border-2 cursor-grab group',
+                        'relative overflow-hidden border-2 cursor-grab group rounded-t-md',
                         'hover:border-blue-400 hover:shadow-md transition-all',
                         file.status === 'RATIO_MISMATCH' ? 'border-red-500 border-[3px]' :
                           file.coverType === 'FRONT_COVER' ? 'border-gray-200' :
@@ -1281,14 +1259,38 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       </button>
                     </div>
                     <div className={cn(
-                      'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md flex items-center justify-center',
+                      'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
+                      <div className="flex items-center justify-center gap-1 mb-0.5 flex-wrap">
+                        <span className="text-gray-500">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                        <div className="flex items-center gap-1">
+                          <span className={cn(
+                            'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                            file.status === 'EXACT' ? 'bg-green-100 text-green-700' :
+                              file.status === 'RATIO_MATCH' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                          )}>
+                            {file.status === 'EXACT' ? t('exact') : file.status === 'RATIO_MATCH' ? t('ratioMatch') : t('mismatch')}
+                          </span>
+                          {file.colorSpace && (
+                            <span className={cn(
+                              'inline-block px-1 py-0 rounded text-[8px] font-medium',
+                              file.colorSpace === 'CMYK' ? 'bg-red-100 text-red-700 border border-red-300' :
+                                file.colorSpace === 'sRGB' || file.colorSpace === 'RGB' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-gray-100 text-gray-600'
+                            )}>
+                              {file.colorSpace}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                       <span
-                        className="truncate text-center text-gray-600 max-w-full"
-                        title={file.fileName}
+                        className="block truncate text-center max-w-full"
+                        title={`${fnPrefix}_${file.fileName.replace(/\.[^.]+$/, '')}`}
                       >
-                        {file.fileName}
+                        <span className="font-bold text-black">{fnPrefix}_</span>
+                        <span className="text-gray-600">{file.fileName.replace(/\.[^.]+$/, '')}</span>
                       </span>
                     </div>
                   </div>
@@ -1313,7 +1315,7 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               const renderBlankSlot = () => (
                 <div className="flex flex-col">
                   <div
-                    className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 overflow-hidden"
+                    className="relative rounded-t-md border-2 border-dashed border-blue-400 bg-blue-50/20 overflow-hidden"
                     style={{ paddingTop: `${defaultAspect}%` }}
                   >
                     <svg
@@ -1328,6 +1330,10 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-sm font-bold text-blue-600 select-none bg-white/95 rounded px-2 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
                     </div>
+                  </div>
+                  <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md border-blue-200 bg-blue-50/10 invisible" aria-hidden="true">
+                    <div className="mb-0.5">&nbsp;</div>
+                    <span className="block">&nbsp;</span>
                   </div>
                 </div>
               );
@@ -1377,13 +1383,17 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                           !hasBoth ? 'border-blue-400 bg-blue-50/30' : 'border-orange-300 bg-orange-50/20'
                         )}
                       >
-                        <div className="grid grid-cols-2 gap-1">
-                          {spread.left.type === 'page'
-                            ? renderThumbnail(folder.files[spread.left.fileIndex], spread.left.fileIndex)
-                            : renderBlankSlot()}
-                          {spread.right.type === 'page'
-                            ? renderThumbnail(folder.files[spread.right.fileIndex], spread.right.fileIndex)
-                            : renderBlankSlot()}
+                        <div className="flex items-stretch">
+                          <div className="flex-1 min-w-0">
+                            {spread.left.type === 'page'
+                              ? renderThumbnail(folder.files[spread.left.fileIndex], spread.left.fileIndex)
+                              : renderBlankSlot()}
+                          </div>
+                          <div className="flex-1 min-w-0 -ml-0.5">
+                            {spread.right.type === 'page'
+                              ? renderThumbnail(folder.files[spread.right.fileIndex], spread.right.fileIndex)
+                              : renderBlankSlot()}
+                          </div>
                         </div>
                       </div>
                     );

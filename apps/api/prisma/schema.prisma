@@ -373,135 +373,135 @@ model ClientGroup {
 }
 
 model Client {
-  id                         String                         @id @default(cuid())
-  clientCode                 String                         @unique
-  clientName                 String
-  businessNumber             String?
-  representative             String?
-  phone                      String?
-  mobile                     String?
-  email                      String?
-  password                   String?
-  postalCode                 String?
-  address                    String?
-  addressDetail              String?
-  groupId                    String?
-  memberType                 String                         @default("individual")
-  oauthProvider              String?
-  oauthId                    String?
-  priceType                  String                         @default("standard")
-  paymentType                String                         @default("order")
-  creditEnabled              Boolean                        @default(false)
-  creditPeriodDays           Int?
-  creditPaymentDay           Int?
-  creditBlocked              Boolean                        @default(false)
-  creditBlockedAt            DateTime?
-  lastPaymentDate            DateTime?
-  shippingType               String                         @default("conditional")
-  creditGrade                String                         @default("B")
-  paymentTerms               Int                            @default(30)
-  status                     String                         @default("active")
-  createdAt                  DateTime                       @default(now())
-  updatedAt                  DateTime                       @updatedAt
-  acquisitionChannel         String?
-  acquisitionChannelNote     String?
-  signupPurpose              String?
-  signupPurposeNote          String?
-  assignedManager            String?
-  businessCategory           String?
-  businessType               String?
-  colorProfile               String?
-  contactPerson              String?
-  contactPhone               String?
-  deliveryNote               String?
-  hasLogo                    Boolean                        @default(false)
-  isBlacklist                Boolean                        @default(false)
-  isWhitelist                Boolean                        @default(false)
-  logoPath                   String?
-  mainGenre                  String?
-  memberGrade                String                         @default("normal")
-  monthlyOrderVolume         String?
-  preferredFinish            String?
-  preferredSize              String?
-  recentMemo                 String?
-  sensitivityScore           Int                            @default(3)
-  taxInvoiceEmail            String?
-  taxInvoiceMethod           String?
-  totalClaims                Int                            @default(0)
-  duplicateCheckMonths       Int?
-  fileRetentionDays          Int                            @default(90)
-  fileRetentionMonths        Int                            @default(3)
-  thumbnailRetentionMonths   Int                            @default(6)
-  adminMemo                  String?
-  approvalManagerName        String?
-  approvalManagerPhone       String?
-  practicalManagerName       String?
-  practicalManagerPhone      String?
-  paymentCondition           String?                        @default("당월말")
-  freeShippingThreshold      Int                            @default(90000)
-  pendingAdjustmentAmount    Decimal                        @default(0) @db.Decimal(10, 2)
-  pendingAdjustmentAt        DateTime?
-  pendingAdjustmentReason    String?
-  userId                     String?                        @unique
-  lastLoginAt                DateTime?
-  lastLoginIp                String?
-  profileImage               String?
-  birthday                   String?
-  contactEmail               String?
-  gender                     String?
-  enableRecruitment          Boolean                        @default(false)
-  enableSchedule             Boolean                        @default(false)
-  enableShooting             Boolean                        @default(false)
-  enableNote                 Boolean                        @default(false)
-  storageQuotaGb             Int                            @default(500)
-  smsNotificationStages      String[]                       @default([])
-  notificationChannel        String                         @default("sms")
-  withdrawnAt                DateTime?
-  assignedStaffId            String?
-  emergencyContactName       String?
-  emergencyContactPhone      String?
-  emergencyContactRelation   String?
-  profileCompletedAt         DateTime?
-  emailVerified              Boolean                        @default(false)
-  emailVerifyToken           String?                        @unique
-  emailVerifyTokenExpiry     DateTime?
-  passwordResetToken         String?                        @unique
-  passwordResetTokenExpiry   DateTime?
-  businessUpgradeStatus      String?
-  businessUpgradeAt          DateTime?
-  businessRegCertPath        String?
+  id                          String                         @id @default(cuid())
+  clientCode                  String                         @unique
+  clientName                  String
+  businessNumber              String?
+  representative              String?
+  phone                       String?
+  mobile                      String?
+  email                       String?
+  password                    String?
+  postalCode                  String?
+  address                     String?
+  addressDetail               String?
+  groupId                     String?
+  memberType                  String                         @default("individual")
+  oauthProvider               String?
+  oauthId                     String?
+  priceType                   String                         @default("standard")
+  paymentType                 String                         @default("order")
+  creditEnabled               Boolean                        @default(false)
+  creditPeriodDays            Int?
+  creditPaymentDay            Int?
+  creditBlocked               Boolean                        @default(false)
+  creditBlockedAt             DateTime?
+  lastPaymentDate             DateTime?
+  shippingType                String                         @default("conditional")
+  creditGrade                 String                         @default("B")
+  paymentTerms                Int                            @default(30)
+  status                      String                         @default("active")
+  createdAt                   DateTime                       @default(now())
+  updatedAt                   DateTime                       @updatedAt
+  acquisitionChannel          String?
+  acquisitionChannelNote      String?
+  signupPurpose               String?
+  signupPurposeNote           String?
+  assignedManager             String?
+  businessCategory            String?
+  businessType                String?
+  colorProfile                String?
+  contactPerson               String?
+  contactPhone                String?
+  deliveryNote                String?
+  hasLogo                     Boolean                        @default(false)
+  isBlacklist                 Boolean                        @default(false)
+  isWhitelist                 Boolean                        @default(false)
+  logoPath                    String?
+  mainGenre                   String?
+  memberGrade                 String                         @default("normal")
+  monthlyOrderVolume          String?
+  preferredFinish             String?
+  preferredSize               String?
+  recentMemo                  String?
+  sensitivityScore            Int                            @default(3)
+  taxInvoiceEmail             String?
+  taxInvoiceMethod            String?
+  totalClaims                 Int                            @default(0)
+  duplicateCheckMonths        Int?
+  fileRetentionDays           Int                            @default(90)
+  fileRetentionMonths         Int                            @default(3)
+  thumbnailRetentionMonths    Int                            @default(6)
+  adminMemo                   String?
+  approvalManagerName         String?
+  approvalManagerPhone        String?
+  practicalManagerName        String?
+  practicalManagerPhone       String?
+  paymentCondition            String?                        @default("당월말")
+  freeShippingThreshold       Int                            @default(90000)
+  pendingAdjustmentAmount     Decimal                        @default(0) @db.Decimal(10, 2)
+  pendingAdjustmentAt         DateTime?
+  pendingAdjustmentReason     String?
+  userId                      String?                        @unique
+  lastLoginAt                 DateTime?
+  lastLoginIp                 String?
+  profileImage                String?
+  birthday                    String?
+  contactEmail                String?
+  gender                      String?
+  enableRecruitment           Boolean                        @default(false)
+  enableSchedule              Boolean                        @default(false)
+  enableShooting              Boolean                        @default(false)
+  enableNote                  Boolean                        @default(false)
+  storageQuotaGb              Int                            @default(500)
+  smsNotificationStages       String[]                       @default([])
+  notificationChannel         String                         @default("sms")
+  withdrawnAt                 DateTime?
+  assignedStaffId             String?
+  emergencyContactName        String?
+  emergencyContactPhone       String?
+  emergencyContactRelation    String?
+  profileCompletedAt          DateTime?
+  emailVerified               Boolean                        @default(false)
+  emailVerifyToken            String?                        @unique
+  emailVerifyTokenExpiry      DateTime?
+  passwordResetToken          String?                        @unique
+  passwordResetTokenExpiry    DateTime?
+  businessUpgradeStatus       String?
+  businessUpgradeAt           DateTime?
+  businessRegCertPath         String?
   businessUpgradeRejectReason String?
-  emailConsentAt             DateTime?
-  addresses                  ClientAddress[]
-  albumPreference            ClientAlbumPreference?
-  clientDepartments          ClientDepartment[]
-  productionSettingPrices    ClientProductionSettingPrice[]
-  assignedStaffMember        Staff?                         @relation("ClientAssignedStaff", fields: [assignedStaffId], references: [id])
-  group                      ClientGroup?                   @relation(fields: [groupId], references: [id])
-  user                       User?                          @relation(fields: [userId], references: [id])
-  consultations              Consultation[]
-  copperPlates               CopperPlate[]
-  healthScore                CustomerHealthScore?
-  companyEmploymentHistories EmploymentHistory[]            @relation("EmploymentHistoryCompany")
-  memberEmploymentHistories  EmploymentHistory[]            @relation("EmploymentHistoryMember")
-  companyEmployments         Employment[]                   @relation("EmploymentCompany")
-  memberEmployments          Employment[]                   @relation("EmploymentMember")
-  invitations                Invitation[]
-  myProducts                 MyProduct[]
-  orders                     Order[]
-  photobookOrders            PhotobookOrder[]
-  photographerProfile        PhotographerProfile?
-  purchaseLedgers            PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
-  quotations                 Quotation[]
-  recruitmentBids            RecruitmentBid[]               @relation("RecruitmentBidder")
-  notificationsReceived      RecruitmentNotificationLog[]   @relation("NotificationRecipient")
-  recruitmentTemplates       RecruitmentTemplate[]          @relation("RecruitmentTemplateClient")
-  recruitments               Recruitment[]                  @relation("RecruitmentClient")
-  createdRecruitments        Recruitment[]                  @relation("RecruitmentCreator")
-  returnRequests             ReturnRequest[]
-  salesLedgers               SalesLedger[]                  @relation("SalesLedgerClient")
-  assignedShootings          ShootingSchedule[]             @relation("AssignedExternalPhotographer")
-  assignedStaff              StaffClient[]
+  emailConsentAt              DateTime?
+  addresses                   ClientAddress[]
+  albumPreference             ClientAlbumPreference?
+  clientDepartments           ClientDepartment[]
+  productionSettingPrices     ClientProductionSettingPrice[]
+  assignedStaffMember         Staff?                         @relation("ClientAssignedStaff", fields: [assignedStaffId], references: [id])
+  group                       ClientGroup?                   @relation(fields: [groupId], references: [id])
+  user                        User?                          @relation(fields: [userId], references: [id])
+  consultations               Consultation[]
+  copperPlates                CopperPlate[]
+  healthScore                 CustomerHealthScore?
+  companyEmploymentHistories  EmploymentHistory[]            @relation("EmploymentHistoryCompany")
+  memberEmploymentHistories   EmploymentHistory[]            @relation("EmploymentHistoryMember")
+  companyEmployments          Employment[]                   @relation("EmploymentCompany")
+  memberEmployments           Employment[]                   @relation("EmploymentMember")
+  invitations                 Invitation[]
+  myProducts                  MyProduct[]
+  orders                      Order[]
+  photobookOrders             PhotobookOrder[]
+  photographerProfile         PhotographerProfile?
+  purchaseLedgers             PurchaseLedger[]               @relation("PurchaseLedgerSupplier")
+  quotations                  Quotation[]
+  recruitmentBids             RecruitmentBid[]               @relation("RecruitmentBidder")
+  notificationsReceived       RecruitmentNotificationLog[]   @relation("NotificationRecipient")
+  recruitmentTemplates        RecruitmentTemplate[]          @relation("RecruitmentTemplateClient")
+  recruitments                Recruitment[]                  @relation("RecruitmentClient")
+  createdRecruitments         Recruitment[]                  @relation("RecruitmentCreator")
+  returnRequests              ReturnRequest[]
+  salesLedgers                SalesLedger[]                  @relation("SalesLedgerClient")
+  assignedShootings           ShootingSchedule[]             @relation("AssignedExternalPhotographer")
+  assignedStaff               StaffClient[]
 
   @@unique([oauthProvider, oauthId])
   @@index([groupId])
@@ -1174,11 +1174,19 @@ model OrderItem {
   fabricSnapshot    Json?
   /// 양면/단면: 'single' | 'double'. 주문 시 사용자 선택값 기록.
   printSide         String?
+  // === 출력실 관리 ===
+  printRoomStatus   String? // waiting | ready | imposing | imposed | printing | done
+  printRoomReadyAt  DateTime?
+  printRoomDoneAt   DateTime?
+  printRoomDoneBy   String? // Staff.id
   files             OrderFile[]
   shipping          OrderItemShipping?
   order             Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
   reprintJobs       ReprintJob[]        @relation("ReprintParent")
   returnItems       ReturnRequestItem[]
+  printReadyFiles   PrintReadyFile[]
+  printDownloadLogs PrintDownloadLog[]
+  printRoomJobs     PrintRoomJob[]
 
   @@index([orderId])
   @@index([colorIntentId])
@@ -2095,21 +2103,21 @@ model Schedule {
 
 // 메모장 — 단순 메모(제목/내용/범위만). 노트장과 완전히 분리됨.
 model Memo {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   clientId        String?
   creatorId       String
   creatorName     String
   creatorDeptId   String?
   creatorDeptName String?
-  title           String    @default("")
-  content         String    @default("")
-  color           String    @default("#FEF9C3")
-  isPersonal      Boolean   @default(true)
-  isDepartment    Boolean   @default(false)
-  isCompany       Boolean   @default(false)
-  isPinned        Boolean   @default(false)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  title           String   @default("")
+  content         String   @default("")
+  color           String   @default("#FEF9C3")
+  isPersonal      Boolean  @default(true)
+  isDepartment    Boolean  @default(false)
+  isCompany       Boolean  @default(false)
+  isPinned        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([clientId])
   @@index([creatorId])
@@ -3437,16 +3445,16 @@ model Recruitment {
 }
 
 model RecruitmentBid {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   recruitmentId  String
   bidderId       String
   message        String?
   proposedBudget Int?
   crewSize       String?
-  status         String       @default("pending")
-  bidAt          DateTime     @default(now())
-  bidder         Client       @relation("RecruitmentBidder", fields: [bidderId], references: [id])
-  recruitment    Recruitment  @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
+  status         String        @default("pending")
+  bidAt          DateTime      @default(now())
+  bidder         Client        @relation("RecruitmentBidder", fields: [bidderId], references: [id])
+  recruitment    Recruitment   @relation(fields: [recruitmentId], references: [id], onDelete: Cascade)
   review         BidReview?
   messages       ChatMessage[]
 
@@ -4095,4 +4103,81 @@ model PurchaseQuotation {
   @@index([receivedAt])
   @@index([staffId])
   @@map("purchase_quotations")
+}
+
+model PrintRoomPreset {
+  id                  String         @id @default(cuid())
+  sizeCode            String
+  nup                 String
+  paperOrientation    String
+  gridCols            Int
+  gridRows            Int
+  marginMm            Float          @default(10.0)
+  cropMarkLengthMm    Float          @default(5.0)
+  cropMarkThicknessPt Float          @default(0.25)
+  cropMarkColor       String         @default("K100")
+  pdfVersion          String         @default("1.4")
+  isActive            Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  jobs                PrintRoomJob[]
+
+  @@unique([sizeCode, nup])
+  @@map("print_room_presets")
+}
+
+model PrintRoomJob {
+  id              String           @id @default(cuid())
+  orderItemId     String
+  orderItem       OrderItem        @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  presetId        String?
+  preset          PrintRoomPreset? @relation(fields: [presetId], references: [id])
+  isManual        Boolean          @default(false)
+  status          String           @default("pending")
+  pdfB2Key        String?
+  pageCount       Int?
+  sourceFileCount Int?
+  processedAt     DateTime?
+  errorLog        String?
+  staffId         String?
+  createdAt       DateTime         @default(now())
+
+  @@index([orderItemId])
+  @@index([status])
+  @@map("print_room_jobs")
+}
+
+model PrintReadyFile {
+  id          String             @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem          @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  b2Key       String
+  fileName    String
+  fileSize    Int
+  printMethod String
+  fileType    String
+  preparedAt  DateTime           @default(now())
+  downloads   PrintDownloadLog[]
+
+  @@index([orderItemId])
+  @@map("print_ready_files")
+}
+
+model PrintDownloadLog {
+  id               String          @id @default(cuid())
+  orderItemId      String
+  orderItem        OrderItem       @relation(fields: [orderItemId], references: [id])
+  printReadyFileId String?
+  printReadyFile   PrintReadyFile? @relation(fields: [printReadyFileId], references: [id])
+  staffId          String?
+  agentId          String?
+  downloadType     String
+  fileCount        Int
+  totalBytes       BigInt
+  localPath        String?
+  downloadedAt     DateTime        @default(now())
+
+  @@index([orderItemId])
+  @@index([downloadedAt])
+  @@map("print_download_logs")
 }

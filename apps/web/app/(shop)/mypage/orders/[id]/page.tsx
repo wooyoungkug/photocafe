@@ -711,8 +711,8 @@ export default function OrderDetailPage() {
                                           </div>
                                         </div>
                                         <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md bg-white border-gray-200">
-                                          <div className="truncate font-medium" title={file.fileName}>{formatThumbFileLabel(file.fileName)}</div>
-                                          <div className="text-gray-500 truncate">
+                                          <div className="text-center font-medium" title={file.fileName}>{formatThumbFileLabel(file.fileName)}</div>
+                                          <div className="text-gray-500 text-center">
                                             {wIn && hIn ? `${wIn}×${hIn}"` : ''}
                                             {wIn && hIn && file.dpi > 0 ? ' ' : ''}
                                             {file.dpi > 0 ? `${file.dpi}dpi` : ''}
@@ -725,7 +725,7 @@ export default function OrderDetailPage() {
                                   const renderBlankSlot = (key: string, aspectPct: number) => (
                                     <div key={key} className="flex flex-col">
                                       <div
-                                        className="relative rounded-md border-2 border-dashed border-blue-400 bg-blue-50/20 overflow-hidden"
+                                        className="relative rounded-t-md border-2 border-dashed border-blue-400 bg-blue-50/20 overflow-hidden"
                                         style={{ paddingTop: `${aspectPct}%` }}
                                       >
                                         <svg
@@ -740,6 +740,10 @@ export default function OrderDetailPage() {
                                         <div className="absolute inset-0 flex items-center justify-center">
                                           <span className="relative text-xs font-bold text-blue-600 select-none bg-white/95 rounded px-1.5 py-0.5 whitespace-nowrap shadow-sm">빈페이지</span>
                                         </div>
+                                      </div>
+                                      <div className="text-[9px] leading-tight p-1 border border-t-0 rounded-b-md border-blue-200 bg-blue-50/10 invisible" aria-hidden="true">
+                                        <div className="mb-0.5">&nbsp;</div>
+                                        <span className="block">&nbsp;</span>
                                       </div>
                                     </div>
                                   );
@@ -819,13 +823,17 @@ export default function OrderDetailPage() {
                                             <div className="text-[8px] text-center text-orange-500 mb-0.5 font-medium">
                                               {label}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-1">
-                                              {spread.left.type === 'page' && leftFile
-                                                ? renderThumb(leftFile, String(leftPage), spread.left.fileIndex, { badgePosition: 'left' })
-                                                : renderBlankSlot(`s${spreadIdx}-l`, defaultAspect)}
-                                              {spread.right.type === 'page' && rightFile
-                                                ? renderThumb(rightFile, String(rightPage), spread.right.fileIndex, { badgePosition: 'right' })
-                                                : renderBlankSlot(`s${spreadIdx}-r`, defaultAspect)}
+                                            <div className="flex items-stretch">
+                                              <div className="flex-1 min-w-0">
+                                                {spread.left.type === 'page' && leftFile
+                                                  ? renderThumb(leftFile, String(leftPage), spread.left.fileIndex, { badgePosition: 'left' })
+                                                  : renderBlankSlot(`s${spreadIdx}-l`, defaultAspect)}
+                                              </div>
+                                              <div className="flex-1 min-w-0 -ml-0.5">
+                                                {spread.right.type === 'page' && rightFile
+                                                  ? renderThumb(rightFile, String(rightPage), spread.right.fileIndex, { badgePosition: 'right' })
+                                                  : renderBlankSlot(`s${spreadIdx}-r`, defaultAspect)}
+                                              </div>
                                             </div>
                                           </div>
                                         );

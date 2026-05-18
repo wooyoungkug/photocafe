@@ -53,6 +53,7 @@ export interface UploadSessionFolder {
   uploadTotalBytes?: number;      // 총 업로드 바이트
   uploadAvgSpeed?: number;        // 평균 속도 (bytes/sec)
   uploadStorage?: 'b2' | 'r2' | 'r2w'; // 사용된 스토리지 (r2w=Worker 프록시)
+  fileColorSpaces?: Record<string, string>; // fileName → colorSpace (sRGB/RGB/CMYK 등)
 }
 
 export interface UploadSession {

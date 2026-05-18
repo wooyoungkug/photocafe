@@ -286,13 +286,20 @@ export default function ProductPage() {
         const folderUploadMap = new Map<string, FolderUploadData>();
         validFolders.forEach((folder) => {
           if (!folderUploadMap.has(folder.id)) {
+            const totalPages = folder.pageLayout === 'spread' ? folder.files.length * 2 : folder.files.length;
+            const fnDigits = totalPages < 10 ? 1 : totalPages < 100 ? 2 : 3;
             folderUploadMap.set(folder.id, {
               folderId: folder.id, folderName: folder.orderTitle,
-              files: folder.files.map((f, idx) => ({
-                file: f.file, canvasDataUrl: f.canvasDataUrl, fileName: f.newFileName || f.fileName,
-                sortOrder: idx, widthPx: f.widthPx, heightPx: f.heightPx,
-                widthInch: f.widthInch, heightInch: f.heightInch, dpi: f.dpi, fileSize: f.fileSize,
-              })),
+              files: folder.files.map((f, idx) => {
+                const prefix = String(idx + 1).padStart(fnDigits, '0');
+                const baseName = f.newFileName || f.fileName;
+                return {
+                  file: f.file, canvasDataUrl: f.canvasDataUrl,
+                  fileName: `${prefix}_${baseName}`,
+                  sortOrder: idx, widthPx: f.widthPx, heightPx: f.heightPx,
+                  widthInch: f.widthInch, heightInch: f.heightInch, dpi: f.dpi, fileSize: f.fileSize,
+                };
+              }),
             });
           }
         });
