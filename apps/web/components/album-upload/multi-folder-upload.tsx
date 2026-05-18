@@ -1309,11 +1309,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
 
       setTotalFolderCount(allFolders.length);
 
-      // 조기 중복 감지용 폴더명 집합 (배치 내 새로 추가된 항목도 실시간 반영)
-      const existingFolderNames = new Set<string>(
-        useMultiFolderUploadStore.getState().folders.map(f => f.folderName)
-      );
-
+      // 중복 폴더는 추가하되 경고 메시지만 수집 — 자동 스킵하지 않는다.
       const duplicateMessages: string[] = [];
       for (let i = 0; i < allFolders.length; i++) {
         if (cancelRef.current) break;
@@ -1321,13 +1317,6 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         const { entry, fullPath, depth } = allFolders[i];
         setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: allFolders.length, name: fullPath }));
-
-        // 조기 중복 감지: 무거운 processFolder 호출 전 폴더명으로 빠르게 체크
-        if (existingFolderNames.has(entry.name)) {
-          duplicateMessages.push(`"${entry.name}" 폴더가 이미 목록에 있습니다.`);
-          setOverallProgress(Math.round(((i + 1) / allFolders.length) * 100));
-          continue;
-        }
 
         // 편집스타일 자동감지 (기본값 미선택 시)
         let pageLayout: PageLayoutType;
@@ -1355,23 +1344,20 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
             folder.autoBindingDetected = true;
           }
           const result = addFolder(folder);
-          if (!result.added) {
-            duplicateMessages.push(result.reason || tu('duplicateName', { name: folder.folderName }));
+          // addFolder 는 이제 항상 added: true 를 반환 (자동 차단 없음).
+          // reason 이 있으면 중복 경고이므로 수집해 토스트로 안내.
+          if (result.reason) {
+            duplicateMessages.push(result.reason);
+          }
+          // 색상 그룹 계산
+          computeColorGroups(folder.id);
+          // 즉시 서버 업로드 시작
+          if (productId) {
+            const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
+            console.log('[MultiFolderUpload] enqueue check:', { productId, folderId: folder.id, found: !!currentFolder, filesWithFile: currentFolder?.files.filter(f => f.file).length });
+            if (currentFolder) enqueueFolder(currentFolder);
           } else {
-            existingFolderNames.add(folder.folderName);
-            // 색상 그룹 계산
-            computeColorGroups(folder.id);
-            // 즉시 서버 업로드 시작
-            if (productId) {
-              const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
-              console.log('[MultiFolderUpload] enqueue check:', { productId, folderId: folder.id, found: !!currentFolder, filesWithFile: currentFolder?.files.filter(f => f.file).length });
-              if (currentFolder) enqueueFolder(currentFolder);
-            } else {
-              console.warn('[MultiFolderUpload] productId is falsy, skipping enqueue');
-            }
-            if (result.reason) {
-              duplicateMessages.push(result.reason);
-            }
+            console.warn('[MultiFolderUpload] productId is falsy, skipping enqueue');
           }
         }
 
@@ -1390,9 +1376,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
       } else if (duplicateMessages.length > 0) {
         toast({
-          title: tu('duplicateFolderDetected'),
-          description: duplicateMessages.join('\n'),
-          variant: 'destructive',
+          title: '중복 가능성 안내',
+          description:
+            '중복 가능성이 있는 폴더도 모두 추가했습니다. 필요 없는 폴더는 삭제 버튼으로 직접 제거하세요.\n\n' +
+            duplicateMessages.join('\n'),
         });
       }
       } catch (error) {
@@ -1453,11 +1440,7 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       const entries = Array.from(folderMap.entries());
       setTotalFolderCount(entries.length);
 
-      // 조기 중복 감지용 폴더명 집합 (배치 내 새로 추가된 항목도 실시간 반영)
-      const existingFolderNames = new Set<string>(
-        useMultiFolderUploadStore.getState().folders.map(f => f.folderName)
-      );
-
+      // 중복 폴더는 추가하되 경고 메시지만 수집 — 자동 스킵하지 않는다.
       const duplicateMessages: string[] = [];
       for (let i = 0; i < entries.length; i++) {
         if (cancelRef.current) break;
@@ -1465,13 +1448,6 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         const [folderPath, { files: folderFiles, depth, folderName }] = entries[i];
         setCurrentFolderIndex(i + 1);
         setProcessingMessage(tu('processingProgress', { current: i + 1, total: entries.length, name: folderPath }));
-
-        // 조기 중복 감지: 무거운 처리 전 폴더명으로 빠르게 체크
-        if (existingFolderNames.has(folderName)) {
-          duplicateMessages.push(`"${folderName}" 폴더가 이미 목록에 있습니다.`);
-          setOverallProgress(Math.round(((i + 1) / entries.length) * 100));
-          continue;
-        }
 
         folderFiles.sort((a, b) => a.name.localeCompare(b.name, 'ko', { numeric: true }));
 
@@ -1646,19 +1622,15 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         };
 
         const result = addFolder(folder);
-        if (!result.added) {
-          duplicateMessages.push(result.reason || tu('duplicateName', { name: folder.folderName }));
-        } else {
-          existingFolderNames.add(folder.folderName);
-          computeColorGroups(folder.id);
-          // 즉시 서버 업로드 시작
-          if (productId) {
-            const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
-            if (currentFolder) enqueueFolder(currentFolder);
-          }
-          if (result.reason) {
-            duplicateMessages.push(result.reason);
-          }
+        // addFolder 는 이제 항상 added: true 를 반환 (자동 차단 없음).
+        if (result.reason) {
+          duplicateMessages.push(result.reason);
+        }
+        computeColorGroups(folder.id);
+        // 즉시 서버 업로드 시작
+        if (productId) {
+          const currentFolder = useMultiFolderUploadStore.getState().folders.find(f => f.id === folder.id);
+          if (currentFolder) enqueueFolder(currentFolder);
         }
 
         // 전체 진행률 계산
@@ -1677,9 +1649,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
         toast({ title: '업로드 중단', description: '업로드가 중단되었습니다.', variant: 'destructive' });
       } else if (duplicateMessages.length > 0) {
         toast({
-          title: tu('duplicateFolderDetected'),
-          description: duplicateMessages.join('\n'),
-          variant: 'destructive',
+          title: '중복 가능성 안내',
+          description:
+            '중복 가능성이 있는 폴더도 모두 추가했습니다. 필요 없는 폴더는 삭제 버튼으로 직접 제거하세요.\n\n' +
+            duplicateMessages.join('\n'),
         });
       }
       } catch (error) {
