@@ -892,7 +892,7 @@ export default function ProfilePage() {
 
       {/* 소속 해제 / 회원 탈퇴 카드 */}
       {isEmployee ? (
-        <Card className="border-orange-100">
+        <Card className="border-orange-100 md:w-[70%]">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <LogOut className="h-4 w-4 text-orange-500" />
@@ -935,7 +935,7 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-red-100">
+        <Card className="border-red-100 md:w-[70%]">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <LogOut className="h-4 w-4 text-red-500" />
@@ -1167,7 +1167,7 @@ function ProfileStatusCard({ onEdit }: { onEdit: () => void }) {
   };
 
   return (
-    <Card className="mt-4">
+    <Card className="mt-4 md:w-[70%]">
       <CardHeader className="pb-3 pt-4 px-5">
         <div className="flex items-center justify-between">
           <div>
