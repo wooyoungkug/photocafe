@@ -585,12 +585,6 @@ export function useImmediateUpload(productId: string) {
     let restored = false;
 
     for (const sf of session.folders) {
-      if (sf.uploadStatus !== 'completed') {
-        // 미완료 세션은 제거
-        removeSessionFolder(productId, sf.folderId);
-        continue;
-      }
-
       try {
         const res = await fetch(`${API_BASE}/api/v1/upload/temp/${sf.tempFolderId}/files`);
         if (!res.ok) {
@@ -600,8 +594,24 @@ export function useImmediateUpload(productId: string) {
 
         const data = await res.json();
         if (!data.files || data.files.length === 0) {
+          // 서버에도 파일이 없으면 세션 폐기
           removeSessionFolder(productId, sf.folderId);
           continue;
+        }
+
+        // 미완료(uploading/partial) 세션: 서버에 파일이 일부라도 있으면 partial 로 복원
+        // → 사용자가 "이어서 업로드" 또는 "취소" 선택할 수 있도록 UI 에 노출
+        const isIncomplete = sf.uploadStatus !== 'completed';
+        const serverFileCount = data.files.length;
+        const expectedFileCount = sf.totalFileCount || serverFileCount;
+        const isPartial = isIncomplete && serverFileCount < expectedFileCount;
+
+        // partial 로 판정되면 세션 상태를 'partial' 로 동기화
+        if (isPartial) {
+          updateSessionFolder(productId, sf.folderId, {
+            uploadStatus: 'partial',
+            uploadedFileCount: serverFileCount,
+          });
         }
 
         // UploadedFile[] 재구성 (file=undefined, 서버 URL 사용)
@@ -705,8 +715,10 @@ export function useImmediateUpload(productId: string) {
           foilPosition: meta.foilPosition,
           uploadedAt: sf.createdAt,
           tempFolderId: sf.tempFolderId,
-          immediateUploadStatus: 'completed',
-          immediateUploadProgress: 100,
+          immediateUploadStatus: isPartial ? 'partial' : 'completed',
+          immediateUploadProgress: isPartial
+            ? Math.round((serverFileCount / expectedFileCount) * 100)
+            : 100,
           immediateUploadedCount: data.files.length,
           immediateUploadAvgSpeed: sf.uploadAvgSpeed,
           immediateUploadElapsedMs: sf.uploadElapsedMs,
@@ -749,5 +761,143 @@ export function useImmediateUpload(productId: string) {
     return restored;
   }, [productId]);
 
-  return { enqueueFolder, cancelFolderUpload, retryFolder, retryFailedFiles, restoreSession };
+  /**
+   * 부분 업로드 이어받기
+   *
+   * - 사용자가 같은 폴더를 다시 선택했을 때 호출
+   * - 기존 tempFolderId 를 재사용하고, 서버에 이미 존재하는 파일은 스킵
+   * - 누락된 파일만 큐에 추가하여 업로드
+   *
+   * @param existingFolderId 기존 store 내 폴더 id (세션에 있던 폴더)
+   * @param rawFiles 사용자가 다시 선택한 File[] (fileName 으로 매칭)
+   */
+  const resumePartialFolder = useCallback(async (
+    existingFolderId: string,
+    rawFiles: File[],
+  ): Promise<{ resumedCount: number; alreadyOnServer: number; missingFromPick: number }> => {
+    const { folders } = useMultiFolderUploadStore.getState();
+    const existingFolder = folders.find(f => f.id === existingFolderId);
+    if (!existingFolder || !existingFolder.tempFolderId) {
+      console.warn('[ImmediateUpload] resumePartialFolder: folder not found or no tempFolderId');
+      return { resumedCount: 0, alreadyOnServer: 0, missingFromPick: 0 };
+    }
+    const tempFolderId = existingFolder.tempFolderId;
+
+    // 1) 서버의 현재 파일 목록 조회 (이미 올라간 파일 식별)
+    const API_BASE = (process.env.NEXT_PUBLIC_API_URL || '/api/v1').replace(/\/api\/v1\/?$/, '');
+    let serverFileNames = new Set<string>();
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/upload/temp/${tempFolderId}/files`);
+      if (res.ok) {
+        const data = await res.json();
+        serverFileNames = new Set((data.files || []).map((f: any) => String(f.fileName)));
+      }
+    } catch (err) {
+      console.warn('[ImmediateUpload] resumePartialFolder: failed to fetch server files', err);
+    }
+
+    // 2) 사용자가 다시 선택한 File 목록을 이름 -> File 맵으로
+    const pickedByName = new Map<string, File>();
+    for (const f of rawFiles) {
+      pickedByName.set(f.name, f);
+    }
+
+    // 3) AbortController 새로 생성
+    const controller = new AbortController();
+    abortControllersRef.current.set(existingFolderId, controller);
+
+    // 4) 진행 상태 초기화 (이미 서버에 있는 파일은 uploaded 카운트에 포함)
+    const startedAt = Date.now();
+    const totalExpected = existingFolder.files.length;
+    folderProgressRef.current.set(existingFolderId, {
+      uploaded: serverFileNames.size,
+      total: totalExpected,
+      serverFiles: [],
+      failedFiles: [],
+      startedAt,
+      bytesUploaded: 0,
+    });
+
+    // 5) Store 상태 갱신
+    updateFolderUploadStatus(existingFolderId, {
+      immediateUploadStatus: 'uploading',
+      immediateUploadProgress: Math.round((serverFileNames.size / Math.max(1, totalExpected)) * 100),
+      immediateUploadedCount: serverFileNames.size,
+    });
+
+    // 6) 세션 상태 갱신
+    updateSessionFolder(productId, existingFolderId, {
+      uploadStatus: 'uploading',
+      uploadedFileCount: serverFileNames.size,
+      uploadStartedAt: startedAt,
+    });
+
+    // 7) 기존 폴더의 메타데이터(UploadedFile[]) 를 순회하면서, 서버에 없고 사용자 picker 에 있는 파일만 업로드
+    let resumedCount = 0;
+    let alreadyOnServer = 0;
+    let missingFromPick = 0;
+
+    existingFolder.files.forEach((uploadedFile: UploadedFile, idx: number) => {
+      // 서버에 이미 있으면 스킵 (newFileName 기준 매칭, 없으면 fileName)
+      const serverKey = uploadedFile.newFileName || uploadedFile.fileName;
+      if (serverFileNames.has(serverKey)) {
+        alreadyOnServer++;
+        return;
+      }
+
+      // 사용자가 재선택한 파일 중에서 매칭 (원본 파일명으로)
+      const pickedFile = pickedByName.get(uploadedFile.fileName);
+      if (!pickedFile) {
+        missingFromPick++;
+        console.warn('[ImmediateUpload] resumePartialFolder: missing in re-pick:', uploadedFile.fileName);
+        return;
+      }
+
+      const metadata: AlbumFileMetadata = {
+        tempFolderId,
+        folderName: existingFolder.folderName,
+        sortOrder: uploadedFile.pageNumber,
+        fileName: serverKey,
+        width: uploadedFile.widthPx,
+        height: uploadedFile.heightPx,
+        widthInch: uploadedFile.widthInch,
+        heightInch: uploadedFile.heightInch,
+        dpi: uploadedFile.dpi,
+        fileSize: uploadedFile.fileSize || pickedFile.size,
+      };
+
+      queueRef.current.push({
+        folderId: existingFolderId,
+        tempFolderId,
+        file: pickedFile,
+        metadata,
+        fileIndex: idx,
+        totalFiles: totalExpected,
+      });
+      resumedCount++;
+    });
+
+    // 7) 큐 처리 시작
+    if (resumedCount > 0) {
+      processQueue();
+    } else {
+      // 누락된 파일이 없으면 그대로 completed 처리
+      const progress = folderProgressRef.current.get(existingFolderId);
+      if (progress && progress.uploaded >= totalExpected) {
+        updateFolderUploadStatus(existingFolderId, {
+          immediateUploadStatus: 'completed',
+          immediateUploadProgress: 100,
+          immediateUploadedCount: totalExpected,
+        });
+        updateSessionFolder(productId, existingFolderId, {
+          uploadStatus: 'completed',
+          uploadedFileCount: totalExpected,
+        });
+      }
+    }
+
+    return { resumedCount, alreadyOnServer, missingFromPick };
+  }, [productId, processQueue, updateFolderUploadStatus]);
+
+  return { enqueueFolder, cancelFolderUpload, retryFolder, retryFailedFiles, restoreSession, resumePartialFolder };
 }

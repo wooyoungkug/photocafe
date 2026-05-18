@@ -469,6 +469,70 @@ export class B2StorageService implements OnModuleInit {
   }
 
   /**
+   * Private 버킷의 `temp/` 프리픽스 객체 중, LastModified 가 cutoff 보다 오래된 항목 삭제.
+   *
+   * - 주문 확정으로 final 경로(`orders/{orderNumber}/...`)로 이동된 파일은 호출측에서 이미 삭제 처리
+   * - 여기서 잡히는 건 사용자가 업로드 도중 중단해서 final 로 못 옮긴 고아 객체
+   * - B2 활성 상태가 아니면 0 반환 (no-op)
+   *
+   * @param cutoffHours LastModified 기준 이 시간보다 오래된 객체 삭제 (기본 24시간)
+   * @returns 삭제된 객체 수, 회수 바이트
+   */
+  async cleanupStaleTempObjects(
+    cutoffHours: number = 24,
+  ): Promise<{ deletedCount: number; freedBytes: number }> {
+    if (!this.enabled || !this.privateBucket) {
+      return { deletedCount: 0, freedBytes: 0 };
+    }
+    const s3 = this.requireClient();
+    const cutoffMs = Date.now() - cutoffHours * 60 * 60 * 1000;
+
+    let deletedCount = 0;
+    let freedBytes = 0;
+    let continuationToken: string | undefined = undefined;
+
+    do {
+      const res: any = await s3.send(
+        new ListObjectsV2Command({
+          Bucket: this.privateBucket,
+          Prefix: 'temp/',
+          ContinuationToken: continuationToken,
+          MaxKeys: 1000,
+        }),
+      );
+      const contents = (res?.Contents ?? []) as Array<{
+        Key?: string;
+        Size?: number;
+        LastModified?: Date;
+      }>;
+
+      for (const obj of contents) {
+        if (!obj.Key) continue;
+        const lastModMs = obj.LastModified ? new Date(obj.LastModified).getTime() : 0;
+        if (lastModMs > 0 && lastModMs < cutoffMs) {
+          try {
+            await s3.send(
+              new DeleteObjectCommand({ Bucket: this.privateBucket, Key: obj.Key }),
+            );
+            deletedCount++;
+            freedBytes += Number(obj.Size ?? 0);
+          } catch (err) {
+            this.logger.warn(`Failed to delete stale temp object ${obj.Key}: ${(err as Error)?.message}`);
+          }
+        }
+      }
+      continuationToken = res?.IsTruncated ? res?.NextContinuationToken : undefined;
+    } while (continuationToken);
+
+    if (deletedCount > 0) {
+      this.logger.log(
+        `B2 cleanup: deleted ${deletedCount} stale temp objects (${(freedBytes / 1024 / 1024).toFixed(1)} MB, cutoff: ${cutoffHours}h)`,
+      );
+    }
+    return { deletedCount, freedBytes };
+  }
+
+  /**
    * Private 버킷 내부에서 객체를 다른 키로 복사한다.
    *
    * B2 직접 업로드(`temp/{tempFolderId}/originals/...`)된 파일을

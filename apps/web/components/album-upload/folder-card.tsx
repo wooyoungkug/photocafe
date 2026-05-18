@@ -937,27 +937,35 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
               )}
             </>
           )}
-          {(folder.immediateUploadStatus === 'failed' || folder.immediateUploadStatus === 'partial') && (
-            <>
-              <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="text-[11px] font-medium text-amber-700">
-                업로드 일부 실패 ({folder.immediateUploadedCount || 0}/{folder.files.length})
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-5 px-2 text-[10px] text-amber-700 hover:text-amber-900 ml-auto"
-                onClick={() => {
-                  // retryFolder는 multi-folder-upload에서 처리
-                  const event = new CustomEvent('retry-folder-upload', { detail: { folderId: folder.id } });
-                  window.dispatchEvent(event);
-                }}
-              >
-                <RefreshCw className="h-3 w-3 mr-1" />
-                재시도
-              </Button>
-            </>
-          )}
+          {(folder.immediateUploadStatus === 'failed' || folder.immediateUploadStatus === 'partial') && (() => {
+            // 세션에서 복원된 경우 File 객체가 없음 → "이어서 업로드(폴더 재선택)" 필요
+            const needsRePick = folder.files.length > 0 && folder.files.every(f => !f.file && !f.canvasDataUrl);
+            const totalExpected = folder.files.length;
+            const uploadedCount = folder.immediateUploadedCount || 0;
+            return (
+              <>
+                <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                <span className="text-[11px] font-medium text-amber-700">
+                  {needsRePick
+                    ? `업로드 중단됨 (${uploadedCount}/${totalExpected}) — 폴더를 다시 선택하면 누락분만 이어 올립니다`
+                    : `업로드 일부 실패 (${uploadedCount}/${totalExpected})`}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-2 text-[10px] text-amber-700 hover:text-amber-900 ml-auto"
+                  onClick={() => {
+                    const eventName = needsRePick ? 'resume-folder-upload' : 'retry-folder-upload';
+                    const event = new CustomEvent(eventName, { detail: { folderId: folder.id } });
+                    window.dispatchEvent(event);
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  {needsRePick ? '이어서 업로드' : '재시도'}
+                </Button>
+              </>
+            );
+          })()}
         </div>
       )}
 

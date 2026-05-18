@@ -47,6 +47,7 @@ import { useAlbumPagePrice } from '@/hooks/use-pricing';
 import { toast } from '@/hooks/use-toast';
 import { extractColorsFromImage, buildPhotoColorInfo } from '@/lib/color-analysis';
 import { useImmediateUpload } from '@/hooks/use-immediate-upload';
+import { useUploadBeforeUnload } from '@/hooks/use-upload-beforeunload';
 import { useAuthStore } from '@/stores/auth-store';
 
 // 편집스타일 아이콘 컴포넌트
@@ -166,7 +167,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
   const { user } = useAuthStore();
 
   // 즉시 서버 업로드 훅
-  const { enqueueFolder, cancelFolderUpload, retryFolder, restoreSession } = useImmediateUpload(productId || '');
+  const { enqueueFolder, cancelFolderUpload, retryFolder, restoreSession, resumePartialFolder } = useImmediateUpload(productId || '');
+
+  // 업로드 중 페이지 이탈 경고
+  useUploadBeforeUnload();
 
   // 세션 복원 (마운트 시 1회)
   const sessionRestoredRef = useRef(false);
@@ -180,7 +184,10 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
     });
   }, [productId, restoreSession]);
 
-  // 재시도/취소 이벤트 리스너 (FolderCard에서 발생)
+  // 재시도/취소/이어서업로드 이벤트 리스너 (FolderCard에서 발생)
+  const resumeFolderIdRef = useRef<string | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement | null>(null);
+
   useEffect(() => {
     const handleRetry = (e: Event) => {
       const { folderId } = (e as CustomEvent).detail;
@@ -191,13 +198,69 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
       const { folderId } = (e as CustomEvent).detail;
       cancelFolderUpload(folderId);
     };
+    const handleResume = (e: Event) => {
+      const { folderId } = (e as CustomEvent).detail;
+      resumeFolderIdRef.current = folderId;
+      // 숨겨진 input 열기 → onChange 에서 resumePartialFolder 호출
+      resumeInputRef.current?.click();
+    };
     window.addEventListener('retry-folder-upload', handleRetry);
     window.addEventListener('cancel-folder-upload', handleCancel);
+    window.addEventListener('resume-folder-upload', handleResume);
     return () => {
       window.removeEventListener('retry-folder-upload', handleRetry);
       window.removeEventListener('cancel-folder-upload', handleCancel);
+      window.removeEventListener('resume-folder-upload', handleResume);
     };
   }, [folders, retryFolder, cancelFolderUpload]);
+
+  // 이어서 업로드: 사용자가 폴더 재선택 시 처리
+  const handleResumeFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      const folderId = resumeFolderIdRef.current;
+      resumeFolderIdRef.current = null;
+      // input 초기화 (같은 폴더 재선택 가능하도록)
+      if (e.target) e.target.value = '';
+
+      if (!files || files.length === 0 || !folderId) return;
+
+      const folder = folders.find(f => f.id === folderId);
+      if (!folder) {
+        toast({ variant: 'destructive', title: '폴더 정보를 찾을 수 없습니다.' });
+        return;
+      }
+
+      const rawFiles = Array.from(files).filter((f) => {
+        if (f.name.startsWith('.')) return false;
+        const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+        return ACCEPTED_EXTENSIONS.includes(ext) && f.size >= MIN_FILE_SIZE;
+      });
+
+      if (rawFiles.length === 0) {
+        toast({ variant: 'destructive', title: '유효한 이미지 파일이 없습니다.' });
+        return;
+      }
+
+      const result = await resumePartialFolder(folderId, rawFiles);
+      if (result.resumedCount > 0) {
+        toast({
+          variant: 'success',
+          title: '이어서 업로드 시작',
+          description: `${result.resumedCount}개 업로드 시작 (이미 서버: ${result.alreadyOnServer}개, 누락: ${result.missingFromPick}개)`,
+        });
+      } else if (result.alreadyOnServer > 0 && result.missingFromPick === 0) {
+        toast({ variant: 'success', title: '이미 모든 파일이 서버에 있습니다.' });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: '이어서 업로드할 파일이 없습니다.',
+          description: '선택한 폴더의 파일명이 원본과 다릅니다.',
+        });
+      }
+    },
+    [folders, resumePartialFolder],
+  );
 
   // productId를 store에 저장
   useEffect(() => {
@@ -2110,6 +2173,20 @@ export function MultiFolderUpload({ onAddToCart, productionSettingId, bindingPro
 
   return (
     <div className="space-y-4">
+
+      {/* 이어서 업로드 전용 숨겨진 input (FolderCard '이어서 업로드' 버튼에서 트리거) */}
+      <input
+        ref={resumeInputRef}
+        type="file"
+        multiple
+        // @ts-ignore
+        webkitdirectory=""
+        directory=""
+        onChange={handleResumeFileSelect}
+        className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
 
       {/* 모바일 폴더명 입력 다이얼로그 */}
       {showMobileFolderNameDialog && (

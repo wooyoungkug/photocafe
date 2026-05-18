@@ -192,12 +192,17 @@ export class FileStorageService implements OnModuleInit {
     }
   }
 
-  /** 7일 이상 된 임시 파일 정리 (서버 시작 시 호출) */
-  cleanupStaleTempFiles() {
+  /**
+   * 오래된 임시 파일(로컬 디스크) 정리.
+   *
+   * @param cutoffHours mtime 기준 이 시간보다 오래된 폴더 삭제 (기본 24시간)
+   * @returns 삭제된 폴더 수
+   */
+  cleanupStaleTempFiles(cutoffHours: number = 24): { cleaned: number } {
     const tempDir = join(this.basePath, 'temp');
-    if (!existsSync(tempDir)) return;
+    if (!existsSync(tempDir)) return { cleaned: 0 };
 
-    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - cutoffHours * 60 * 60 * 1000;
     let cleaned = 0;
 
     try {
@@ -215,11 +220,12 @@ export class FileStorageService implements OnModuleInit {
         }
       }
       if (cleaned > 0) {
-        this.logger.log(`Cleaned up ${cleaned} stale temp folders`);
+        this.logger.log(`Cleaned up ${cleaned} stale temp folders (cutoff: ${cutoffHours}h)`);
       }
     } catch (err) {
       this.logger.error('Failed to cleanup stale temp files', err);
     }
+    return { cleaned };
   }
 
   /** 원본 파일 삭제 (originals 디렉토리만) */
