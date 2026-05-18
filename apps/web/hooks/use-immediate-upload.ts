@@ -284,6 +284,7 @@ export function useImmediateUpload(productId: string) {
         : storageOverride === 'r2' ? 'r2'
         : 'b2';
 
+      const completedAt = Date.now();
       updateFolderUploadStatus(folderId, {
         immediateUploadStatus: 'completed',
         immediateUploadProgress: 100,
@@ -291,11 +292,11 @@ export function useImmediateUpload(productId: string) {
         immediateServerFiles: serverFiles,
         immediateUploadAvgSpeed: avgSpeed,
         immediateUploadElapsedMs: elapsedMs,
+        immediateUploadCompletedAt: completedAt,
         immediateUploadTotalBytes: progress.bytesUploaded,
         immediateUploadStorage: storage,
       });
 
-      const completedAt = Date.now();
       updateSessionFolder(productId, folderId, {
         uploadStatus: 'completed',
         uploadedFileCount: progress.total,
@@ -709,6 +710,7 @@ export function useImmediateUpload(productId: string) {
           immediateUploadedCount: data.files.length,
           immediateUploadAvgSpeed: sf.uploadAvgSpeed,
           immediateUploadElapsedMs: sf.uploadElapsedMs,
+          immediateUploadCompletedAt: sf.uploadCompletedAt,
           immediateUploadTotalBytes: sf.uploadTotalBytes,
           immediateUploadStorage: sf.uploadStorage,
           immediateServerFiles: data.files.map((f: any, idx: number) => {

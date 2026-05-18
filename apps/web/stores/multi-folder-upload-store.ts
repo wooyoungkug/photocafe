@@ -366,6 +366,7 @@ export interface UploadedFolder {
   immediateUploadSpeed?: number;          // 평균 업로드 속도 (bytes/sec)
   immediateUploadAvgSpeed?: number;       // 완료 시 최종 평균 업로드 속도 (bytes/sec)
   immediateUploadElapsedMs?: number;      // 완료 시 총 소요 시간 (ms)
+  immediateUploadCompletedAt?: number;    // 완료 시각 (Date.now())
   immediateUploadTotalBytes?: number;     // 완료 시 총 업로드 바이트
   immediateUploadStorage?: 'b2' | 'r2' | 'r2w'; // 사용된 스토리지 (b2/r2 직접 PUT, r2w=Worker 프록시)
   immediateServerFiles?: Array<{
@@ -542,7 +543,7 @@ interface MultiFolderUploadState {
 
   // 즉시 서버 업로드 상태 업데이트
   updateFolderUploadStatus: (folderId: string, updates: Partial<Pick<UploadedFolder,
-    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateUploadSpeed' | 'immediateUploadAvgSpeed' | 'immediateUploadElapsedMs' | 'immediateUploadTotalBytes' | 'immediateUploadStorage' | 'immediateServerFiles' | 'immediateFailedFiles'
+    'tempFolderId' | 'immediateUploadStatus' | 'immediateUploadProgress' | 'immediateUploadedCount' | 'immediateUploadSpeed' | 'immediateUploadAvgSpeed' | 'immediateUploadElapsedMs' | 'immediateUploadCompletedAt' | 'immediateUploadTotalBytes' | 'immediateUploadStorage' | 'immediateServerFiles' | 'immediateFailedFiles'
   >>) => void;
 
   // 개별 파일 메타데이터 업데이트 (복원 시 썸네일 비율 반영 등)
@@ -866,23 +867,26 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
   addFolder: (folder) => {
     const { folders } = get();
 
-    // 중복 감지 1: 같은 폴더명이 업로드 목록에 이미 존재하는지 확인
-    const duplicate = folders.find(existing => existing.folderName === folder.folderName);
+    // 중복은 "경고"로만 수집 — 자동 차단하지 않는다.
+    // 고객이 폴더 카드를 보고 직접 삭제/유지를 결정해야 한다 (운영 요구사항).
+    const warnings: string[] = [];
 
+    // 경고 1: 같은 폴더명이 현재 업로드 목록에 이미 존재
+    const duplicate = folders.find(existing => existing.folderName === folder.folderName);
     if (duplicate) {
-      return { added: false, reason: `"${folder.folderName}" 폴더가 이미 목록에 있습니다.` };
+      warnings.push(`"${folder.folderName}" 폴더가 이미 목록에 있습니다 (그래도 추가됨)`);
     }
 
-    // 중복 감지 1-1: 같은 폴더명이 장바구니에 이미 존재하는지 확인
+    // 경고 2: 같은 폴더명이 장바구니에 이미 존재
     const cartItems = useCartStore.getState().items;
     const cartDuplicate = cartItems.find(
       ci => ci.productType === 'album-order' && ci.albumOrderInfo?.folderName === folder.folderName
     );
     if (cartDuplicate) {
-      return { added: false, reason: `"${folder.folderName}" 폴더가 이미 장바구니에 있습니다.` };
+      warnings.push(`"${folder.folderName}" 폴더가 이미 장바구니에 있습니다 (그래도 추가됨)`);
     }
 
-    // 중복 감지 2: 파일명 + 파일크기 기준으로 개별 파일 중복 체크
+    // 경고 3: 파일명 + 파일크기 기준 개별 파일 중복
     const existingFileKeys = new Set<string>();
     for (const f of folders) {
       for (const file of f.files) {
@@ -893,11 +897,17 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       existingFileKeys.has(`${file.fileName}:${file.fileSize}`)
     );
 
-    if (duplicateFiles.length === folder.files.length) {
-      return { added: false, reason: `"${folder.folderName}" 폴더의 모든 파일이 이미 업로드되어 있습니다.` };
+    if (duplicateFiles.length === folder.files.length && folder.files.length > 0) {
+      warnings.push(`"${folder.folderName}" 모든 파일(${folder.files.length}개)이 다른 폴더에 이미 존재 (그래도 추가됨)`);
+    } else if (duplicateFiles.length > 0) {
+      warnings.push(`"${folder.folderName}" 일부 파일(${duplicateFiles.length}/${folder.files.length}개)이 다른 폴더와 중복`);
     }
 
     const validated = get().validateFolder({ ...folder, uploadedAt: Date.now() });
+    // 중복 의심 폴더 시각 표시용 플래그 (UI 배지에서 활용 가능)
+    if (warnings.length > 0) {
+      (validated as typeof validated & { duplicateWarning?: string }).duplicateWarning = warnings.join(' · ');
+    }
 
     // 폴더 추가 시점에 printMethod/colorMode를 즉시 설정 (useEffect 타이밍 이슈 방지)
     const { defaultColorMode, availablePapers } = get();
@@ -919,11 +929,8 @@ export const useMultiFolderUploadStore = create<MultiFolderUploadState>((set, ge
       folders: [validated, ...state.folders],
     }));
 
-    if (duplicateFiles.length > 0) {
-      return { added: true, reason: `${duplicateFiles.length}개 파일이 다른 폴더에 이미 존재합니다.` };
-    }
-
-    return { added: true };
+    // 항상 추가됨. 경고가 있으면 reason 으로 전달해 호출자가 안내(토스트 등)에 사용.
+    return { added: true, reason: warnings.length > 0 ? warnings.join('\n') : undefined };
   },
 
   updateFolder: (folderId, updates) => {

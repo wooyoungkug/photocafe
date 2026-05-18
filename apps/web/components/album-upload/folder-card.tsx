@@ -921,6 +921,18 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       {folder.immediateUploadStorage}
                     </span>
                   )}
+                  {typeof folder.immediateUploadCompletedAt === 'number' && (
+                    <span className="ml-1 text-emerald-700/70">
+                      · {new Date(folder.immediateUploadCompletedAt).toLocaleString('ko-KR', {
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: false,
+                      })}
+                    </span>
+                  )}
                 </span>
               )}
             </>
