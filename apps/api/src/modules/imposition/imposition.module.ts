@@ -26,6 +26,6 @@ import { PrintPdfSlipPrinterService } from '../print-pdf/services/print-pdf-slip
     ImpositionMatcherService,
     PrintPdfSlipPrinterService,
   ],
-  exports: [ImpositionCalcService, ImpositionMatcherService],
+  exports: [ImpositionCalcService, ImpositionMatcherService, ImpositionImagePdfService],
 })
 export class ImpositionModule {}
