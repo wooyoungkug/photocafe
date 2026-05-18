@@ -767,7 +767,7 @@ export default function ProfilePage() {
       <ProfileStatusCard onEdit={() => router.push('/mypage/onboarding')} />
 
       {/* 공정별 문자 알림 카드 */}
-      <Card>
+      <Card className="md:w-[70%]">
           <CardHeader className="pb-3 pt-4 px-5">
             <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
               <Bell className="h-4 w-4" />
@@ -842,7 +842,7 @@ export default function ProfilePage() {
         </Card>
 
       {/* 비밀번호 변경 카드 — 소셜 로그인 사용자는 비밀번호가 없으므로 숨김 */}
-      {!profile?.oauthProvider && !user?.oauthProvider && <Card>
+      {!profile?.oauthProvider && !user?.oauthProvider && <Card className="md:w-[70%]">
         <CardHeader className="pb-3 pt-4 px-5">
           <CardTitle className="flex items-center gap-2 text-[18px] text-black font-bold">
             <Lock className="h-4 w-4" />
