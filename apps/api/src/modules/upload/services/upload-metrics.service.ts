@@ -57,6 +57,10 @@ export class UploadMetricsService {
     private _sampleRate: number;
     /** 클라이언트→B2 직접 업로드 실측 기록 샘플링 비율 (0~1). */
     private _b2SampleRate: number;
+    /** 멀티파트 업로드 청크 크기 (bytes). 기본 5MB. */
+    private _multipartChunkSize: number;
+    /** 멀티파트 업로드 동시 청크 개수. 기본 8. */
+    private _multipartConcurrency: number;
 
     constructor(private readonly prisma: PrismaService) {
         const raw = process.env.UPLOAD_METRICS_SAMPLE_RATE;
@@ -65,6 +69,28 @@ export class UploadMetricsService {
         const b2Raw = process.env.UPLOAD_METRICS_B2_SAMPLE_RATE;
         const b2Parsed = b2Raw ? parseFloat(b2Raw) : 0.3;
         this._b2SampleRate = Number.isFinite(b2Parsed) ? Math.min(Math.max(b2Parsed, 0), 1) : 0.3;
+
+        // 멀티파트 청크 크기: 기본 5MB, 검증 범위 5MB~100MB
+        const CHUNK_DEFAULT = 5 * 1024 * 1024;
+        const CHUNK_MIN = 5 * 1024 * 1024;
+        const CHUNK_MAX = 100 * 1024 * 1024;
+        const chunkRaw = process.env.UPLOAD_MULTIPART_CHUNK_SIZE;
+        const chunkParsed = chunkRaw ? parseInt(chunkRaw, 10) : CHUNK_DEFAULT;
+        this._multipartChunkSize =
+            Number.isFinite(chunkParsed) && chunkParsed >= CHUNK_MIN && chunkParsed <= CHUNK_MAX
+                ? chunkParsed
+                : CHUNK_DEFAULT;
+
+        // 멀티파트 동시 청크 개수: 기본 8, 검증 범위 1~32
+        const CONC_DEFAULT = 8;
+        const CONC_MIN = 1;
+        const CONC_MAX = 32;
+        const concRaw = process.env.UPLOAD_MULTIPART_CONCURRENCY;
+        const concParsed = concRaw ? parseInt(concRaw, 10) : CONC_DEFAULT;
+        this._multipartConcurrency =
+            Number.isFinite(concParsed) && concParsed >= CONC_MIN && concParsed <= CONC_MAX
+                ? concParsed
+                : CONC_DEFAULT;
     }
 
     getSampleRate(): number {
@@ -83,6 +109,42 @@ export class UploadMetricsService {
     setB2SampleRate(rate: number): number {
         this._b2SampleRate = Math.min(Math.max(Number.isFinite(rate) ? rate : 0.3, 0), 1);
         return this._b2SampleRate;
+    }
+
+    getMultipartChunkSize(): number {
+        return this._multipartChunkSize;
+    }
+
+    /**
+     * 멀티파트 청크 크기 변경. 범위 5MB~100MB 밖이면 5MB(기본)로 클램프.
+     * 변경된 값을 반환.
+     */
+    setMultipartChunkSize(bytes: number): number {
+        const CHUNK_DEFAULT = 5 * 1024 * 1024;
+        const CHUNK_MIN = 5 * 1024 * 1024;
+        const CHUNK_MAX = 100 * 1024 * 1024;
+        const v = Number.isFinite(bytes) ? Math.floor(bytes) : CHUNK_DEFAULT;
+        this._multipartChunkSize =
+            v >= CHUNK_MIN && v <= CHUNK_MAX ? v : CHUNK_DEFAULT;
+        return this._multipartChunkSize;
+    }
+
+    getMultipartConcurrency(): number {
+        return this._multipartConcurrency;
+    }
+
+    /**
+     * 멀티파트 동시 청크 개수 변경. 범위 1~32 밖이면 8(기본)로 클램프.
+     * 변경된 값을 반환.
+     */
+    setMultipartConcurrency(n: number): number {
+        const CONC_DEFAULT = 8;
+        const CONC_MIN = 1;
+        const CONC_MAX = 32;
+        const v = Number.isFinite(n) ? Math.floor(n) : CONC_DEFAULT;
+        this._multipartConcurrency =
+            v >= CONC_MIN && v <= CONC_MAX ? v : CONC_DEFAULT;
+        return this._multipartConcurrency;
     }
 
     /**

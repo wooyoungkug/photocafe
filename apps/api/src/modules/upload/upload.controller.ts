@@ -2231,23 +2231,126 @@ export class UploadController implements OnModuleInit {
         return {
             sampleRate: this.metrics.getSampleRate(),
             b2SampleRate: this.metrics.getB2SampleRate(),
+            multipartChunkSize: this.metrics.getMultipartChunkSize(),
+            multipartConcurrency: this.metrics.getMultipartConcurrency(),
         };
     }
 
     @Patch('metrics/config')
     @UseGuards(JwtAuthGuard)
     @ApiBearerAuth()
-    @ApiOperation({ summary: '샘플링 비율 변경 0~1 (관리자 전용, 서버 재시작 시 env 기본값으로 초기화)' })
+    @ApiOperation({ summary: '샘플링 비율/멀티파트 튜닝 변경 (관리자 전용, 서버 재시작 시 env 기본값으로 초기화)' })
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: {
+                sampleRate: { type: 'number', description: '실 업로드 메트릭 샘플링 비율 0~1' },
+                b2SampleRate: { type: 'number', description: '클라이언트→B2 직접 업로드 샘플링 비율 0~1' },
+                multipartChunkSize: { type: 'number', description: '멀티파트 업로드 청크 크기 bytes (5242880~104857600)' },
+                multipartConcurrency: { type: 'number', description: '멀티파트 동시 청크 개수 (1~32)' },
+            },
+        },
+    })
     async updateMetricsConfig(
-        @Body() body: { sampleRate?: number; b2SampleRate?: number },
+        @Body() body: {
+            sampleRate?: number;
+            b2SampleRate?: number;
+            multipartChunkSize?: number;
+            multipartConcurrency?: number;
+        },
         @Request() req: any,
     ) {
         this.assertStaff(req);
         if (body.sampleRate !== undefined) this.metrics.setSampleRate(body.sampleRate);
         if (body.b2SampleRate !== undefined) this.metrics.setB2SampleRate(body.b2SampleRate);
+        if (body.multipartChunkSize !== undefined) this.metrics.setMultipartChunkSize(body.multipartChunkSize);
+        if (body.multipartConcurrency !== undefined) this.metrics.setMultipartConcurrency(body.multipartConcurrency);
         return {
             sampleRate: this.metrics.getSampleRate(),
             b2SampleRate: this.metrics.getB2SampleRate(),
+            multipartChunkSize: this.metrics.getMultipartChunkSize(),
+            multipartConcurrency: this.metrics.getMultipartConcurrency(),
+        };
+    }
+
+    // ==================== 클라이언트 진단 (Diagnostics) ====================
+
+    @Public()
+    @Get('diagnostics/me')
+    @Throttle({ default: { ttl: 60000, limit: 60 } })
+    @ApiOperation({ summary: '클라이언트 위치/회선 진단 정보 반환' })
+    async diagnosticsMe(@Request() req: any) {
+        const h = (name: string): string | null => {
+            const v = req.headers?.[name.toLowerCase()];
+            if (Array.isArray(v)) return v[0] ?? null;
+            return (v as string | undefined) ?? null;
+        };
+
+        const cfRay = h('cf-ray');
+        const cfColo =
+            typeof cfRay === 'string' && cfRay.includes('-')
+                ? cfRay.split('-').pop() ?? null
+                : null;
+
+        return {
+            ip: h('cf-connecting-ip') || (req.ip ?? null),
+            country: h('cf-ipcountry') || null,
+            city: h('cf-ipcity') || null,
+            region: h('cf-region') || null,
+            continent: h('cf-ipcontinent') || null,
+            cfRay: cfRay || null,
+            cfColo,
+            userAgent: h('user-agent') || null,
+            acceptLanguage: h('accept-language') || null,
+            forwardedFor: h('x-forwarded-for') || null,
+            protocol: req.protocol || null,
+            server: {
+                region: process.env.RAILWAY_REGION || process.env.SERVER_REGION || 'us-west2',
+                nodeVersion: process.version,
+                nowIso: new Date().toISOString(),
+            },
+        };
+    }
+
+    @Public()
+    @Get('diagnostics/ping')
+    @Throttle({ default: { ttl: 60000, limit: 120 } })
+    @ApiOperation({ summary: 'RTT 측정용 작은 페이로드 응답 (캐시 금지)' })
+    async diagnosticsPing(@Res() res: Response) {
+        res.setHeader('Cache-Control', 'no-store');
+        res.json({ ok: true, ts: Date.now() });
+    }
+
+    @Post('speedtest/api-put')
+    @UseGuards(JwtAuthGuard)
+    @ApiBearerAuth()
+    @Throttle({ default: { ttl: 60000, limit: 30 } })
+    @ApiOperation({ summary: 'API 경유 단일 PUT 속도 테스트 — 받은 파일을 즉시 폐기 (관리자 전용, path-comparison 라벨 구분용)' })
+    @ApiConsumes('multipart/form-data')
+    @ApiBody({
+        schema: {
+            type: 'object',
+            properties: { file: { type: 'string', format: 'binary' } },
+        },
+    })
+    @UseInterceptors(
+        FileInterceptor('file', {
+            storage: memoryStorage(),
+            limits: { fileSize: 100 * 1024 * 1024 }, // 100MB 상한
+        }),
+    )
+    speedtestApiPut(@UploadedFile() file: Express.Multer.File, @Request() req: any) {
+        this.assertStaff(req);
+        if (!file) {
+            throw new BadRequestException('파일이 업로드되지 않았습니다.');
+        }
+        const size = file.size;
+        // 메모리 즉시 폐기 (참조 끊기)
+        (file as any).buffer = null;
+        return {
+            sizeBytes: size,
+            sizeMb: +(size / 1024 / 1024).toFixed(2),
+            message: 'received',
         };
     }
 }
