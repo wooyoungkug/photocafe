@@ -1114,11 +1114,13 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                     onDragEnd={() => { setDragIndex(null); setDropIndex(null); }}
                   >
                     <div className={cn(
-                      'text-[9px] leading-tight p-1 border border-b-0 rounded-t-md',
+                      'relative text-[9px] leading-tight p-1 border border-b-0 rounded-t-md',
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
-                      <div className="text-gray-500 flex items-center justify-center gap-1 min-w-0">
-                        <span className="truncate shrink">{file.widthInch}×{file.heightInch}" | {file.dpi}dpi</span>
+                      <div className="text-gray-500 text-center truncate px-1">
+                        {file.widthInch}×{file.heightInch}" | {file.dpi}dpi
+                      </div>
+                      <div className="absolute top-1/2 right-1 -translate-y-1/2 flex items-center gap-1 pointer-events-none">
                         {file.colorSpace && (
                           <span className={cn(
                             'inline-block px-1 py-0 rounded text-[8px] font-medium',
@@ -1259,11 +1261,11 @@ export function FolderCard({ folder, thumbnailCollapsed }: FolderCardProps) {
                       </button>
                     </div>
                     <div className={cn(
-                      'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md',
+                      'text-[9px] leading-tight p-1 border border-t-0 rounded-b-md flex items-center justify-center',
                       file.status === 'RATIO_MISMATCH' ? 'bg-red-50 border-red-300' : 'bg-white border-gray-200'
                     )}>
                       <span
-                        className="block truncate text-center text-gray-600"
+                        className="truncate text-center text-gray-600 max-w-full"
                         title={file.fileName}
                       >
                         {file.fileName}
