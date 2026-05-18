@@ -36,6 +36,11 @@ import {
 import { API_URL } from '@/lib/api';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
+import { DiagnosticsCard } from './_components/diagnostics-card';
+import { BaselineTestCard } from './_components/baseline-test-card';
+import { MultipartSettingsCard } from './_components/multipart-settings-card';
+import { PathComparisonCard } from './_components/path-comparison-card';
+import { TuningMatrixCard } from './_components/tuning-matrix-card';
 
 const PHASE_LABEL: Record<string, string> = {
     client_to_api: '클라이언트 → API',
@@ -307,6 +312,13 @@ export default function UploadMetricsPage() {
                     </Button>
                 </div>
             </div>
+
+            {/* 진단 정보 → 회선 진단 → 멀티파트 설정 → 경로 비교 → 청크/동시성 매트릭스 */}
+            <DiagnosticsCard />
+            <BaselineTestCard />
+            <MultipartSettingsCard />
+            <PathComparisonCard />
+            <TuningMatrixCard />
 
             {/* 서버 스토리지 현황 */}
             {(() => {

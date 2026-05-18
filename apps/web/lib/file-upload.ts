@@ -975,12 +975,39 @@ export const MULTIPART_THRESHOLD = 6 * 1024 * 1024; // 6MB
  * 한 파일 내 동시 청크 업로드 수.
  * 5MB × 8 = 40MB in-flight/파일. 한국→미국 RTT 200ms BDP(~25MB) 충분히 커버.
  */
-const PART_CONCURRENCY = 8;
+const DEFAULT_PART_CONCURRENCY = 8;
 /**
  * 청크 크기 — 5MB (S3/B2 multipart 최소값).
  * 백엔드 MIN_PART=5MB 와 일치. 작은 청크가 RTT 오버헤드 대비 throughput 이득이 더 큼.
  */
-const PART_SIZE = 5 * 1024 * 1024;
+const DEFAULT_PART_SIZE = 5 * 1024 * 1024;
+
+/**
+ * 청크 크기 동적 조회 (localStorage 우선, 5MB ~ 100MB 범위).
+ * 어드민 진단 페이지(/analytics/upload-metrics)에서 튜닝 가능.
+ */
+function getPartSize(): number {
+  if (typeof window === 'undefined') return DEFAULT_PART_SIZE;
+  try {
+    const v = window.localStorage.getItem('multipartChunkSize');
+    const n = v ? parseInt(v, 10) : NaN;
+    if (Number.isFinite(n) && n >= 5 * 1024 * 1024 && n <= 100 * 1024 * 1024) return n;
+  } catch { /* ignore */ }
+  return DEFAULT_PART_SIZE;
+}
+
+/**
+ * 동시 청크 업로드 수 동적 조회 (localStorage 우선, 1 ~ 32 범위).
+ */
+function getPartConcurrency(): number {
+  if (typeof window === 'undefined') return DEFAULT_PART_CONCURRENCY;
+  try {
+    const v = window.localStorage.getItem('multipartConcurrency');
+    const n = v ? parseInt(v, 10) : NaN;
+    if (Number.isFinite(n) && n >= 1 && n <= 32) return n;
+  } catch { /* ignore */ }
+  return DEFAULT_PART_CONCURRENCY;
+}
 
 /**
  * 큰 파일을 Multipart 로 업로드한다 (5단계).
@@ -1014,7 +1041,7 @@ export async function uploadAlbumFileMultipart(
         fileName: metadata.fileName,
         contentType,
         fileSize: metadata.fileSize,
-        partSize: PART_SIZE,
+        partSize: getPartSize(),
         storage,
       },
       token,
@@ -1099,7 +1126,7 @@ export async function uploadAlbumFileMultipart(
     }
   };
 
-  for (let i = 0; i < Math.min(PART_CONCURRENCY, session.partCount); i++) {
+  for (let i = 0; i < Math.min(getPartConcurrency(), session.partCount); i++) {
     workers.push(runWorker());
   }
   await Promise.all(workers);

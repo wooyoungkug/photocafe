@@ -682,5 +682,86 @@
       "print_operator_assigned": "Print operator assigned",
       "order_status_changed": "Order status changed"
     }
+  },
+  "uploadMetrics": {
+    "diagnostics": {
+      "title": "Location / Network Info",
+      "ipLabel": "IP Address",
+      "countryLabel": "Country",
+      "cfColoLabel": "Cloudflare Edge",
+      "cityLabel": "City",
+      "protocolLabel": "Protocol",
+      "browserLabel": "Browser",
+      "memoryLabel": "Memory",
+      "connectionLabel": "Connection",
+      "serverLabel": "API Server",
+      "nodeVersionLabel": "Node Version",
+      "refresh": "Refresh",
+      "loading": "Loading...",
+      "loadError": "Unable to load diagnostics."
+    },
+    "baseline": {
+      "title": "Baseline Network Diagnostics",
+      "description": "Auto-runs on page load. Measures API ping (×5), B2 RTT (×3), and a 1MB download sequentially.",
+      "apiPing": "API Ping (×5)",
+      "b2Rtt": "B2 RTT (×3)",
+      "b2RttNote": "B2 presign call time (approximate RTT)",
+      "download": "1MB Download",
+      "min": "min",
+      "max": "max",
+      "rerun": "Re-run",
+      "running": "Measuring...",
+      "measuring": "Measuring",
+      "failed": "Measurement failed"
+    },
+    "pathComparison": {
+      "title": "Path Comparison Matrix",
+      "description": "Uploads identical data through 3 paths sequentially to compare speed. (Parallel measurement causes interference.)",
+      "sizeLabel": "File Size",
+      "start": "Start Comparison",
+      "running": "Measuring...",
+      "done": "Path comparison complete",
+      "failed": "Path comparison failed",
+      "pathA": "A. Client → B2 Direct (single PUT)",
+      "pathB": "B. Via API (single POST)",
+      "pathC": "C. Multipart (current default)",
+      "colPath": "Path",
+      "colDuration": "Duration",
+      "colSpeed": "Speed",
+      "colRelative": "Relative",
+      "colNote": "Note",
+      "fastest": "Fastest"
+    },
+    "tuningMatrix": {
+      "title": "Chunk / Concurrency Tuning Matrix",
+      "description": "Click a cell to measure that chunk size × concurrency combination, or use Run All to measure all 16 combinations.",
+      "totalSizeLabel": "Total Size",
+      "runAll": "Run All",
+      "runningAll": "Running all...",
+      "saveBest": "Save Best Setting",
+      "saved": "Settings saved",
+      "saveFailed": "Save failed",
+      "failed": "Measurement failed",
+      "allDone": "All measurements complete",
+      "chunkVsConcurrency": "Chunk \\ Concurrency",
+      "chunk": "Chunk",
+      "concurrency": "Concurrency",
+      "measuring": "Measuring",
+      "best": "Best",
+      "clickToMeasure": "Click to measure",
+      "bestCombination": "Best combination"
+    },
+    "multipartSettings": {
+      "title": "Current Multipart Settings",
+      "description": "These settings auto-apply to file uploads ≥6MB. Changes are saved to both localStorage and the backend.",
+      "chunkLabel": "Chunk Size",
+      "concurrencyLabel": "Concurrent Uploads",
+      "save": "Save",
+      "saving": "Saving...",
+      "saved": "Settings saved",
+      "saveFailed": "Save failed",
+      "loading": "Loading...",
+      "threshold": "※ Applied to files ≥6MB only."
+    }
   }
 }

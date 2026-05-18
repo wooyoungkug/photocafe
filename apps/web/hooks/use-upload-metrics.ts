@@ -161,6 +161,8 @@ export function useUploadMetricsWeekdayStats() {
 export interface MetricsConfig {
     sampleRate: number;
     b2SampleRate: number;
+    multipartChunkSize: number;     // bytes
+    multipartConcurrency: number;
 }
 
 export function useUploadMetricsConfig() {
@@ -176,11 +178,39 @@ export function useUploadMetricsConfig() {
 export function useUpdateMetricsConfig() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (patch: { sampleRate?: number; b2SampleRate?: number }) =>
-            api.patch<MetricsConfig>('/upload/metrics/config', patch),
+        mutationFn: (patch: {
+            sampleRate?: number;
+            b2SampleRate?: number;
+            multipartChunkSize?: number;
+            multipartConcurrency?: number;
+        }) => api.patch<MetricsConfig>('/upload/metrics/config', patch),
         onSuccess: (data) => {
             queryClient.setQueryData(['upload-metrics-config'], data);
         },
+    });
+}
+
+export interface DiagnosticsInfo {
+    ip: string | null;
+    country: string | null;
+    city: string | null;
+    region: string | null;
+    continent: string | null;
+    cfRay: string | null;
+    cfColo: string | null;     // 예: ICN, NRT, SIN
+    userAgent: string | null;
+    acceptLanguage: string | null;
+    forwardedFor: string | null;
+    protocol: string | null;
+    server: { region: string; nodeVersion: string; nowIso: string };
+}
+
+export function useUploadDiagnostics() {
+    return useQuery({
+        queryKey: ['upload-diagnostics'],
+        queryFn: () => api.get<DiagnosticsInfo>('/upload/diagnostics/me'),
+        staleTime: 5 * 60_000,
+        refetchOnWindowFocus: false,
     });
 }
 

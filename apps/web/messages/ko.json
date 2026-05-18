@@ -760,5 +760,86 @@
       "print_operator_assigned": "출력 담당 지정",
       "order_status_changed": "주문 상태 변경"
     }
+  },
+  "uploadMetrics": {
+    "diagnostics": {
+      "title": "현재 위치 / 회선 정보",
+      "ipLabel": "IP 주소",
+      "countryLabel": "국가",
+      "cfColoLabel": "Cloudflare Edge",
+      "cityLabel": "도시",
+      "protocolLabel": "프로토콜",
+      "browserLabel": "브라우저",
+      "memoryLabel": "메모리",
+      "connectionLabel": "연결",
+      "serverLabel": "API 서버",
+      "nodeVersionLabel": "Node 버전",
+      "refresh": "새로고침",
+      "loading": "불러오는 중...",
+      "loadError": "진단 정보를 불러올 수 없습니다."
+    },
+    "baseline": {
+      "title": "기본 회선 진단",
+      "description": "페이지 진입 시 자동으로 측정합니다. API 핑(5회), B2 RTT(3회), 1MB 다운로드를 순차 실행합니다.",
+      "apiPing": "API 핑 (5회)",
+      "b2Rtt": "B2 RTT (3회)",
+      "b2RttNote": "B2 presign 호출 시간 (실 RTT 근사치)",
+      "download": "1MB 다운로드",
+      "min": "최소",
+      "max": "최대",
+      "rerun": "다시 측정",
+      "running": "측정 중...",
+      "measuring": "측정 중",
+      "failed": "측정 실패"
+    },
+    "pathComparison": {
+      "title": "경로 비교 매트릭스",
+      "description": "동일한 데이터를 3가지 경로로 순차 업로드한 뒤 속도를 비교합니다. (병렬 측정 시 간섭 발생)",
+      "sizeLabel": "파일 크기",
+      "start": "비교 시작",
+      "running": "측정 중...",
+      "done": "경로 비교 완료",
+      "failed": "경로 비교 실패",
+      "pathA": "A. 클라이언트 → B2 직접 (단일 PUT)",
+      "pathB": "B. API 경유 (단일 POST)",
+      "pathC": "C. 멀티파트 (현재 기본)",
+      "colPath": "경로",
+      "colDuration": "소요시간",
+      "colSpeed": "속도",
+      "colRelative": "상대 성능",
+      "colNote": "비고",
+      "fastest": "가장 빠름"
+    },
+    "tuningMatrix": {
+      "title": "청크 / 동시성 튜닝 매트릭스",
+      "description": "각 셀을 클릭하여 해당 청크 크기 × 동시성 조합으로 측정하거나, 전체 측정 버튼으로 16개 조합을 모두 측정합니다.",
+      "totalSizeLabel": "총 데이터 크기",
+      "runAll": "전체 측정",
+      "runningAll": "전체 측정 중...",
+      "saveBest": "최적 설정 저장",
+      "saved": "설정 저장 완료",
+      "saveFailed": "저장 실패",
+      "failed": "측정 실패",
+      "allDone": "전체 측정 완료",
+      "chunkVsConcurrency": "청크 크기 \\ 동시성",
+      "chunk": "청크",
+      "concurrency": "동시성",
+      "measuring": "측정 중",
+      "best": "최적",
+      "clickToMeasure": "클릭하여 측정",
+      "bestCombination": "최적 조합"
+    },
+    "multipartSettings": {
+      "title": "현재 멀티파트 설정",
+      "description": "이 설정은 6MB 이상 파일 업로드 시 자동으로 적용됩니다. 변경 시 localStorage와 백엔드에 동시 반영됩니다.",
+      "chunkLabel": "청크 크기",
+      "concurrencyLabel": "동시 업로드 수",
+      "save": "저장",
+      "saving": "저장 중...",
+      "saved": "설정 저장 완료",
+      "saveFailed": "저장 실패",
+      "loading": "불러오는 중...",
+      "threshold": "※ 6MB 이상 파일에만 적용됩니다."
+    }
   }
 }

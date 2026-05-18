@@ -682,5 +682,86 @@
       "print_operator_assigned": "印刷担当割当",
       "order_status_changed": "注文ステータス変更"
     }
+  },
+  "uploadMetrics": {
+    "diagnostics": {
+      "title": "現在の位置 / 回線情報",
+      "ipLabel": "IPアドレス",
+      "countryLabel": "国",
+      "cfColoLabel": "Cloudflare Edge",
+      "cityLabel": "都市",
+      "protocolLabel": "プロトコル",
+      "browserLabel": "ブラウザ",
+      "memoryLabel": "メモリ",
+      "connectionLabel": "接続",
+      "serverLabel": "APIサーバー",
+      "nodeVersionLabel": "Nodeバージョン",
+      "refresh": "更新",
+      "loading": "読み込み中...",
+      "loadError": "診断情報を取得できません。"
+    },
+    "baseline": {
+      "title": "基本回線診断",
+      "description": "ページ表示時に自動測定します。APIピング(5回)、B2 RTT(3回)、1MBダウンロードを順次実行します。",
+      "apiPing": "APIピング (5回)",
+      "b2Rtt": "B2 RTT (3回)",
+      "b2RttNote": "B2 presign呼び出し時間 (実RTT近似)",
+      "download": "1MBダウンロード",
+      "min": "最小",
+      "max": "最大",
+      "rerun": "再測定",
+      "running": "測定中...",
+      "measuring": "測定中",
+      "failed": "測定失敗"
+    },
+    "pathComparison": {
+      "title": "経路比較マトリクス",
+      "description": "同一データを3つの経路で順次アップロードし速度を比較します。(並列測定は干渉を起こします)",
+      "sizeLabel": "ファイルサイズ",
+      "start": "比較開始",
+      "running": "測定中...",
+      "done": "経路比較完了",
+      "failed": "経路比較失敗",
+      "pathA": "A. クライアント → B2 直接 (単一PUT)",
+      "pathB": "B. API経由 (単一POST)",
+      "pathC": "C. マルチパート (現在のデフォルト)",
+      "colPath": "経路",
+      "colDuration": "所要時間",
+      "colSpeed": "速度",
+      "colRelative": "相対性能",
+      "colNote": "備考",
+      "fastest": "最速"
+    },
+    "tuningMatrix": {
+      "title": "チャンク / 並列度 チューニングマトリクス",
+      "description": "セルをクリックして該当のチャンクサイズ×並列度の組み合わせを測定するか、全測定ボタンで16通り全てを測定します。",
+      "totalSizeLabel": "総データサイズ",
+      "runAll": "全測定",
+      "runningAll": "全測定中...",
+      "saveBest": "最適設定を保存",
+      "saved": "設定を保存しました",
+      "saveFailed": "保存失敗",
+      "failed": "測定失敗",
+      "allDone": "全測定完了",
+      "chunkVsConcurrency": "チャンクサイズ \\ 並列度",
+      "chunk": "チャンク",
+      "concurrency": "並列度",
+      "measuring": "測定中",
+      "best": "最適",
+      "clickToMeasure": "クリックで測定",
+      "bestCombination": "最適な組み合わせ"
+    },
+    "multipartSettings": {
+      "title": "現在のマルチパート設定",
+      "description": "この設定は6MB以上のファイルアップロード時に自動適用されます。変更はlocalStorageとバックエンドに同時反映されます。",
+      "chunkLabel": "チャンクサイズ",
+      "concurrencyLabel": "並列アップロード数",
+      "save": "保存",
+      "saving": "保存中...",
+      "saved": "設定を保存しました",
+      "saveFailed": "保存失敗",
+      "loading": "読み込み中...",
+      "threshold": "※ 6MB以上のファイルのみに適用されます。"
+    }
   }
 }
