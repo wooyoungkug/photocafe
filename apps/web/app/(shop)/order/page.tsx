@@ -685,7 +685,7 @@ export default function OrderPage() {
           foilPosition: albumInfo.foilPosition || undefined,
           folderName: albumInfo.folderName,
           fileSpecId: albumInfo.specificationId || undefined,
-          files: (item.serverFiles || []).map((sf, idx) => ({
+          files: [...(item.serverFiles || [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)).map((sf, idx) => ({
             fileName: sf.fileName || sf.tempFileId?.split('/').pop() || `page_${idx + 1}.jpg`,
             fileUrl: sf.fileUrl,
             thumbnailUrl: sf.thumbnailUrl,
@@ -698,7 +698,7 @@ export default function OrderPage() {
             heightInch: sf.heightInch || 0,
             dpi: sf.dpi || 0,
             fileSize: sf.fileSize || 0,
-            sortOrder: sf.sortOrder ?? idx,
+            sortOrder: idx,
           })),
           ...(shippingDto ? { shipping: shippingDto } : {}),
         };
