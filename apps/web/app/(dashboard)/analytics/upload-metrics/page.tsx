@@ -375,8 +375,17 @@ export default function UploadMetricsPage() {
                       }))
                     : [];
 
+                // 누적값 계산 (전체 기간 기준)
+                let cumBytes = 0;
+                let cumCount = 0;
+                const trendWithCum = trendData.map((row) => {
+                    cumBytes += row.bytes;
+                    cumCount += row.count;
+                    return { ...row, cumBytes, cumCount };
+                });
+
                 // 최근 7개 항목 + 전 대비 증감 계산
-                const recentTrend = trendData.slice(-7);
+                const recentTrend = trendWithCum.slice(-7);
                 const recentWithDiff = recentTrend.map((row, idx) => {
                     if (idx === 0) return { ...row, diffPct: null as number | null };
                     const prev = recentTrend[idx - 1].bytes;
@@ -601,7 +610,9 @@ export default function UploadMetricsPage() {
                                                     <tr className="border-b bg-slate-50">
                                                         <th className="text-left py-2 px-2">{trendTab === 'daily' ? '날짜' : '월'}</th>
                                                         <th className="text-right py-2 px-2">업로드</th>
+                                                        <th className="text-right py-2 px-2">누적 용량</th>
                                                         <th className="text-right py-2 px-2">건수</th>
+                                                        <th className="text-right py-2 px-2">누적 개수</th>
                                                         <th className="text-right py-2 px-2">{trendTab === 'daily' ? '전일 대비' : '전월 대비'}</th>
                                                     </tr>
                                                 </thead>
@@ -622,7 +633,9 @@ export default function UploadMetricsPage() {
                                                             <tr key={row.period} className="border-b hover:bg-slate-50">
                                                                 <td className="py-2 px-2 font-medium">{row.period}</td>
                                                                 <td className="py-2 px-2 text-right">{formatBytes(row.bytes)}</td>
+                                                                <td className="py-2 px-2 text-right text-slate-600">{formatBytes(row.cumBytes)}</td>
                                                                 <td className="py-2 px-2 text-right">{row.count.toLocaleString()}</td>
+                                                                <td className="py-2 px-2 text-right text-slate-600">{row.cumCount.toLocaleString()}</td>
                                                                 <td className="py-2 px-2 text-right">{diffEl}</td>
                                                             </tr>
                                                         );
