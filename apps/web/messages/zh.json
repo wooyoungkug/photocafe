@@ -682,5 +682,86 @@
       "print_operator_assigned": "打印负责人分配",
       "order_status_changed": "订单状态变更"
     }
+  },
+  "uploadMetrics": {
+    "diagnostics": {
+      "title": "当前位置 / 网络信息",
+      "ipLabel": "IP地址",
+      "countryLabel": "国家",
+      "cfColoLabel": "Cloudflare Edge",
+      "cityLabel": "城市",
+      "protocolLabel": "协议",
+      "browserLabel": "浏览器",
+      "memoryLabel": "内存",
+      "connectionLabel": "连接",
+      "serverLabel": "API服务器",
+      "nodeVersionLabel": "Node版本",
+      "refresh": "刷新",
+      "loading": "加载中...",
+      "loadError": "无法加载诊断信息。"
+    },
+    "baseline": {
+      "title": "基础网络诊断",
+      "description": "进入页面时自动测量。依次执行API ping(5次)、B2 RTT(3次)、1MB下载。",
+      "apiPing": "API Ping (5次)",
+      "b2Rtt": "B2 RTT (3次)",
+      "b2RttNote": "B2 presign 调用时间(近似实际RTT)",
+      "download": "1MB下载",
+      "min": "最小",
+      "max": "最大",
+      "rerun": "重新测量",
+      "running": "测量中...",
+      "measuring": "测量中",
+      "failed": "测量失败"
+    },
+    "pathComparison": {
+      "title": "路径对比矩阵",
+      "description": "通过3种路径依次上传相同数据并比较速度。(并行测量会相互干扰)",
+      "sizeLabel": "文件大小",
+      "start": "开始对比",
+      "running": "测量中...",
+      "done": "路径对比完成",
+      "failed": "路径对比失败",
+      "pathA": "A. 客户端 → B2 直传 (单次PUT)",
+      "pathB": "B. 经由API (单次POST)",
+      "pathC": "C. 分片上传 (当前默认)",
+      "colPath": "路径",
+      "colDuration": "耗时",
+      "colSpeed": "速度",
+      "colRelative": "相对性能",
+      "colNote": "备注",
+      "fastest": "最快"
+    },
+    "tuningMatrix": {
+      "title": "分片 / 并发 调优矩阵",
+      "description": "点击单元格以测量该分片大小×并发组合,或使用全部测量按钮测量全部16种组合。",
+      "totalSizeLabel": "总数据大小",
+      "runAll": "全部测量",
+      "runningAll": "全部测量中...",
+      "saveBest": "保存最佳设置",
+      "saved": "设置已保存",
+      "saveFailed": "保存失败",
+      "failed": "测量失败",
+      "allDone": "全部测量完成",
+      "chunkVsConcurrency": "分片大小 \\ 并发",
+      "chunk": "分片",
+      "concurrency": "并发",
+      "measuring": "测量中",
+      "best": "最佳",
+      "clickToMeasure": "点击测量",
+      "bestCombination": "最佳组合"
+    },
+    "multipartSettings": {
+      "title": "当前分片设置",
+      "description": "此设置在上传≥6MB文件时自动应用。更改会同时保存到localStorage和后端。",
+      "chunkLabel": "分片大小",
+      "concurrencyLabel": "并发上传数",
+      "save": "保存",
+      "saving": "保存中...",
+      "saved": "设置已保存",
+      "saveFailed": "保存失败",
+      "loading": "加载中...",
+      "threshold": "※ 仅适用于≥6MB的文件。"
+    }
   }
 }
