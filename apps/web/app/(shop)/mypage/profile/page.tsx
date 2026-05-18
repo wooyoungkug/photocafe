@@ -395,7 +395,7 @@ export default function ProfilePage() {
       )}
 
       {/* 회원 정보 카드 */}
-      <Card>
+      <Card className="md:w-[70%]">
         <CardHeader className="pb-3 pt-4 px-5">
           <div className="flex items-center justify-between">
             <div>
