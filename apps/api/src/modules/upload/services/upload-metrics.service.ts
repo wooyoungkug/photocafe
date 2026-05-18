@@ -1,7 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@/common/prisma/prisma.service';
 import type { B2StorageService } from './b2-storage.service';
+
+/** SystemSetting 영구 저장 키 (category='upload-metrics' 로 그룹화) */
+const SETTING_KEYS = {
+    sampleRate: 'metrics.sampleRate',
+    b2SampleRate: 'metrics.b2SampleRate',
+    multipartChunkSize: 'metrics.multipartChunkSize',
+    multipartConcurrency: 'metrics.multipartConcurrency',
+} as const;
+const SETTING_CATEGORY = 'upload-metrics';
 
 export type MetricPhase = 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2';
 
@@ -69,10 +78,13 @@ export interface WeekdayStatRow {
 }
 
 @Injectable()
-export class UploadMetricsService {
+export class UploadMetricsService implements OnModuleInit {
     private readonly logger = new Logger(UploadMetricsService.name);
 
-    /** 런타임 샘플링 비율 (0~1). 재시작 시 env 기본값으로 초기화된다. */
+    /**
+     * 런타임 샘플링 비율 (0~1). 부팅 시 SystemSetting DB 에서 로드되어 재시작에도 유지된다.
+     * DB에 값이 없으면 env 환경변수, env도 없으면 코드 기본값(50%) 사용.
+     */
     private _sampleRate: number;
     /** 클라이언트→B2 직접 업로드 실측 기록 샘플링 비율 (0~1). */
     private _b2SampleRate: number;
@@ -112,12 +124,62 @@ export class UploadMetricsService {
                 : CONC_DEFAULT;
     }
 
+    /**
+     * 부팅 시 SystemSetting DB 에서 영구 저장 값을 로드. 없으면 env/기본값 유지.
+     * 호출 실패해도 메모리 기본값으로 동작 가능.
+     */
+    async onModuleInit(): Promise<void> {
+        try {
+            const rows = await this.prisma.systemSetting.findMany({
+                where: { category: SETTING_CATEGORY },
+                select: { key: true, value: true },
+            });
+            for (const r of rows) {
+                const v = parseFloat(r.value);
+                if (!Number.isFinite(v)) continue;
+                if (r.key === SETTING_KEYS.sampleRate) {
+                    this._sampleRate = Math.min(Math.max(v, 0), 1);
+                } else if (r.key === SETTING_KEYS.b2SampleRate) {
+                    this._b2SampleRate = Math.min(Math.max(v, 0), 1);
+                } else if (r.key === SETTING_KEYS.multipartChunkSize) {
+                    const CHUNK_MIN = 5 * 1024 * 1024;
+                    const CHUNK_MAX = 100 * 1024 * 1024;
+                    if (v >= CHUNK_MIN && v <= CHUNK_MAX) this._multipartChunkSize = Math.floor(v);
+                } else if (r.key === SETTING_KEYS.multipartConcurrency) {
+                    if (v >= 1 && v <= 32) this._multipartConcurrency = Math.floor(v);
+                }
+            }
+            this.logger.log(
+                `메트릭 설정 로드: sample=${this._sampleRate}, b2Sample=${this._b2SampleRate}, ` +
+                `chunk=${this._multipartChunkSize}, concurrency=${this._multipartConcurrency}`,
+            );
+        } catch (err) {
+            this.logger.warn(`메트릭 설정 DB 로드 실패 (env/기본값 사용): ${(err as Error).message}`);
+        }
+    }
+
+    /** SystemSetting 에 비동기 upsert (실패해도 호출자 무관). */
+    private persistSetting(key: string, value: string, label: string): void {
+        setImmediate(async () => {
+            try {
+                await this.prisma.systemSetting.upsert({
+                    where: { key },
+                    update: { value, label },
+                    create: { key, value, category: SETTING_CATEGORY, label },
+                });
+            } catch (err) {
+                this.logger.warn(`메트릭 설정 저장 실패 (${key}): ${(err as Error).message}`);
+            }
+        });
+    }
+
     getSampleRate(): number {
         return this._sampleRate;
     }
 
     setSampleRate(rate: number): number {
         this._sampleRate = Math.min(Math.max(Number.isFinite(rate) ? rate : 0.1, 0), 1);
+        this.persistSetting(SETTING_KEYS.sampleRate, String(this._sampleRate), '실 업로드 샘플링 비율 (0~1)');
         return this._sampleRate;
     }
 
@@ -127,6 +189,7 @@ export class UploadMetricsService {
 
     setB2SampleRate(rate: number): number {
         this._b2SampleRate = Math.min(Math.max(Number.isFinite(rate) ? rate : 0.3, 0), 1);
+        this.persistSetting(SETTING_KEYS.b2SampleRate, String(this._b2SampleRate), '외실측(B2 직접) 샘플링 비율 (0~1)');
         return this._b2SampleRate;
     }
 
@@ -145,6 +208,7 @@ export class UploadMetricsService {
         const v = Number.isFinite(bytes) ? Math.floor(bytes) : CHUNK_DEFAULT;
         this._multipartChunkSize =
             v >= CHUNK_MIN && v <= CHUNK_MAX ? v : CHUNK_DEFAULT;
+        this.persistSetting(SETTING_KEYS.multipartChunkSize, String(this._multipartChunkSize), '멀티파트 청크 크기 (bytes)');
         return this._multipartChunkSize;
     }
 
@@ -163,6 +227,7 @@ export class UploadMetricsService {
         const v = Number.isFinite(n) ? Math.floor(n) : CONC_DEFAULT;
         this._multipartConcurrency =
             v >= CONC_MIN && v <= CONC_MAX ? v : CONC_DEFAULT;
+        this.persistSetting(SETTING_KEYS.multipartConcurrency, String(this._multipartConcurrency), '멀티파트 동시 청크 개수');
         return this._multipartConcurrency;
     }
 
