@@ -1212,7 +1212,7 @@ function ProfileStatusCard({ onEdit }: { onEdit: () => void }) {
 
         {hasEmergency && (
           <div className="space-y-2">
-            <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">비상연락처</h3>
+            <h3 className="text-[14px] font-medium text-gray-500 tracking-wide">긴급연락처</h3>
             <div className="grid md:grid-cols-3 gap-x-6 gap-y-3">
               <div className="space-y-1">
                 <Label className="text-[14px] font-normal text-gray-600">이름</Label>

@@ -711,7 +711,7 @@ export default function OnboardingPage() {
             <CardHeader className="pb-2">
               <CardTitle className="text-[18px] text-black font-bold flex items-center gap-1.5">
                 <Heart className="h-5 w-5 text-primary" />
-                담당자 연락처
+                긴급연락처
                 <span className="text-[13px] font-normal text-gray-400 ml-1">(선택)</span>
               </CardTitle>
               <CardDescription className="text-[14px] text-black font-normal leading-relaxed">
@@ -728,7 +728,7 @@ export default function OnboardingPage() {
                   <Input
                     value={form.emergencyContactName}
                     onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })}
-                    placeholder="담당자 이름 (예: 김미영)"
+                    placeholder="긴급연락처 이름 (예: 김미영)"
                     className="text-[14px]"
                     maxLength={50}
                   />
