@@ -260,6 +260,35 @@ export function useCreatePrintRoomPreset() {
   });
 }
 
+export type UpdatePrintRoomPresetInput = Partial<
+  Omit<CreatePrintRoomPresetInput, 'sizeCode' | 'nup'>
+>;
+
+export function useUpdatePrintRoomPreset() {
+  const qc = useQueryClient();
+  return useMutation<
+    PrintRoomPreset,
+    Error,
+    { id: string; data: UpdatePrintRoomPresetInput }
+  >({
+    mutationFn: ({ id, data }) =>
+      api.patch<PrintRoomPreset>(`/print-room/presets/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PRINT_ROOM_PRESETS_KEY });
+    },
+  });
+}
+
+export function useDeactivatePrintRoomPreset() {
+  const qc = useQueryClient();
+  return useMutation<PrintRoomPreset, Error, string>({
+    mutationFn: (id) => api.delete<PrintRoomPreset>(`/print-room/presets/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PRINT_ROOM_PRESETS_KEY });
+    },
+  });
+}
+
 export function useDownloadLogsQuery(params: DownloadLogQueryParams = {}) {
   return useQuery<DownloadLogResponse>({
     queryKey: [...PRINT_ROOM_LOGS_KEY, params],

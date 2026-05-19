@@ -907,6 +907,77 @@
       "canvas": {
         "empty": "选择规格后将显示预览"
       }
+    },
+    "adminPresets": {
+      "title": "输出室预设管理",
+      "subtitle": "创建、编辑、停用拼版（NUP/网格/裁切标记）预设",
+      "loading": "加载中…",
+      "empty": "无可显示的预设",
+      "counter": "{count}项",
+      "filter": {
+        "searchPlaceholder": "搜索规格…",
+        "all": "全部",
+        "active": "状态",
+        "activeOnly": "仅启用",
+        "inactiveOnly": "仅停用"
+      },
+      "column": {
+        "sizeCode": "规格",
+        "orientation": "方向",
+        "grid": "网格",
+        "cropMark": "裁切标记",
+        "active": "状态",
+        "createdAt": "创建时间",
+        "actions": "操作"
+      },
+      "orientation": {
+        "portrait": "纵向",
+        "landscape": "横向"
+      },
+      "badge": {
+        "active": "启用",
+        "inactive": "停用"
+      },
+      "field": {
+        "sizeCode": "规格编码",
+        "paperOrientation": "纸张方向",
+        "gridCols": "列",
+        "gridRows": "行",
+        "marginMm": "边距 (mm)",
+        "cropLen": "裁切长",
+        "cropThick": "裁切粗",
+        "cropColor": "裁切色",
+        "miniPreview": "预览"
+      },
+      "placeholder": {
+        "sizeCode": "例: 10x13, A4세로"
+      },
+      "hint": {
+        "gridAuto": "更改 NUP 时将自动推荐网格/方向"
+      },
+      "action": {
+        "create": "新建预设",
+        "edit": "编辑",
+        "deactivate": "停用",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "dialog": {
+        "createTitle": "新建预设",
+        "createDesc": "先选择规格和 NUP，将自动推荐网格/方向",
+        "editTitle": "编辑预设",
+        "deactivateTitle": "停用预设",
+        "deactivateDesc": "停用预设 {sizeCode} · {nup}。新作业将不再自动匹配（不影响现有作业）。继续？"
+      },
+      "toast": {
+        "requireSizeNup": "请先选择规格和 NUP",
+        "created": "预设已创建",
+        "createFailed": "创建预设失败",
+        "updated": "预设已更新",
+        "updateFailed": "更新预设失败",
+        "deactivated": "预设已停用",
+        "deactivateFailed": "停用失败"
+      }
     }
   }
 }

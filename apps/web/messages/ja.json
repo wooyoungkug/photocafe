@@ -907,6 +907,77 @@
       "canvas": {
         "empty": "規格を選択するとプレビューが表示されます"
       }
+    },
+    "adminPresets": {
+      "title": "印刷ルームプリセット管理",
+      "subtitle": "面付け（NUP/グリッド/トンボ）プリセットを登録・編集・無効化します",
+      "loading": "読み込み中…",
+      "empty": "表示するプリセットがありません",
+      "counter": "{count}件",
+      "filter": {
+        "searchPlaceholder": "規格検索…",
+        "all": "すべて",
+        "active": "状態",
+        "activeOnly": "有効のみ",
+        "inactiveOnly": "無効のみ"
+      },
+      "column": {
+        "sizeCode": "規格",
+        "orientation": "方向",
+        "grid": "グリッド",
+        "cropMark": "トンボ",
+        "active": "状態",
+        "createdAt": "登録日",
+        "actions": "操作"
+      },
+      "orientation": {
+        "portrait": "縦",
+        "landscape": "横"
+      },
+      "badge": {
+        "active": "有効",
+        "inactive": "無効"
+      },
+      "field": {
+        "sizeCode": "規格コード",
+        "paperOrientation": "用紙方向",
+        "gridCols": "列",
+        "gridRows": "行",
+        "marginMm": "余白 (mm)",
+        "cropLen": "トンボ長",
+        "cropThick": "トンボ太さ",
+        "cropColor": "トンボ色",
+        "miniPreview": "プレビュー"
+      },
+      "placeholder": {
+        "sizeCode": "例: 10x13, A4세로"
+      },
+      "hint": {
+        "gridAuto": "NUP 変更時にグリッド/方向が自動推薦されます"
+      },
+      "action": {
+        "create": "新規登録",
+        "edit": "編集",
+        "deactivate": "無効化",
+        "cancel": "キャンセル",
+        "save": "保存"
+      },
+      "dialog": {
+        "createTitle": "新規プリセット登録",
+        "createDesc": "規格と NUP を先に選択するとグリッド/方向が自動推薦されます",
+        "editTitle": "プリセット編集",
+        "deactivateTitle": "プリセット無効化",
+        "deactivateDesc": "{sizeCode} · {nup} プリセットを無効化します。新規ジョブでは自動マッチされません（既存ジョブには影響なし）。続行しますか？"
+      },
+      "toast": {
+        "requireSizeNup": "規格と NUP を先に選択してください",
+        "created": "プリセットを登録しました",
+        "createFailed": "プリセット登録に失敗しました",
+        "updated": "プリセットを更新しました",
+        "updateFailed": "プリセット更新に失敗しました",
+        "deactivated": "プリセットを無効化しました",
+        "deactivateFailed": "無効化に失敗しました"
+      }
     }
   }
 }

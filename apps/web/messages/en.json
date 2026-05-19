@@ -907,6 +907,77 @@
       "canvas": {
         "empty": "Select a size to see the preview"
       }
+    },
+    "adminPresets": {
+      "title": "Print Room Preset Management",
+      "subtitle": "Create, edit, and deactivate imposition (NUP/grid/crop) presets",
+      "loading": "Loading…",
+      "empty": "No presets to display",
+      "counter": "{count} items",
+      "filter": {
+        "searchPlaceholder": "Search size…",
+        "all": "All",
+        "active": "Status",
+        "activeOnly": "Active only",
+        "inactiveOnly": "Inactive only"
+      },
+      "column": {
+        "sizeCode": "Size",
+        "orientation": "Orientation",
+        "grid": "Grid",
+        "cropMark": "Crop Mark",
+        "active": "Status",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "orientation": {
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "badge": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "field": {
+        "sizeCode": "Size code",
+        "paperOrientation": "Paper orientation",
+        "gridCols": "Cols",
+        "gridRows": "Rows",
+        "marginMm": "Margin (mm)",
+        "cropLen": "Crop len",
+        "cropThick": "Crop thick",
+        "cropColor": "Crop color",
+        "miniPreview": "Preview"
+      },
+      "placeholder": {
+        "sizeCode": "e.g. 10x13, A4세로"
+      },
+      "hint": {
+        "gridAuto": "Grid/orientation auto-suggested when changing NUP"
+      },
+      "action": {
+        "create": "New Preset",
+        "edit": "Edit",
+        "deactivate": "Deactivate",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "dialog": {
+        "createTitle": "Create New Preset",
+        "createDesc": "Select size and NUP first; grid/orientation will be auto-suggested",
+        "editTitle": "Edit Preset",
+        "deactivateTitle": "Deactivate Preset",
+        "deactivateDesc": "Deactivate preset {sizeCode} · {nup}. New jobs will no longer auto-match (existing jobs unaffected). Continue?"
+      },
+      "toast": {
+        "requireSizeNup": "Please select size and NUP first",
+        "created": "Preset created",
+        "createFailed": "Failed to create preset",
+        "updated": "Preset updated",
+        "updateFailed": "Failed to update preset",
+        "deactivated": "Preset deactivated",
+        "deactivateFailed": "Failed to deactivate preset"
+      }
     }
   }
 }

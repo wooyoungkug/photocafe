@@ -985,6 +985,77 @@
       "canvas": {
         "empty": "규격을 선택하면 미리보기가 표시됩니다"
       }
+    },
+    "adminPresets": {
+      "title": "출력실 프리셋 관리",
+      "subtitle": "면배치(NUP/그리드/크롭마크) 프리셋을 등록·수정·비활성화합니다",
+      "loading": "불러오는 중…",
+      "empty": "표시할 프리셋이 없습니다",
+      "counter": "{count}건",
+      "filter": {
+        "searchPlaceholder": "규격 검색…",
+        "all": "전체",
+        "active": "상태",
+        "activeOnly": "활성만",
+        "inactiveOnly": "비활성만"
+      },
+      "column": {
+        "sizeCode": "규격",
+        "orientation": "방향",
+        "grid": "그리드",
+        "cropMark": "크롭마크",
+        "active": "상태",
+        "createdAt": "등록일",
+        "actions": "액션"
+      },
+      "orientation": {
+        "portrait": "세로",
+        "landscape": "가로"
+      },
+      "badge": {
+        "active": "활성",
+        "inactive": "비활성"
+      },
+      "field": {
+        "sizeCode": "규격코드",
+        "paperOrientation": "용지 방향",
+        "gridCols": "열",
+        "gridRows": "행",
+        "marginMm": "여백 (mm)",
+        "cropLen": "크롭길이",
+        "cropThick": "크롭두께",
+        "cropColor": "크롭색상",
+        "miniPreview": "미리보기"
+      },
+      "placeholder": {
+        "sizeCode": "예: 10x13, A4세로"
+      },
+      "hint": {
+        "gridAuto": "NUP 변경 시 그리드/방향이 자동 추천됩니다"
+      },
+      "action": {
+        "create": "신규 등록",
+        "edit": "수정",
+        "deactivate": "비활성화",
+        "cancel": "취소",
+        "save": "저장"
+      },
+      "dialog": {
+        "createTitle": "신규 프리셋 등록",
+        "createDesc": "규격과 NUP 을 먼저 선택하면 그리드/방향이 자동 추천됩니다",
+        "editTitle": "프리셋 수정",
+        "deactivateTitle": "프리셋 비활성화",
+        "deactivateDesc": "{sizeCode} · {nup} 프리셋을 비활성화합니다. 이후 새 작업에서 자동 매칭되지 않습니다 (기존 작업 영향 없음). 계속하시겠습니까?"
+      },
+      "toast": {
+        "requireSizeNup": "규격과 NUP 을 먼저 선택해주세요",
+        "created": "프리셋이 등록되었습니다",
+        "createFailed": "프리셋 등록에 실패했습니다",
+        "updated": "프리셋이 수정되었습니다",
+        "updateFailed": "프리셋 수정에 실패했습니다",
+        "deactivated": "프리셋이 비활성화되었습니다",
+        "deactivateFailed": "비활성화에 실패했습니다"
+      }
     }
   }
 }
