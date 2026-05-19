@@ -119,6 +119,7 @@ export const NAVIGATION: NavItem[] = [
       { name: "공정 현황", href: "/orders/production", group: "공정" },
       { name: "공정 스캔", href: "/orders/process-scan", group: "공정" },
       { name: "출력대기", href: "/orders/print-queue", group: "공정" },
+      { name: "출력실", href: "/print-room", group: "공정" },
       { name: "배송관리", href: "/orders/shipping", group: "마감" },
       { name: "마감관리", href: "/orders/reception", group: "마감" },
     ],
