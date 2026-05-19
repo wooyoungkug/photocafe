@@ -41,6 +41,7 @@ import { PrintPdfModule } from './modules/print-pdf/print-pdf.module';
 import { ImpositionModule } from './modules/imposition/imposition.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { PrintRoomModule } from './modules/print-room/print-room.module';
+import { AgentModule } from './modules/agent/agent.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { CryptoModule } from './common/crypto/crypto.module';
@@ -136,6 +137,7 @@ import { AppController } from './app.controller';
     ImpositionModule,
     NotificationModule,
     PrintRoomModule,
+    AgentModule,
   ],
 })
 export class AppModule implements NestModule {

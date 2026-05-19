@@ -4179,5 +4179,27 @@ model PrintDownloadLog {
 
   @@index([orderItemId])
   @@index([downloadedAt])
+  @@index([agentId])
   @@map("print_download_logs")
+}
+
+// 데스크톱 핫폴더 에이전트 등록 토큰 (Phase 8).
+// - 평문 토큰은 발급 시 1회만 표시되고 DB 에는 SHA-256 해시만 저장됨.
+// - tokenPrefix 는 UI 식별용 (예: "ag_a1b2…").
+// - 에이전트는 X-Agent-Token 헤더로 호출. hash 검증 후 lastHeartbeatAt 갱신.
+model AgentToken {
+  id               String    @id @default(cuid())
+  name             String    // 식별용 이름 (예: "인쇄PC-1", "잉크젯PC")
+  tokenHash        String    @unique // SHA-256 hex
+  tokenPrefix      String    // 평문 앞 12자 (UI 표시용)
+  machineName      String?   // 에이전트 자가보고 hostname
+  lastHeartbeatAt  DateTime?
+  lastIp           String?
+  isActive         Boolean   @default(true)
+  createdByStaffId String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([isActive])
+  @@map("agent_tokens")
 }

@@ -978,6 +978,69 @@
         "deactivated": "预设已停用",
         "deactivateFailed": "停用失败"
       }
+    },
+    "agentSettings": {
+      "title": "热文件夹代理",
+      "subtitle": "签发与管理桌面代理令牌（建议每台打印 PC 一个令牌）",
+      "loading": "加载中…",
+      "empty": "未注册代理。点击新建以签发第一个令牌",
+      "summary": {
+        "total": "令牌总数",
+        "online": "在线",
+        "active": "启用"
+      },
+      "column": {
+        "name": "名称",
+        "prefix": "令牌前缀",
+        "machine": "机器名",
+        "lastHeartbeat": "最近心跳",
+        "online": "在线",
+        "active": "状态",
+        "createdAt": "创建时间",
+        "actions": "操作"
+      },
+      "badge": {
+        "online": "在线",
+        "offline": "离线",
+        "active": "启用",
+        "inactive": "停用"
+      },
+      "action": {
+        "create": "签发令牌",
+        "issue": "签发",
+        "deactivate": "停用",
+        "refresh": "刷新",
+        "cancel": "取消",
+        "copy": "复制",
+        "done": "完成"
+      },
+      "field": {
+        "name": "代理名称",
+        "token": "签发的令牌"
+      },
+      "placeholder": {
+        "name": "例: 打印PC-1"
+      },
+      "dialog": {
+        "createTitle": "签发新代理令牌",
+        "createDesc": "签发的明文令牌仅显示一次。请立即保存到代理 PC 配置中",
+        "createdTitle": "令牌签发完成",
+        "createdDesc": "复制下方明文令牌并配置到代理设置中。关闭后无法再查看",
+        "deactivateTitle": "停用令牌",
+        "deactivateDesc": "停用代理 '{name}'。该 PC 在下次轮询时将被拒绝。继续？"
+      },
+      "hint": {
+        "onceOnly": "⚠️ 此令牌不会再次显示。请立即保存到安全位置"
+      },
+      "toast": {
+        "requireName": "请输入代理名称",
+        "created": "令牌已签发",
+        "createFailed": "令牌签发失败",
+        "deactivated": "令牌已停用",
+        "deactivateFailed": "停用失败",
+        "copied": "已复制到剪贴板",
+        "copyFailed": "复制失败"
+      }
     }
   }
 }

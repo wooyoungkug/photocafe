@@ -978,6 +978,69 @@
         "deactivated": "Preset deactivated",
         "deactivateFailed": "Failed to deactivate preset"
       }
+    },
+    "agentSettings": {
+      "title": "Hot Folder Agent",
+      "subtitle": "Issue and manage desktop agent tokens (one per print PC recommended)",
+      "loading": "Loading…",
+      "empty": "No agents registered. Create one to issue your first token",
+      "summary": {
+        "total": "Total tokens",
+        "online": "Online",
+        "active": "Active"
+      },
+      "column": {
+        "name": "Name",
+        "prefix": "Token prefix",
+        "machine": "Machine",
+        "lastHeartbeat": "Last heartbeat",
+        "online": "Online",
+        "active": "Status",
+        "createdAt": "Created",
+        "actions": "Actions"
+      },
+      "badge": {
+        "online": "Online",
+        "offline": "Offline",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "action": {
+        "create": "Issue Token",
+        "issue": "Issue",
+        "deactivate": "Deactivate",
+        "refresh": "Refresh",
+        "cancel": "Cancel",
+        "copy": "Copy",
+        "done": "Done"
+      },
+      "field": {
+        "name": "Agent name",
+        "token": "Issued token"
+      },
+      "placeholder": {
+        "name": "e.g. Print-PC-1"
+      },
+      "dialog": {
+        "createTitle": "Issue New Agent Token",
+        "createDesc": "The plaintext token is shown only once. Save it in the agent PC config immediately",
+        "createdTitle": "Token Created",
+        "createdDesc": "Copy the plaintext token below and configure your agent. You cannot view it again",
+        "deactivateTitle": "Deactivate Token",
+        "deactivateDesc": "Deactivate agent '{name}'. That PC will be rejected immediately on next poll. Continue?"
+      },
+      "hint": {
+        "onceOnly": "⚠️ This token will not be shown again. Save it now"
+      },
+      "toast": {
+        "requireName": "Please enter an agent name",
+        "created": "Token created",
+        "createFailed": "Failed to create token",
+        "deactivated": "Token deactivated",
+        "deactivateFailed": "Failed to deactivate",
+        "copied": "Copied to clipboard",
+        "copyFailed": "Failed to copy"
+      }
     }
   }
 }

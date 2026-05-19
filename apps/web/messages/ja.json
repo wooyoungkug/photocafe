@@ -978,6 +978,69 @@
         "deactivated": "プリセットを無効化しました",
         "deactivateFailed": "無効化に失敗しました"
       }
+    },
+    "agentSettings": {
+      "title": "ホットフォルダエージェント",
+      "subtitle": "デスクトップエージェントトークンを発行・管理します（PC ごとに 1 トークン推奨）",
+      "loading": "読み込み中…",
+      "empty": "登録されたエージェントがありません。新規発行で最初のトークンを発行してください",
+      "summary": {
+        "total": "総トークン数",
+        "online": "オンライン",
+        "active": "有効"
+      },
+      "column": {
+        "name": "名前",
+        "prefix": "トークン先頭",
+        "machine": "マシン名",
+        "lastHeartbeat": "最終応答",
+        "online": "オンライン",
+        "active": "状態",
+        "createdAt": "登録日",
+        "actions": "操作"
+      },
+      "badge": {
+        "online": "オンライン",
+        "offline": "オフライン",
+        "active": "有効",
+        "inactive": "無効"
+      },
+      "action": {
+        "create": "新規発行",
+        "issue": "発行",
+        "deactivate": "無効化",
+        "refresh": "更新",
+        "cancel": "キャンセル",
+        "copy": "コピー",
+        "done": "完了"
+      },
+      "field": {
+        "name": "エージェント名",
+        "token": "発行されたトークン"
+      },
+      "placeholder": {
+        "name": "例: 印刷PC-1"
+      },
+      "dialog": {
+        "createTitle": "新規エージェントトークン発行",
+        "createDesc": "発行された平文トークンは 1 回のみ表示されます。エージェント PC の設定に即時保存してください",
+        "createdTitle": "トークン発行完了",
+        "createdDesc": "以下の平文トークンをコピーしてエージェント設定に反映してください。閉じるとお再度表示できません",
+        "deactivateTitle": "トークン無効化",
+        "deactivateDesc": "エージェント '{name}' を無効化します。当該 PC は次のポーリングで拒否されます。続行しますか？"
+      },
+      "hint": {
+        "onceOnly": "⚠️ このトークンは再表示されません。今すぐ安全な場所に保存してください"
+      },
+      "toast": {
+        "requireName": "エージェント名を入力してください",
+        "created": "トークンを発行しました",
+        "createFailed": "トークン発行に失敗しました",
+        "deactivated": "トークンを無効化しました",
+        "deactivateFailed": "無効化に失敗しました",
+        "copied": "クリップボードにコピーしました",
+        "copyFailed": "コピーに失敗しました"
+      }
     }
   }
 }
