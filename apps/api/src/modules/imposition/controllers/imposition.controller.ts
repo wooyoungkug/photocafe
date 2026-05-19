@@ -43,6 +43,7 @@ import { seedImposition } from '../seed-imposition';
 import { B2StorageService } from '../../upload/services/b2-storage.service';
 import { PrintPdfSlipPrinterService } from '../../print-pdf/services/print-pdf-slip-printer.service';
 import { PrintPdfService } from '../../print-pdf/services/print-pdf.service';
+import { PrintRoomQueueService } from '../../print-room/print-room-queue.service';
 
 const IMPOSITION_OUTPUT_DIR = path.join(process.cwd(), 'uploads', 'imposition');
 
@@ -63,6 +64,8 @@ export class ImpositionController {
     private readonly slipPrinter: PrintPdfSlipPrinterService,
     @Inject(forwardRef(() => PrintPdfService))
     private readonly printPdfService: PrintPdfService,
+    @Inject(forwardRef(() => PrintRoomQueueService))
+    private readonly printRoomQueue: PrintRoomQueueService,
   ) {
     if (!fs.existsSync(IMPOSITION_OUTPUT_DIR)) {
       fs.mkdirSync(IMPOSITION_OUTPUT_DIR, { recursive: true });
@@ -667,6 +670,161 @@ export class ImpositionController {
     }
 
     await archive.finalize();
+  }
+
+  // ==================== Print Room 통합 (수동 면배치 / 이력 / 재시도 / 프리뷰) ====================
+
+  /**
+   * 수동 면배치 실행 — PrintRoomQueueService 에 enqueue.
+   * 큐가 비활성(Redis 미설정)이어도 PrintRoomJob 레코드는 만들어진다.
+   */
+  @Post('jobs/:orderItemId')
+  @ApiOperation({ summary: '수동 면배치 실행 (출력실 큐 enqueue)' })
+  async enqueueImposition(@Param('orderItemId') orderItemId: string) {
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { id: true },
+    });
+    if (!item) {
+      throw new NotFoundException(`OrderItem ${orderItemId} 를 찾을 수 없습니다.`);
+    }
+    await this.printRoomQueue.enqueuePrintRoom(orderItemId, true);
+    const job = await this.prisma.printRoomJob.findFirst({
+      where: { orderItemId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, status: true, isManual: true, createdAt: true },
+    });
+    return { jobId: job?.id ?? null, job };
+  }
+
+  @Get('items/:orderItemId/jobs')
+  @ApiOperation({
+    summary: 'OrderItem 별 면배치 작업 이력 (최신순)',
+    description:
+      'NOTE: 기존 GET /imposition/jobs/:jobId/* 라우트와 path 충돌을 피하려고 ' +
+      '/imposition/items/:orderItemId/jobs 로 노출. 기획서의 GET /imposition/jobs/:orderItemId 와 동일 의미.',
+  })
+  async listJobsByOrderItem(@Param('orderItemId') orderItemId: string) {
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { id: true },
+    });
+    if (!item) {
+      throw new NotFoundException(`OrderItem ${orderItemId} 를 찾을 수 없습니다.`);
+    }
+    return this.prisma.printRoomJob.findMany({
+      where: { orderItemId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        preset: {
+          select: {
+            id: true,
+            sizeCode: true,
+            nup: true,
+            gridCols: true,
+            gridRows: true,
+          },
+        },
+      },
+    });
+  }
+
+  @Post('jobs/:id/retry')
+  @ApiOperation({ summary: 'PrintRoomJob 재시도 (id 기준)' })
+  async retryPrintRoomJob(@Param('id') id: string) {
+    await this.printRoomQueue.retryJob(id);
+    return { jobId: id, retried: true };
+  }
+
+  @Get('preview')
+  @ApiOperation({
+    summary: '면배치 미리보기 (PDF 생성 안 함)',
+    description:
+      'orderItemId 기준으로 ImpositionCalc.calculate() 결과를 반환. ' +
+      'presetId 비우면 ImpositionMatcher 로 자동 매칭. 매칭 실패 시 400.',
+  })
+  async preview(
+    @Query('orderItemId') orderItemId: string,
+    @Query('presetId') presetId?: string,
+  ) {
+    if (!orderItemId) {
+      throw new BadRequestException('orderItemId 쿼리는 필수입니다.');
+    }
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+    });
+    if (!item) {
+      throw new NotFoundException(`OrderItem ${orderItemId} 를 찾을 수 없습니다.`);
+    }
+
+    let { w, h } = parseSize(item.size);
+    if (!w || !h) {
+      throw new BadRequestException(`OrderItem.size 파싱 실패: ${item.size}`);
+    }
+    const isSpread = item.pageLayout === 'spread';
+    if (isSpread && w / h > 1.4) {
+      w = w / 2;
+    }
+    const bindingType = mapBindingType(item.bindingType);
+
+    let preset = presetId
+      ? await this.presets.get(presetId).catch(() => null)
+      : null;
+
+    if (!preset) {
+      const matched = await this.matcher.findPreset({
+        productSize: item.size,
+        bindingType,
+        pageCount: item.pages,
+      });
+      preset = matched?.preset ?? null;
+    }
+
+    if (!preset) {
+      throw new BadRequestException(
+        '매칭 가능한 ImpositionPreset 이 없습니다. presetId 를 명시하거나 매칭 규칙을 등록해주세요.',
+      );
+    }
+
+    const input: ImpositionInput = {
+      productWidth: w,
+      productHeight: h,
+      pageCount: item.pages,
+      bindingType,
+      sheetWidth: Number(preset.sheetWidth),
+      sheetHeight: Number(preset.sheetHeight),
+      marginTop: Number(preset.marginTop),
+      marginRight: Number(preset.marginRight),
+      marginBottom: Number(preset.marginBottom),
+      marginLeft: Number(preset.marginLeft),
+      bleed: Number(preset.bleed),
+      gutter: Number(preset.gutter),
+      creaseWidth: preset.creaseWidth ? Number(preset.creaseWidth) : undefined,
+      tackMargin: preset.tackMargin ? Number(preset.tackMargin) : undefined,
+      tackEdge: preset.tackEdge as any,
+      rotationPolicy: preset.rotationPolicy as any,
+      grainDirection: preset.grainDirection as any,
+    };
+
+    const result = this.calc.calculate(input);
+    return {
+      preset: {
+        id: preset.id,
+        name: preset.name,
+        bindingType: preset.bindingType,
+        sheetWidth: Number(preset.sheetWidth),
+        sheetHeight: Number(preset.sheetHeight),
+        marginTop: Number(preset.marginTop),
+        marginRight: Number(preset.marginRight),
+        marginBottom: Number(preset.marginBottom),
+        marginLeft: Number(preset.marginLeft),
+        bleed: Number(preset.bleed),
+        gutter: Number(preset.gutter),
+      },
+      productWidth: w,
+      productHeight: h,
+      ...result,
+    };
   }
 
   // ==================== 자동저장 / 메타텍스트 헬퍼 ====================

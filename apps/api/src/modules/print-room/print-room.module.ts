@@ -1,10 +1,12 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '@/common/prisma/prisma.module';
 import { UploadModule } from '@/modules/upload/upload.module';
 import { ImpositionModule } from '@/modules/imposition/imposition.module';
 import { PrintRoomQueueService, PRINT_ROOM_QUEUE } from './print-room-queue.service';
 import { PrintRoomProcessor } from './print-room.processor';
+import { PrintRoomController } from './print-room.controller';
+import { PrintRoomService } from './print-room.service';
 
 /**
  * 출력실 통합관리 — BullMQ 비동기 처리 파이프라인.
@@ -20,12 +22,13 @@ import { PrintRoomProcessor } from './print-room.processor';
   imports: [
     PrismaModule,
     UploadModule,
-    ImpositionModule,
+    forwardRef(() => ImpositionModule),
     BullModule.registerQueue({
       name: PRINT_ROOM_QUEUE,
     }),
   ],
-  providers: [PrintRoomQueueService, PrintRoomProcessor],
+  controllers: [PrintRoomController],
+  providers: [PrintRoomQueueService, PrintRoomProcessor, PrintRoomService],
   exports: [PrintRoomQueueService],
 })
 export class PrintRoomModule {}
