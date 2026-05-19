@@ -382,7 +382,7 @@ export function drawCropMarks(page: PDFPage, x: number, y: number, w: number, h:
   const len = 5 * MM_TO_PT;
   const off = 2 * MM_TO_PT;
   const col = rgb(0, 0, 0);
-  const lw = 0.4;
+  const lw = 0.25;
   // 좌상
   page.drawLine({ start: { x: x - off, y: y + h }, end: { x: x - off - len, y: y + h }, color: col, thickness: lw });
   page.drawLine({ start: { x, y: y + h + off }, end: { x, y: y + h + off + len }, color: col, thickness: lw });
