@@ -940,6 +940,51 @@
     },
     "error": {
       "loadFailed": "불러오기에 실패했습니다"
+    },
+    "preview": {
+      "title": "면배치 미리보기",
+      "subtitle": "프리셋을 자동 로드하거나 수동으로 설정해 실시간 미리보기로 확인합니다",
+      "section": {
+        "preset": "프리셋 선택",
+        "manual": "수동 설정",
+        "canvas": "Canvas 미리보기"
+      },
+      "field": {
+        "sizeCode": "규격",
+        "paperOrientation": "용지 방향",
+        "gridCols": "그리드 열 수",
+        "gridRows": "그리드 행 수",
+        "marginMm": "여백 (mm)",
+        "cropMarkLengthMm": "크롭마크 길이 (mm)",
+        "cropMarkThicknessPt": "크롭마크 두께 (pt)"
+      },
+      "placeholder": {
+        "nup": "NUP 선택",
+        "sizeCode": "규격 선택"
+      },
+      "orientation": {
+        "portrait": "세로",
+        "landscape": "가로"
+      },
+      "status": {
+        "matched": "프리셋 자동 매칭됨",
+        "noPreset": "프리셋 없음 — 수동 설정 권장"
+      },
+      "action": {
+        "useAuto": "자동 모드",
+        "useManual": "수동 모드",
+        "save": "프리셋으로 저장",
+        "testPdf": "PDF 테스트 생성"
+      },
+      "toast": {
+        "saved": "프리셋이 저장되었습니다",
+        "saveFailed": "프리셋 저장에 실패했습니다",
+        "requireSizeNup": "규격과 NUP 을 먼저 선택해주세요",
+        "testPdfTodo": "PDF 테스트 생성은 추후 제공될 예정입니다"
+      },
+      "canvas": {
+        "empty": "규격을 선택하면 미리보기가 표시됩니다"
+      }
     }
   }
 }

@@ -461,6 +461,79 @@ export class PrintRoomService {
       a.date.localeCompare(b.date),
     );
   }
+
+  // ==========================================================
+  // 7) PrintRoomPreset CRUD (Phase 6 미리보기/관리 화면용)
+  // ==========================================================
+  async listPresets(opts: { activeOnly?: boolean; nup?: string } = {}) {
+    const where: any = {};
+    if (opts.activeOnly) where.isActive = true;
+    if (opts.nup) where.nup = opts.nup;
+    return this.prisma.printRoomPreset.findMany({
+      where,
+      orderBy: [{ nup: 'asc' }, { sizeCode: 'asc' }],
+    });
+  }
+
+  async getPreset(id: string) {
+    const preset = await this.prisma.printRoomPreset.findUnique({
+      where: { id },
+    });
+    if (!preset) {
+      throw new NotFoundException(`PrintRoomPreset ${id} 를 찾을 수 없습니다.`);
+    }
+    return preset;
+  }
+
+  async createPreset(data: {
+    sizeCode: string;
+    nup: string;
+    paperOrientation: string;
+    gridCols: number;
+    gridRows: number;
+    marginMm?: number;
+    cropMarkLengthMm?: number;
+    cropMarkThicknessPt?: number;
+    cropMarkColor?: string;
+    pdfVersion?: string;
+    isActive?: boolean;
+  }) {
+    const existing = await this.prisma.printRoomPreset.findUnique({
+      where: { sizeCode_nup: { sizeCode: data.sizeCode, nup: data.nup } },
+    });
+    if (existing) {
+      throw new BadRequestException(
+        `이미 등록된 프리셋입니다: ${data.sizeCode} / ${data.nup}`,
+      );
+    }
+    return this.prisma.printRoomPreset.create({ data });
+  }
+
+  async updatePreset(
+    id: string,
+    data: Partial<{
+      paperOrientation: string;
+      gridCols: number;
+      gridRows: number;
+      marginMm: number;
+      cropMarkLengthMm: number;
+      cropMarkThicknessPt: number;
+      cropMarkColor: string;
+      pdfVersion: string;
+      isActive: boolean;
+    }>,
+  ) {
+    await this.getPreset(id);
+    return this.prisma.printRoomPreset.update({ where: { id }, data });
+  }
+
+  async deactivatePreset(id: string) {
+    await this.getPreset(id);
+    return this.prisma.printRoomPreset.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
 }
 
 /**

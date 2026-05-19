@@ -202,6 +202,64 @@ export function useRetryMutation() {
   });
 }
 
+// ==================== PrintRoomPreset (Phase 6) ====================
+
+export interface PrintRoomPreset {
+  id: string;
+  sizeCode: string;
+  nup: string;
+  paperOrientation: 'portrait' | 'landscape';
+  gridCols: number;
+  gridRows: number;
+  marginMm: number;
+  cropMarkLengthMm: number;
+  cropMarkThicknessPt: number;
+  cropMarkColor: string;
+  pdfVersion: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePrintRoomPresetInput {
+  sizeCode: string;
+  nup: string;
+  paperOrientation: 'portrait' | 'landscape';
+  gridCols: number;
+  gridRows: number;
+  marginMm?: number;
+  cropMarkLengthMm?: number;
+  cropMarkThicknessPt?: number;
+  cropMarkColor?: string;
+  pdfVersion?: string;
+  isActive?: boolean;
+}
+
+const PRINT_ROOM_PRESETS_KEY = ['print-room', 'presets'] as const;
+
+export function usePrintRoomPresets(opts?: { activeOnly?: boolean; nup?: string }) {
+  return useQuery<PrintRoomPreset[]>({
+    queryKey: [...PRINT_ROOM_PRESETS_KEY, opts ?? null],
+    queryFn: () =>
+      api.get<PrintRoomPreset[]>('/print-room/presets', {
+        activeOnly: opts?.activeOnly ? 'true' : undefined,
+        nup: opts?.nup,
+      }),
+    staleTime: 30_000,
+  });
+}
+
+export function useCreatePrintRoomPreset() {
+  const qc = useQueryClient();
+  return useMutation<PrintRoomPreset, Error, CreatePrintRoomPresetInput>({
+    mutationFn: (input) =>
+      api.post<PrintRoomPreset>('/print-room/presets', input),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PRINT_ROOM_PRESETS_KEY });
+    },
+  });
+}
+
 export function useDownloadLogsQuery(params: DownloadLogQueryParams = {}) {
   return useQuery<DownloadLogResponse>({
     queryKey: [...PRINT_ROOM_LOGS_KEY, params],

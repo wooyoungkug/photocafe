@@ -862,6 +862,51 @@
     },
     "error": {
       "loadFailed": "Failed to load"
+    },
+    "preview": {
+      "title": "Imposition Preview",
+      "subtitle": "Auto-load a preset or configure manually with live canvas preview",
+      "section": {
+        "preset": "Select Preset",
+        "manual": "Manual Settings",
+        "canvas": "Canvas Preview"
+      },
+      "field": {
+        "sizeCode": "Size",
+        "paperOrientation": "Paper Orientation",
+        "gridCols": "Grid Columns",
+        "gridRows": "Grid Rows",
+        "marginMm": "Margin (mm)",
+        "cropMarkLengthMm": "Crop Mark Length (mm)",
+        "cropMarkThicknessPt": "Crop Mark Thickness (pt)"
+      },
+      "placeholder": {
+        "nup": "Select NUP",
+        "sizeCode": "Select Size"
+      },
+      "orientation": {
+        "portrait": "Portrait",
+        "landscape": "Landscape"
+      },
+      "status": {
+        "matched": "Preset matched",
+        "noPreset": "No preset — manual recommended"
+      },
+      "action": {
+        "useAuto": "Auto Mode",
+        "useManual": "Manual Mode",
+        "save": "Save as Preset",
+        "testPdf": "Generate Test PDF"
+      },
+      "toast": {
+        "saved": "Preset saved",
+        "saveFailed": "Failed to save preset",
+        "requireSizeNup": "Please select size and NUP first",
+        "testPdfTodo": "Test PDF generation will be added later"
+      },
+      "canvas": {
+        "empty": "Select a size to see the preview"
+      }
     }
   }
 }

@@ -862,6 +862,51 @@
     },
     "error": {
       "loadFailed": "加载失败"
+    },
+    "preview": {
+      "title": "拼版预览",
+      "subtitle": "自动加载预设或手动设置，通过实时画布预览查看",
+      "section": {
+        "preset": "选择预设",
+        "manual": "手动设置",
+        "canvas": "画布预览"
+      },
+      "field": {
+        "sizeCode": "规格",
+        "paperOrientation": "纸张方向",
+        "gridCols": "网格列数",
+        "gridRows": "网格行数",
+        "marginMm": "边距 (mm)",
+        "cropMarkLengthMm": "裁切标记长度 (mm)",
+        "cropMarkThicknessPt": "裁切标记厚度 (pt)"
+      },
+      "placeholder": {
+        "nup": "选择 NUP",
+        "sizeCode": "选择规格"
+      },
+      "orientation": {
+        "portrait": "纵向",
+        "landscape": "横向"
+      },
+      "status": {
+        "matched": "预设自动匹配",
+        "noPreset": "无预设 — 建议手动"
+      },
+      "action": {
+        "useAuto": "自动模式",
+        "useManual": "手动模式",
+        "save": "保存为预设",
+        "testPdf": "生成测试 PDF"
+      },
+      "toast": {
+        "saved": "预设已保存",
+        "saveFailed": "预设保存失败",
+        "requireSizeNup": "请先选择规格和 NUP",
+        "testPdfTodo": "测试 PDF 生成功能将稍后提供"
+      },
+      "canvas": {
+        "empty": "选择规格后将显示预览"
+      }
     }
   }
 }

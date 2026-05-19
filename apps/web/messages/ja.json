@@ -862,6 +862,51 @@
     },
     "error": {
       "loadFailed": "読み込みに失敗しました"
+    },
+    "preview": {
+      "title": "面付けプレビュー",
+      "subtitle": "プリセット自動読込または手動設定でリアルタイムプレビューを確認します",
+      "section": {
+        "preset": "プリセット選択",
+        "manual": "手動設定",
+        "canvas": "Canvas プレビュー"
+      },
+      "field": {
+        "sizeCode": "規格",
+        "paperOrientation": "用紙方向",
+        "gridCols": "グリッド列数",
+        "gridRows": "グリッド行数",
+        "marginMm": "余白 (mm)",
+        "cropMarkLengthMm": "トンボ長さ (mm)",
+        "cropMarkThicknessPt": "トンボ太さ (pt)"
+      },
+      "placeholder": {
+        "nup": "NUP 選択",
+        "sizeCode": "規格選択"
+      },
+      "orientation": {
+        "portrait": "縦",
+        "landscape": "横"
+      },
+      "status": {
+        "matched": "プリセット自動マッチ",
+        "noPreset": "プリセットなし — 手動設定推奨"
+      },
+      "action": {
+        "useAuto": "自動モード",
+        "useManual": "手動モード",
+        "save": "プリセット保存",
+        "testPdf": "PDF テスト生成"
+      },
+      "toast": {
+        "saved": "プリセットを保存しました",
+        "saveFailed": "プリセットの保存に失敗しました",
+        "requireSizeNup": "規格と NUP を先に選択してください",
+        "testPdfTodo": "PDF テスト生成は今後提供予定です"
+      },
+      "canvas": {
+        "empty": "規格を選択するとプレビューが表示されます"
+      }
     }
   }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -16,6 +17,10 @@ import { QueueQueryDto } from './dto/queue-query.dto';
 import { UpdatePrintRoomStatusDto } from './dto/update-status.dto';
 import { DownloadLogQueryDto } from './dto/download-log-query.dto';
 import { StatsQueryDto } from './dto/stats-query.dto';
+import {
+  CreatePrintRoomPresetDto,
+  UpdatePrintRoomPresetDto,
+} from './dto/preset.dto';
 
 @ApiTags('Print Room')
 @ApiBearerAuth()
@@ -74,5 +79,49 @@ export class PrintRoomController {
   })
   getStats(@Query() query: StatsQueryDto) {
     return this.service.getStats(query);
+  }
+
+  // ==========================================================
+  // PrintRoomPreset CRUD (Phase 6 미리보기/관리)
+  // ==========================================================
+  @Get('presets')
+  @ApiOperation({ summary: '출력실 프리셋 목록 (sizeCode, nup 등 정렬)' })
+  listPresets(
+    @Query('activeOnly') activeOnly?: string,
+    @Query('nup') nup?: string,
+  ) {
+    return this.service.listPresets({
+      activeOnly: activeOnly === 'true' || activeOnly === '1',
+      nup,
+    });
+  }
+
+  @Get('presets/:id')
+  @ApiOperation({ summary: '출력실 프리셋 단건 조회' })
+  getPreset(@Param('id') id: string) {
+    return this.service.getPreset(id);
+  }
+
+  @Post('presets')
+  @ApiOperation({ summary: '출력실 프리셋 신규 생성' })
+  createPreset(@Body() dto: CreatePrintRoomPresetDto) {
+    return this.service.createPreset(dto);
+  }
+
+  @Patch('presets/:id')
+  @ApiOperation({ summary: '출력실 프리셋 수정' })
+  updatePreset(
+    @Param('id') id: string,
+    @Body() dto: UpdatePrintRoomPresetDto,
+  ) {
+    return this.service.updatePreset(id, dto);
+  }
+
+  @Delete('presets/:id')
+  @ApiOperation({
+    summary: '출력실 프리셋 비활성화 (실삭제 대신 isActive=false)',
+  })
+  deactivatePreset(@Param('id') id: string) {
+    return this.service.deactivatePreset(id);
   }
 }

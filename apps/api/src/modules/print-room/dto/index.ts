@@ -3,3 +3,4 @@ export * from './update-status.dto';
 export * from './download-log-query.dto';
 export * from './stats-query.dto';
 export * from './preview-query.dto';
+export * from './preset.dto';
