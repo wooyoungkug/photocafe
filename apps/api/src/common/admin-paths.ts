@@ -37,6 +37,7 @@ export const STAFF_CONTEXT_PATHS: readonly string[] = [
   '/image-management',
   '/notifications',
   '/print-slip',
+  '/print-room',
 ] as const;
 
 /** Referer URL 또는 path 가 staff 컨텍스트 경로를 포함하는지 검사. */

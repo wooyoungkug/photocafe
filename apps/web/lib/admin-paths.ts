@@ -46,6 +46,7 @@ export const STAFF_CONTEXT_PATHS: readonly string[] = [
   '/image-management',
   '/notifications',
   '/print-slip',
+  '/print-room',
 ] as const;
 
 export const ADMIN_ONLY_PATHS: readonly string[] = [
