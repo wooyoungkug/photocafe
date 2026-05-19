@@ -54,6 +54,13 @@ tmpclaude-*
 .mcp.json
 .playwright-mcp/
 
+# Ad-hoc debug dumps (루트에 떨어지는 임시 로그/스왑 덤프)
+/tmp*.json
+/tmp*.txt
+/tmp*.log
+/c\357\200\272tmp*
+/railway_log.txt
+
 # Ad-hoc analysis reports (루트에 생성되는 임시 분석 결과물)
 /skills-report.html
 /skills-usage-analysis.html
