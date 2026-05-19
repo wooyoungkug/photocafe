@@ -857,7 +857,8 @@
       "statusUpdateFailed": "Failed to update status",
       "retryQueued": "Retry queued",
       "retryFailed": "Failed to queue retry",
-      "agentTodo": "Hot folder agent integration arrives in Phase 8"
+      "agentTodo": "Hot folder agent integration arrives in Phase 8",
+      "deliveredManual": "Moved to printing (auto hot-folder delivery will arrive in Phase 8)"
     },
     "error": {
       "loadFailed": "Failed to load"

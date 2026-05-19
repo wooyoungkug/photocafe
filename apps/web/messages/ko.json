@@ -935,7 +935,8 @@
       "statusUpdateFailed": "상태 변경에 실패했습니다",
       "retryQueued": "재시도가 큐에 등록되었습니다",
       "retryFailed": "재시도 등록에 실패했습니다",
-      "agentTodo": "핫폴더 에이전트 연동은 Phase 8 에서 제공됩니다"
+      "agentTodo": "핫폴더 에이전트 연동은 Phase 8 에서 제공됩니다",
+      "deliveredManual": "출력중 상태로 변경했습니다 (Phase 8 적용 후 자동 핫폴더 송신)"
     },
     "error": {
       "loadFailed": "불러오기에 실패했습니다"

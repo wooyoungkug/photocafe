@@ -71,8 +71,15 @@ export function PrintRoomCard({ item, onOpenDetail }: PrintRoomCardProps) {
   }
 
   function handleDeliver() {
-    // Phase 8 핫폴더 에이전트 연동 자리표시자
-    toast.info(t('toast.agentTodo'));
+    // Phase 8 핫폴더 에이전트 도입 전까지는 단순 상태 전환 (imposed → printing)
+    // Phase 8 에서 같은 위치에 핫폴더 송신 로직을 추가하면 됨
+    updateStatus.mutate(
+      { orderItemId: item.orderItemId, status: 'printing' },
+      {
+        onSuccess: () => toast.success(t('toast.deliveredManual')),
+        onError: (err) => toast.error(err.message || t('toast.statusUpdateFailed')),
+      },
+    );
   }
 
   function handleComplete() {

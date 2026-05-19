@@ -857,7 +857,8 @@
       "statusUpdateFailed": "状态更新失败",
       "retryQueued": "重试已加入队列",
       "retryFailed": "重试加入失败",
-      "agentTodo": "热文件夹代理集成将在 Phase 8 提供"
+      "agentTodo": "热文件夹代理集成将在 Phase 8 提供",
+      "deliveredManual": "已变更为输出中（Phase 8 后自动热文件夹发送）"
     },
     "error": {
       "loadFailed": "加载失败"
