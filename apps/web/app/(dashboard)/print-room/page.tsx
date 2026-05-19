@@ -25,12 +25,15 @@ import {
 
 export default function PrintRoomPage() {
   const t = useTranslations('printRoom');
-  const [date, setDate] = useState<Date>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [printMethod, setPrintMethod] = useState<PrintMethodFilter>('all');
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  const dateStr = useMemo(() => format(date, 'yyyy-MM-dd'), [date]);
+  const dateStr = useMemo(
+    () => (date ? format(date, 'yyyy-MM-dd') : undefined),
+    [date],
+  );
 
   const queueQuery = useQueueQuery({
     date: dateStr,

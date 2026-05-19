@@ -19,8 +19,8 @@ import { Label } from '@/components/ui/label';
 export type PrintMethodFilter = 'all' | 'indigo' | 'inkjet';
 
 interface PrintRoomFiltersProps {
-  date: Date;
-  onDateChange: (d: Date) => void;
+  date: Date | undefined;
+  onDateChange: (d: Date | undefined) => void;
   printMethod: PrintMethodFilter;
   onPrintMethodChange: (v: PrintMethodFilter) => void;
   autoRefresh: boolean;
@@ -55,18 +55,26 @@ export function PrintRoomFilters({
               className="h-9 text-[14px] text-black font-normal"
             >
               <CalendarIcon className="h-4 w-4 mr-2" />
-              {format(date, 'yyyy-MM-dd')}
+              {date ? format(date, 'yyyy-MM-dd') : t('filter.all')}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
             <Calendar
               mode="single"
               selected={date}
-              onSelect={(d) => d && onDateChange(d)}
+              onSelect={(d) => onDateChange(d)}
               initialFocus
             />
           </PopoverContent>
         </Popover>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 text-[14px] font-normal"
+          onClick={() => onDateChange(undefined)}
+        >
+          {t('filter.all')}
+        </Button>
         <Button
           variant="ghost"
           size="sm"
