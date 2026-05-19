@@ -1,0 +1,34 @@
+{
+  "name": "@photocafe/agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PhotoCafe 출력실 핫폴더 에이전트 — ERP 폴링, B2 다운로드, 핫폴더 저장",
+  "main": "dist/index.js",
+  "bin": {
+    "photocafe-agent": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "clean": "rm -rf dist",
+    "package:exe": "pkg ."
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3",
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "release"
+  }
+}
