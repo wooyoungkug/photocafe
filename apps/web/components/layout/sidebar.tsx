@@ -117,6 +117,7 @@ export const DEFAULT_NAVIGATION: NavItem[] = [
       { name: "공정 현황", href: "/orders/production" },
       { name: "공정 스캔", href: "/orders/process-scan" },
       { name: "출력대기", href: "/orders/print-queue" },
+      { name: "출력실", href: "/print-room" },
       { name: "배송관리", href: "/orders/shipping" },
       { name: "마감관리", href: "/orders/reception" },
     ],
