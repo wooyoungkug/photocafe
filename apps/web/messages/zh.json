@@ -787,5 +787,80 @@
       "downloadFailed": "下载失败",
       "invalidRange": "开始日期必须早于结束日期。"
     }
+  },
+  "printRoom": {
+    "title": "印刷间统一管理",
+    "subtitle": "实时跟踪印刷任务进度",
+    "empty": "无可显示项目",
+    "columns": {
+      "waiting": "等待印刷",
+      "ready": "文件就绪",
+      "imposing": "拼版中",
+      "imposed": "拼版完成",
+      "printing": "印刷中",
+      "done": "完成"
+    },
+    "filter": {
+      "date": "下单日期",
+      "today": "今日",
+      "printMethod": "印刷方式",
+      "all": "全部",
+      "autoRefresh": "实时刷新",
+      "refresh": "刷新"
+    },
+    "printMethod": {
+      "indigo": "Indigo",
+      "inkjet": "喷墨"
+    },
+    "action": {
+      "deliver": "发送到热文件夹",
+      "complete": "印刷完成",
+      "retry": "重试",
+      "viewDetail": "查看详情",
+      "menu": "菜单",
+      "changeStatus": "更改状态"
+    },
+    "card": {
+      "pagesQuantity": "{pages}p × {quantity}份",
+      "lastDownload": "最近: {by} · {when}",
+      "noDownload": "无下载记录",
+      "downloadCount": "({count}次)",
+      "failed": "失败"
+    },
+    "time": {
+      "justNow": "刚刚",
+      "minutesAgo": "{minutes}分钟前",
+      "hoursAgo": "{hours}小时前",
+      "daysAgo": "{days}天前"
+    },
+    "history": {
+      "title": "最近下载",
+      "subtitle": "最新10条",
+      "empty": "无下载记录",
+      "fileCount": "{count}个文件"
+    },
+    "detail": {
+      "title": "印刷任务详情",
+      "studio": "工作室",
+      "size": "规格",
+      "pages": "页数",
+      "quantity": "份数",
+      "printMethod": "印刷方式",
+      "status": "状态",
+      "files": "源文件",
+      "fileCount": "{count}个文件",
+      "recentJobs": "最近的拼版作业",
+      "recentDownloads": "最近下载"
+    },
+    "toast": {
+      "statusUpdated": "状态已更新",
+      "statusUpdateFailed": "状态更新失败",
+      "retryQueued": "重试已加入队列",
+      "retryFailed": "重试加入失败",
+      "agentTodo": "热文件夹代理集成将在 Phase 8 提供"
+    },
+    "error": {
+      "loadFailed": "加载失败"
+    }
   }
 }

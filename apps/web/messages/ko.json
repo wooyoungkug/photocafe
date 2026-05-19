@@ -865,5 +865,80 @@
       "downloadFailed": "다운로드 실패",
       "invalidRange": "시작일은 종료일보다 이전이어야 합니다."
     }
+  },
+  "printRoom": {
+    "title": "출력실 통합관리",
+    "subtitle": "출력 작업 진행 상황을 실시간으로 확인합니다",
+    "empty": "표시할 항목이 없습니다",
+    "columns": {
+      "waiting": "출력대기",
+      "ready": "파일준비",
+      "imposing": "임포지션중",
+      "imposed": "임포지션완료",
+      "printing": "출력중",
+      "done": "완료"
+    },
+    "filter": {
+      "date": "주문일",
+      "today": "오늘",
+      "printMethod": "출력방식",
+      "all": "전체",
+      "autoRefresh": "실시간 갱신",
+      "refresh": "새로고침"
+    },
+    "printMethod": {
+      "indigo": "인디고",
+      "inkjet": "잉크젯"
+    },
+    "action": {
+      "deliver": "핫폴더로 전달",
+      "complete": "출력완료",
+      "retry": "재시도",
+      "viewDetail": "상세 보기",
+      "menu": "메뉴",
+      "changeStatus": "상태 변경"
+    },
+    "card": {
+      "pagesQuantity": "{pages}p × {quantity}부",
+      "lastDownload": "마지막: {by} · {when}",
+      "noDownload": "다운로드 이력 없음",
+      "downloadCount": "({count}회)",
+      "failed": "실패"
+    },
+    "time": {
+      "justNow": "방금 전",
+      "minutesAgo": "{minutes}분 전",
+      "hoursAgo": "{hours}시간 전",
+      "daysAgo": "{days}일 전"
+    },
+    "history": {
+      "title": "최근 다운로드",
+      "subtitle": "최신 10건",
+      "empty": "다운로드 이력이 없습니다",
+      "fileCount": "파일 {count}개"
+    },
+    "detail": {
+      "title": "출력 작업 상세",
+      "studio": "스튜디오",
+      "size": "규격",
+      "pages": "페이지",
+      "quantity": "부수",
+      "printMethod": "출력방식",
+      "status": "상태",
+      "files": "원본 파일",
+      "fileCount": "파일 {count}개",
+      "recentJobs": "최근 임포지션 작업",
+      "recentDownloads": "최근 다운로드"
+    },
+    "toast": {
+      "statusUpdated": "상태가 변경되었습니다",
+      "statusUpdateFailed": "상태 변경에 실패했습니다",
+      "retryQueued": "재시도가 큐에 등록되었습니다",
+      "retryFailed": "재시도 등록에 실패했습니다",
+      "agentTodo": "핫폴더 에이전트 연동은 Phase 8 에서 제공됩니다"
+    },
+    "error": {
+      "loadFailed": "불러오기에 실패했습니다"
+    }
   }
 }

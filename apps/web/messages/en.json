@@ -787,5 +787,80 @@
       "downloadFailed": "Download failed",
       "invalidRange": "Start date must be earlier than end date."
     }
+  },
+  "printRoom": {
+    "title": "Print Room",
+    "subtitle": "Track print jobs in real time",
+    "empty": "No items to display",
+    "columns": {
+      "waiting": "Waiting",
+      "ready": "Files Ready",
+      "imposing": "Imposing",
+      "imposed": "Imposed",
+      "printing": "Printing",
+      "done": "Done"
+    },
+    "filter": {
+      "date": "Order Date",
+      "today": "Today",
+      "printMethod": "Print Method",
+      "all": "All",
+      "autoRefresh": "Auto Refresh",
+      "refresh": "Refresh"
+    },
+    "printMethod": {
+      "indigo": "Indigo",
+      "inkjet": "Inkjet"
+    },
+    "action": {
+      "deliver": "Send to Hot Folder",
+      "complete": "Mark Done",
+      "retry": "Retry",
+      "viewDetail": "View Detail",
+      "menu": "Menu",
+      "changeStatus": "Change Status"
+    },
+    "card": {
+      "pagesQuantity": "{pages}p × {quantity} copies",
+      "lastDownload": "Last: {by} · {when}",
+      "noDownload": "Never downloaded",
+      "downloadCount": "({count} times)",
+      "failed": "Failed"
+    },
+    "time": {
+      "justNow": "just now",
+      "minutesAgo": "{minutes} min ago",
+      "hoursAgo": "{hours}h ago",
+      "daysAgo": "{days}d ago"
+    },
+    "history": {
+      "title": "Recent Downloads",
+      "subtitle": "Latest 10",
+      "empty": "No download history",
+      "fileCount": "{count} files"
+    },
+    "detail": {
+      "title": "Print Job Detail",
+      "studio": "Studio",
+      "size": "Size",
+      "pages": "Pages",
+      "quantity": "Copies",
+      "printMethod": "Print Method",
+      "status": "Status",
+      "files": "Source Files",
+      "fileCount": "{count} files",
+      "recentJobs": "Recent Imposition Jobs",
+      "recentDownloads": "Recent Downloads"
+    },
+    "toast": {
+      "statusUpdated": "Status updated",
+      "statusUpdateFailed": "Failed to update status",
+      "retryQueued": "Retry queued",
+      "retryFailed": "Failed to queue retry",
+      "agentTodo": "Hot folder agent integration arrives in Phase 8"
+    },
+    "error": {
+      "loadFailed": "Failed to load"
+    }
   }
 }

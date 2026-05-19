@@ -787,5 +787,80 @@
       "downloadFailed": "ダウンロード失敗",
       "invalidRange": "開始日は終了日より前である必要があります。"
     }
+  },
+  "printRoom": {
+    "title": "出力室 統合管理",
+    "subtitle": "出力作業の進捗をリアルタイムで確認します",
+    "empty": "表示する項目がありません",
+    "columns": {
+      "waiting": "出力待ち",
+      "ready": "ファイル準備",
+      "imposing": "面付け中",
+      "imposed": "面付け完了",
+      "printing": "出力中",
+      "done": "完了"
+    },
+    "filter": {
+      "date": "注文日",
+      "today": "今日",
+      "printMethod": "出力方式",
+      "all": "すべて",
+      "autoRefresh": "自動更新",
+      "refresh": "更新"
+    },
+    "printMethod": {
+      "indigo": "インディゴ",
+      "inkjet": "インクジェット"
+    },
+    "action": {
+      "deliver": "ホットフォルダへ転送",
+      "complete": "出力完了",
+      "retry": "再試行",
+      "viewDetail": "詳細を見る",
+      "menu": "メニュー",
+      "changeStatus": "状態変更"
+    },
+    "card": {
+      "pagesQuantity": "{pages}p × {quantity}部",
+      "lastDownload": "最終: {by} · {when}",
+      "noDownload": "ダウンロード履歴なし",
+      "downloadCount": "({count}回)",
+      "failed": "失敗"
+    },
+    "time": {
+      "justNow": "たった今",
+      "minutesAgo": "{minutes}分前",
+      "hoursAgo": "{hours}時間前",
+      "daysAgo": "{days}日前"
+    },
+    "history": {
+      "title": "最近のダウンロード",
+      "subtitle": "最新10件",
+      "empty": "ダウンロード履歴がありません",
+      "fileCount": "ファイル {count}件"
+    },
+    "detail": {
+      "title": "出力作業 詳細",
+      "studio": "スタジオ",
+      "size": "規格",
+      "pages": "ページ",
+      "quantity": "部数",
+      "printMethod": "出力方式",
+      "status": "状態",
+      "files": "元ファイル",
+      "fileCount": "ファイル {count}件",
+      "recentJobs": "最近の面付け作業",
+      "recentDownloads": "最近のダウンロード"
+    },
+    "toast": {
+      "statusUpdated": "状態が変更されました",
+      "statusUpdateFailed": "状態の変更に失敗しました",
+      "retryQueued": "再試行をキューに登録しました",
+      "retryFailed": "再試行の登録に失敗しました",
+      "agentTodo": "ホットフォルダエージェント連携は Phase 8 で提供されます"
+    },
+    "error": {
+      "loadFailed": "読み込みに失敗しました"
+    }
   }
 }
