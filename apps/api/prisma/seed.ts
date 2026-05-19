@@ -4,6 +4,7 @@ import * as crypto from 'crypto';
 import { seedProcessTemplates } from './seed-process-templates';
 import { seedImposition } from '../src/modules/imposition/seed-imposition';
 import { seedIndigoPresets } from './seed-imposition-presets';
+import { seedPrintRoomPresets } from './seed-print-room-presets';
 
 const prisma = new PrismaClient();
 
@@ -528,6 +529,7 @@ async function main() {
   await seedProcessTemplates(prisma);
   await seedImposition(prisma);
   await seedIndigoPresets(prisma);
+  await seedPrintRoomPresets(prisma);
 
   console.log('Seed completed');
 }
