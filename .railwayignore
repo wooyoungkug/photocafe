@@ -1,0 +1,47 @@
+# railway up 업로드 컨텍스트 최적화
+# Dockerfile 빌드에 필요한 소스코드만 포함 (~20MB 목표)
+# railway up 은 .dockerignore 를 읽지 않으므로 별도 관리
+
+# Dependencies
+**/node_modules
+**/.pnp
+**/.pnp.js
+
+# Build outputs
+**/.next
+**/dist
+**/build
+**/out
+**/coverage
+**/.nyc_output
+**/.turbo
+**/*.tsbuildinfo
+
+# Git
+.git
+
+# Uploads / 캐시 (production data — GB 단위)
+**/uploads
+**/.b2-cache
+
+# Claude Code (worktree 가 매우 클 수 있음)
+.claude
+
+# Logs / 백업 / 덤프
+**/*.log
+backups
+**/*.sql
+
+# 빌드에 불필요한 자료
+tools
+docs
+workers
+**/*.png
+**/*.jpg
+**/*.code-workspace
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode
+.idea
