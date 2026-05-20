@@ -2165,12 +2165,14 @@ export class UploadController implements OnModuleInit {
     @ApiQuery({ name: 'kind', required: false, enum: ['real', 'speedtest'] })
     @ApiQuery({ name: 'phase', required: false, enum: ['client_to_api', 'api_to_b2', 'b2_download', 'client_to_b2'] })
     @ApiQuery({ name: 'groupBy', required: false, enum: ['hour', 'day', 'week', 'month'] })
+    @ApiQuery({ name: 'sizeBucket', required: false, enum: ['all', 'small', 'medium', 'large'], description: '파일 크기 구간 (small: 5MB 미만 / medium: 5~30MB / large: 30MB 이상)' })
     @ApiQuery({ name: 'startDate', required: false })
     @ApiQuery({ name: 'endDate', required: false })
     async getMetricsTimeseries(
         @Query('kind') kind: 'real' | 'speedtest' | undefined,
         @Query('phase') phase: 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2' | undefined,
         @Query('groupBy') groupBy: 'hour' | 'day' | 'week' | 'month' | undefined,
+        @Query('sizeBucket') sizeBucket: 'all' | 'small' | 'medium' | 'large' | undefined,
         @Query('startDate') startDate: string | undefined,
         @Query('endDate') endDate: string | undefined,
         @Request() req: any,
@@ -2180,6 +2182,7 @@ export class UploadController implements OnModuleInit {
             kind,
             phase,
             groupBy,
+            sizeBucket,
             startDate: startDate ? new Date(startDate) : undefined,
             endDate: endDate ? new Date(endDate) : undefined,
         });

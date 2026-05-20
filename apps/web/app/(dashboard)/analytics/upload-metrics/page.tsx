@@ -75,6 +75,7 @@ function formatDateTime(iso: string): string {
 export default function UploadMetricsPage() {
     const [range, setRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
     const [groupBy, setGroupBy] = useState<'hour' | 'day'>('hour');
+    const [sizeBucket, setSizeBucket] = useState<'all' | 'small' | 'medium' | 'large'>('all');
     const [statsPeriod, setStatsPeriod] = useState<'day' | 'month' | 'quarter' | 'year'>('month');
     const [recentPage, setRecentPage] = useState(1);
     const [sampleInput, setSampleInput] = useState<string>('');
@@ -88,8 +89,8 @@ export default function UploadMetricsPage() {
     const queryClient = useQueryClient();
 
     const summary = useUploadMetricsSummary(range);
-    const tsClient = useUploadMetricsTimeseries({ phase: 'client_to_api', groupBy });
-    const tsB2 = useUploadMetricsTimeseries({ phase: 'api_to_b2', groupBy });
+    const tsClient = useUploadMetricsTimeseries({ phase: 'client_to_api', groupBy, sizeBucket });
+    const tsB2 = useUploadMetricsTimeseries({ phase: 'api_to_b2', groupBy, sizeBucket });
     const recent = useUploadMetricsRecent(500);
     const stats = useUploadMetricsStats(statsPeriod);
     const weekdayStats = useUploadMetricsWeekdayStats();
@@ -1203,15 +1204,29 @@ export default function UploadMetricsPage() {
             {/* 시계열 차트 */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                         <CardTitle className="text-[18px] text-black font-bold">구간별 속도 추이</CardTitle>
-                        <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as any)}>
-                            <TabsList>
-                                <TabsTrigger value="hour">시간별</TabsTrigger>
-                                <TabsTrigger value="day">일별</TabsTrigger>
-                            </TabsList>
-                        </Tabs>
+                        <div className="flex items-center gap-2 flex-wrap">
+                            <Tabs value={sizeBucket} onValueChange={(v) => setSizeBucket(v as any)}>
+                                <TabsList>
+                                    <TabsTrigger value="all">전체</TabsTrigger>
+                                    <TabsTrigger value="small">~5MB</TabsTrigger>
+                                    <TabsTrigger value="medium">5~30MB</TabsTrigger>
+                                    <TabsTrigger value="large">30MB↑</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                            <Tabs value={groupBy} onValueChange={(v) => setGroupBy(v as any)}>
+                                <TabsList>
+                                    <TabsTrigger value="hour">시간별</TabsTrigger>
+                                    <TabsTrigger value="day">일별</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        </div>
                     </div>
+                    <p className="text-[14px] text-black font-normal mt-1">
+                        작은 파일은 전송 초반(TCP 슬로스타트) 구간에서 끝나 실제보다 느리게 측정됩니다.
+                        파일 크기를 한 구간으로 좁히면 그래프 변동이 줄어 정확한 추세를 볼 수 있습니다.
+                    </p>
                 </CardHeader>
                 <CardContent>
                     <div style={{ width: '100%', height: 320 }}>

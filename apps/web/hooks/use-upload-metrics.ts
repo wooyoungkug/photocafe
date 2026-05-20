@@ -73,10 +73,13 @@ export function useUploadMetricsSummary(range: '1h' | '24h' | '7d' | '30d' = '24
     });
 }
 
+export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
+
 export function useUploadMetricsTimeseries(params: {
     kind?: 'real' | 'speedtest';
     phase?: 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2';
     groupBy?: 'hour' | 'day' | 'week' | 'month';
+    sizeBucket?: SizeBucket;
     startDate?: string;
     endDate?: string;
 }) {
@@ -87,6 +90,7 @@ export function useUploadMetricsTimeseries(params: {
                 ...(params.kind ? { kind: params.kind } : {}),
                 ...(params.phase ? { phase: params.phase } : {}),
                 ...(params.groupBy ? { groupBy: params.groupBy } : {}),
+                ...(params.sizeBucket && params.sizeBucket !== 'all' ? { sizeBucket: params.sizeBucket } : {}),
                 ...(params.startDate ? { startDate: params.startDate } : {}),
                 ...(params.endDate ? { endDate: params.endDate } : {}),
             }),

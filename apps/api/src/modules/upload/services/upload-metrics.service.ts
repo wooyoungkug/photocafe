@@ -14,6 +14,17 @@ const SETTING_CATEGORY = 'upload-metrics';
 
 export type MetricPhase = 'client_to_api' | 'api_to_b2' | 'b2_download' | 'client_to_b2';
 
+/**
+ * 파일 크기 구간. 시계열 통계에서 작은 파일(TCP 슬로스타트 구간에서 끝나 느리게 측정됨)을
+ * 분리해 그래프 변동을 안정화하기 위한 필터.
+ *  - small: 5MB 미만 / medium: 5~30MB / large: 30MB 이상 / all: 전체
+ */
+export type SizeBucket = 'all' | 'small' | 'medium' | 'large';
+
+/** 파일 크기 구간 경계 (bytes) */
+const SIZE_SMALL_MAX = 5 * 1024 * 1024;
+const SIZE_MEDIUM_MAX = 30 * 1024 * 1024;
+
 export interface RecordMetricInput {
     kind: 'real' | 'speedtest';
     phase: MetricPhase;
@@ -36,6 +47,7 @@ export interface MetricsQuery {
     startDate?: Date;
     endDate?: Date;
     groupBy?: 'hour' | 'day' | 'week' | 'month' | 'quarter' | 'year';
+    sizeBucket?: SizeBucket;
 }
 
 export interface AggregatedStatRow {
@@ -312,7 +324,7 @@ export class UploadMetricsService implements OnModuleInit {
      * 시계열 집계 (DB 수준 GROUP BY)
      */
     async getTimeSeries(query: MetricsQuery) {
-        const { kind, phase, startDate, endDate, groupBy = 'hour' } = query;
+        const { kind, phase, startDate, endDate, groupBy = 'hour', sizeBucket = 'all' } = query;
 
         let truncExpr: string;
         switch (groupBy) {
@@ -340,6 +352,16 @@ export class UploadMetricsService implements OnModuleInit {
         if (phase) conditions.push(Prisma.sql`phase = ${phase}`);
         if (startDate) conditions.push(Prisma.sql`"createdAt" >= ${startDate}`);
         if (endDate) conditions.push(Prisma.sql`"createdAt" <= ${endDate}`);
+        // 파일 크기 구간 필터 — 작은 파일이 슬로스타트로 느리게 측정돼 그래프를 흔드는 문제 분리
+        if (sizeBucket === 'small') {
+            conditions.push(Prisma.sql`"fileSize" < ${BigInt(SIZE_SMALL_MAX)}`);
+        } else if (sizeBucket === 'medium') {
+            conditions.push(
+                Prisma.sql`"fileSize" >= ${BigInt(SIZE_SMALL_MAX)} AND "fileSize" < ${BigInt(SIZE_MEDIUM_MAX)}`,
+            );
+        } else if (sizeBucket === 'large') {
+            conditions.push(Prisma.sql`"fileSize" >= ${BigInt(SIZE_MEDIUM_MAX)}`);
+        }
         const whereClause = Prisma.join(conditions, ' AND ');
 
         const rows = await this.prisma.$queryRaw<
