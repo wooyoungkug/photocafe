@@ -1,13 +1,23 @@
-import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { PgBossService } from '@/common/pg-boss/pg-boss.service';
 import { B2StorageService } from '@/modules/upload/services/b2-storage.service';
-import { ImpositionCalcService, ImpositionInput, BindingType } from '@/modules/imposition/services/imposition-calc.service';
-import { ImpositionImagePdfService, ImageEntry } from '@/modules/imposition/services/imposition-image-pdf.service';
+import {
+  ImpositionCalcService,
+  ImpositionInput,
+  BindingType,
+} from '@/modules/imposition/services/imposition-calc.service';
+import {
+  ImpositionImagePdfService,
+  ImageEntry,
+} from '@/modules/imposition/services/imposition-image-pdf.service';
 import { getUploadBasePath } from '@/modules/upload/services/file-storage.service';
 import { PRINT_ROOM_QUEUE, PrintRoomJobPayload } from './print-room-queue.service';
-import { existsSync, statSync } from 'fs';
+import { existsSync } from 'fs';
 import { join } from 'path';
 
 /** order.service.sanitizeStorageKeyPart 와 동일 — B2 키 매칭용 */
@@ -104,22 +114,57 @@ export function sizeCodeToMm(sizeCode: string): { width: number; height: number 
   return null;
 }
 
-@Processor(PRINT_ROOM_QUEUE)
-export class PrintRoomProcessor extends WorkerHost {
+/**
+ * 출력실 큐 워커 — pg-boss 기반.
+ *
+ * onApplicationBootstrap 에서 `boss.work()` 로 핸들러 등록.
+ * 핸들러가 throw 하면 pg-boss 가 send 시 지정된 retryLimit(3) 만큼 자동 재시도.
+ */
+@Injectable()
+export class PrintRoomProcessor implements OnApplicationBootstrap {
   private readonly logger = new Logger(PrintRoomProcessor.name);
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly pgBoss: PgBossService,
     private readonly b2: B2StorageService,
     private readonly impositionCalc: ImpositionCalcService,
     private readonly impositionImagePdf: ImpositionImagePdfService,
-  ) {
-    super();
+  ) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    if (!this.pgBoss.isReady()) {
+      this.logger.warn('pg-boss 비활성 — 워커 등록 건너뜀');
+      return;
+    }
+
+    try {
+      // pg-boss v10+ 는 send 전에 큐 생성 필요
+      await this.pgBoss.boss.createQueue(PRINT_ROOM_QUEUE);
+    } catch (err) {
+      // 이미 존재하는 경우는 무시
+      this.logger.debug(
+        `createQueue(${PRINT_ROOM_QUEUE}) 결과: ${(err as Error)?.message ?? 'OK'}`,
+      );
+    }
+
+    await this.pgBoss.boss.work<PrintRoomJobPayload>(
+      PRINT_ROOM_QUEUE,
+      { batchSize: 1, pollingIntervalSeconds: 2 },
+      async ([job]) => {
+        if (!job) return;
+        await this.process(job.data);
+      },
+    );
+
+    this.logger.log(`[워커등록] pg-boss queue=${PRINT_ROOM_QUEUE} 처리 시작`);
   }
 
-  async process(job: Job<PrintRoomJobPayload>): Promise<void> {
-    const { printRoomJobId, orderItemId } = job.data;
-    this.logger.log(`[처리시작] PrintRoomJob ${printRoomJobId} (OrderItem ${orderItemId})`);
+  async process(payload: PrintRoomJobPayload): Promise<void> {
+    const { printRoomJobId, orderItemId } = payload;
+    this.logger.log(
+      `[처리시작] PrintRoomJob ${printRoomJobId} (OrderItem ${orderItemId})`,
+    );
 
     // PrintRoomJob 을 processing 으로
     await this.prisma.printRoomJob.update({
@@ -147,7 +192,7 @@ export class PrintRoomProcessor extends WorkerHost {
         where: { id: orderItemId },
         data: { printRoomStatus: 'waiting' },
       });
-      throw err; // BullMQ 재시도 동작 (attempts: 3)
+      throw err; // pg-boss 가 retryLimit(3) 만큼 자동 재시도
     }
   }
 
@@ -436,13 +481,6 @@ export class PrintRoomProcessor extends WorkerHost {
         sortOrder: number;
       }>;
     }>;
-  }
-
-  @OnWorkerEvent('failed')
-  onFailed(job: Job<PrintRoomJobPayload>, err: Error) {
-    this.logger.error(
-      `[Worker] Job ${job?.id} failed after ${job?.attemptsMade}/${job?.opts?.attempts ?? '?'} attempts: ${err?.message}`,
-    );
   }
 }
 

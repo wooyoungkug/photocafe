@@ -1,32 +1,24 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '@/common/prisma/prisma.module';
 import { UploadModule } from '@/modules/upload/upload.module';
 import { ImpositionModule } from '@/modules/imposition/imposition.module';
-import { PrintRoomQueueService, PRINT_ROOM_QUEUE } from './print-room-queue.service';
+import { PrintRoomQueueService } from './print-room-queue.service';
 import { PrintRoomProcessor } from './print-room.processor';
 import { PrintRoomController } from './print-room.controller';
 import { PrintRoomService } from './print-room.service';
 
 /**
- * 출력실 통합관리 — BullMQ 비동기 처리 파이프라인.
+ * 출력실 통합관리 — pg-boss 기반 비동기 처리 파이프라인.
  *
- * - PrintRoomQueueService: 큐 등록/재시도 API
- * - PrintRoomProcessor: 실제 작업 수행 (인디고 임포지션 PDF / 잉크젯 복사)
+ * - PrintRoomQueueService: 큐 등록/재시도 API (pg-boss boss.send)
+ * - PrintRoomProcessor: 워커 — onApplicationBootstrap 에서 boss.work() 등록
  *
- * Redis 가 없는 환경에서도 API 가 부팅되도록 BullModule.registerQueue 는 단순히
- * 큐 토큰을 등록만 하고, 실제 연결은 AppModule 의 BullModule.forRootAsync 가
- * 처리한다. Queue 주입 시 Optional 로 처리하므로 connection 실패해도 안전.
+ * pg-boss 인스턴스는 글로벌 PgBossModule 이 제공하므로 별도 import 불필요.
+ * pg-boss 시작 실패 환경에서도 API 자체는 부팅 가능 — Optional 처리는
+ * PrintRoomQueueService / PrintRoomProcessor 내부에서 isReady() 가드.
  */
 @Module({
-  imports: [
-    PrismaModule,
-    UploadModule,
-    forwardRef(() => ImpositionModule),
-    BullModule.registerQueue({
-      name: PRINT_ROOM_QUEUE,
-    }),
-  ],
+  imports: [PrismaModule, UploadModule, forwardRef(() => ImpositionModule)],
   controllers: [PrintRoomController],
   providers: [PrintRoomQueueService, PrintRoomProcessor, PrintRoomService],
   exports: [PrintRoomQueueService],

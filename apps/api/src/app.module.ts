@@ -3,7 +3,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule as NestScheduleModule } from '@nestjs/schedule';
-import { BullModule } from '@nestjs/bullmq';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AuthModule } from './modules/auth/auth.module';
 import { CompanyModule } from './modules/company/company.module';
@@ -44,6 +43,7 @@ import { PrintRoomModule } from './modules/print-room/print-room.module';
 import { AgentModule } from './modules/agent/agent.module';
 import { IpBlockMiddleware } from './modules/analytics/ip-block.middleware';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { PgBossModule } from './common/pg-boss/pg-boss.module';
 import { CryptoModule } from './common/crypto/crypto.module';
 import { EmailModule } from './common/email/email.module';
 import { KakaoAlimtalkModule } from './common/kakao-alimtalk/kakao-alimtalk.module';
@@ -77,24 +77,9 @@ import { AppController } from './app.controller';
       },
     ]),
     NestScheduleModule.forRoot(),
-    // BullMQ — REDIS_URL 이 없으면 localhost 로 시도되고, 연결 실패해도 워커가 재시도하므로
-    // API 자체는 부팅 가능. 큐 비활성 환경에서는 PrintRoomQueueService 가 Optional 처리.
-    BullModule.forRootAsync({
-      useFactory: () => ({
-        connection: {
-          url: process.env.REDIS_URL || 'redis://localhost:6379',
-          // 연결 실패 시 재시도 횟수 제한 — 무한 재시도로 로그 폭발 방지
-          maxRetriesPerRequest: null,
-          enableReadyCheck: false,
-        },
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-          removeOnComplete: 100,
-          removeOnFail: 100,
-        },
-      }),
-    }),
+    // 큐 엔진 — pg-boss (Postgres 기반). Redis 불필요.
+    // 출력실 통합관리 등 비동기 작업을 DATABASE_URL 의 Postgres 에 보관.
+    PgBossModule,
     CryptoModule,
     PrismaModule,
     EmailModule,

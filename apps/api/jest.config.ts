@@ -17,6 +17,8 @@ const config: Config = {
   testEnvironment: 'node',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    // pg-boss v12+ 는 ESM 전용이라 Jest(CJS) 에서 import 불가 → 스텁으로 대체
+    '^pg-boss$': '<rootDir>/../test/stubs/pg-boss.stub.ts',
   },
 };
 

@@ -1,7 +1,6 @@
-import { Injectable, Logger, Optional, NotFoundException } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { PgBossService } from '@/common/pg-boss/pg-boss.service';
 
 export const PRINT_ROOM_QUEUE = 'print-room';
 
@@ -15,10 +14,11 @@ export interface PrintRoomJobPayload {
 }
 
 /**
- * 출력실 통합관리 — 큐 등록/재시도 담당.
+ * 출력실 통합관리 — 큐 등록/재시도 담당 (pg-boss 백엔드).
  *
- * Redis 가 없는 환경에서는 BullMQ 큐 주입이 실패할 수 있으므로 Optional 로 받는다.
- * 큐가 없으면 enqueue 호출은 경고 로그만 남기고 조용히 종료 — API 메인 흐름은 영향 없음.
+ * pg-boss 시작 실패(예: DB 미접속) 환경에서도 API 자체는 부팅 가능.
+ * `isReady()` 가 false 면 PrintRoomJob 레코드만 만들고 워커 큐 등록은 스킵 —
+ * 수동 재시도(retryJob)로 복구 가능.
  */
 @Injectable()
 export class PrintRoomQueueService {
@@ -26,17 +26,15 @@ export class PrintRoomQueueService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional()
-    @InjectQueue(PRINT_ROOM_QUEUE)
-    private readonly queue?: Queue<PrintRoomJobPayload>,
+    private readonly pgBoss: PgBossService,
   ) {}
 
   /**
    * OrderItem 단위로 출력실 작업을 큐에 등록.
    *
    * - 이미 printRoomStatus 가 비어있지 않으면(처리 중/완료) 스킵
-   * - PrintRoomJob 레코드(status='pending') 를 먼저 만든 뒤 BullMQ job 추가
-   * - Redis 미설정 등으로 큐가 없으면 DB 레코드만 남기고 종료 (수동 재시도 가능)
+   * - PrintRoomJob 레코드(status='pending') 를 먼저 만든 뒤 pg-boss send
+   * - pg-boss 가 비활성이면 DB 레코드만 남기고 종료 (수동 재시도 가능)
    */
   async enqueuePrintRoom(orderItemId: string, isManual = false): Promise<void> {
     const item = await this.prisma.orderItem.findUnique({
@@ -86,23 +84,30 @@ export class PrintRoomQueueService {
       isManual,
     };
 
-    if (!this.queue) {
+    if (!this.pgBoss.isReady()) {
       this.logger.warn(
-        `[큐등록] BullMQ 큐 비활성 (Redis 미설정) — PrintRoomJob ${job.id} 레코드만 생성, 수동 처리 필요`,
+        `[큐등록] pg-boss 비활성 — PrintRoomJob ${job.id} 레코드만 생성, 수동 처리 필요`,
       );
       return;
     }
 
     try {
-      await this.queue.add('process', payload, {
-        jobId: job.id, // 동일 jobId 재등록 방지
+      // BullMQ defaultJobOptions 와 동일한 재시도 정책:
+      //   attempts: 3, backoff exponential 5초
+      const jobId = await this.pgBoss.boss.send(PRINT_ROOM_QUEUE, payload, {
+        // pg-boss 는 send 시 jobId 를 지정하면 멱등성 보장 (singletonKey)
+        singletonKey: job.id,
+        retryLimit: 3,
+        retryDelay: 5,
+        retryBackoff: true,
+        retryDelayMax: 60,
       });
       this.logger.log(
-        `[큐등록] PrintRoomJob ${job.id} (OrderItem ${orderItemId}, ${item.printMethod}) 큐 등록 완료`,
+        `[큐등록] PrintRoomJob ${job.id} (OrderItem ${orderItemId}, ${item.printMethod}) pg-boss 큐 등록 완료 — bossJobId=${jobId}`,
       );
     } catch (err) {
       this.logger.error(
-        `[큐등록] BullMQ add 실패 (jobId=${job.id}): ${(err as Error)?.message}`,
+        `[큐등록] pg-boss send 실패 (jobId=${job.id}): ${(err as Error)?.message}`,
         (err as Error)?.stack,
       );
     }
@@ -137,9 +142,9 @@ export class PrintRoomQueueService {
       data: { printRoomStatus: 'waiting' },
     });
 
-    if (!this.queue) {
+    if (!this.pgBoss.isReady()) {
       this.logger.warn(
-        `[큐재시도] BullMQ 큐 비활성 — PrintRoomJob ${job.id} DB만 reset 됨`,
+        `[큐재시도] pg-boss 비활성 — PrintRoomJob ${job.id} DB만 reset 됨`,
       );
       return;
     }
@@ -151,13 +156,18 @@ export class PrintRoomQueueService {
     };
 
     try {
-      // 같은 jobId 가 큐에 남아있을 수 있으니 제거 후 재등록
-      const existing = await this.queue.getJob(job.id);
-      if (existing) {
-        await existing.remove();
-      }
-      await this.queue.add('process', payload, { jobId: job.id });
-      this.logger.log(`[큐재시도] PrintRoomJob ${job.id} 재등록 완료`);
+      // pg-boss 는 singletonKey 로 중복 방지. 재시도 시에는 새 job 으로 등록되므로
+      // singletonKey 에 timestamp 를 덧붙여 중복 방지 우회.
+      const bossJobId = await this.pgBoss.boss.send(PRINT_ROOM_QUEUE, payload, {
+        singletonKey: `${job.id}-retry-${Date.now()}`,
+        retryLimit: 3,
+        retryDelay: 5,
+        retryBackoff: true,
+        retryDelayMax: 60,
+      });
+      this.logger.log(
+        `[큐재시도] PrintRoomJob ${job.id} 재등록 완료 — bossJobId=${bossJobId}`,
+      );
     } catch (err) {
       this.logger.error(
         `[큐재시도] 실패 (jobId=${job.id}): ${(err as Error)?.message}`,
