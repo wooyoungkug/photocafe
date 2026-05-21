@@ -5,7 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { join } from 'path';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -76,22 +76,13 @@ async function bootstrap() {
   // Enable shutdown hooks for graceful shutdown
   app.enableShutdownHooks();
 
-  // Static file serving (uploads) - DB 설정 경로 반영
-  const prisma = app.get(PrismaService);
+  // Static file serving (uploads) - 경로는 ENV(UPLOAD_BASE_PATH)만 사용
+  // file-storage.service 와 일관되게 DB 설정(server_upload_base_path) 조회를 제거함.
+  // (DB 경로가 끊긴 네트워크 드라이브를 가리키면 동기 existsSync 가 부팅을 무한 정지시킴)
   const envUploadPath = process.env.UPLOAD_BASE_PATH || 'uploads';
-  let uploadPath = (envUploadPath.startsWith('/') || /^[A-Z]:/i.test(envUploadPath))
+  const uploadPath = (envUploadPath.startsWith('/') || /^[A-Z]:/i.test(envUploadPath))
     ? envUploadPath
     : join(process.cwd(), envUploadPath);
-  try {
-    const setting = await prisma.systemSetting.findUnique({ where: { key: 'server_upload_base_path' } });
-    if (setting?.value) {
-      const dbPath = setting.value;
-      const resolved = (dbPath.startsWith('/') || /^[A-Z]:/i.test(dbPath)) ? dbPath : join(process.cwd(), dbPath);
-      if (existsSync(resolved)) {
-        uploadPath = resolved;
-      }
-    }
-  } catch {}
   // 업로드 파일은 컨트롤러(/api/v1/upload/serve/*) 를 통해서만 제공
   // Express 정적 서빙은 JWT 인증을 우회하므로 비활성화
   logger.log(`Upload base path: ${uploadPath}`);
