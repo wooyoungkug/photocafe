@@ -256,8 +256,15 @@ export class PrintRoomProcessor implements OnApplicationBootstrap {
 
     // 시트 크기 — preset 의 grid 와 인쇄물 크기로 산출
     // grid 가 1x1 이면 단순히 인쇄물 + 여백, 그 이상이면 cols/rows 만큼 곱해 산출
-    const productW = sizeMm.width;
+    // 펼침면(spread) 주문 감지 — imposition.controller.ts 와 동일 규칙.
+    // 한 파일에 2페이지가 담긴 형태로, build() 에서 좌/우 절반으로 분할해야 한다.
+    const isSpread = (item.pageLayout || '').toLowerCase() === 'spread';
+    let productW = sizeMm.width;
     const productH = sizeMm.height;
+    // 스프레드 규격(가로 펼침)이 size 에 저장된 경우 단면 폭으로 보정.
+    if (isSpread && productW / productH > 1.4) {
+      productW = productW / 2;
+    }
     let sheetW = gridCols * productW + 2 * marginMm;
     let sheetH = gridRows * productH + 2 * marginMm;
     // paperOrientation 이 landscape 인데 sheetW < sheetH 면 swap
@@ -336,10 +343,14 @@ export class PrintRoomProcessor implements OnApplicationBootstrap {
     }
 
     // PDF 빌드
+    // 펼침면 주문은 spreadImages/bindingDirection 을 넘겨 build() 가 파일 1장을
+    // 좌/우 2페이지로 분할하도록 한다. 미전달 시 뒤 절반이 빈 페이지로 출력된다.
     const pdfBytes = await this.impositionImagePdf.build(calcResult, {
       images,
       jobMetaText: `${orderNumber} / ${item.productName} / ${item.size}`,
       jobMetaOrderNumber: orderNumber,
+      spreadImages: isSpread,
+      bindingDirection: item.bindingDirection,
     });
 
     // B2 업로드 — print-ready/{YYMMDD}/인디고/{orderNum}/imposed_{jobId}.pdf
