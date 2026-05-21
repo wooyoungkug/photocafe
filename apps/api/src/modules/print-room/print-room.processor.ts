@@ -283,7 +283,7 @@ export class PrintRoomProcessor implements OnApplicationBootstrap {
       orderNumber,
       filesForHydrate,
       uploadBase,
-      (f: any) => resolveLocalPath(f, uploadBase),
+      (f: any) => resolveLocalPath(f, uploadBase, orderNumber),
     );
 
     // 임포지션 계산
@@ -318,6 +318,7 @@ export class PrintRoomProcessor implements OnApplicationBootstrap {
           fileName: f.fileName,
         },
         uploadBase,
+        orderNumber,
       );
       if (!localPath) {
         this.logger.warn(`[인디고] 파일 ${f.fileName} 로컬 경로 없음 — 회색 폴백 처리`);
@@ -489,15 +490,25 @@ export class PrintRoomProcessor implements OnApplicationBootstrap {
  *
  * 우선순위:
  *   1) originalPath (절대 경로) → 존재하면 그대로
- *   2) .b2-cache/{orderNumber}/{fileName} (hydrate 가 mutate 했을 수 있음)
+ *   2) .b2-cache/{orderNumber}/{fileName} — hydrateB2CacheForFiles 가 내려받은 캐시
  *   3) fileUrl 이 '/uploads/...' 형식이면 uploadBase + 나머지
+ *
+ * ⚠️ hydrateB2CacheForFiles 는 전달받은 객체의 originalPath 를 mutate 하지만,
+ *    processor 는 원본 item.files 로 다시 resolve 하므로 그 mutation 이 전파되지
+ *    않는다. 따라서 2) 캐시 경로를 직접 확인해야 hydrate 결과를 찾을 수 있다.
  */
 function resolveLocalPath(
   f: { originalPath?: string | null; fileUrl?: string | null; fileName?: string | null },
   uploadBase: string,
+  orderNumber?: string,
 ): string {
   if (f.originalPath) {
     if (existsSync(f.originalPath)) return f.originalPath;
+  }
+  // hydrateB2CacheForFiles 가 B2 원본을 내려받는 위치
+  if (orderNumber && f.fileName) {
+    const cached = join(uploadBase, '.b2-cache', orderNumber, f.fileName);
+    if (existsSync(cached)) return cached;
   }
   const url = f.fileUrl || '';
   if (url.startsWith('/uploads/')) {
