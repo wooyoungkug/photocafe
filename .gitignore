@@ -72,11 +72,18 @@ tmpclaude-*
 tsc_errors.txt
 .turbo/
 
-# Uploaded files - 고객 업로드 원본/썸네일만 제외 (시스템 이미지는 git 관리)
+# Uploaded files - 고객 업로드/출력 산출물 제외 (시스템 이미지는 git 관리)
 apps/api/uploads/orders/
 apps/api/uploads/temp/
 apps/api/uploads/imposition/
+apps/api/uploads/labels/
+apps/api/uploads/copper-plates/
 *.sql
+
+# 잘못된 경로로 생성된 임시 로그 / 루트 디버그 스크립트
+*railway_log.txt
+/status.js
+/reenqueue.js
 
 # Print agent local configs (PC별로 다른 경로 저장)
 tools/print-agent/agent-config.json
