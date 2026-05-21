@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MoreHorizontal, Download, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
+import { MoreHorizontal, Download, CheckCircle2, RotateCcw, Loader2, FileText } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +21,7 @@ import {
   PRINT_ROOM_STATUSES,
   useUpdateStatusMutation,
   useRetryMutation,
+  usePrintReadyUrlMutation,
 } from '@/hooks/use-print-room';
 
 interface PrintRoomCardProps {
@@ -48,7 +49,14 @@ export function PrintRoomCard({ item, onOpenDetail }: PrintRoomCardProps) {
   const tTime = useTranslations('printRoom.time');
   const updateStatus = useUpdateStatusMutation();
   const retry = useRetryMutation();
+  const viewPdf = usePrintReadyUrlMutation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // 출력 PDF 가 존재하는 단계 (임포지션완료 이후)
+  const hasPrintReadyPdf =
+    item.printRoomStatus === 'imposed' ||
+    item.printRoomStatus === 'printing' ||
+    item.printRoomStatus === 'done';
 
   const nupColor =
     item.printMethod === 'indigo'
@@ -90,6 +98,21 @@ export function PrintRoomCard({ item, onOpenDetail }: PrintRoomCardProps) {
     retry.mutate(item.orderItemId, {
       onSuccess: () => toast.success(t('toast.retryQueued')),
       onError: (err) => toast.error(err.message || t('toast.retryFailed')),
+    });
+  }
+
+  function handleViewPdf() {
+    // 팝업 차단 회피: 클릭 시점에 빈 창을 먼저 연 뒤 URL 도착 후 이동
+    const win = window.open('', '_blank');
+    viewPdf.mutate(item.orderItemId, {
+      onSuccess: (data) => {
+        if (win) win.location.href = data.url;
+        else window.open(data.url, '_blank');
+      },
+      onError: (err) => {
+        win?.close();
+        toast.error(err.message || t('toast.viewPdfFailed'));
+      },
     });
   }
 
@@ -197,6 +220,22 @@ export function PrintRoomCard({ item, onOpenDetail }: PrintRoomCardProps) {
 
         {/* 상태별 액션 버튼 */}
         <div className="flex flex-wrap gap-2 pt-1">
+          {hasPrintReadyPdf && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-[14px] font-normal"
+              onClick={handleViewPdf}
+              disabled={viewPdf.isPending}
+            >
+              {viewPdf.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <FileText className="h-3.5 w-3.5 mr-1" />
+              )}
+              {t('action.viewPdf')}
+            </Button>
+          )}
           {item.printRoomStatus === 'imposed' && (
             <Button
               size="sm"

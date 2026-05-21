@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@/common/prisma/prisma.service';
+import { B2StorageService } from '@/modules/upload/services/b2-storage.service';
 import { PrintRoomQueueService } from './print-room-queue.service';
 import {
   PRINT_ROOM_STATUSES,
@@ -30,6 +31,7 @@ export class PrintRoomService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queueService: PrintRoomQueueService,
+    private readonly b2: B2StorageService,
   ) {}
 
   // ==========================================================
@@ -314,6 +316,50 @@ export class PrintRoomService {
       select: { id: true },
     });
     return { jobId: newJob?.id ?? null, action: 'enqueue' as const };
+  }
+
+  // ==========================================================
+  // 4-b) 임포지션 PDF 보기 URL (프리사인드)
+  // ==========================================================
+  /**
+   * 출력실 항목의 출력 PDF(인디고=임포지션 PDF) 보기용 프리사인드 URL.
+   *
+   * - 최신 PrintReadyFile 1건 기준
+   * - B2 private 버킷 → 5분(300초) 유효 URL
+   * - attachment 미지정 → 브라우저에서 바로 열림(inline)
+   */
+  async getPrintReadyFileUrl(orderItemId: string) {
+    const item = await this.prisma.orderItem.findUnique({
+      where: { id: orderItemId },
+      select: { id: true },
+    });
+    if (!item) {
+      throw new NotFoundException(
+        `OrderItem ${orderItemId} 를 찾을 수 없습니다.`,
+      );
+    }
+
+    const file = await this.prisma.printReadyFile.findFirst({
+      where: { orderItemId },
+      orderBy: { preparedAt: 'desc' },
+    });
+    if (!file) {
+      throw new NotFoundException(
+        '아직 생성된 출력 PDF가 없습니다. 임포지션이 완료된 후 다시 시도하세요.',
+      );
+    }
+
+    const ttlSeconds = 300;
+    const url = await this.b2.getPrivatePresignedUrl(file.b2Key, ttlSeconds);
+    return {
+      url,
+      fileName: file.fileName,
+      fileSize: file.fileSize,
+      fileType: file.fileType,
+      printMethod: file.printMethod,
+      preparedAt: file.preparedAt,
+      expiresInSeconds: ttlSeconds,
+    };
   }
 
   // ==========================================================

@@ -202,6 +202,30 @@ export function useRetryMutation() {
   });
 }
 
+export interface PrintReadyUrlResponse {
+  /** 5분 유효 프리사인드 URL */
+  url: string;
+  fileName: string;
+  fileSize: number;
+  fileType: string;
+  printMethod: string;
+  preparedAt: string;
+  expiresInSeconds: number;
+}
+
+/**
+ * 출력실 항목의 출력 PDF 보기 URL 발급 (버튼 클릭 시 on-demand).
+ * GET 이지만 클릭 트리거용이라 useMutation 사용.
+ */
+export function usePrintReadyUrlMutation() {
+  return useMutation<PrintReadyUrlResponse, Error, string>({
+    mutationFn: (orderItemId) =>
+      api.get<PrintReadyUrlResponse>(
+        `/print-room/items/${orderItemId}/print-ready-url`,
+      ),
+  });
+}
+
 // ==================== PrintRoomPreset (Phase 6) ====================
 
 export interface PrintRoomPreset {

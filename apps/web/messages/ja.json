@@ -817,6 +817,7 @@
       "complete": "出力完了",
       "retry": "再試行",
       "viewDetail": "詳細を見る",
+      "viewPdf": "PDF表示",
       "menu": "メニュー",
       "changeStatus": "状態変更"
     },
@@ -857,6 +858,7 @@
       "statusUpdateFailed": "状態の変更に失敗しました",
       "retryQueued": "再試行をキューに登録しました",
       "retryFailed": "再試行の登録に失敗しました",
+      "viewPdfFailed": "PDFの読み込みに失敗しました",
       "agentTodo": "ホットフォルダエージェント連携は Phase 8 で提供されます",
       "deliveredManual": "印刷中状態に変更しました（Phase 8 適用後に自動ホットフォルダ送信）"
     },

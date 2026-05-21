@@ -817,6 +817,7 @@
       "complete": "印刷完成",
       "retry": "重试",
       "viewDetail": "查看详情",
+      "viewPdf": "查看PDF",
       "menu": "菜单",
       "changeStatus": "更改状态"
     },
@@ -857,6 +858,7 @@
       "statusUpdateFailed": "状态更新失败",
       "retryQueued": "重试已加入队列",
       "retryFailed": "重试加入失败",
+      "viewPdfFailed": "无法加载PDF",
       "agentTodo": "热文件夹代理集成将在 Phase 8 提供",
       "deliveredManual": "已变更为输出中（Phase 8 后自动热文件夹发送）"
     },

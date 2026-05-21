@@ -65,6 +65,17 @@ export class PrintRoomController {
     return this.service.retryItem(id);
   }
 
+  @Get('items/:id/print-ready-url')
+  @ApiOperation({
+    summary: '출력실 항목의 출력 PDF 보기 URL',
+    description:
+      '최신 PrintReadyFile(인디고=임포지션 PDF)의 프리사인드 URL(5분 유효)을 반환. ' +
+      'PDF 미생성 시 404.',
+  })
+  getPrintReadyUrl(@Param('id') id: string) {
+    return this.service.getPrintReadyFileUrl(id);
+  }
+
   @Get('download-logs')
   @ApiOperation({ summary: '다운로드 이력 조회 (페이지네이션)' })
   getDownloadLogs(@Query() query: DownloadLogQueryDto) {

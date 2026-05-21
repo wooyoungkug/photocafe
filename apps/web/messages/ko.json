@@ -895,6 +895,7 @@
       "complete": "출력완료",
       "retry": "재시도",
       "viewDetail": "상세 보기",
+      "viewPdf": "PDF 보기",
       "menu": "메뉴",
       "changeStatus": "상태 변경"
     },
@@ -935,6 +936,7 @@
       "statusUpdateFailed": "상태 변경에 실패했습니다",
       "retryQueued": "재시도가 큐에 등록되었습니다",
       "retryFailed": "재시도 등록에 실패했습니다",
+      "viewPdfFailed": "PDF를 불러오지 못했습니다",
       "agentTodo": "핫폴더 에이전트 연동은 Phase 8 에서 제공됩니다",
       "deliveredManual": "출력중 상태로 변경했습니다 (Phase 8 적용 후 자동 핫폴더 송신)"
     },
